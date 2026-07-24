@@ -73,11 +73,11 @@ jobs:
         working-directory: frontend
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build debug and release variants
+      - name: Build release APK for modern Android phones
         working-directory: frontend/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --stacktrace
 
       - name: Sign standalone APK and create checksum
         shell: bash
