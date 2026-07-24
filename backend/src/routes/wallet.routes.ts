@@ -51,7 +51,7 @@ router.get("/ledger", async (request, response) => {
         metadata: entry.metadata ?? null,
         createdAt: entry.createdAt
       })),
-      nextCursor: hasMore ? page.at(-1)?._id.toString() ?? null : null
+      nextCursor: hasMore ? page[page.length - 1]?._id.toString() ?? null : null
     }
   });
 });

@@ -95,7 +95,7 @@ export function calculateGraceStreak(activeDayKeys: readonly string[], todayDayK
   }
 
   const sorted = [...active].sort();
-  const lastActiveDay = sorted.at(-1) ?? null;
+  const lastActiveDay = sorted[sorted.length - 1] ?? null;
   if (!lastActiveDay) {
     return { activeDays: 0, calendarSpanDays: 0, graceDaysUsed: 0, lastActiveDay: null };
   }
