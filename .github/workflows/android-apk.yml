@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build-apk:
-    name: Build installable APK
+    name: Build unsigned APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -24,10 +24,6 @@ jobs:
       EXPO_NO_TELEMETRY: "1"
       EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -50,12 +46,6 @@ jobs:
             echo "Set the repository variable EXPO_PUBLIC_API_URL to the HTTPS production API URL before building the APK." >&2
             exit 1
           fi
-          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [[ -z "${!variable:-}" ]]; then
-              echo "Missing required GitHub Actions secret: ${variable}" >&2
-              exit 1
-            fi
-          done
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -79,15 +69,74 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --stacktrace
 
-      - name: Sign standalone APK and create checksum
+      - name: Prepare unsigned APK artifact
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts
+          mkdir -p artifacts/unsigned
 
           release_apk="$(find frontend/android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
           if [ -z "${release_apk}" ]; then
             echo "Release APK was not produced" >&2
+            exit 1
+          fi
+          cp "${release_apk}" artifacts/unsigned/logic-coin-unsigned.apk
+
+      - name: Upload unsigned APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: logic-coin-unsigned-apk
+          path: artifacts/unsigned/logic-coin-unsigned.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  sign-apk:
+    name: Sign and verify APK
+    needs: build-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+    steps:
+      - name: Validate signing configuration
+        shell: bash
+        run: |
+          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "Missing required GitHub Actions secret: ${variable}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Download unsigned APK
+        uses: actions/download-artifact@v4
+        with:
+          name: logic-coin-unsigned-apk
+          path: artifacts/unsigned
+
+      - name: Sign standalone APK and create checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/signed
+
+          release_apk="artifacts/unsigned/logic-coin-unsigned.apk"
+          if [ ! -f "${release_apk}" ]; then
+            echo "Unsigned APK artifact was not downloaded" >&2
             exit 1
           fi
 
@@ -107,11 +156,11 @@ jobs:
             --ks-key-alias "${ANDROID_KEY_ALIAS}" \
             --ks-pass "pass:${ANDROID_KEYSTORE_PASSWORD}" \
             --key-pass "pass:${ANDROID_KEY_PASSWORD}" \
-            --out artifacts/logic-coin.apk \
+            --out artifacts/signed/logic-coin.apk \
             "${RUNNER_TEMP}/logic-coin-aligned.apk"
-          "${build_tools}/apksigner" verify --verbose --print-certs artifacts/logic-coin.apk
+          "${build_tools}/apksigner" verify --verbose --print-certs artifacts/signed/logic-coin.apk
 
-          cd artifacts
+          cd artifacts/signed
           sha256sum logic-coin.apk > logic-coin.apk.sha256
 
       - name: Upload APK
@@ -119,7 +168,7 @@ jobs:
         with:
           name: logic-coin-apk
           path: |
-            artifacts/logic-coin.apk
-            artifacts/logic-coin.apk.sha256
+            artifacts/signed/logic-coin.apk
+            artifacts/signed/logic-coin.apk.sha256
           if-no-files-found: error
           retention-days: 30
