@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 320" role="img" aria-label="Logic Coin">
+  <defs>
+    <linearGradient id="brand" x1="22" y1="18" x2="300" y2="304" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#42BFFF"/>
+      <stop offset=".52" stop-color="#0866FF"/>
+      <stop offset="1" stop-color="#563CE7"/>
+    </linearGradient>
+  </defs>
+  <circle cx="160" cy="160" r="144" fill="url(#brand)"/>
+  <circle cx="160" cy="160" r="115" fill="none" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="7"/>
+  <path d="M112 82v134c0 22 14 37 40 37h78" fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="36"/>
+  <path d="M176 103h58v58m0-58-72 72" fill="none" stroke="#C7EBFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="19"/>
+  <text x="342" y="168" fill="#0D1B35" font-family="Inter, Arial, sans-serif" font-size="108" font-weight="800" letter-spacing="-4">Logic Coin</text>
+  <text x="348" y="230" fill="#6E7C96" font-family="Inter, Arial, sans-serif" font-size="29" font-weight="700" letter-spacing="8">SAVE · GROW · ENJOY</text>
+</svg>

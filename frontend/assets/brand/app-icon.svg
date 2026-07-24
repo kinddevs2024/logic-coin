@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Logic Coin app icon">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="90" x2="920" y2="940" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#42BFFF"/>
+      <stop offset=".5" stop-color="#0866FF"/>
+      <stop offset="1" stop-color="#563CE7"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="260" y1="230" x2="730" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity=".08"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="322" fill="url(#shine)" stroke="#FFFFFF" stroke-opacity=".3" stroke-width="18"/>
+  <circle cx="512" cy="512" r="255" fill="none" stroke="#FFFFFF" stroke-opacity=".16" stroke-width="10"/>
+  <path d="M402 337v288c0 40 25 68 73 68h177" fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="82"/>
+  <path d="M548 382h130v130m0-130L520 540" fill="none" stroke="#C7EBFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="48"/>
+  <circle cx="311" cy="492" r="17" fill="#C7EBFF"/>
+  <path d="M328 492h52" stroke="#C7EBFF" stroke-linecap="round" stroke-width="14"/>
+  <circle cx="616" cy="723" r="17" fill="#C7EBFF"/>
+  <path d="M589 694l20 19" stroke="#C7EBFF" stroke-linecap="round" stroke-width="14"/>
+</svg>

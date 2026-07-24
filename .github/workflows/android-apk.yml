@@ -1,0 +1,125 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-apk:
+    name: Build installable APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      CI: "true"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Use pinned npm
+        run: npm install --global npm@11.18.0
+
+      - name: Validate production API configuration
+        shell: bash
+        run: |
+          if [[ -z "${EXPO_PUBLIC_API_URL:-}" || "${EXPO_PUBLIC_API_URL}" != https://* ]]; then
+            echo "Set the repository variable EXPO_PUBLIC_API_URL to the HTTPS production API URL before building the APK." >&2
+            exit 1
+          fi
+          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "Missing required GitHub Actions secret: ${variable}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install frontend workspace
+        run: npm ci --workspace frontend
+
+      - name: Generate native Android project
+        working-directory: frontend
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build debug and release variants
+        working-directory: frontend/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Sign standalone APK and create checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+
+          release_apk="$(find frontend/android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          if [ -z "${release_apk}" ]; then
+            echo "Release APK was not produced" >&2
+            exit 1
+          fi
+
+          build_tools="$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          if [ -z "${build_tools}" ]; then
+            echo "Android build-tools were not found" >&2
+            exit 1
+          fi
+
+          keystore="${RUNNER_TEMP}/logic-coin-upload.p12"
+          printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore}"
+
+          "${build_tools}/zipalign" -p -f 4 "${release_apk}" "${RUNNER_TEMP}/logic-coin-aligned.apk"
+          "${build_tools}/apksigner" sign \
+            --ks "${keystore}" \
+            --ks-type PKCS12 \
+            --ks-key-alias "${ANDROID_KEY_ALIAS}" \
+            --ks-pass "pass:${ANDROID_KEYSTORE_PASSWORD}" \
+            --key-pass "pass:${ANDROID_KEY_PASSWORD}" \
+            --out artifacts/logic-coin.apk \
+            "${RUNNER_TEMP}/logic-coin-aligned.apk"
+          "${build_tools}/apksigner" verify --verbose --print-certs artifacts/logic-coin.apk
+
+          cd artifacts
+          sha256sum logic-coin.apk > logic-coin.apk.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: logic-coin-apk
+          path: |
+            artifacts/logic-coin.apk
+            artifacts/logic-coin.apk.sha256
+          if-no-files-found: error
+          retention-days: 30

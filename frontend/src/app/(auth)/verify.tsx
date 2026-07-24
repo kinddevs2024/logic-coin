@@ -1,0 +1,119 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useMutation } from "@tanstack/react-query";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+
+import { AuthScaffold } from "@/components/auth-scaffold";
+import { AppText } from "@/components/app-text";
+import { AppButton } from "@/components/buttons";
+import { FormField } from "@/components/form-field";
+import { useAppTheme } from "@/hooks/use-app-theme";
+import { useTranslation } from "@/hooks/use-translation";
+import { authApi } from "@/lib/api";
+import { useAppStore } from "@/store/app-store";
+
+export default function VerifyScreen() {
+  const params = useLocalSearchParams<{ email?: string; name?: string }>();
+  const email = params.email ?? "";
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const router = useRouter();
+  const authenticate = useAppStore((state) => state.authenticate);
+  const registrationToken = useAppStore(
+    (state) => state.pendingRegistrationToken,
+  );
+  const [code, setCode] = useState("");
+  const [resent, setResent] = useState(false);
+
+  const verify = useMutation({
+    mutationFn: () => {
+      if (!registrationToken) throw new Error(t("auth.invalid"));
+      return authApi.verifyEmail({ email, code, registrationToken });
+    },
+    onSuccess: (result) => {
+      authenticate({
+        user: result.user ?? { name: params.name ?? "Logic member", email },
+        accessToken: result.tokens.accessToken,
+        refreshToken: result.tokens.refreshToken,
+        balanceUnits: result.user.wallet?.availableUnits,
+      });
+      router.replace("/(tabs)");
+    },
+  });
+
+  const resend = useMutation({
+    mutationFn: () => authApi.resendCode(email),
+    onSuccess: () => setResent(true),
+  });
+
+  return (
+    <AuthScaffold
+      title={t("auth.verifyTitle")}
+      subtitle={`${t("auth.verifyBody")} ${email}`}
+    >
+      <View
+        style={[
+          styles.mail,
+          { backgroundColor: theme.primarySoft },
+        ]}
+      >
+        <Ionicons name="mail-unread" size={30} color={String(theme.primary)} />
+      </View>
+      <FormField
+        label={t("auth.code")}
+        icon="keypad-outline"
+        value={code}
+        onChangeText={(value) => setCode(value.replace(/\D/g, "").slice(0, 6))}
+        keyboardType="number-pad"
+        textContentType="oneTimeCode"
+        autoComplete="one-time-code"
+        placeholder="000000"
+        maxLength={6}
+      />
+      {verify.error ? (
+        <AppText
+          variant="caption"
+          color={String(theme.danger)}
+          style={{ textAlign: "center" }}
+        >
+          {verify.error.message || t("auth.invalid")}
+        </AppText>
+      ) : null}
+      <AppButton
+        onPress={() => verify.mutate()}
+        disabled={code.length !== 6}
+        loading={verify.isPending}
+        icon="checkmark-circle-outline"
+        glow
+      >
+        {t("auth.verify")}
+      </AppButton>
+      <Pressable
+        onPress={() => resend.mutate()}
+        disabled={resend.isPending}
+        style={styles.resend}
+      >
+        <AppText variant="label" color={String(theme.primary)}>
+          {resent ? "✓ " : ""}
+          {t("auth.resend")}
+        </AppText>
+      </Pressable>
+    </AuthScaffold>
+  );
+}
+
+const styles = StyleSheet.create({
+  mail: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    alignSelf: "center",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  resend: {
+    alignItems: "center",
+    paddingVertical: 3,
+  },
+});

@@ -1,0 +1,52 @@
+import type { LogicTask } from "@/types";
+
+export const DEMO_TASKS: LogicTask[] = [
+  {
+    id: "watch-short",
+    titleKey: "task.short.title",
+    descriptionKey: "task.short.description",
+    rewardUnits: 8,
+    category: "quick",
+    icon: "play",
+    color: "#0866FF",
+    repeatable: true,
+  },
+  {
+    id: "watch-series",
+    titleKey: "task.series.title",
+    descriptionKey: "task.series.description",
+    rewardUnits: 28,
+    category: "boost",
+    icon: "layers",
+    color: "#7A5AF8",
+    repeatable: true,
+  },
+  {
+    id: "watch-long",
+    titleKey: "task.long.title",
+    descriptionKey: "task.long.description",
+    rewardUnits: 18,
+    category: "boost",
+    icon: "sparkles",
+    color: "#F79009",
+    repeatable: true,
+  },
+  {
+    id: "daily-check",
+    titleKey: "task.daily.title",
+    descriptionKey: "task.daily.description",
+    rewardUnits: 12,
+    category: "daily",
+    icon: "calendar",
+    color: "#12B76A",
+  },
+  {
+    id: "invite-friend",
+    titleKey: "task.invite.title",
+    descriptionKey: "task.invite.description",
+    rewardUnits: 50,
+    category: "social",
+    icon: "people",
+    color: "#EC4899",
+  },
+];

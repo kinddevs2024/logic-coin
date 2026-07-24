@@ -1,0 +1,344 @@
+import { Router, type Request } from "express";
+import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
+import { z } from "zod";
+import { ApiError } from "../lib/api-error.js";
+import {
+  generateRegistrationToken,
+  hashOpaqueToken,
+  normalizeEmail,
+  opaqueTokenMatches
+} from "../lib/crypto.js";
+import { User } from "../models/User.js";
+import { authLimiter, otpLimiter } from "../middleware/rate-limits.js";
+import { requireAuth } from "../middleware/auth.js";
+import { validateBody } from "../middleware/validate.js";
+import { consumeOtp, createAndSendOtp } from "../services/otp.service.js";
+import {
+  issueTokenPair,
+  revokeAllUserSessions,
+  revokeRefreshToken,
+  revokeSessionById,
+  rotateRefreshToken,
+  type SessionContext
+} from "../services/token.service.js";
+import { createUser, processReferralSignupReward } from "../services/user.service.js";
+import { serializeUser } from "../services/serialization.service.js";
+import {
+  authenticateGoogle,
+  authenticateYandex,
+  createYandexAuthorization
+} from "../services/social-auth.service.js";
+
+const router = Router();
+
+const emailSchema = z.string().trim().email().max(254).transform(normalizeEmail);
+const passwordSchema = z.string().min(8).max(72);
+const deviceIdSchema = z.string().trim().min(1).max(160).optional();
+const registrationTokenSchema = z.string().min(32).max(1_024);
+const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60_000;
+
+const registerSchema = z
+  .object({
+    email: emailSchema,
+    password: passwordSchema,
+    name: z.string().trim().min(1).max(80),
+    referralCode: z.string().trim().min(4).max(32).optional()
+  })
+  .strict();
+
+const verifySchema = z
+  .object({
+    email: emailSchema,
+    code: z.string().regex(/^\d{6}$/),
+    registrationToken: registrationTokenSchema,
+    deviceId: deviceIdSchema
+  })
+  .strict();
+
+const loginSchema = z
+  .object({
+    email: emailSchema,
+    password: passwordSchema,
+    deviceId: deviceIdSchema
+  })
+  .strict();
+
+const refreshSchema = z
+  .object({
+    refreshToken: z.string().min(32).max(1_024),
+    deviceId: deviceIdSchema
+  })
+  .strict();
+
+const logoutSchema = z
+  .object({
+    refreshToken: z.string().min(32).max(1_024).optional(),
+    allDevices: z.boolean().default(false)
+  })
+  .strict();
+
+const googleSchema = z
+  .object({
+    idToken: z.string().min(100).max(20_000),
+    deviceId: deviceIdSchema,
+    referralCode: z.string().trim().min(4).max(32).optional()
+  })
+  .strict();
+
+const yandexExchangeSchema = z
+  .object({
+    code: z.string().min(3).max(2_048),
+    state: z.string().min(20).max(10_000),
+    deviceId: deviceIdSchema
+  })
+  .strict();
+
+function sessionContext(request: Request, deviceId?: string): SessionContext {
+  const userAgent = request.header("user-agent");
+  return {
+    ...(deviceId ? { deviceId } : {}),
+    ...(userAgent ? { userAgent } : {}),
+    ...(request.ip ? { ip: request.ip } : {})
+  };
+}
+
+router.post("/register", authLimiter, validateBody(registerSchema), async (request, response) => {
+  const { email, password, name, referralCode } = request.body as z.infer<typeof registerSchema>;
+  let user = await User.findOne({ email });
+  if (user?.emailVerifiedAt) {
+    throw new ApiError(409, "email_already_registered", "An account with this email already exists");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const registrationToken = generateRegistrationToken();
+  const registrationTokenHash = hashOpaqueToken(registrationToken);
+  const registrationTokenExpiresAt = new Date(Date.now() + REGISTRATION_TOKEN_TTL_MS);
+  if (user) {
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: user._id, emailVerifiedAt: { $exists: false } },
+      {
+        $set: {
+          passwordHash,
+          name,
+          registrationTokenHash,
+          registrationTokenExpiresAt
+        }
+      },
+      { new: true }
+    );
+    if (!updatedUser) {
+      throw new ApiError(409, "email_already_registered", "An account with this email already exists");
+    }
+    user = updatedUser;
+  } else {
+    user = await createUser({
+      email,
+      name,
+      passwordHash,
+      registrationTokenHash,
+      registrationTokenExpiresAt,
+      ...(referralCode ? { referralCode } : {})
+    });
+  }
+
+  const verification = await createAndSendOtp(email);
+  response.status(202).json({
+    data: {
+      userId: user._id.toString(),
+      email,
+      registrationToken,
+      verification
+    }
+  });
+});
+
+router.post(
+  "/email/verify",
+  otpLimiter,
+  validateBody(verifySchema),
+  async (request, response) => {
+    const { email, code, registrationToken, deviceId } = request.body as z.infer<
+      typeof verifySchema
+    >;
+    const existing = await User.findOne({ email }).select(
+      "+registrationTokenHash +registrationTokenExpiresAt"
+    );
+    if (!existing) {
+      throw new ApiError(404, "account_not_found", "Account not found");
+    }
+    if (existing.emailVerifiedAt) {
+      throw new ApiError(409, "email_already_verified", "Email is already verified");
+    }
+    if (
+      !existing.registrationTokenHash ||
+      !existing.registrationTokenExpiresAt ||
+      existing.registrationTokenExpiresAt.getTime() <= Date.now() ||
+      !opaqueTokenMatches(registrationToken, existing.registrationTokenHash)
+    ) {
+      throw new ApiError(
+        400,
+        "invalid_registration_token",
+        "Registration session is invalid or expired"
+      );
+    }
+    await consumeOtp(email, code);
+
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const verified = await User.updateOne(
+          {
+            _id: existing._id,
+            emailVerifiedAt: { $exists: false },
+            registrationTokenHash: hashOpaqueToken(registrationToken),
+            registrationTokenExpiresAt: { $gt: new Date() }
+          },
+          {
+            $set: { emailVerifiedAt: new Date(), lastLoginAt: new Date() },
+            $unset: { registrationTokenHash: 1, registrationTokenExpiresAt: 1 }
+          },
+          { session }
+        );
+        if (verified.modifiedCount !== 1) {
+          throw new ApiError(
+            400,
+            "invalid_registration_token",
+            "Registration session is invalid or expired"
+          );
+        }
+        await processReferralSignupReward(existing._id, session);
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    const user = await User.findById(existing._id);
+    if (!user) {
+      throw new ApiError(404, "account_not_found", "Account not found");
+    }
+    const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
+    response.json({ data: { user: serializeUser(user), tokens } });
+  }
+);
+
+router.post(
+  "/email/resend",
+  otpLimiter,
+  validateBody(z.object({ email: emailSchema }).strict()),
+  async (request, response) => {
+    const { email } = request.body as { email: string };
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw new ApiError(404, "account_not_found", "Account not found");
+    }
+    if (user.emailVerifiedAt) {
+      throw new ApiError(409, "email_already_verified", "Email is already verified");
+    }
+    const verification = await createAndSendOtp(email);
+    response.status(202).json({ data: { email, verification } });
+  }
+);
+
+router.post("/login", authLimiter, validateBody(loginSchema), async (request, response) => {
+  const { email, password, deviceId } = request.body as z.infer<typeof loginSchema>;
+  const user = await User.findOne({ email }).select("+passwordHash");
+  if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
+    throw new ApiError(401, "invalid_credentials", "Email or password is incorrect");
+  }
+  if (!user.emailVerifiedAt) {
+    throw new ApiError(403, "email_not_verified", "Verify your email before signing in");
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save();
+  const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
+  response.json({ data: { user: serializeUser(user), tokens } });
+});
+
+router.post("/refresh", authLimiter, validateBody(refreshSchema), async (request, response) => {
+  const { refreshToken, deviceId } = request.body as z.infer<typeof refreshSchema>;
+  const result = await rotateRefreshToken(refreshToken, sessionContext(request, deviceId));
+  const user = await User.findById(result.userId);
+  if (!user) {
+    throw new ApiError(401, "account_unavailable", "Account is unavailable");
+  }
+  response.json({ data: { user: serializeUser(user), tokens: result.tokens } });
+});
+
+router.post(
+  "/logout",
+  requireAuth,
+  validateBody(logoutSchema),
+  async (request, response) => {
+    const { refreshToken, allDevices } = request.body as z.infer<typeof logoutSchema>;
+    if (allDevices) {
+      await revokeAllUserSessions(request.auth!.userId);
+    } else if (refreshToken) {
+      await revokeRefreshToken(refreshToken);
+    } else if (request.auth?.sessionId) {
+      await revokeSessionById(request.auth.sessionId, request.auth.userId);
+    }
+    response.status(204).send();
+  }
+);
+
+router.post("/google", authLimiter, validateBody(googleSchema), async (request, response) => {
+  const { idToken, deviceId, referralCode } = request.body as z.infer<typeof googleSchema>;
+  const user = await authenticateGoogle(idToken, referralCode);
+  const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
+  response.json({ data: { user: serializeUser(user), tokens } });
+});
+
+router.get("/yandex/start", authLimiter, async (request, response) => {
+  const query = z
+    .object({
+      redirectUri: z.string().url().max(2_048).optional(),
+      referralCode: z.string().trim().min(4).max(32).optional(),
+      deviceId: deviceIdSchema
+    })
+    .safeParse(request.query);
+  if (!query.success) {
+    throw new ApiError(400, "validation_error", "Yandex OAuth parameters are invalid");
+  }
+  response.json({
+    data: await createYandexAuthorization({
+      ...(query.data.redirectUri ? { redirectUri: query.data.redirectUri } : {}),
+      ...(query.data.referralCode ? { referralCode: query.data.referralCode } : {}),
+      binding: sessionContext(request, query.data.deviceId)
+    })
+  });
+});
+
+router.get("/yandex/callback", authLimiter, async (request, response) => {
+  const query = z
+    .object({
+      code: z.string().min(3).max(2_048),
+      state: z.string().min(20).max(10_000)
+    })
+    .safeParse(request.query);
+  if (!query.success) {
+    throw new ApiError(400, "validation_error", "Yandex callback parameters are invalid");
+  }
+  const user = await authenticateYandex(
+    query.data.code,
+    query.data.state,
+    sessionContext(request)
+  );
+  const tokens = await issueTokenPair(user._id, sessionContext(request));
+  response.json({ data: { user: serializeUser(user), tokens } });
+});
+
+router.post(
+  "/yandex/exchange",
+  authLimiter,
+  validateBody(yandexExchangeSchema),
+  async (request, response) => {
+    const { code, state, deviceId } = request.body as z.infer<typeof yandexExchangeSchema>;
+    const user = await authenticateYandex(code, state, sessionContext(request, deviceId));
+    const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
+    response.json({ data: { user: serializeUser(user), tokens } });
+  }
+);
+
+export default router;

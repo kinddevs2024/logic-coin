@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Use pinned npm
+        run: npm install --global npm@11.18.0
+
+      - name: Install frontend workspace
+        run: npm ci --workspace frontend
+
+      - name: Lint
+        run: npm run lint --workspace frontend --if-present
+
+      - name: Type-check
+        run: npm run typecheck --workspace frontend --if-present
+
+      - name: Test
+        run: npm run test --workspace frontend --if-present
+
+      - name: Export Expo web
+        run: npm run build:web --workspace frontend
+
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Use pinned npm
+        run: npm install --global npm@11.18.0
+
+      - name: Install backend workspace
+        run: npm ci --workspace backend
+
+      - name: Lint
+        run: npm run lint --workspace backend --if-present
+
+      - name: Type-check
+        run: npm run typecheck --workspace backend --if-present
+
+      - name: Test
+        run: npm run test --workspace backend --if-present
+
+      - name: Build
+        run: npm run build --workspace backend

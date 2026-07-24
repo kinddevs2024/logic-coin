@@ -1,0 +1,32 @@
+{
+  "name": "logic-coin",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.18.0",
+  "description": "Logic Coin monorepo: Expo application and Node.js API",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently --names frontend,backend --prefix-colors cyan,magenta \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "npm run start --workspace frontend",
+    "dev:backend": "npm run dev --workspace backend",
+    "web": "npm run web --workspace frontend",
+    "android": "npm run android --workspace frontend",
+    "build": "npm run build:web && npm run build:backend",
+    "build:web": "npm run build:web --workspace frontend",
+    "build:backend": "npm run build --workspace backend",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">=22.13 <25",
+    "npm": ">=11 <12"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
