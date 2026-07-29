@@ -23,6 +23,7 @@ export default function RootHtml({ children }: { children: ReactNode }) {
         />
         <meta name="theme-color" content="#0860F0" />
         <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <ScrollViewStyleReset />
         {headNodes}
       </head>

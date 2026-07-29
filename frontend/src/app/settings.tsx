@@ -5,15 +5,14 @@ import {
   Alert,
   Pressable,
   StyleSheet,
-  Switch,
   View,
 } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { ChoiceChip } from "@/components/choice-chip";
+import { GlassSwitch } from "@/components/glass-switch";
 import { GlassSurface } from "@/components/glass-surface";
-import { PiggyBank } from "@/components/piggy-bank";
 import { ScreenHeader } from "@/components/screen-header";
 import { radii, themes, type ThemeMode } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -21,11 +20,10 @@ import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
 import { configureDailyReminder } from "@/lib/notifications";
 import { useAppStore } from "@/store/app-store";
-import type { Language, PiggyKind } from "@/types";
+import type { Language } from "@/types";
 
 const themeModes: ThemeMode[] = ["light", "sky", "dark"];
 const languages: Language[] = ["ru", "uz", "en"];
-const piggies: PiggyKind[] = ["pig", "jar", "safe", "car", "rocket"];
 const times = ["09:00", "19:00", "21:00"];
 
 export default function SettingsScreen() {
@@ -41,8 +39,6 @@ export default function SettingsScreen() {
   const mode = useAppStore((state) => state.theme);
   const setTheme = useAppStore((state) => state.setTheme);
   const setLanguage = useAppStore((state) => state.setLanguage);
-  const selectedPiggy = useAppStore((state) => state.selectedPiggy);
-  const selectPiggy = useAppStore((state) => state.selectPiggy);
   const setGoal = useAppStore((state) => state.setGoal);
   const goal = useAppStore((state) => state.goalUnits);
   const authMode = useAppStore((state) => state.authMode);
@@ -102,11 +98,6 @@ export default function SettingsScreen() {
     patchPreferences({ language: nextLanguage });
   };
 
-  const changePiggy = (piggy: PiggyKind) => {
-    selectPiggy(piggy);
-    patchProfile({ piggyBankVariant: piggy });
-  };
-
   const changeGoal = (amount: number) => {
     setGoal(amount);
     patchProfile({ savingsGoalCents: amount });
@@ -143,20 +134,11 @@ export default function SettingsScreen() {
               {t("settings.notificationBody")}
             </AppText>
           </View>
-          <Switch
+          <GlassSwitch
             accessibilityLabel={t("settings.notifications")}
             value={notificationsEnabled}
             disabled={busy}
             onValueChange={(value) => void toggleNotifications(value)}
-            trackColor={{
-              false: String(theme.border),
-              true: String(theme.primarySoft),
-            }}
-            thumbColor={
-              notificationsEnabled
-                ? String(theme.primary)
-                : String(theme.textMuted)
-            }
           />
         </View>
         <View style={[styles.divider, { backgroundColor: theme.border }]} />
@@ -278,46 +260,6 @@ export default function SettingsScreen() {
       </GlassSurface>
 
       <GlassSurface
-        intensity={54}
-        variant="strong"
-        style={styles.blockGlass}
-      >
-        <AppText variant="heading">{t("settings.bank")}</AppText>
-        <View style={styles.piggyGrid}>
-          {piggies.map((piggy) => {
-            const selected = selectedPiggy === piggy;
-            return (
-              <Pressable
-                key={piggy}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected }}
-                accessibilityLabel={t(`settings.bank.${piggy}`)}
-                onPress={() => changePiggy(piggy)}
-                style={({ pressed }) => [
-                  styles.piggyCard,
-                  {
-                    backgroundColor: selected
-                      ? theme.primarySoft
-                      : theme.glassFillStrong,
-                    borderColor: selected ? theme.primary : theme.border,
-                    opacity: pressed ? 0.76 : 1,
-                  },
-                ]}
-              >
-                <PiggyBank kind={piggy} size={76} interactive={false} />
-                <AppText
-                  variant="caption"
-                  color={selected ? String(theme.primary) : undefined}
-                >
-                  {t(`settings.bank.${piggy}`)}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </GlassSurface>
-
-      <GlassSurface
         intensity={56}
         variant="strong"
         style={[
@@ -421,21 +363,5 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  piggyGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  piggyCard: {
-    width: "31%",
-    minWidth: 94,
-    height: 108,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 1,
-    overflow: "hidden",
   },
 });

@@ -127,7 +127,6 @@ const styles = StyleSheet.create({
   action: {
     flex: 1,
     minHeight: 64,
-    borderRadius: 24,
   },
   tasksPanel: {
     borderRadius: 34,

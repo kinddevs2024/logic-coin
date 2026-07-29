@@ -184,11 +184,11 @@ export function IconButton({
 const styles = StyleSheet.create({
   pressable: {
     minHeight: 52,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
   },
   gradient: {
     flex: 1,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.36)",
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 52,
     paddingHorizontal: 18,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
   secondaryGlass: {
     flex: 1,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
   },
   iconPressable: {
     width: 48,

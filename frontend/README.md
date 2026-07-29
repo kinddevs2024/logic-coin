@@ -45,6 +45,9 @@ SecureStore on native devices. Signed-in task claims call
 provider is connected, pressing a demo task immediately grants its configured
 reward, exactly as requested for the MVP.
 
-Brand assets are original Logic Coin artwork. Run
-`node scripts/generate-brand-assets.mjs` if the PNG exports need to be
-regenerated from the source concept.
+Brand assets use the supplied Logic Coin logo. On Windows, regenerate all Expo
+and PWA sizes from the original 1254×1254 PNG with:
+
+```powershell
+.\scripts\generate-logo-assets.ps1 -SourcePath <path-to-logo.png>
+```
