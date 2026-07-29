@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
@@ -10,6 +9,7 @@ import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
 import { ChoiceChip } from "@/components/choice-chip";
 import { FormField } from "@/components/form-field";
+import { GlassSurface } from "@/components/glass-surface";
 import { ProgressBar } from "@/components/progress-bar";
 import { ScreenHeader } from "@/components/screen-header";
 import { radii } from "@/constants/theme";
@@ -114,49 +114,55 @@ export default function WithdrawScreen() {
         onBack={() => router.back()}
       />
 
-      <LinearGradient
-        colors={
-          eligible
-            ? ["#12B76A", "#087F5B"]
-            : ["#0866FF", "#155DD8", "#5945E8"]
-        }
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.balanceCard, { shadowColor: theme.primary }]}
+      <GlassSurface
+        intensity={84}
+        variant="strong"
+        style={styles.balanceCard}
       >
-        <View style={styles.walletIcon}>
+        <View
+          style={[
+            styles.walletIcon,
+            { backgroundColor: eligible ? theme.success : theme.primary },
+          ]}
+        >
           <Ionicons name="wallet" size={27} color="#FFFFFF" />
         </View>
-        <AppText variant="caption" color="rgba(255,255,255,0.72)">
+        <AppText variant="caption" muted>
           {t("withdraw.available")}
         </AppText>
         <AppText
           variant="display"
-          color="#FFFFFF"
+          color={String(eligible ? theme.success : theme.primary)}
           style={{ fontSize: 44, lineHeight: 51 }}
         >
           {formatMoney(balance)}
         </AppText>
-        <View style={styles.status}>
+        <View
+          style={[
+            styles.status,
+            {
+              backgroundColor: theme.glassFillStrong,
+              borderColor: theme.glassBorder,
+            },
+          ]}
+        >
           <Ionicons
             name={eligible ? "checkmark-circle" : "lock-closed"}
             size={16}
-            color="#FFFFFF"
+            color={String(eligible ? theme.success : theme.primary)}
           />
-          <AppText variant="caption" color="#FFFFFF">
+          <AppText
+            variant="caption"
+            color={String(eligible ? theme.success : theme.primary)}
+          >
             {eligible ? t("withdraw.ready") : t("withdraw.minimum")} ·{" "}
             {authenticated ? "Sandbox" : "Demo sandbox"}
           </AppText>
         </View>
-      </LinearGradient>
+      </GlassSurface>
 
       {!eligible ? (
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
+        <GlassSurface intensity={68} style={styles.card}>
           <View style={styles.lockRow}>
             <View
               style={[
@@ -185,14 +191,9 @@ export default function WithdrawScreen() {
           >
             {t("home.earn")}
           </AppButton>
-        </View>
+        </GlassSurface>
       ) : (
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
+        <GlassSurface intensity={68} style={styles.card}>
           <View style={styles.formSection}>
             <AppText variant="label">{t("withdraw.method")}</AppText>
             <View style={styles.choices}>
@@ -224,15 +225,10 @@ export default function WithdrawScreen() {
           >
             {t("withdraw.submit")}
           </AppButton>
-        </View>
+        </GlassSurface>
       )}
 
-      <View
-        style={[
-          styles.history,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
+      <GlassSurface variant="soft" intensity={60} style={styles.history}>
         <View style={styles.historyTitle}>
           <AppText variant="heading">{t("withdraw.history")}</AppText>
           <Ionicons
@@ -274,7 +270,10 @@ export default function WithdrawScreen() {
         ) : (
           <View style={styles.empty}>
             <View
-              style={[styles.emptyIcon, { backgroundColor: theme.surfaceMuted }]}
+              style={[
+                styles.emptyIcon,
+                { backgroundColor: theme.glassFillStrong },
+              ]}
             >
               <Ionicons
                 name="time-outline"
@@ -289,7 +288,7 @@ export default function WithdrawScreen() {
             </AppText>
           </View>
         )}
-      </View>
+      </GlassSurface>
     </AppFrame>
   );
 }
@@ -299,25 +298,18 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     padding: 24,
     alignItems: "center",
-    shadowOpacity: 0.27,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 13 },
-    elevation: 9,
   },
   walletIcon: {
     width: 54,
     height: 54,
     borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.14)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10,
   },
   status: {
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.14)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
     paddingHorizontal: 10,
     paddingVertical: 7,
     flexDirection: "row",

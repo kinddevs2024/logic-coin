@@ -1,12 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
-import { Alert, Platform, StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
+import { GlassSurface } from "@/components/glass-surface";
 import { ProgressBar } from "@/components/progress-bar";
 import { ScreenHeader } from "@/components/screen-header";
 import { radii } from "@/constants/theme";
@@ -115,40 +115,43 @@ export default function BonusesScreen() {
     <AppFrame>
       <ScreenHeader title={t("bonus.title")} subtitle={t("bonus.subtitle")} />
 
-      <LinearGradient
-        colors={["#0866FF", "#1766DC", "#634AE8"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.hero, { shadowColor: theme.primary }]}
-      >
-        <View style={styles.heroIcon}>
+      <GlassSurface intensity={82} variant="strong" style={styles.hero}>
+        <View style={[styles.heroIcon, { backgroundColor: theme.primary }]}>
           <Ionicons name="flame" size={27} color="#FFFFFF" />
         </View>
         <View style={{ flex: 1 }}>
-          <AppText variant="caption" color="rgba(255,255,255,0.72)">
+          <AppText variant="caption" muted>
             {t("bonus.streak")}
           </AppText>
           <View style={styles.streakRow}>
-            <AppText variant="display" color="#FFFFFF">
+            <AppText variant="display" color={String(theme.primary)}>
               {streak}
             </AppText>
-            <AppText variant="heading" color="rgba(255,255,255,0.82)">
+            <AppText variant="heading">
               {t("bonus.days")}
             </AppText>
           </View>
         </View>
-        <View style={styles.nextBadge}>
-          <AppText variant="caption" color="rgba(255,255,255,0.72)">
+        <View
+          style={[
+            styles.nextBadge,
+            {
+              backgroundColor: theme.glassFillStrong,
+              borderColor: theme.glassBorder,
+            },
+          ]}
+        >
+          <AppText variant="caption" muted>
             {t("bonus.next")}
           </AppText>
-          <AppText variant="label" color="#FFFFFF">
+          <AppText variant="label" color={String(theme.primary)}>
             +{daily.rewardUnits} LC
           </AppText>
-          <AppText variant="caption" color="rgba(255,255,255,0.72)">
+          <AppText variant="caption" muted>
             {t("bonus.nextIn")}
           </AppText>
         </View>
-      </LinearGradient>
+      </GlassSurface>
 
       <View style={styles.dailyAction}>
         <AppButton
@@ -166,16 +169,7 @@ export default function BonusesScreen() {
         </AppButton>
       </View>
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.surfaceRaised,
-            borderColor: theme.border,
-            shadowColor: theme.shadow,
-          },
-        ]}
-      >
+      <GlassSurface intensity={68} style={styles.card}>
         <View style={styles.cardHeader}>
           <View>
             <AppText variant="heading">{t("bonus.calendar")}</AppText>
@@ -226,7 +220,7 @@ export default function BonusesScreen() {
                         ? theme.primary
                         : active
                           ? theme.primarySoft
-                          : theme.surfaceMuted,
+                          : theme.glassFillStrong,
                       borderColor: today ? theme.primary : theme.border,
                     },
                   ]}
@@ -247,14 +241,13 @@ export default function BonusesScreen() {
             );
           })}
         </View>
-      </View>
+      </GlassSurface>
 
       <View style={styles.progressCards}>
-        <View
-          style={[
-            styles.progressCard,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
+        <GlassSurface
+          variant="soft"
+          intensity={58}
+          style={styles.progressCard}
         >
           <View style={styles.progressTitle}>
             <View>
@@ -285,12 +278,11 @@ export default function BonusesScreen() {
           >
             {weekly.claimed ? t("task.received") : t("task.perform")}
           </AppButton>
-        </View>
-        <View
-          style={[
-            styles.progressCard,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
+        </GlassSurface>
+        <GlassSurface
+          variant="soft"
+          intensity={58}
+          style={styles.progressCard}
         >
           <View style={styles.progressTitle}>
             <View>
@@ -322,15 +314,10 @@ export default function BonusesScreen() {
           >
             {monthly.claimed ? t("task.received") : t("task.perform")}
           </AppButton>
-        </View>
+        </GlassSurface>
       </View>
 
-      <View
-        style={[
-          styles.grace,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
+      <GlassSurface variant="soft" intensity={58} style={styles.grace}>
         <View
           style={[
             styles.shield,
@@ -354,7 +341,7 @@ export default function BonusesScreen() {
             1×
           </AppText>
         </View>
-      </View>
+      </GlassSurface>
     </AppFrame>
   );
 }
@@ -366,16 +353,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    shadowOpacity: 0.28,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 9,
   },
   heroIcon: {
     width: 54,
     height: 54,
     borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -386,9 +368,7 @@ const styles = StyleSheet.create({
   },
   nextBadge: {
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.14)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
     padding: 11,
     alignItems: "flex-end",
   },
@@ -400,10 +380,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     borderWidth: 1,
     padding: 18,
-    shadowOpacity: Platform.OS === "web" ? 0.06 : 0.1,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 3,
   },
   cardHeader: {
     flexDirection: "row",

@@ -1,3 +1,6 @@
+import { BlurTargetView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import { useIsFocused } from "expo-router";
 import {
   Animated,
   Platform,
@@ -8,15 +11,28 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect, useState, type PropsWithChildren } from "react";
+import { useEffect, useRef, useState, type PropsWithChildren } from "react";
+import Reanimated, {
+  FadeInDown,
+  ReduceMotion,
+  useReducedMotion,
+} from "react-native-reanimated";
 
+import { GlassBlurTargetContext } from "@/components/glass-blur-target";
 import { useAppTheme } from "@/hooks/use-app-theme";
 
 function AmbientOrbs() {
   const theme = useAppTheme();
   const [drift] = useState(() => new Animated.Value(0));
+  const reduceMotion = useReducedMotion();
+  const isFocused = useIsFocused();
 
   useEffect(() => {
+    if (reduceMotion || !isFocused) {
+      drift.stopAnimation();
+      drift.setValue(0);
+      return;
+    }
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(drift, {
@@ -33,10 +49,19 @@ function AmbientOrbs() {
     );
     animation.start();
     return () => animation.stop();
-  }, [drift]);
+  }, [drift, isFocused, reduceMotion]);
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <LinearGradient
+        colors={[
+          String(theme.backgroundStart),
+          String(theme.backgroundMiddle),
+          String(theme.backgroundEnd),
+        ]}
+        locations={[0, 0.55, 1]}
+        style={StyleSheet.absoluteFill}
+      />
       <Animated.View
         style={[
           styles.orb,
@@ -83,6 +108,39 @@ function AmbientOrbs() {
           },
         ]}
       />
+      <Animated.View
+        style={[
+          styles.orb,
+          styles.orbMiddle,
+          {
+            backgroundColor: theme.glassHighlight,
+            transform: [
+              {
+                translateY: drift.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-16, 18],
+                }),
+              },
+              {
+                translateX: drift.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [18, -14],
+                }),
+              },
+            ],
+          },
+        ]}
+      />
+      <LinearGradient
+        colors={[
+          "rgba(255,255,255,0.5)",
+          "rgba(255,255,255,0.02)",
+          "rgba(73,164,255,0.08)",
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.sheen}
+      />
     </View>
   );
 }
@@ -104,6 +162,7 @@ export function AppFrame({
   noPadding,
 }: AppFrameProps) {
   const theme = useAppTheme();
+  const blurTarget = useRef<View | null>(null);
   const content = [
     styles.content,
     {
@@ -118,23 +177,34 @@ export function AppFrame({
       style={[styles.safe, { backgroundColor: theme.background }]}
       edges={["top", "left", "right"]}
     >
-      <AmbientOrbs />
-      {scroll ? (
-        <ScrollView
-          {...scrollProps}
-          role="main"
-          style={styles.scroll}
-          contentContainerStyle={content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+      <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
+        <AmbientOrbs />
+      </BlurTargetView>
+      <GlassBlurTargetContext.Provider value={blurTarget}>
+        <Reanimated.View
+          entering={FadeInDown.duration(360)
+            .withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] })
+            .reduceMotion(ReduceMotion.System)}
+          style={styles.animatedContent}
         >
-          {children}
-        </ScrollView>
-      ) : (
-        <View role="main" style={content}>
-          {children}
-        </View>
-      )}
+          {scroll ? (
+            <ScrollView
+              {...scrollProps}
+              role="main"
+              style={styles.scroll}
+              contentContainerStyle={content}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            <View role="main" style={content}>
+              {children}
+            </View>
+          )}
+        </Reanimated.View>
+      </GlassBlurTargetContext.Provider>
     </SafeAreaView>
   );
 }
@@ -145,6 +215,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   scroll: {
+    flex: 1,
+  },
+  animatedContent: {
     flex: 1,
   },
   content: {
@@ -162,16 +235,32 @@ const styles = StyleSheet.create({
       : {}),
   },
   orbTop: {
-    width: 210,
-    height: 210,
-    top: -72,
-    right: -74,
+    width: 270,
+    height: 270,
+    top: -110,
+    right: -90,
   },
   orbBottom: {
-    width: 260,
-    height: 260,
-    left: -130,
-    bottom: 80,
-    opacity: 0.2,
+    width: 320,
+    height: 320,
+    left: -150,
+    bottom: 20,
+    opacity: 0.23,
+  },
+  orbMiddle: {
+    width: 190,
+    height: 190,
+    top: "36%",
+    right: -118,
+    opacity: 0.18,
+  },
+  sheen: {
+    position: "absolute",
+    width: "150%",
+    height: 180,
+    top: 60,
+    left: "-25%",
+    transform: [{ rotate: "-9deg" }],
+    opacity: 0.42,
   },
 });

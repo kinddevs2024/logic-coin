@@ -2,13 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   StyleSheet,
   View,
 } from "react-native";
 
 import { AppText } from "@/components/app-text";
+import { GlassSurface } from "@/components/glass-surface";
 import { radii } from "@/constants/theme";
 import type { TranslationKey } from "@/constants/translations";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -55,11 +55,12 @@ export function TaskCard({
   };
 
   return (
-    <View
+    <GlassSurface
+      intensity={compact ? 42 : 56}
+      variant={compact ? "soft" : "regular"}
       style={[
         styles.card,
         {
-          backgroundColor: theme.surfaceRaised,
           borderColor: theme.border,
           shadowColor: theme.shadow,
         },
@@ -94,9 +95,11 @@ export function TaskCard({
             </View>
           ) : null}
         </View>
-        <AppText variant="caption" muted numberOfLines={1}>
-          {localize(task.descriptionKey, t)}
-        </AppText>
+        {compact ? null : (
+          <AppText variant="caption" muted numberOfLines={1}>
+            {localize(task.descriptionKey, t)}
+          </AppText>
+        )}
       </View>
       <View style={styles.reward}>
         <AppText variant="label" color={task.color}>
@@ -133,7 +136,7 @@ export function TaskCard({
           <Ionicons name="arrow-forward" color="#FFFFFF" size={18} />
         )}
       </Pressable>
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -146,10 +149,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    shadowOpacity: Platform.OS === "web" ? 0.055 : 0.09,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
   },
   cardCompact: {
     minHeight: 76,
@@ -181,9 +180,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   action: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
+    width: 44,
+    height: 44,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },

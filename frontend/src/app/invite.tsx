@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Share, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
+import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -49,12 +49,7 @@ export default function InviteScreen() {
         onBack={() => router.back()}
       />
 
-      <LinearGradient
-        colors={["#0866FF", "#4B49E8", "#7A5AF8"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.hero, { shadowColor: theme.primary }]}
-      >
+      <GlassSurface intensity={84} variant="strong" style={styles.hero}>
         <View style={styles.people}>
           {["A", "L", "M"].map((letter, index) => (
             <View
@@ -72,24 +67,29 @@ export default function InviteScreen() {
               </AppText>
             </View>
           ))}
-          <View style={[styles.person, styles.addPerson]}>
+          <View
+            style={[
+              styles.person,
+              styles.addPerson,
+              { backgroundColor: theme.primary },
+            ]}
+          >
             <Ionicons name="add" color="#FFFFFF" size={20} />
           </View>
         </View>
-        <AppText variant="title" color="#FFFFFF" style={{ textAlign: "center" }}>
+        <AppText
+          variant="title"
+          color={String(theme.primary)}
+          style={{ textAlign: "center" }}
+        >
           Logic is better together
         </AppText>
-        <AppText color="rgba(255,255,255,0.75)" style={{ textAlign: "center" }}>
+        <AppText muted style={{ textAlign: "center" }}>
           {t("invite.subtitle")}
         </AppText>
-      </LinearGradient>
+      </GlassSurface>
 
-      <View
-        style={[
-          styles.codeCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
+      <GlassSurface intensity={68} style={styles.codeCard}>
         <AppText variant="caption" muted>
           {t("invite.code")}
         </AppText>
@@ -121,15 +121,10 @@ export default function InviteScreen() {
         <AppButton icon="share-social-outline" glow onPress={() => void share()}>
           {t("invite.share")}
         </AppButton>
-      </View>
+      </GlassSurface>
 
       <View style={styles.stats}>
-        <View
-          style={[
-            styles.stat,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
+        <GlassSurface variant="soft" intensity={56} style={styles.stat}>
           <View style={[styles.statIcon, { backgroundColor: theme.primarySoft }]}>
             <Ionicons
               name="people"
@@ -143,13 +138,8 @@ export default function InviteScreen() {
           <AppText variant="caption" muted>
             {t("invite.invited")}
           </AppText>
-        </View>
-        <View
-          style={[
-            styles.stat,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
+        </GlassSurface>
+        <GlassSurface variant="soft" intensity={56} style={styles.stat}>
           <View style={[styles.statIcon, { backgroundColor: "#ECFDF3" }]}>
             <Ionicons
               name="trending-up"
@@ -163,15 +153,10 @@ export default function InviteScreen() {
           <AppText variant="caption" muted>
             {t("invite.reward")}
           </AppText>
-        </View>
+        </GlassSurface>
       </View>
 
-      <View
-        style={[
-          styles.info,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
+      <GlassSurface variant="soft" intensity={58} style={styles.info}>
         <View style={[styles.infoIcon, { backgroundColor: theme.primarySoft }]}>
           <Ionicons
             name="information-circle"
@@ -183,7 +168,7 @@ export default function InviteScreen() {
           2% от подтверждённых наград друзей начисляются вам как реферальный
           бонус. Баланс друга не уменьшается.
         </AppText>
-      </View>
+      </GlassSurface>
     </AppFrame>
   );
 }
@@ -194,10 +179,6 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: "center",
     gap: 8,
-    shadowOpacity: 0.25,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
   },
   people: {
     flexDirection: "row",
@@ -215,7 +196,6 @@ const styles = StyleSheet.create({
   },
   addPerson: {
     marginLeft: -12,
-    backgroundColor: "rgba(255,255,255,0.18)",
   },
   codeCard: {
     marginTop: 16,

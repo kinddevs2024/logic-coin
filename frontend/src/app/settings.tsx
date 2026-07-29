@@ -12,6 +12,7 @@ import {
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { ChoiceChip } from "@/components/choice-chip";
+import { GlassSurface } from "@/components/glass-surface";
 import { PiggyBank } from "@/components/piggy-bank";
 import { ScreenHeader } from "@/components/screen-header";
 import { radii, themes, type ThemeMode } from "@/constants/theme";
@@ -118,10 +119,12 @@ export default function SettingsScreen() {
         onBack={() => router.back()}
       />
 
-      <View
+      <GlassSurface
+        intensity={58}
+        variant="strong"
         style={[
           styles.section,
-          { backgroundColor: theme.surface, borderColor: theme.border },
+          { borderColor: theme.glassBorder },
         ]}
       >
         <View style={styles.settingRow}>
@@ -141,6 +144,7 @@ export default function SettingsScreen() {
             </AppText>
           </View>
           <Switch
+            accessibilityLabel={t("settings.notifications")}
             value={notificationsEnabled}
             disabled={busy}
             onValueChange={(value) => void toggleNotifications(value)}
@@ -171,9 +175,13 @@ export default function SettingsScreen() {
             ))}
           </View>
         </View>
-      </View>
+      </GlassSurface>
 
-      <View style={styles.block}>
+      <GlassSurface
+        intensity={54}
+        variant="strong"
+        style={styles.blockGlass}
+      >
         <AppText variant="heading">{t("settings.theme")}</AppText>
         <View style={styles.themeGrid}>
           {themeModes.map((themeMode) => {
@@ -182,11 +190,14 @@ export default function SettingsScreen() {
             return (
               <Pressable
                 key={themeMode}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={t(`settings.theme.${themeMode}`)}
                 onPress={() => changeTheme(themeMode)}
                 style={({ pressed }) => [
                   styles.themeCard,
                   {
-                    backgroundColor: palette.background,
+                    backgroundColor: palette.glassFillStrong,
                     borderColor: selected ? theme.primary : theme.border,
                     opacity: pressed ? 0.76 : 1,
                   },
@@ -236,12 +247,14 @@ export default function SettingsScreen() {
             );
           })}
         </View>
-      </View>
+      </GlassSurface>
 
-      <View
+      <GlassSurface
+        intensity={56}
+        variant="strong"
         style={[
           styles.section,
-          { backgroundColor: theme.surface, borderColor: theme.border },
+          { borderColor: theme.glassBorder },
         ]}
       >
         <View style={styles.sectionTitle}>
@@ -262,9 +275,13 @@ export default function SettingsScreen() {
             />
           ))}
         </View>
-      </View>
+      </GlassSurface>
 
-      <View style={styles.block}>
+      <GlassSurface
+        intensity={54}
+        variant="strong"
+        style={styles.blockGlass}
+      >
         <AppText variant="heading">{t("settings.bank")}</AppText>
         <View style={styles.piggyGrid}>
           {piggies.map((piggy) => {
@@ -272,13 +289,16 @@ export default function SettingsScreen() {
             return (
               <Pressable
                 key={piggy}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={t(`settings.bank.${piggy}`)}
                 onPress={() => changePiggy(piggy)}
                 style={({ pressed }) => [
                   styles.piggyCard,
                   {
                     backgroundColor: selected
                       ? theme.primarySoft
-                      : theme.surface,
+                      : theme.glassFillStrong,
                     borderColor: selected ? theme.primary : theme.border,
                     opacity: pressed ? 0.76 : 1,
                   },
@@ -295,12 +315,14 @@ export default function SettingsScreen() {
             );
           })}
         </View>
-      </View>
+      </GlassSurface>
 
-      <View
+      <GlassSurface
+        intensity={56}
+        variant="strong"
         style={[
           styles.section,
-          { backgroundColor: theme.surface, borderColor: theme.border },
+          { borderColor: theme.glassBorder },
         ]}
       >
         <View style={styles.sectionTitle}>
@@ -321,7 +343,7 @@ export default function SettingsScreen() {
             />
           ))}
         </View>
-      </View>
+      </GlassSurface>
     </AppFrame>
   );
 }
@@ -354,7 +376,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
-  block: {
+  blockGlass: {
+    borderRadius: radii.lg,
+    padding: 16,
     gap: 12,
     marginBottom: 18,
   },

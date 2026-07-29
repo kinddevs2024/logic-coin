@@ -5,6 +5,7 @@ import { Alert, StyleSheet, View } from "react-native";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { ChoiceChip } from "@/components/choice-chip";
+import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { TaskCard } from "@/components/task-card";
 import { radii } from "@/constants/theme";
@@ -46,22 +47,12 @@ export default function TasksScreen() {
         title={t("task.title")}
         subtitle={t("task.subtitle")}
         action={
-          <View
-            style={[
-              styles.coin,
-              { backgroundColor: theme.primarySoft },
-            ]}
-          >
+          <GlassSurface variant="soft" intensity={56} style={styles.coin}>
             <Ionicons name="flash" size={18} color={String(theme.primary)} />
-          </View>
+          </GlassSurface>
         }
       />
-      <View
-        style={[
-          styles.note,
-          { backgroundColor: theme.primarySoft, borderColor: theme.border },
-        ]}
-      >
+      <GlassSurface variant="soft" intensity={60} style={styles.note}>
         <View style={[styles.noteIcon, { backgroundColor: theme.primary }]}>
           <Ionicons name="sparkles" color="#FFFFFF" size={19} />
         </View>
@@ -73,7 +64,7 @@ export default function TasksScreen() {
             {t("task.demoNote")}
           </AppText>
         </View>
-      </View>
+      </GlassSurface>
 
       <View style={styles.filters}>
         <ChoiceChip

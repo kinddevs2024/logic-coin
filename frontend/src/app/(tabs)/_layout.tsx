@@ -4,8 +4,14 @@ import { Tabs, useRouter } from "expo-router";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, type ComponentProps } from "react";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  ReduceMotion,
+} from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
+import { GlassSurface } from "@/components/glass-surface";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -59,12 +65,13 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         { bottom: Math.max(12, insets.bottom + 8) },
       ]}
     >
-      <View
+      <GlassSurface
         accessibilityRole="tablist"
+        intensity={74}
+        variant="strong"
         style={[
           styles.tabBar,
           {
-            backgroundColor: theme.tabBar,
             borderColor: theme.border,
             shadowColor: theme.shadow,
           },
@@ -91,10 +98,26 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
               }}
               style={({ pressed }) => [
                 styles.tab,
-                focused && { backgroundColor: theme.primarySoft },
                 pressed && { opacity: 0.7 },
               ]}
             >
+              {focused ? (
+                <Animated.View
+                  entering={FadeIn.duration(180).reduceMotion(
+                    ReduceMotion.System,
+                  )}
+                  exiting={FadeOut.duration(140).reduceMotion(
+                    ReduceMotion.System,
+                  )}
+                  style={[
+                    styles.activePill,
+                    {
+                      backgroundColor: theme.primarySoft,
+                      borderColor: theme.glassBorder,
+                    },
+                  ]}
+                />
+              ) : null}
               <Ionicons
                 name={focused ? meta.activeIcon : meta.icon}
                 size={21}
@@ -110,7 +133,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
             </Pressable>
           );
         })}
-      </View>
+      </GlassSurface>
     </View>
   );
 }
@@ -183,6 +206,7 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 },
     elevation: 16,
+    overflow: "hidden",
   },
   tab: {
     flex: 1,
@@ -192,5 +216,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
     paddingHorizontal: 3,
+    overflow: "hidden",
+  },
+  activePill: {
+    position: "absolute",
+    inset: 0,
+    borderWidth: 1,
+    borderRadius: 17,
   },
 });

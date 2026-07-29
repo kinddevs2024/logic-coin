@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { AppearanceTransition } from "@/components/appearance-transition";
 import { RewardBurst } from "@/components/reward-burst";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { configureDailyReminder } from "@/lib/notifications";
@@ -36,6 +37,12 @@ export default function RootLayout() {
   const language = useAppStore((state) => state.language) ?? "ru";
 
   useEffect(() => {
+    if (Platform.OS === "web") {
+      void useAppStore.persist.rehydrate();
+    }
+  }, []);
+
+  useEffect(() => {
     if (hydrated) {
       void SplashScreen.hideAsync();
     }
@@ -46,6 +53,12 @@ export default function RootLayout() {
       document.title = "Logic Coin";
     }
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      document.documentElement.lang = language;
+    }
+  }, [language]);
 
   useEffect(() => {
     if (
@@ -80,10 +93,11 @@ export default function RootLayout() {
           screenOptions={{
             title: "Logic Coin",
             headerShown: false,
-            animation: "fade_from_bottom",
+            animation: Platform.OS === "web" ? "fade" : "slide_from_right",
             contentStyle: { backgroundColor: theme.background },
           }}
         />
+        <AppearanceTransition />
         <RewardBurst />
       </QueryClientProvider>
     </GestureHandlerRootView>

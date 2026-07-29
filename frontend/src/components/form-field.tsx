@@ -36,7 +36,7 @@ export function FormField({
         style={[
           styles.field,
           {
-            backgroundColor: theme.surface,
+            backgroundColor: theme.glassFillStrong,
             borderColor: error
               ? theme.danger
               : focused
@@ -52,6 +52,7 @@ export function FormField({
         />
         <TextInput
           {...props}
+          accessibilityLabel={props.accessibilityLabel ?? label}
           onFocus={(event) => {
             setFocused(true);
             props.onFocus?.(event);
@@ -68,6 +69,8 @@ export function FormField({
         {secureTextEntry ? (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={`${hidden ? "Show" : "Hide"} ${label}`}
+            accessibilityState={{ expanded: !hidden }}
             onPress={() => setHidden((value) => !value)}
             hitSlop={8}
           >

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Modal,
@@ -10,11 +11,14 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 
 import { ActivityHeatmap } from "@/components/activity-heatmap";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { AppButton, IconButton } from "@/components/buttons";
+import { useGlassBlurTarget } from "@/components/glass-blur-target";
+import { GlassSurface } from "@/components/glass-surface";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -33,49 +37,68 @@ export function ProfileDrawer({
   onInvite: () => void;
 }) {
   const theme = useAppTheme();
+  const blurTarget = useGlassBlurTarget();
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const user = useAppStore((state) => state.user);
   const balance = useAppStore((state) => state.balanceUnits);
   const streak = useAppStore((state) => state.streak);
   const activeDays = useAppStore((state) => state.activeDays);
   const [translateX] = useState(() => new Animated.Value(-440));
   const [backdrop] = useState(() => new Animated.Value(0));
+  const closing = useRef(false);
 
   useEffect(() => {
     if (!visible) return;
+    closing.current = false;
     translateX.setValue(-440);
     backdrop.setValue(0);
+    const entrance = reduceMotion
+      ? Animated.timing(translateX, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: Platform.OS !== "web",
+        })
+      : Animated.spring(translateX, {
+          toValue: 0,
+          damping: 20,
+          stiffness: 180,
+          useNativeDriver: Platform.OS !== "web",
+        });
     Animated.parallel([
-      Animated.spring(translateX, {
-        toValue: 0,
-        damping: 20,
-        stiffness: 180,
-        useNativeDriver: Platform.OS !== "web",
-      }),
+      entrance,
       Animated.timing(backdrop, {
         toValue: 1,
-        duration: 210,
+        duration: reduceMotion ? 0 : 210,
         useNativeDriver: Platform.OS !== "web",
       }),
     ]).start();
-  }, [backdrop, translateX, visible]);
+  }, [backdrop, reduceMotion, translateX, visible]);
 
-  const close = () => {
+  const closeWithAction = (afterClose?: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
     Animated.parallel([
       Animated.timing(translateX, {
         toValue: -440,
-        duration: 190,
+        duration: reduceMotion ? 0 : 190,
         useNativeDriver: Platform.OS !== "web",
       }),
       Animated.timing(backdrop, {
         toValue: 0,
-        duration: 190,
+        duration: reduceMotion ? 0 : 190,
         useNativeDriver: Platform.OS !== "web",
       }),
     ]).start(({ finished }) => {
-      if (finished) onClose();
+      if (finished) {
+        onClose();
+        afterClose?.();
+      } else {
+        closing.current = false;
+      }
     });
   };
+  const close = () => closeWithAction();
 
   return (
     <Modal
@@ -89,133 +112,151 @@ export function ProfileDrawer({
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(4,16,38,0.48)", opacity: backdrop },
+            { backgroundColor: "rgba(4,16,38,0.32)", opacity: backdrop },
           ]}
         >
+          <BlurView
+            pointerEvents="none"
+            intensity={34}
+            tint={theme.mode === "dark" ? "dark" : "light"}
+            {...(Platform.OS === "android" && blurTarget
+              ? {
+                  blurMethod: "dimezisBlurViewSdk31Plus" as const,
+                  blurTarget,
+                }
+              : {})}
+            style={StyleSheet.absoluteFill}
+          />
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
         </Animated.View>
         <Animated.View
           style={[
             styles.drawer,
             {
-              backgroundColor: theme.background,
               transform: [{ translateX }],
               shadowColor: "#000000",
             },
           ]}
         >
-          <ScrollView
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
+          <GlassSurface
+            intensity={82}
+            variant="strong"
+            style={styles.drawerGlass}
           >
-            <View style={styles.close}>
-              <IconButton name="close" label={t("common.close")} onPress={close} />
-            </View>
-            <LinearGradient
-              colors={["#0866FF", "#155DD8", "#5745E9"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.profileCard}
+            <ScrollView
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
             >
-              <View style={styles.profileTop}>
-                <Avatar name={user.name} size={72} />
-                <View style={{ flex: 1 }}>
-                  <AppText variant="heading" color="#FFFFFF">
-                    {user.name}
-                  </AppText>
-                  <AppText variant="caption" color="rgba(255,255,255,0.72)">
-                    {user.email ?? t("common.demo")}
-                  </AppText>
-                </View>
+              <View style={styles.close}>
+                <IconButton
+                  name="close"
+                  label={t("common.close")}
+                  onPress={close}
+                />
               </View>
-              <View style={styles.balanceRow}>
-                <View>
-                  <AppText variant="caption" color="rgba(255,255,255,0.72)">
-                    {t("home.balance")}
-                  </AppText>
-                  <AppText variant="title" color="#FFFFFF">
-                    {formatMoney(balance)}
-                  </AppText>
+              <LinearGradient
+                colors={["rgba(33,139,255,0.92)", "#155DD8", "#5745E9"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.profileCard}
+              >
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={["rgba(255,255,255,0.5)", "rgba(255,255,255,0)"]}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={styles.profileTop}>
+                  <Avatar name={user.name} size={72} />
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="heading" color="#FFFFFF">
+                      {user.name}
+                    </AppText>
+                    <AppText variant="caption" color="rgba(255,255,255,0.72)">
+                      {user.email ?? t("common.demo")}
+                    </AppText>
+                  </View>
                 </View>
-                <View style={styles.lcChip}>
-                  <Ionicons name="diamond" size={15} color="#FFFFFF" />
-                  <AppText variant="caption" color="#FFFFFF">
-                    Logic member
-                  </AppText>
+                <View style={styles.balanceRow}>
+                  <View>
+                    <AppText variant="caption" color="rgba(255,255,255,0.72)">
+                      {t("home.balance")}
+                    </AppText>
+                    <AppText variant="title" color="#FFFFFF">
+                      {formatMoney(balance)}
+                    </AppText>
+                  </View>
+                  <View style={styles.lcChip}>
+                    <Ionicons name="diamond" size={15} color="#FFFFFF" />
+                    <AppText variant="caption" color="#FFFFFF">
+                      Logic member
+                    </AppText>
+                  </View>
                 </View>
-              </View>
-            </LinearGradient>
+              </LinearGradient>
 
-            <View style={styles.stats}>
-              <View style={[styles.stat, { backgroundColor: theme.surface }]}>
-                <AppText variant="heading" color={String(theme.primary)}>
-                  {activeDays}
-                </AppText>
-                <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                  {t("home.drawer.activeDays")}
-                </AppText>
-              </View>
-              <View style={[styles.stat, { backgroundColor: theme.surface }]}>
-                <AppText variant="heading" color={String(theme.primary)}>
-                  {streak}
-                </AppText>
-                <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                  {t("home.drawer.streak")}
-                </AppText>
-              </View>
-            </View>
-
-            <View
-              style={[
-                styles.activity,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}
-            >
-              <View style={styles.activityTitle}>
-                <View>
-                  <AppText variant="label">{t("profile.active")}</AppText>
-                  <AppText variant="caption" muted>
-                    {t("bonus.calendar")}
-                  </AppText>
-                </View>
-                <View
-                  style={[
-                    styles.liveDot,
-                    { backgroundColor: theme.primarySoft },
-                  ]}
-                >
-                  <View
-                    style={[styles.dot, { backgroundColor: theme.primary }]}
-                  />
-                  <AppText variant="caption" color={String(theme.primary)}>
+              <View style={styles.stats}>
+                <GlassSurface style={styles.stat} intensity={48}>
+                  <AppText variant="heading" color={String(theme.primary)}>
                     {activeDays}
                   </AppText>
-                </View>
+                  <AppText variant="caption" muted style={{ textAlign: "center" }}>
+                    {t("home.drawer.activeDays")}
+                  </AppText>
+                </GlassSurface>
+                <GlassSurface style={styles.stat} intensity={48}>
+                  <AppText variant="heading" color={String(theme.primary)}>
+                    {streak}
+                  </AppText>
+                  <AppText variant="caption" muted style={{ textAlign: "center" }}>
+                    {t("home.drawer.streak")}
+                  </AppText>
+                </GlassSurface>
               </View>
-              <ActivityHeatmap compact />
-            </View>
 
-            <AppButton
-              variant="secondary"
-              icon="person-outline"
-              onPress={() => {
-                close();
-                setTimeout(onProfile, 210);
-              }}
-            >
-              {t("home.drawer.profile")}
-            </AppButton>
-            <AppButton
-              icon="person-add-outline"
-              glow
-              onPress={() => {
-                close();
-                setTimeout(onInvite, 210);
-              }}
-            >
-              {t("home.drawer.invite")}
-            </AppButton>
-          </ScrollView>
+              <GlassSurface
+                intensity={52}
+                style={[styles.activity, { borderColor: theme.border }]}
+              >
+                <View style={styles.activityTitle}>
+                  <View>
+                    <AppText variant="label">{t("profile.active")}</AppText>
+                    <AppText variant="caption" muted>
+                      {t("bonus.calendar")}
+                    </AppText>
+                  </View>
+                  <View
+                    style={[
+                      styles.liveDot,
+                      { backgroundColor: theme.primarySoft },
+                    ]}
+                  >
+                    <View
+                      style={[styles.dot, { backgroundColor: theme.primary }]}
+                    />
+                    <AppText variant="caption" color={String(theme.primary)}>
+                      {activeDays}
+                    </AppText>
+                  </View>
+                </View>
+                <ActivityHeatmap compact />
+              </GlassSurface>
+
+              <AppButton
+                variant="secondary"
+                icon="person-outline"
+                onPress={() => closeWithAction(onProfile)}
+              >
+                {t("home.drawer.profile")}
+              </AppButton>
+              <AppButton
+                icon="person-add-outline"
+                glow
+                onPress={() => closeWithAction(onInvite)}
+              >
+                {t("home.drawer.invite")}
+              </AppButton>
+            </ScrollView>
+          </GlassSurface>
         </Animated.View>
       </View>
     </Modal>
@@ -235,6 +276,12 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 8, height: 0 },
     elevation: 18,
+  },
+  drawerGlass: {
+    flex: 1,
+    borderRadius: 0,
+    borderTopRightRadius: 36,
+    borderBottomRightRadius: 36,
   },
   content: {
     paddingHorizontal: 20,

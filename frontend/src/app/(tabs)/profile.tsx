@@ -1,14 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { ActivityHeatmap } from "@/components/activity-heatmap";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { AppButton, IconButton } from "@/components/buttons";
+import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -68,28 +68,27 @@ export default function ProfileScreen() {
         }
       />
 
-      <LinearGradient
-        colors={["#0866FF", "#155DD8", "#5945E8"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.profileCard, { shadowColor: theme.primary }]}
-      >
+      <GlassSurface intensity={82} variant="strong" style={styles.profileCard}>
         <Avatar name={user.name} size={84} />
         <View style={styles.identity}>
-          <AppText variant="title" color="#FFFFFF">
-            {user.name}
-          </AppText>
-          <AppText color="rgba(255,255,255,0.72)">
+          <AppText variant="title">{user.name}</AppText>
+          <AppText muted>
             {user.email ?? t("common.demo")}
           </AppText>
-          <View style={styles.language}>
-            <Ionicons name="globe-outline" size={14} color="#FFFFFF" />
-            <AppText variant="caption" color="#FFFFFF">
+          <View
+            style={[styles.language, { backgroundColor: theme.primarySoft }]}
+          >
+            <Ionicons
+              name="globe-outline"
+              size={14}
+              color={String(theme.primary)}
+            />
+            <AppText variant="caption" color={String(theme.primary)}>
               {language.toUpperCase()}
             </AppText>
           </View>
         </View>
-      </LinearGradient>
+      </GlassSurface>
 
       <View style={styles.stats}>
         {[
@@ -112,32 +111,22 @@ export default function ProfileScreen() {
             color: "#7A5AF8",
           },
         ].map((stat) => (
-          <View
+          <GlassSurface
             key={stat.label}
-            style={[
-              styles.stat,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
+            variant="soft"
+            intensity={54}
+            style={styles.stat}
           >
             <Ionicons name={stat.icon} size={19} color={stat.color} />
             <AppText variant="heading">{stat.value}</AppText>
             <AppText variant="caption" muted style={{ textAlign: "center" }}>
               {stat.label}
             </AppText>
-          </View>
+          </GlassSurface>
         ))}
       </View>
 
-      <View
-        style={[
-          styles.activity,
-          {
-            backgroundColor: theme.surfaceRaised,
-            borderColor: theme.border,
-            shadowColor: theme.shadow,
-          },
-        ]}
-      >
+      <GlassSurface intensity={68} style={styles.activity}>
         <View style={styles.activityHeader}>
           <View>
             <AppText variant="heading">{t("profile.active")}</AppText>
@@ -158,36 +147,34 @@ export default function ProfileScreen() {
         <View style={styles.heatmapScroll}>
           <ActivityHeatmap days={activity?.days} toDayKey={activity?.to} />
         </View>
-      </View>
+      </GlassSurface>
 
-      <Pressable
-        onPress={() => router.push("/invite")}
-        style={({ pressed }) => [
-          styles.referral,
-          {
-            backgroundColor: theme.surface,
-            borderColor: theme.border,
-            opacity: pressed ? 0.78 : 1,
-          },
-        ]}
-      >
-        <View style={[styles.refIcon, { backgroundColor: "#F2EFFF" }]}>
-          <Ionicons name="gift" size={24} color="#7A5AF8" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppText variant="label">{t("profile.invite")}</AppText>
-          <AppText variant="caption" muted>
+      <GlassSurface intensity={62} style={styles.referralSurface}>
+        <Pressable
+          onPress={() => router.push("/invite")}
+          style={({ pressed }) => [
+            styles.referral,
+            { opacity: pressed ? 0.78 : 1 },
+          ]}
+        >
+          <View style={[styles.refIcon, { backgroundColor: "#F2EFFF" }]}>
+            <Ionicons name="gift" size={24} color="#7A5AF8" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppText variant="label">{t("profile.invite")}</AppText>
+            <AppText variant="caption" muted>
             {referral?.code ?? user.referralCode ?? "LOGIC-7Q2M"} ·{" "}
             {referral?.invitedCount ?? (authenticated ? 0 : 3)}{" "}
             {t("invite.people")}
-          </AppText>
-        </View>
-        <Ionicons
-          name="chevron-forward"
-          size={20}
-          color={String(theme.textMuted)}
-        />
-      </Pressable>
+            </AppText>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={String(theme.textMuted)}
+          />
+        </Pressable>
+      </GlassSurface>
 
       <AppButton
         variant="secondary"
@@ -214,10 +201,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-    shadowOpacity: 0.25,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
   },
   identity: {
     flex: 1,
@@ -229,7 +212,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 5,
-    backgroundColor: "rgba(255,255,255,0.14)",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
@@ -255,11 +237,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     padding: 18,
     gap: 18,
-    overflow: "hidden",
-    shadowOpacity: Platform.OS === "web" ? 0.06 : 0.1,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 3,
   },
   activityHeader: {
     flexDirection: "row",
@@ -276,10 +253,11 @@ const styles = StyleSheet.create({
   heatmapScroll: {
     minWidth: 205,
   },
-  referral: {
+  referralSurface: {
     marginTop: 14,
-    borderWidth: 1,
     borderRadius: radii.lg,
+  },
+  referral: {
     padding: 14,
     flexDirection: "row",
     alignItems: "center",

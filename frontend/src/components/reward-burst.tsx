@@ -78,7 +78,7 @@ export function RewardBurst() {
             {t("task.added")}
           </AppText>
           <AppText variant="heading" color={String(theme.primary)}>
-            +{reward} LC
+            +{reward.amount} LC
           </AppText>
         </View>
       </Animated.View>

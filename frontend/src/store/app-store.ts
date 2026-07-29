@@ -31,7 +31,8 @@ type AppState = {
   notificationsEnabled: boolean;
   notificationTime: string;
   taskCounts: Record<string, number>;
-  latestReward: number | null;
+  rewardEventId: number;
+  latestReward: { amount: number; id: number } | null;
   setHydrated: (hydrated: boolean) => void;
   setLanguage: (language: Language) => void;
   finishOnboarding: () => void;
@@ -99,6 +100,7 @@ export const useAppStore = create<AppState>()(
       notificationsEnabled: true,
       notificationTime: "19:00",
       taskCounts: {},
+      rewardEventId: 0,
       latestReward: null,
       setHydrated: (hydrated) => set({ hydrated }),
       setLanguage: (language) => set({ language }),
@@ -151,16 +153,21 @@ export const useAppStore = create<AppState>()(
           streak: 8,
           activeDays: 34,
           taskCounts: {},
+          rewardEventId: 0,
         }),
       addReward: (taskId, units) =>
-        set((state) => ({
-          balanceUnits: state.balanceUnits + units,
-          latestReward: units,
-          taskCounts: {
-            ...state.taskCounts,
-            [taskId]: (state.taskCounts[taskId] ?? 0) + 1,
-          },
-        })),
+        set((state) => {
+          const rewardEventId = state.rewardEventId + 1;
+          return {
+            balanceUnits: state.balanceUnits + units,
+            rewardEventId,
+            latestReward: { amount: units, id: rewardEventId },
+            taskCounts: {
+              ...state.taskCounts,
+              [taskId]: (state.taskCounts[taskId] ?? 0) + 1,
+            },
+          };
+        }),
       setBalance: (balanceUnits) => set({ balanceUnits }),
       clearLatestReward: () => set({ latestReward: null }),
       setGoal: (goalUnits) => set({ goalUnits: Math.max(100, goalUnits) }),
@@ -174,8 +181,10 @@ export const useAppStore = create<AppState>()(
     {
       name: "logic-coin-state-v1",
       storage: createJSONStorage(() => secureStorage),
+      skipHydration: Platform.OS === "web",
       partialize: ({
         hydrated: _hydrated,
+        rewardEventId: _rewardEventId,
         latestReward: _latestReward,
         ...state
       }) => state,

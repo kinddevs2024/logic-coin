@@ -3,7 +3,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -13,6 +12,7 @@ import {
 import type { ComponentProps, PropsWithChildren } from "react";
 
 import { AppText } from "@/components/app-text";
+import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { radii } from "@/constants/theme";
 
@@ -66,7 +66,7 @@ export function AppButton({
       style={[
         styles.inner,
         compact && styles.compact,
-        !isPrimary && { backgroundColor: background },
+        !isPrimary && variant !== "secondary" && { backgroundColor: background },
       ]}
     >
       {loading ? (
@@ -104,13 +104,33 @@ export function AppButton({
     >
       {isPrimary ? (
         <LinearGradient
-          colors={[String(theme.primary), String(theme.primaryDark)]}
+          colors={[
+            `${String(theme.primary)}E8`,
+            String(theme.primaryDark),
+            "#0648B8",
+          ]}
+          locations={[0, 0.66, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
         >
+          <LinearGradient
+            pointerEvents="none"
+            colors={["rgba(255,255,255,0.52)", "rgba(255,255,255,0)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.8, y: 0.8 }}
+            style={StyleSheet.absoluteFill}
+          />
           {inner}
         </LinearGradient>
+      ) : variant === "secondary" ? (
+        <GlassSurface
+          intensity={58}
+          variant="strong"
+          style={styles.secondaryGlass}
+        >
+          {inner}
+        </GlassSurface>
       ) : (
         inner
       )}
@@ -136,20 +156,27 @@ export function IconButton({
       accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.iconButton,
-        {
-          backgroundColor: filled ? theme.primary : theme.surface,
-          borderColor: theme.border,
-          shadowColor: theme.shadow,
-        },
+        styles.iconPressable,
         pressed && { transform: [{ scale: 0.94 }] },
       ]}
     >
-      <Ionicons
-        name={name}
-        size={21}
-        color={filled ? "#FFFFFF" : String(theme.text)}
-      />
+      <GlassSurface
+        intensity={72}
+        variant="strong"
+        style={[
+          styles.iconButton,
+          filled && {
+            backgroundColor: theme.primary,
+            borderColor: "rgba(255,255,255,0.42)",
+          },
+        ]}
+      >
+        <Ionicons
+          name={name}
+          size={21}
+          color={filled ? "#FFFFFF" : String(theme.text)}
+        />
+      </GlassSurface>
     </Pressable>
   );
 }
@@ -163,8 +190,11 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radii.md,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.36)",
   },
   inner: {
+    flex: 1,
     minHeight: 52,
     paddingHorizontal: 18,
     borderRadius: radii.md,
@@ -177,16 +207,20 @@ const styles = StyleSheet.create({
     minHeight: 42,
     paddingHorizontal: 14,
   },
+  secondaryGlass: {
+    flex: 1,
+    borderRadius: radii.md,
+  },
+  iconPressable: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    borderWidth: 1,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    shadowOpacity: Platform.OS === "web" ? 0.08 : 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
   },
 });

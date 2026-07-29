@@ -178,7 +178,15 @@ export function SocialButtons() {
   return (
     <View style={styles.row}>
       {Platform.OS === "web" ? (
-        <View style={[styles.googleShell, { borderColor: theme.border }]}>
+        <View
+          style={[
+            styles.googleShell,
+            {
+              backgroundColor: theme.glassFillStrong,
+              borderColor: theme.glassBorder,
+            },
+          ]}
+        >
           <GoogleWebButton onCredential={(value) => void google(value)} />
         </View>
       ) : (
@@ -188,8 +196,8 @@ export function SocialButtons() {
           style={({ pressed }) => [
             styles.button,
             {
-              backgroundColor: theme.surface,
-              borderColor: theme.border,
+              backgroundColor: theme.glassFillStrong,
+              borderColor: theme.glassBorder,
               opacity: pressed ? 0.72 : busy ? 0.55 : 1,
             },
           ]}
@@ -208,8 +216,8 @@ export function SocialButtons() {
         style={({ pressed }) => [
           styles.button,
           {
-            backgroundColor: theme.surface,
-            borderColor: theme.border,
+            backgroundColor: theme.glassFillStrong,
+            borderColor: theme.glassBorder,
             opacity: pressed ? 0.72 : busy ? 0.55 : 1,
           },
         ]}

@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
+import { GlassSurface } from "@/components/glass-surface";
 import { LogicCoinLogo } from "@/components/logo";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -43,20 +44,7 @@ export default function LanguageScreen() {
         <View style={styles.logo}>
           <LogicCoinLogo />
         </View>
-        <LinearGradient
-          colors={
-            theme.mode === "dark"
-              ? ["#132743", "#101D34"]
-              : ["rgba(255,255,255,0.98)", "rgba(238,246,255,0.94)"]
-          }
-          style={[
-            styles.card,
-            {
-              borderColor: theme.border,
-              shadowColor: theme.shadow,
-            },
-          ]}
-        >
+        <GlassSurface intensity={80} variant="strong" style={styles.card}>
           <View style={styles.heading}>
             <AppText variant="title" style={{ textAlign: "center" }}>
               {t("language.title")}
@@ -69,12 +57,14 @@ export default function LanguageScreen() {
             {choices.map((choice) => (
               <Pressable
                 key={choice.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${choice.nativeName}. ${choice.helper}`}
                 onPress={() => select(choice.id)}
                 style={({ pressed }) => [
                   styles.choice,
                   {
-                    backgroundColor: theme.surface,
-                    borderColor: theme.border,
+                    backgroundColor: theme.glassFillStrong,
+                    borderColor: theme.glassBorder,
                     opacity: pressed ? 0.75 : 1,
                     transform: [{ scale: pressed ? 0.985 : 1 }],
                   },
@@ -109,7 +99,7 @@ export default function LanguageScreen() {
               </Pressable>
             ))}
           </View>
-        </LinearGradient>
+        </GlassSurface>
       </View>
     </AppFrame>
   );
@@ -130,10 +120,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 22,
     gap: 24,
-    shadowOpacity: 0.12,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 15 },
-    elevation: 7,
   },
   heading: {
     gap: 7,
