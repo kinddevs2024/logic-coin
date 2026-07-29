@@ -15,7 +15,7 @@
     "android": {
       "package": "com.kinddevs.logiccoin",
       "adaptiveIcon": {
-        "backgroundColor": "#0866FF",
+        "backgroundColor": "#F7FAFF",
         "foregroundImage": "./assets/brand/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -44,7 +44,7 @@
         {
           "backgroundColor": "#F7FAFF",
           "image": "./assets/brand/splash.png",
-          "imageWidth": 180,
+          "imageWidth": 200,
           "resizeMode": "contain"
         }
       ]

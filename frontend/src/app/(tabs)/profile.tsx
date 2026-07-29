@@ -151,6 +151,8 @@ export default function ProfileScreen() {
 
       <GlassSurface intensity={62} style={styles.referralSurface}>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("profile.invite")}
           onPress={() => router.push("/invite")}
           style={({ pressed }) => [
             styles.referral,
@@ -163,9 +165,9 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <AppText variant="label">{t("profile.invite")}</AppText>
             <AppText variant="caption" muted>
-            {referral?.code ?? user.referralCode ?? "LOGIC-7Q2M"} ·{" "}
-            {referral?.invitedCount ?? (authenticated ? 0 : 3)}{" "}
-            {t("invite.people")}
+              {referral?.code ?? user.referralCode ?? "LOGIC-7Q2M"} ·{" "}
+              {referral?.invitedCount ?? (authenticated ? 0 : 3)}{" "}
+              {t("invite.people")}
             </AppText>
           </View>
           <Ionicons
@@ -176,20 +178,22 @@ export default function ProfileScreen() {
         </Pressable>
       </GlassSurface>
 
-      <AppButton
-        variant="secondary"
-        icon="settings-outline"
-        onPress={() => router.push("/settings")}
-      >
-        {t("profile.settings")}
-      </AppButton>
-      <AppButton
-        variant="ghost"
-        icon="log-out-outline"
-        onPress={() => void signOut()}
-      >
-        {t("profile.logout")}
-      </AppButton>
+      <View style={styles.actions}>
+        <AppButton
+          variant="secondary"
+          icon="settings-outline"
+          onPress={() => router.push("/settings")}
+        >
+          {t("profile.settings")}
+        </AppButton>
+        <AppButton
+          variant="ghost"
+          icon="log-out-outline"
+          onPress={() => void signOut()}
+        >
+          {t("profile.logout")}
+        </AppButton>
+      </View>
     </AppFrame>
   );
 }
@@ -269,5 +273,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+  },
+  actions: {
+    marginTop: 16,
+    gap: 8,
   },
 });

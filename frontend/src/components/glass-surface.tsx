@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { NativeGlassLayer } from "@/components/native-glass-layer";
+import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 
 type GlassSurfaceProps = PropsWithChildren<
@@ -28,6 +29,29 @@ export function GlassSurface({
   ...viewProps
 }: GlassSurfaceProps) {
   const theme = useAppTheme();
+  const flattenedStyle = StyleSheet.flatten(style) ?? {};
+  const defaultRadius =
+    typeof flattenedStyle.borderRadius === "number"
+      ? flattenedStyle.borderRadius
+      : radii.lg;
+  const corners = {
+    borderTopLeftRadius:
+      typeof flattenedStyle.borderTopLeftRadius === "number"
+        ? flattenedStyle.borderTopLeftRadius
+        : defaultRadius,
+    borderTopRightRadius:
+      typeof flattenedStyle.borderTopRightRadius === "number"
+        ? flattenedStyle.borderTopRightRadius
+        : defaultRadius,
+    borderBottomRightRadius:
+      typeof flattenedStyle.borderBottomRightRadius === "number"
+        ? flattenedStyle.borderBottomRightRadius
+        : defaultRadius,
+    borderBottomLeftRadius:
+      typeof flattenedStyle.borderBottomLeftRadius === "number"
+        ? flattenedStyle.borderBottomLeftRadius
+        : defaultRadius,
+  };
   const fill =
     variant === "soft"
       ? theme.glassFill
@@ -52,6 +76,7 @@ export function GlassSurface({
             } as unknown as ViewStyle)
           : null,
         style,
+        corners,
       ]}
     >
       {Platform.OS === "web" ? null : (
@@ -67,7 +92,7 @@ export function GlassSurface({
         locations={[0, 0.42, 1]}
         start={{ x: 0.08, y: 0 }}
         end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, corners]}
       />
       <View
         pointerEvents="none"
@@ -79,6 +104,7 @@ export function GlassSurface({
             borderRightColor: "rgba(255,255,255,0.18)",
             borderBottomColor: "rgba(83,139,190,0.12)",
           },
+          corners,
         ]}
       />
       {children}
@@ -100,6 +126,5 @@ const styles = StyleSheet.create({
     position: "absolute",
     inset: 0,
     borderWidth: 1,
-    borderRadius: 32,
   },
 });

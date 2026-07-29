@@ -31,7 +31,15 @@ test("public config contains no secrets and uses v1 API", async () => {
 test("brand assets and core routes exist", async () => {
   const files = [
     "assets/brand/icon.png",
-    "assets/brand/app-icon.svg",
+    "assets/brand/logo-source.png",
+    "assets/brand/logo-mark.png",
+    "assets/brand/adaptive-icon.png",
+    "assets/brand/splash.png",
+    "assets/brand/favicon.png",
+    "public/icon-192.png",
+    "public/icon-512.png",
+    "public/maskable-icon-512.png",
+    "public/apple-touch-icon.png",
     "src/app/(tabs)/index.tsx",
     "src/app/(tabs)/tasks.tsx",
     "src/app/(tabs)/bonuses.tsx",
