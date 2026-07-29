@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AppearanceTransition } from "@/components/appearance-transition";
 import { RewardBurst } from "@/components/reward-burst";
+import { WebAnalytics } from "@/components/web-analytics";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { configureDailyReminder } from "@/lib/notifications";
 import { useAppStore } from "@/store/app-store";
@@ -99,6 +100,7 @@ export default function RootLayout() {
         />
         <AppearanceTransition />
         <RewardBurst />
+        <WebAnalytics />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

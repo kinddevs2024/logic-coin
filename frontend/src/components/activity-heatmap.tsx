@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { ActivityDay } from "@/types";
 
 const activity = Array.from({ length: 84 }, (_, index) => {
@@ -23,8 +24,9 @@ export function ActivityHeatmap({
   toDayKey?: string;
 }) {
   const theme = useAppTheme();
-  const cellSize = compact ? 8 : 12;
-  const gap = compact ? 3 : 4;
+  const { isDesktop } = useResponsiveLayout();
+  const cellSize = compact ? 8 : isDesktop ? 18 : 12;
+  const gap = compact ? 3 : isDesktop ? 6 : 4;
   const colors = [
     String(theme.surfaceMuted),
     `${String(theme.primary)}42`,
@@ -61,7 +63,7 @@ export function ActivityHeatmap({
                   style={{
                     width: cellSize,
                     height: cellSize,
-                    borderRadius: compact ? 2.5 : 4,
+                    borderRadius: compact ? 2.5 : isDesktop ? 6 : 4,
                     backgroundColor: colors[levels[index] ?? 0],
                   }}
                 />

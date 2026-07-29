@@ -16,6 +16,7 @@ import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { radii, themes, type ThemeMode } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
 import { configureDailyReminder } from "@/lib/notifications";
@@ -29,6 +30,7 @@ const times = ["09:00", "19:00", "21:00"];
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const { isDesktop } = useResponsiveLayout();
   const { t, language } = useTranslation();
   const notificationsEnabled = useAppStore(
     (state) => state.notificationsEnabled,
@@ -104,20 +106,24 @@ export default function SettingsScreen() {
   };
 
   return (
-    <AppFrame>
+    <AppFrame wide>
       <ScreenHeader
         title={t("settings.title")}
         onBack={() => router.back()}
       />
 
-      <GlassSurface
-        intensity={58}
-        variant="strong"
-        style={[
-          styles.section,
-          { borderColor: theme.glassBorder },
-        ]}
+      <View
+        style={[styles.settingsGrid, isDesktop && styles.settingsGridDesktop]}
       >
+        <GlassSurface
+          intensity={58}
+          variant="strong"
+          style={[
+            styles.section,
+            isDesktop && styles.settingsCardDesktop,
+            { borderColor: theme.glassBorder },
+          ]}
+        >
         <View style={styles.settingRow}>
           <View
             style={[styles.settingIcon, { backgroundColor: theme.primarySoft }]}
@@ -157,13 +163,16 @@ export default function SettingsScreen() {
             ))}
           </View>
         </View>
-      </GlassSurface>
+        </GlassSurface>
 
-      <GlassSurface
-        intensity={54}
-        variant="strong"
-        style={styles.blockGlass}
-      >
+        <GlassSurface
+          intensity={54}
+          variant="strong"
+          style={[
+            styles.blockGlass,
+            isDesktop && styles.settingsCardDesktop,
+          ]}
+        >
         <AppText variant="heading">{t("settings.theme")}</AppText>
         <View style={styles.themeGrid}>
           {themeModes.map((themeMode) => {
@@ -229,16 +238,17 @@ export default function SettingsScreen() {
             );
           })}
         </View>
-      </GlassSurface>
+        </GlassSurface>
 
-      <GlassSurface
-        intensity={56}
-        variant="strong"
-        style={[
-          styles.section,
-          { borderColor: theme.glassBorder },
-        ]}
-      >
+        <GlassSurface
+          intensity={56}
+          variant="strong"
+          style={[
+            styles.section,
+            isDesktop && styles.settingsCardDesktop,
+            { borderColor: theme.glassBorder },
+          ]}
+        >
         <View style={styles.sectionTitle}>
           <Ionicons
             name="globe-outline"
@@ -257,16 +267,17 @@ export default function SettingsScreen() {
             />
           ))}
         </View>
-      </GlassSurface>
+        </GlassSurface>
 
-      <GlassSurface
-        intensity={56}
-        variant="strong"
-        style={[
-          styles.section,
-          { borderColor: theme.glassBorder },
-        ]}
-      >
+        <GlassSurface
+          intensity={56}
+          variant="strong"
+          style={[
+            styles.section,
+            isDesktop && styles.settingsCardDesktop,
+            { borderColor: theme.glassBorder },
+          ]}
+        >
         <View style={styles.sectionTitle}>
           <Ionicons
             name="flag-outline"
@@ -285,12 +296,28 @@ export default function SettingsScreen() {
             />
           ))}
         </View>
-      </GlassSurface>
+        </GlassSurface>
+      </View>
     </AppFrame>
   );
 }
 
 const styles = StyleSheet.create({
+  settingsGrid: {
+    width: "100%",
+  },
+  settingsGridDesktop: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+    gap: 18,
+  },
+  settingsCardDesktop: {
+    flexBasis: "46%",
+    flexGrow: 1,
+    minWidth: 360,
+    marginBottom: 0,
+  },
   section: {
     borderWidth: 1,
     borderRadius: radii.lg,

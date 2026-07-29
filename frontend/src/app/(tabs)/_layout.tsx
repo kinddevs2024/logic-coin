@@ -14,6 +14,7 @@ import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { ApiError, bootstrapApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
@@ -56,13 +57,19 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
   const theme = useAppTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { isDesktop } = useResponsiveLayout();
 
   return (
     <View
       pointerEvents="box-none"
       style={[
         styles.tabWrap,
-        { bottom: Math.max(12, insets.bottom + 8) },
+        isDesktop
+          ? styles.tabWrapDesktop
+          : [
+              styles.tabWrapMobile,
+              { bottom: Math.max(12, insets.bottom + 8) },
+            ],
       ]}
     >
       <GlassSurface
@@ -71,6 +78,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         variant="strong"
         style={[
           styles.tabBar,
+          isDesktop && styles.tabBarDesktop,
           {
             borderColor: theme.border,
             shadowColor: theme.shadow,
@@ -98,6 +106,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
               }}
               style={({ pressed }) => [
                 styles.tab,
+                isDesktop && styles.tabDesktop,
                 pressed && { opacity: 0.7 },
               ]}
             >
@@ -111,6 +120,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
                   )}
                   style={[
                     styles.activePill,
+                    isDesktop && styles.activePillDesktop,
                     {
                       backgroundColor: theme.primarySoft,
                       borderColor: theme.glassBorder,
@@ -188,10 +198,12 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   tabWrap: {
     position: "absolute",
-    left: 0,
-    right: 0,
     alignItems: "center",
     paddingHorizontal: 14,
+  },
+  tabWrapMobile: {
+    left: 0,
+    right: 0,
   },
   tabBar: {
     width: "100%",
@@ -208,6 +220,15 @@ const styles = StyleSheet.create({
     elevation: 16,
     overflow: "hidden",
   },
+  tabBarDesktop: {
+    width: 92,
+    maxWidth: 92,
+    minHeight: 0,
+    borderRadius: 32,
+    padding: 8,
+    flexDirection: "column",
+    gap: 6,
+  },
   tab: {
     flex: 1,
     minHeight: 54,
@@ -218,10 +239,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
     overflow: "hidden",
   },
+  tabDesktop: {
+    flex: 0,
+    width: "100%",
+    minHeight: 70,
+    borderRadius: 22,
+    paddingHorizontal: 6,
+  },
   activePill: {
     position: "absolute",
     inset: 0,
     borderWidth: 1,
     borderRadius: 17,
+  },
+  activePillDesktop: {
+    borderRadius: 22,
+  },
+  tabWrapDesktop: {
+    left: 18,
+    width: 92,
+    top: 20,
+    bottom: 20,
+    justifyContent: "center",
+    paddingHorizontal: 0,
   },
 });
