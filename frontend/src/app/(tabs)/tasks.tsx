@@ -10,6 +10,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { TaskCard } from "@/components/task-card";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTasks } from "@/hooks/use-tasks";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
@@ -20,6 +21,7 @@ type Filter = "all" | "daily" | "boost";
 export default function TasksScreen() {
   const theme = useAppTheme();
   const { t } = useTranslation();
+  const { isDesktop } = useResponsiveLayout();
   const [filter, setFilter] = useState<Filter>("all");
   const taskCounts = useAppStore((state) => state.taskCounts);
   const { tasks, claim, pendingTaskId } = useTasks();
@@ -42,7 +44,7 @@ export default function TasksScreen() {
   };
 
   return (
-    <AppFrame>
+    <AppFrame wide desktopNavigationInset>
       <ScreenHeader
         title={t("task.title")}
         subtitle={t("task.subtitle")}
@@ -84,15 +86,19 @@ export default function TasksScreen() {
         />
       </View>
 
-      <View style={styles.list}>
+      <View style={[styles.list, isDesktop && styles.listDesktop]}>
         {filtered.map((task) => (
-          <TaskCard
+          <View
             key={task.id}
-            task={task}
-            count={taskCounts[task.id] ?? 0}
-            loading={pendingTaskId === task.id}
-            onPress={() => void complete(task)}
-          />
+            style={[styles.taskCell, isDesktop && styles.taskCellDesktop]}
+          >
+            <TaskCard
+              task={task}
+              count={taskCounts[task.id] ?? 0}
+              loading={pendingTaskId === task.id}
+              onPress={() => void complete(task)}
+            />
+          </View>
         ))}
       </View>
     </AppFrame>
@@ -130,5 +136,18 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 11,
+  },
+  listDesktop: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "stretch",
+    gap: 12,
+  },
+  taskCell: {
+    width: "100%",
+  },
+  taskCellDesktop: {
+    width: "49%",
+    minWidth: 360,
   },
 });

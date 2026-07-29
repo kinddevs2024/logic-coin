@@ -20,9 +20,11 @@ import Reanimated, {
 
 import { GlassBlurTargetContext } from "@/components/glass-blur-target";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 function AmbientOrbs() {
   const theme = useAppTheme();
+  const { isDesktop } = useResponsiveLayout();
   const [drift] = useState(() => new Animated.Value(0));
   const reduceMotion = useReducedMotion();
   const isFocused = useIsFocused();
@@ -66,6 +68,7 @@ function AmbientOrbs() {
         style={[
           styles.orb,
           styles.orbTop,
+          isDesktop && styles.orbTopDesktop,
           {
             backgroundColor: theme.orbOne,
             transform: [
@@ -89,6 +92,7 @@ function AmbientOrbs() {
         style={[
           styles.orb,
           styles.orbBottom,
+          isDesktop && styles.orbBottomDesktop,
           {
             backgroundColor: theme.orbTwo,
             transform: [
@@ -112,6 +116,7 @@ function AmbientOrbs() {
         style={[
           styles.orb,
           styles.orbMiddle,
+          isDesktop && styles.orbMiddleDesktop,
           {
             backgroundColor: theme.glassHighlight,
             transform: [
@@ -151,6 +156,7 @@ type AppFrameProps = PropsWithChildren<{
   scrollProps?: ScrollViewProps;
   wide?: boolean;
   noPadding?: boolean;
+  desktopNavigationInset?: boolean;
 }>;
 
 export function AppFrame({
@@ -160,14 +166,31 @@ export function AppFrame({
   scrollProps,
   wide,
   noPadding,
+  desktopNavigationInset,
 }: AppFrameProps) {
   const theme = useAppTheme();
+  const { isDesktop, isTablet } = useResponsiveLayout();
   const blurTarget = useRef<View | null>(null);
   const content = [
     styles.content,
     {
-      maxWidth: wide ? 1040 : 720,
-      paddingHorizontal: noPadding ? 0 : 20,
+      maxWidth: wide
+        ? isDesktop
+          ? 1180
+          : isTablet
+            ? 920
+            : 720
+        : isTablet
+          ? 760
+          : 720,
+      paddingHorizontal: noPadding ? 0 : isDesktop ? 32 : isTablet ? 24 : 20,
+      paddingTop: isDesktop ? 22 : 12,
+      paddingBottom:
+        desktopNavigationInset && isDesktop
+          ? 48
+          : Platform.OS === "web"
+            ? 120
+            : 132,
     },
     contentStyle,
   ];
@@ -185,7 +208,12 @@ export function AppFrame({
           entering={FadeInDown.duration(360)
             .withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] })
             .reduceMotion(ReduceMotion.System)}
-          style={styles.animatedContent}
+          style={[
+            styles.animatedContent,
+            desktopNavigationInset &&
+              isDesktop &&
+              styles.animatedContentDesktopNavigation,
+          ]}
         >
           {scroll ? (
             <ScrollView
@@ -220,6 +248,9 @@ const styles = StyleSheet.create({
   animatedContent: {
     flex: 1,
   },
+  animatedContentDesktopNavigation: {
+    paddingLeft: 112,
+  },
   content: {
     width: "100%",
     alignSelf: "center",
@@ -247,12 +278,29 @@ const styles = StyleSheet.create({
     bottom: 20,
     opacity: 0.23,
   },
+  orbBottomDesktop: {
+    width: 520,
+    height: 520,
+    left: -190,
+    bottom: -80,
+  },
   orbMiddle: {
     width: 190,
     height: 190,
     top: "36%",
     right: -118,
     opacity: 0.18,
+  },
+  orbMiddleDesktop: {
+    width: 320,
+    height: 320,
+    right: -80,
+  },
+  orbTopDesktop: {
+    width: 440,
+    height: 440,
+    top: -190,
+    right: -70,
   },
   sheen: {
     position: "absolute",

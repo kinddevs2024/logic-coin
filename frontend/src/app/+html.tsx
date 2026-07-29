@@ -24,6 +24,11 @@ export default function RootHtml({ children }: { children: ReactNode }) {
         <meta name="theme-color" content="#0860F0" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="94aa68f9-beeb-43f3-9310-723b579dbc1b"
+        />
         <ScrollViewStyleReset />
         {headNodes}
       </head>

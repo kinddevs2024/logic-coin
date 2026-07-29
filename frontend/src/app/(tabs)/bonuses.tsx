@@ -112,7 +112,7 @@ export default function BonusesScreen() {
   };
 
   return (
-    <AppFrame>
+    <AppFrame wide desktopNavigationInset>
       <ScreenHeader title={t("bonus.title")} subtitle={t("bonus.subtitle")} />
 
       <GlassSurface intensity={82} variant="strong" style={styles.hero}>
