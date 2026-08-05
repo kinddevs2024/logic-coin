@@ -27,6 +27,7 @@
 - `listing-ru.md` — готовая русская локализация.
 - `privacy-policy.md` — текст опубликованной политики.
 - `play-console-checklist.md` — рекомендуемые параметры Play Console, Data safety и release checklist.
+- `release-notes.md` — готовые примечания к версии 1.0.0 на трёх языках.
 
 ## Повторный экспорт
 

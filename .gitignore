@@ -27,6 +27,8 @@ frontend/web-build/
 *.apk
 *.aab
 store-assets/*.zip
+store-assets/android-release-*/
+store-assets/downloads/
 
 # Build and test output
 dist/
