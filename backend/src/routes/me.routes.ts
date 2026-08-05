@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { PIGGY_BANK_VARIANTS, SUPPORTED_LANGUAGES, THEMES } from "../config/constants.js";
+import { SUPPORTED_LANGUAGES, THEMES } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import { isValidTimeZone } from "../lib/timezone.js";
 import { validateBody } from "../middleware/validate.js";
@@ -21,8 +21,7 @@ const profileSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional(),
     avatarUrl: z.string().url().max(2_048).nullable().optional(),
-    savingsGoalCents: z.number().int().min(0).max(1_000_000_000).optional(),
-    piggyBankVariant: z.enum(PIGGY_BANK_VARIANTS).optional()
+    savingsGoalCents: z.number().int().min(0).max(1_000_000_000).optional()
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, "At least one field is required");
@@ -36,9 +35,6 @@ router.patch("/", validateBody(profileSchema), async (request, response) => {
   else if (input.avatarUrl !== undefined) set.avatarUrl = input.avatarUrl;
   if (input.savingsGoalCents !== undefined) {
     set["preferences.savingsGoalCents"] = input.savingsGoalCents;
-  }
-  if (input.piggyBankVariant !== undefined) {
-    set["preferences.piggyBankVariant"] = input.piggyBankVariant;
   }
 
   const user = await User.findByIdAndUpdate(

@@ -5,7 +5,6 @@ import type {
   BootstrapPayload,
   Language,
   LogicTask,
-  PiggyKind,
   ReferralOverview,
   User,
   UserPreferences,
@@ -167,6 +166,22 @@ async function refreshAccessToken(expiredToken: string): Promise<string> {
 }
 
 export const authApi = {
+  startEmail(email: string) {
+    return request<{
+      email: string;
+      flowToken: string;
+      verification?: { expiresInSeconds?: number };
+    }>("/auth/email/start", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+  completeEmail(input: { email: string; code: string; flowToken: string }) {
+    return request<AuthResult>("/auth/email/complete", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
   register(input: { name: string; email: string; password: string }) {
     return request<{
       userId: string;
@@ -222,6 +237,35 @@ export const authApi = {
     return request<AuthResult>("/auth/yandex/exchange", {
       method: "POST",
       body: JSON.stringify(input),
+    });
+  },
+  telegramStart() {
+    return request<{
+      flowId: string;
+      pollToken: string;
+      botUrl: string;
+      expiresInSeconds: number;
+    }>("/auth/telegram/start", { method: "POST" });
+  },
+  telegramStatus(input: { flowId: string; pollToken: string }) {
+    return request<
+      | { status: "pending" }
+      | ({ status: "complete" } & AuthResult)
+    >("/auth/telegram/status", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  telegramComplete(resumeToken: string) {
+    return request<AuthResult>("/auth/telegram/complete", {
+      method: "POST",
+      body: JSON.stringify({ resumeToken }),
+    });
+  },
+  telegramMiniApp(initData: string) {
+    return request<AuthResult>("/auth/telegram/mini-app", {
+      method: "POST",
+      body: JSON.stringify({ initData }),
     });
   },
   logout(token: string, refreshToken?: string | null) {
@@ -374,7 +418,6 @@ export const meApi = {
       name?: string;
       avatarUrl?: string | null;
       savingsGoalCents?: number;
-      piggyBankVariant?: PiggyKind;
     },
     token: string,
   ) {

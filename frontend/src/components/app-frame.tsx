@@ -39,12 +39,12 @@ function AmbientOrbs() {
       Animated.sequence([
         Animated.timing(drift, {
           toValue: 1,
-          duration: 6500,
+          duration: 9800,
           useNativeDriver: Platform.OS !== "web",
         }),
         Animated.timing(drift, {
           toValue: 0,
-          duration: 6500,
+          duration: 9800,
           useNativeDriver: Platform.OS !== "web",
         }),
       ]),
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   orb: {
     position: "absolute",
     borderRadius: 999,
-    opacity: 0.34,
+    opacity: 0.2,
     ...(Platform.OS === "web"
       ? ({ filter: "blur(46px)" } as unknown as ViewStyle)
       : {}),
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     height: 320,
     left: -150,
     bottom: 20,
-    opacity: 0.23,
+    opacity: 0.14,
   },
   orbBottomDesktop: {
     width: 520,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     height: 190,
     top: "36%",
     right: -118,
-    opacity: 0.18,
+    opacity: 0.1,
   },
   orbMiddleDesktop: {
     width: 320,
@@ -309,6 +309,6 @@ const styles = StyleSheet.create({
     top: 60,
     left: "-25%",
     transform: [{ rotate: "-9deg" }],
-    opacity: 0.42,
+    opacity: 0.18,
   },
 });

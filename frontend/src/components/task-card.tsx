@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   action: {
     width: 44,
     height: 44,
-    borderRadius: 15,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },

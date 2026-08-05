@@ -26,7 +26,12 @@ type LogicTabBarProps = Parameters<
 const tabMeta: Record<
   string,
   {
-    label: "tabs.home" | "tabs.tasks" | "tabs.bonuses" | "tabs.profile";
+    label:
+      | "tabs.home"
+      | "tabs.tasks"
+      | "tabs.bonuses"
+      | "tabs.games"
+      | "tabs.profile";
     icon: ComponentProps<typeof Ionicons>["name"];
     activeIcon: ComponentProps<typeof Ionicons>["name"];
   }
@@ -45,6 +50,11 @@ const tabMeta: Record<
     label: "tabs.bonuses",
     icon: "gift-outline",
     activeIcon: "gift",
+  },
+  games: {
+    label: "tabs.games",
+    icon: "game-controller-outline",
+    activeIcon: "game-controller",
   },
   profile: {
     label: "tabs.profile",
@@ -190,6 +200,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="tasks" />
       <Tabs.Screen name="bonuses" />
+      <Tabs.Screen name="games" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );
@@ -209,7 +220,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 620,
     minHeight: 70,
-    borderRadius: radii.lg,
+    borderRadius: radii.pill,
     borderWidth: 1,
     padding: 7,
     flexDirection: "row",
@@ -224,7 +235,7 @@ const styles = StyleSheet.create({
     width: 92,
     maxWidth: 92,
     minHeight: 0,
-    borderRadius: 32,
+    borderRadius: 40,
     padding: 8,
     flexDirection: "column",
     gap: 6,
@@ -232,7 +243,7 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     minHeight: 54,
-    borderRadius: 17,
+    borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
@@ -243,17 +254,17 @@ const styles = StyleSheet.create({
     flex: 0,
     width: "100%",
     minHeight: 70,
-    borderRadius: 22,
+    borderRadius: 30,
     paddingHorizontal: 6,
   },
   activePill: {
     position: "absolute",
     inset: 0,
     borderWidth: 1,
-    borderRadius: 17,
+    borderRadius: radii.pill,
   },
   activePillDesktop: {
-    borderRadius: 22,
+    borderRadius: 30,
   },
   tabWrapDesktop: {
     left: 18,

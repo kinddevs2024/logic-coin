@@ -12,20 +12,20 @@ type Variant = "display" | "title" | "heading" | "body" | "caption" | "label";
 
 const variants: Record<Variant, TextStyle> = {
   display: {
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 32,
+    lineHeight: 38,
     fontWeight: "800",
     letterSpacing: -1.1,
   },
   title: {
-    fontSize: 27,
-    lineHeight: 34,
+    fontSize: 25,
+    lineHeight: 31,
     fontWeight: "800",
     letterSpacing: -0.7,
   },
   heading: {
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 18,
+    lineHeight: 23,
     fontWeight: "700",
     letterSpacing: -0.25,
   },
@@ -37,12 +37,12 @@ const variants: Record<Variant, TextStyle> = {
   caption: {
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   label: {
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: "700",
+    fontWeight: "600",
   },
 };
 

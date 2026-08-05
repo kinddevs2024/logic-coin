@@ -1,7 +1,6 @@
 import type { ThemeMode } from "@/constants/theme";
 
 export type Language = "ru" | "uz" | "en";
-export type PiggyKind = "pig" | "jar" | "safe" | "car" | "rocket";
 export type AuthMode = "guest" | "authenticated" | null;
 
 export type Wallet = {
@@ -20,7 +19,6 @@ export type Wallet = {
 export type UserPreferences = {
   language: Language;
   theme: ThemeMode;
-  piggyBankVariant: PiggyKind;
   savingsGoalCents: number;
   notificationsEnabled: boolean;
   dailyReminderEnabled: boolean;
@@ -142,7 +140,6 @@ export type BootstrapPayload = {
   };
   supported: {
     languages: Language[];
-    piggyBankVariants: PiggyKind[];
   };
 };
 

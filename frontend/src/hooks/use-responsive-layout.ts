@@ -11,7 +11,7 @@ export function useResponsiveLayout() {
     height,
     width,
     isWeb,
-    isTablet: isWeb && width >= tabletBreakpoint,
+    isTablet: width >= tabletBreakpoint,
     isDesktop: isWeb && width >= desktopBreakpoint,
   };
 }

@@ -13,17 +13,15 @@ import {
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
-import { PiggyBank } from "@/components/piggy-bank";
+import { LogoMark } from "@/components/logo";
 import type { TranslationKey } from "@/constants/translations";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
-import type { PiggyKind } from "@/types";
 
 type Slide = {
   title: TranslationKey;
   body: TranslationKey;
-  kind: PiggyKind;
   icon: ComponentProps<typeof Ionicons>["name"];
   accent: string;
 };
@@ -32,28 +30,24 @@ const slides: Slide[] = [
   {
     title: "onboarding.one.title",
     body: "onboarding.one.body",
-    kind: "pig",
     icon: "trending-up",
     accent: "#0866FF",
   },
   {
     title: "onboarding.two.title",
     body: "onboarding.two.body",
-    kind: "jar",
     icon: "hand-left-outline",
     accent: "#7A5AF8",
   },
   {
     title: "onboarding.three.title",
     body: "onboarding.three.body",
-    kind: "safe",
     icon: "flame-outline",
     accent: "#F79009",
   },
   {
     title: "onboarding.four.title",
     body: "onboarding.four.body",
-    kind: "rocket",
     icon: "rocket-outline",
     accent: "#12B76A",
   },
@@ -151,7 +145,7 @@ export default function OnboardingScreen() {
           >
             <Ionicons name={slide.icon} size={21} color={slide.accent} />
           </View>
-          <PiggyBank kind={slide.kind} size={index === 3 ? 222 : 230} />
+          <LogoMark size={154} />
         </LinearGradient>
         <View style={styles.copy}>
           <AppText variant="display" style={{ textAlign: "center" }}>

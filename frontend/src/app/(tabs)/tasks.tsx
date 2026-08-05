@@ -3,12 +3,10 @@ import { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
-import { AppText } from "@/components/app-text";
 import { ChoiceChip } from "@/components/choice-chip";
 import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { TaskCard } from "@/components/task-card";
-import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTasks } from "@/hooks/use-tasks";
@@ -47,27 +45,12 @@ export default function TasksScreen() {
     <AppFrame wide desktopNavigationInset>
       <ScreenHeader
         title={t("task.title")}
-        subtitle={t("task.subtitle")}
         action={
           <GlassSurface variant="soft" intensity={56} style={styles.coin}>
             <Ionicons name="flash" size={18} color={String(theme.primary)} />
           </GlassSurface>
         }
       />
-      <GlassSurface variant="soft" intensity={60} style={styles.note}>
-        <View style={[styles.noteIcon, { backgroundColor: theme.primary }]}>
-          <Ionicons name="sparkles" color="#FFFFFF" size={19} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppText variant="label" color={String(theme.primary)}>
-            {t("common.demo")}
-          </AppText>
-          <AppText variant="caption" color={String(theme.primary)}>
-            {t("task.demoNote")}
-          </AppText>
-        </View>
-      </GlassSurface>
-
       <View style={styles.filters}>
         <ChoiceChip
           label={t("task.filter.all")}
@@ -110,21 +93,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  note: {
-    borderWidth: 1,
-    borderRadius: radii.lg,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  noteIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },

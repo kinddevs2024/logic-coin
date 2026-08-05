@@ -12,6 +12,7 @@ interface CreateUserInput {
   emailVerifiedAt?: Date;
   googleSub?: string;
   yandexSub?: string;
+  telegramSub?: string;
   referralCode?: string;
 }
 
@@ -39,7 +40,8 @@ export async function createUser(input: CreateUserInput) {
         ...(input.emailVerifiedAt ? { emailVerifiedAt: input.emailVerifiedAt } : {}),
         providers: {
           ...(input.googleSub ? { googleSub: input.googleSub } : {}),
-          ...(input.yandexSub ? { yandexSub: input.yandexSub } : {})
+          ...(input.yandexSub ? { yandexSub: input.yandexSub } : {}),
+          ...(input.telegramSub ? { telegramSub: input.telegramSub } : {})
         },
         referralCode: generateReferralCode(),
         ...(referredBy ? { referredBy } : {})

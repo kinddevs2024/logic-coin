@@ -29,6 +29,7 @@ export default function RootHtml({ children }: { children: ReactNode }) {
           src="https://cloud.umami.is/script.js"
           data-website-id="94aa68f9-beeb-43f3-9310-723b579dbc1b"
         />
+        <script src="https://telegram.org/js/telegram-web-app.js" />
         <ScrollViewStyleReset />
         {headNodes}
       </head>

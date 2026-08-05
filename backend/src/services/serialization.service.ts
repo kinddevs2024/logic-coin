@@ -36,9 +36,10 @@ export function serializeUser(userValue: unknown) {
   const user = (userValue as { toObject?: () => ObjectWithId }).toObject?.() ??
     (userValue as ObjectWithId);
 
+  const email = String(user.email ?? "");
   return {
     id: user._id.toString(),
-    email: user.email,
+    ...(email.endsWith("@telegram.logiccoin.local") ? {} : { email }),
     emailVerified: Boolean(user.emailVerifiedAt),
     name: user.name,
     avatarUrl: user.avatarUrl ?? null,

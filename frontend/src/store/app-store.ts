@@ -8,7 +8,6 @@ import type {
   AuthMode,
   BootstrapPayload,
   Language,
-  PiggyKind,
   User,
 } from "@/types";
 import type { ThemeMode } from "@/constants/theme";
@@ -26,7 +25,6 @@ type AppState = {
   goalUnits: number;
   streak: number;
   activeDays: number;
-  selectedPiggy: PiggyKind;
   theme: ThemeMode;
   notificationsEnabled: boolean;
   notificationTime: string;
@@ -50,7 +48,6 @@ type AppState = {
   setBalance: (units: number) => void;
   clearLatestReward: () => void;
   setGoal: (units: number) => void;
-  selectPiggy: (piggy: PiggyKind) => void;
   setTheme: (theme: ThemeMode) => void;
   setNotifications: (enabled: boolean) => void;
   setNotificationTime: (time: string) => void;
@@ -95,7 +92,6 @@ export const useAppStore = create<AppState>()(
       goalUnits: 1000,
       streak: 8,
       activeDays: 34,
-      selectedPiggy: "pig",
       theme: "light",
       notificationsEnabled: true,
       notificationTime: "19:00",
@@ -134,7 +130,6 @@ export const useAppStore = create<AppState>()(
           ),
           streak: payload.activity.streak.activeDays,
           activeDays: payload.activity.totalActiveDays,
-          selectedPiggy: payload.user.preferences.piggyBankVariant,
           theme: payload.user.preferences.theme,
           language: payload.user.preferences.language,
           notificationsEnabled:
@@ -171,7 +166,6 @@ export const useAppStore = create<AppState>()(
       setBalance: (balanceUnits) => set({ balanceUnits }),
       clearLatestReward: () => set({ latestReward: null }),
       setGoal: (goalUnits) => set({ goalUnits: Math.max(100, goalUnits) }),
-      selectPiggy: (selectedPiggy) => set({ selectedPiggy }),
       setTheme: (theme) => set({ theme }),
       setNotifications: (notificationsEnabled) => set({ notificationsEnabled }),
       setNotificationTime: (notificationTime) => set({ notificationTime }),
@@ -180,6 +174,16 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "logic-coin-state-v1",
+      version: 2,
+      migrate: (persistedState) => {
+        if (!persistedState || typeof persistedState !== "object") {
+          return persistedState as AppState;
+        }
+        const next = { ...(persistedState as Record<string, unknown>) };
+        delete next.selectedPiggy;
+        delete next.selectPiggy;
+        return next as AppState;
+      },
       storage: createJSONStorage(() => secureStorage),
       skipHydration: Platform.OS === "web",
       partialize: ({

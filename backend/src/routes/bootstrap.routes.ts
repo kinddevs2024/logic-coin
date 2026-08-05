@@ -51,8 +51,7 @@ router.get("/", async (request, response) => {
         taskProvider: "demo"
       },
       supported: {
-        languages: ["en", "ru", "uz"],
-        piggyBankVariants: ["pig", "jar", "safe", "car", "rocket"]
+        languages: ["en", "ru", "uz"]
       }
     }
   });

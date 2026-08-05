@@ -33,6 +33,7 @@ const rawEnvSchema = z.object({
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   YANDEX_CLIENT_ID: z.string().optional(),
   YANDEX_CLIENT: z.string().optional(),
   YANDEX_CLIENT_SECRET: z.string().optional(),
@@ -42,6 +43,8 @@ const rawEnvSchema = z.object({
   REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(50),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().optional(),
+  TELEGRAM_WEBHOOK_SECRET: z.string().min(16).max(256).optional(),
   TELEGRAM_ADMIN_CHAT_ID: z.string().optional()
 });
 

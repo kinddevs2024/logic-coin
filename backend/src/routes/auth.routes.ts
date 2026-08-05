@@ -29,6 +29,15 @@ import {
   authenticateYandex,
   createYandexAuthorization
 } from "../services/social-auth.service.js";
+import {
+  assertTelegramWebhookSecret,
+  authenticateTelegram,
+  completeTelegramResume,
+  confirmTelegramBotUpdate,
+  createTelegramLogin,
+  pollTelegramLogin,
+  verifyTelegramMiniApp
+} from "../services/telegram-auth.service.js";
 
 const router = Router();
 
@@ -37,6 +46,22 @@ const passwordSchema = z.string().min(8).max(72);
 const deviceIdSchema = z.string().trim().min(1).max(160).optional();
 const registrationTokenSchema = z.string().min(32).max(1_024);
 const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60_000;
+
+const emailStartSchema = z
+  .object({
+    email: emailSchema,
+    referralCode: z.string().trim().min(4).max(32).optional()
+  })
+  .strict();
+
+const emailCompleteSchema = z
+  .object({
+    email: emailSchema,
+    code: z.string().regex(/^\d{6}$/),
+    flowToken: registrationTokenSchema,
+    deviceId: deviceIdSchema
+  })
+  .strict();
 
 const registerSchema = z
   .object({
@@ -102,6 +127,189 @@ function sessionContext(request: Request, deviceId?: string): SessionContext {
     ...(request.ip ? { ip: request.ip } : {})
   };
 }
+
+router.post(
+  "/email/start",
+  otpLimiter,
+  validateBody(emailStartSchema),
+  async (request, response) => {
+    const { email, referralCode } = request.body as z.infer<
+      typeof emailStartSchema
+    >;
+    const flowToken = generateRegistrationToken();
+    const registrationTokenHash = hashOpaqueToken(flowToken);
+    const registrationTokenExpiresAt = new Date(
+      Date.now() + REGISTRATION_TOKEN_TTL_MS
+    );
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const localName = email.split("@")[0]?.replace(/[._-]+/g, " ").trim();
+      user = await createUser({
+        email,
+        name: localName || "Logic member",
+        registrationTokenHash,
+        registrationTokenExpiresAt,
+        ...(referralCode ? { referralCode } : {})
+      });
+    } else {
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            registrationTokenHash,
+            registrationTokenExpiresAt
+          }
+        }
+      );
+    }
+
+    const verification = await createAndSendOtp(email);
+    response.status(202).json({
+      data: {
+        email,
+        flowToken,
+        verification
+      }
+    });
+  }
+);
+
+router.post(
+  "/email/complete",
+  otpLimiter,
+  validateBody(emailCompleteSchema),
+  async (request, response) => {
+    const { email, code, flowToken, deviceId } = request.body as z.infer<
+      typeof emailCompleteSchema
+    >;
+    const existing = await User.findOne({ email }).select(
+      "+registrationTokenHash +registrationTokenExpiresAt"
+    );
+    if (
+      !existing?.registrationTokenHash ||
+      !existing.registrationTokenExpiresAt ||
+      existing.registrationTokenExpiresAt.getTime() <= Date.now() ||
+      !opaqueTokenMatches(flowToken, existing.registrationTokenHash)
+    ) {
+      throw new ApiError(400, "invalid_email_flow", "Email login has expired");
+    }
+
+    await consumeOtp(email, code);
+    const wasVerified = Boolean(existing.emailVerifiedAt);
+    const user = await User.findOneAndUpdate(
+      {
+        _id: existing._id,
+        registrationTokenHash: hashOpaqueToken(flowToken),
+        registrationTokenExpiresAt: { $gt: new Date() }
+      },
+      {
+        $set: {
+          emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
+          lastLoginAt: new Date()
+        },
+        $unset: {
+          registrationTokenHash: 1,
+          registrationTokenExpiresAt: 1
+        }
+      },
+      { new: true }
+    );
+    if (!user) {
+      throw new ApiError(400, "invalid_email_flow", "Email login has expired");
+    }
+
+    if (!wasVerified) {
+      const referralSession = await mongoose.startSession();
+      try {
+        await referralSession.withTransaction(async () => {
+          await processReferralSignupReward(user._id, referralSession);
+        });
+      } finally {
+        await referralSession.endSession();
+      }
+    }
+
+    const tokens = await issueTokenPair(
+      user._id,
+      sessionContext(request, deviceId)
+    );
+    response.json({ data: { user: serializeUser(user), tokens } });
+  }
+);
+
+router.post("/telegram/start", authLimiter, async (_request, response) => {
+  response.status(201).json({ data: await createTelegramLogin() });
+});
+
+router.post("/telegram/status", authLimiter, async (request, response) => {
+  const parsed = z
+    .object({
+      flowId: z.string().min(20).max(64),
+      pollToken: z.string().min(32).max(256),
+      deviceId: deviceIdSchema
+    })
+    .strict()
+    .safeParse(request.body);
+  if (!parsed.success) {
+    throw new ApiError(400, "validation_error", "Telegram login data is invalid");
+  }
+  const user = await pollTelegramLogin(parsed.data.flowId, parsed.data.pollToken);
+  if (!user) {
+    response.status(202).json({ data: { status: "pending" } });
+    return;
+  }
+  const tokens = await issueTokenPair(
+    user._id,
+    sessionContext(request, parsed.data.deviceId)
+  );
+  response.json({ data: { status: "complete", user: serializeUser(user), tokens } });
+});
+
+router.post("/telegram/complete", authLimiter, async (request, response) => {
+  const parsed = z
+    .object({
+      resumeToken: z.string().min(32).max(256),
+      deviceId: deviceIdSchema
+    })
+    .strict()
+    .safeParse(request.body);
+  if (!parsed.success) {
+    throw new ApiError(400, "validation_error", "Telegram login data is invalid");
+  }
+  const user = await completeTelegramResume(parsed.data.resumeToken);
+  const tokens = await issueTokenPair(
+    user._id,
+    sessionContext(request, parsed.data.deviceId)
+  );
+  response.json({ data: { user: serializeUser(user), tokens } });
+});
+
+router.post("/telegram/mini-app", authLimiter, async (request, response) => {
+  const parsed = z
+    .object({ initData: z.string().min(20).max(20_000), deviceId: deviceIdSchema })
+    .strict()
+    .safeParse(request.body);
+  if (!parsed.success) {
+    throw new ApiError(400, "validation_error", "Telegram data is invalid");
+  }
+  const user = await authenticateTelegram(
+    verifyTelegramMiniApp(parsed.data.initData)
+  );
+  const tokens = await issueTokenPair(
+    user._id,
+    sessionContext(request, parsed.data.deviceId)
+  );
+  response.json({ data: { user: serializeUser(user), tokens } });
+});
+
+router.post("/telegram/webhook", async (request, response) => {
+  assertTelegramWebhookSecret(
+    request.header("x-telegram-bot-api-secret-token")
+  );
+  const result = await confirmTelegramBotUpdate(request.body as never);
+  response.json({ ok: true, ...result });
+});
 
 router.post("/register", authLimiter, validateBody(registerSchema), async (request, response) => {
   const { email, password, name, referralCode } = request.body as z.infer<typeof registerSchema>;

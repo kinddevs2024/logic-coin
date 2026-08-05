@@ -1,10 +1,11 @@
 import { Schema, model, models, type InferSchemaType, type Model } from "mongoose";
-import { PIGGY_BANK_VARIANTS, SUPPORTED_LANGUAGES, THEMES } from "../config/constants.js";
+import { SUPPORTED_LANGUAGES, THEMES } from "../config/constants.js";
 
 const providerSchema = new Schema(
   {
     googleSub: { type: String },
-    yandexSub: { type: String }
+    yandexSub: { type: String },
+    telegramSub: { type: String }
   },
   { _id: false }
 );
@@ -13,12 +14,6 @@ const preferencesSchema = new Schema(
   {
     language: { type: String, enum: SUPPORTED_LANGUAGES, default: "ru", required: true },
     theme: { type: String, enum: THEMES, default: "light", required: true },
-    piggyBankVariant: {
-      type: String,
-      enum: PIGGY_BANK_VARIANTS,
-      default: "pig",
-      required: true
-    },
     savingsGoalCents: { type: Number, min: 0, default: 1_000, required: true },
     notificationsEnabled: { type: Boolean, default: true, required: true },
     dailyReminderEnabled: { type: Boolean, default: true, required: true },
@@ -66,6 +61,7 @@ userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ referralCode: 1 }, { unique: true });
 userSchema.index({ "providers.googleSub": 1 }, { unique: true, sparse: true });
 userSchema.index({ "providers.yandexSub": 1 }, { unique: true, sparse: true });
+userSchema.index({ "providers.telegramSub": 1 }, { unique: true, sparse: true });
 userSchema.index({ referredBy: 1, createdAt: -1 });
 
 export type UserDocument = InferSchemaType<typeof userSchema>;

@@ -14,7 +14,7 @@ import { authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export default function VerifyScreen() {
-  const params = useLocalSearchParams<{ email?: string; name?: string }>();
+  const params = useLocalSearchParams<{ email?: string }>();
   const email = params.email ?? "";
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -23,17 +23,24 @@ export default function VerifyScreen() {
   const registrationToken = useAppStore(
     (state) => state.pendingRegistrationToken,
   );
+  const setPendingRegistrationToken = useAppStore(
+    (state) => state.setPendingRegistrationToken,
+  );
   const [code, setCode] = useState("");
   const [resent, setResent] = useState(false);
 
   const verify = useMutation({
     mutationFn: () => {
       if (!registrationToken) throw new Error(t("auth.invalid"));
-      return authApi.verifyEmail({ email, code, registrationToken });
+      return authApi.completeEmail({
+        email,
+        code,
+        flowToken: registrationToken,
+      });
     },
     onSuccess: (result) => {
       authenticate({
-        user: result.user ?? { name: params.name ?? "Logic member", email },
+        user: result.user,
         accessToken: result.tokens.accessToken,
         refreshToken: result.tokens.refreshToken,
         balanceUnits: result.user.wallet?.availableUnits,
@@ -43,8 +50,11 @@ export default function VerifyScreen() {
   });
 
   const resend = useMutation({
-    mutationFn: () => authApi.resendCode(email),
-    onSuccess: () => setResent(true),
+    mutationFn: () => authApi.startEmail(email),
+    onSuccess: (result) => {
+      setPendingRegistrationToken(result.flowToken);
+      setResent(true);
+    },
   });
 
   return (
