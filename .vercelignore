@@ -1,0 +1,26 @@
+# Local source material and visual QA artifacts are not runtime assets.
+imgs/
+design-qa/
+design-qa-spotify/
+artifacts/
+
+# Local build state and mobile artifacts.
+.vercel/
+**/.vercel/
+node_modules/
+**/node_modules/
+frontend/dist/
+frontend/android/
+frontend/ios/
+*.apk
+*.aab
+
+# Secrets and editor state.
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.jks
+*.keystore
+.idea/
+.vscode/
