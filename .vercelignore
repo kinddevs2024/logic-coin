@@ -3,6 +3,7 @@ imgs/
 design-qa/
 design-qa-spotify/
 artifacts/
+store-assets/
 
 # Local build state and mobile artifacts.
 .vercel/

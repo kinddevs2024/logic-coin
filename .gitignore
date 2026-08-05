@@ -26,6 +26,7 @@ frontend/dist/
 frontend/web-build/
 *.apk
 *.aab
+store-assets/*.zip
 
 # Build and test output
 dist/

@@ -27,6 +27,24 @@ const themeModes: ThemeMode[] = ["light", "sky", "dark"];
 const languages: Language[] = ["ru", "uz", "en"];
 const times = ["09:00", "19:00", "21:00"];
 
+const legalCopy = {
+  ru: {
+    title: "Данные и конфиденциальность",
+    privacy: "Политика конфиденциальности",
+    deleteAccount: "Удаление аккаунта",
+  },
+  uz: {
+    title: "Ma’lumotlar va maxfiylik",
+    privacy: "Maxfiylik siyosati",
+    deleteAccount: "Hisobni o‘chirish",
+  },
+  en: {
+    title: "Data and privacy",
+    privacy: "Privacy Policy",
+    deleteAccount: "Delete account",
+  },
+} as const;
+
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useAppTheme();
@@ -47,6 +65,7 @@ export default function SettingsScreen() {
   const accessToken = useAppStore((state) => state.accessToken);
   const [busy, setBusy] = useState(false);
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
+  const legal = legalCopy[language];
   const patchPreferences = (
     input: Parameters<typeof meApi.updatePreferences>[0],
   ) => {
@@ -297,6 +316,61 @@ export default function SettingsScreen() {
           ))}
         </View>
         </GlassSurface>
+
+        <GlassSurface
+          intensity={56}
+          variant="strong"
+          style={[
+            styles.section,
+            isDesktop && styles.settingsCardDesktop,
+            { borderColor: theme.glassBorder },
+          ]}
+        >
+          <View style={styles.sectionTitle}>
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={20}
+              color={String(theme.primary)}
+            />
+            <AppText variant="heading">{legal.title}</AppText>
+          </View>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push("/privacy" as never)}
+            style={({ pressed }) => [
+              styles.legalRow,
+              { borderColor: theme.border, opacity: pressed ? 0.72 : 1 },
+            ]}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={20}
+              color={String(theme.primary)}
+            />
+            <AppText style={styles.legalText}>{legal.privacy}</AppText>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={String(theme.textMuted)}
+            />
+          </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push("/account-deletion" as never)}
+            style={({ pressed }) => [
+              styles.legalRow,
+              { borderColor: theme.border, opacity: pressed ? 0.72 : 1 },
+            ]}
+          >
+            <Ionicons name="trash-outline" size={20} color="#E5484D" />
+            <AppText style={styles.legalText}>{legal.deleteAccount}</AppText>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={String(theme.textMuted)}
+            />
+          </Pressable>
+        </GlassSurface>
       </View>
     </AppFrame>
   );
@@ -390,5 +464,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  legalRow: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  legalText: {
+    flex: 1,
   },
 });
