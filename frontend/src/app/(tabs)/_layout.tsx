@@ -4,11 +4,6 @@ import { Tabs, useRouter } from "expo-router";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, type ComponentProps } from "react";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  ReduceMotion,
-} from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
@@ -121,13 +116,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
               ]}
             >
               {focused ? (
-                <Animated.View
-                  entering={FadeIn.duration(180).reduceMotion(
-                    ReduceMotion.System,
-                  )}
-                  exiting={FadeOut.duration(140).reduceMotion(
-                    ReduceMotion.System,
-                  )}
+                <View
                   style={[
                     styles.activePill,
                     isDesktop && styles.activePillDesktop,
@@ -192,7 +181,7 @@ export default function TabsLayout() {
       tabBar={(props) => <LogicTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        animation: "shift",
+        animation: Platform.OS === "web" ? "none" : "shift",
         tabBarHideOnKeyboard: true,
         sceneStyle: { backgroundColor: "transparent" },
       }}

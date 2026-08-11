@@ -14,6 +14,7 @@ import bonusesRoutes from "./routes/bonuses.routes.js";
 import bootstrapRoutes from "./routes/bootstrap.routes.js";
 import devicesRoutes from "./routes/devices.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import gamesRoutes from "./routes/games.routes.js";
 import meRoutes from "./routes/me.routes.js";
 import referralsRoutes from "./routes/referrals.routes.js";
 import tasksRoutes from "./routes/tasks.routes.js";
@@ -63,6 +64,7 @@ api.use("/bonuses", bonusesRoutes);
 api.use("/referrals", referralsRoutes);
 api.use("/withdrawals", withdrawalsRoutes);
 api.use("/devices", devicesRoutes);
+api.use("/games", gamesRoutes);
 
 app.get("/", (_request, response) => {
   response.json({

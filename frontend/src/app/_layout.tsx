@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppearanceTransition } from "@/components/appearance-transition";
 import { RewardBurst } from "@/components/reward-burst";
 import { WebAnalytics } from "@/components/web-analytics";
+import { useGameProgressStore } from "@/games/progress-store";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { configureDailyReminder } from "@/lib/notifications";
 import { useAppStore } from "@/store/app-store";
@@ -38,9 +39,20 @@ export default function RootLayout() {
   const language = useAppStore((state) => state.language) ?? "ru";
 
   useEffect(() => {
-    if (Platform.OS === "web") {
-      void useAppStore.persist.rehydrate();
-    }
+    if (Platform.OS !== "web") return;
+    let timeout = 0;
+    const rehydrate = () => {
+      timeout = window.setTimeout(() => {
+        void useAppStore.persist.rehydrate();
+        void useGameProgressStore.persist.rehydrate();
+      }, 1500);
+    };
+    if (document.readyState === "complete") rehydrate();
+    else window.addEventListener("load", rehydrate, { once: true });
+    return () => {
+      window.removeEventListener("load", rehydrate);
+      window.clearTimeout(timeout);
+    };
   }, []);
 
   useEffect(() => {

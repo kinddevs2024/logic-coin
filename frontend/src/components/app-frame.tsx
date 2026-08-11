@@ -194,6 +194,22 @@ export function AppFrame({
     },
     contentStyle,
   ];
+  const body = scroll ? (
+    <ScrollView
+      {...scrollProps}
+      role="main"
+      style={styles.scroll}
+      contentContainerStyle={content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      {children}
+    </ScrollView>
+  ) : (
+    <View role="main" style={content}>
+      {children}
+    </View>
+  );
 
   return (
     <SafeAreaView
@@ -204,34 +220,32 @@ export function AppFrame({
         <AmbientOrbs />
       </BlurTargetView>
       <GlassBlurTargetContext.Provider value={blurTarget}>
-        <Reanimated.View
-          entering={FadeInDown.duration(360)
-            .withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] })
-            .reduceMotion(ReduceMotion.System)}
-          style={[
-            styles.animatedContent,
-            desktopNavigationInset &&
-              isDesktop &&
-              styles.animatedContentDesktopNavigation,
-          ]}
-        >
-          {scroll ? (
-            <ScrollView
-              {...scrollProps}
-              role="main"
-              style={styles.scroll}
-              contentContainerStyle={content}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              {children}
-            </ScrollView>
-          ) : (
-            <View role="main" style={content}>
-              {children}
-            </View>
-          )}
-        </Reanimated.View>
+        {Platform.OS === "web" ? (
+          <View
+            style={[
+              styles.animatedContent,
+              desktopNavigationInset &&
+                isDesktop &&
+                styles.animatedContentDesktopNavigation,
+            ]}
+          >
+            {body}
+          </View>
+        ) : (
+          <Reanimated.View
+            entering={FadeInDown.duration(360)
+              .withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] })
+              .reduceMotion(ReduceMotion.System)}
+            style={[
+              styles.animatedContent,
+              desktopNavigationInset &&
+                isDesktop &&
+                styles.animatedContentDesktopNavigation,
+            ]}
+          >
+            {body}
+          </Reanimated.View>
+        )}
       </GlassBlurTargetContext.Provider>
     </SafeAreaView>
   );

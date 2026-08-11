@@ -7,11 +7,12 @@
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kinddevs.logiccoin"
     },
+
     "android": {
       "package": "com.kinddevs.logiccoin",
       "adaptiveIcon": {
@@ -24,11 +25,13 @@
         "VIBRATE"
       ]
     },
+
     "web": {
       "output": "static",
       "favicon": "./assets/brand/favicon.png",
       "bundler": "metro"
     },
+
     "plugins": [
       "expo-router",
       "expo-secure-store",
@@ -50,10 +53,12 @@
         }
       ]
     ],
+
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
+
     "extra": {
       "router": {
         "origin": false

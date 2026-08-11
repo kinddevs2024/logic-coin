@@ -45,6 +45,7 @@ type AppState = {
   syncBootstrap: (payload: BootstrapPayload) => void;
   logout: () => void;
   addReward: (taskId: string, units: number) => void;
+  addGameReward: (gameId: string, units: number) => void;
   setBalance: (units: number) => void;
   clearLatestReward: () => void;
   setGoal: (units: number) => void;
@@ -160,6 +161,21 @@ export const useAppStore = create<AppState>()(
             taskCounts: {
               ...state.taskCounts,
               [taskId]: (state.taskCounts[taskId] ?? 0) + 1,
+            },
+          };
+        }),
+      addGameReward: (gameId, units) =>
+        set((state) => {
+          const safeUnits = Math.max(0, Math.round(units));
+          if (!safeUnits) return state;
+          const rewardEventId = state.rewardEventId + 1;
+          return {
+            balanceUnits: state.balanceUnits + safeUnits,
+            rewardEventId,
+            latestReward: { amount: safeUnits, id: rewardEventId },
+            taskCounts: {
+              ...state.taskCounts,
+              [`game:${gameId}`]: (state.taskCounts[`game:${gameId}`] ?? 0) + 1,
             },
           };
         }),

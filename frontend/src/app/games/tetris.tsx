@@ -1,15 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { GameShell } from "@/components/game-shell";
-import { GlassSurface } from "@/components/glass-surface";
-import { useAppTheme } from "@/hooks/use-app-theme";
+import {
+  PIXEL_ARENA_CHROME,
+  PIXEL_GAME_COLORS,
+  PixelActionButton,
+  PixelArena,
+  PixelIconButton,
+  PixelStat,
+} from "@/components/pixel-game-ui";
+import { EMPTY_GAME_PROGRESS, useGameProgressStore } from "@/games/progress-store";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const ROWS = 18;
 const COLS = 10;
-const colors = ["transparent", "#27C1E6", "#F6C344", "#7C5CFC", "#41C979", "#FF6B6B", "#3D7CFF", "#FF9F43"];
+const colors = [
+  "transparent",
+  "#FFE500",
+  "#FFF4E5",
+  "#B73328",
+  "#FFCC72",
+  "#8A5C52",
+  "#F79570",
+  "#38394A",
+];
 const shapes = [
   [[1, 1, 1, 1]],
   [[1, 1], [1, 1]],
@@ -50,38 +67,32 @@ function rotateShape(shape: Matrix): Matrix {
 function GameControl({
   icon,
   onPress,
-  color,
   label,
 }: {
   icon: React.ComponentProps<typeof Ionicons>["name"];
   onPress: () => void;
-  color: string;
   label: string;
 }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [styles.controlPress, pressed && styles.pressed]}
-    >
-      <GlassSurface variant="strong" intensity={48} style={styles.control}>
-        <Ionicons name={icon} size={24} color={color} />
-      </GlassSurface>
-    </Pressable>
-  );
+  return <PixelIconButton icon={icon} label={label} onPress={onPress} size={52} />;
 }
 
 export default function TetrisScreen() {
-  const theme = useAppTheme();
-  const { width } = useWindowDimensions();
+  const progress = useGameProgressStore((state) => state.games.tetris) ?? EMPTY_GAME_PROGRESS;
+  const recordScore = useGameProgressStore((state) => state.recordScore);
+  const { width, height, isTablet } = useResponsiveLayout();
   const [board, setBoard] = useState<Matrix>(() => emptyBoard());
   const [active, setActive] = useState<Piece>(() => createPiece(0));
   const [score, setScore] = useState(0);
+  const [lines, setLines] = useState(0);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
+  const recorded = useRef(false);
+  const level = Math.floor(lines / 10) + 1;
   const viewportWidth = width > 0 ? width : 390;
-  const boardWidth = Math.min(340, viewportWidth - 40);
+  const viewportHeight = height > 0 ? height : 760;
+  const isWide = isTablet;
+  const heightBoundWidth = Math.max(210, ((viewportHeight - 250) * COLS) / ROWS);
+  const boardWidth = Math.min(340, viewportWidth - 64, isWide ? heightBoundWidth : 340);
   const cell = Math.floor(boardWidth / COLS);
 
   const display = useMemo(() => {
@@ -108,7 +119,10 @@ export default function TetrisScreen() {
       );
       const remaining = merged.filter((row) => row.some((value) => value === 0));
       const cleared = ROWS - remaining.length;
-      if (cleared) setScore((value) => value + [0, 100, 300, 500, 800][cleared]!);
+      if (cleared) {
+        setScore((value) => value + [0, 100, 300, 500, 800][cleared]! * level);
+        setLines((value) => value + cleared);
+      }
       return [...Array.from({ length: cleared }, () => Array(COLS).fill(0) as number[]), ...remaining];
     });
     const nextPiece = createPiece();
@@ -117,7 +131,7 @@ export default function TetrisScreen() {
       if (collides(current, nextPiece)) setOver(true);
       return current;
     });
-  }, []);
+  }, [level]);
 
   const stepDown = useCallback(() => {
     if (paused || over) return;
@@ -127,9 +141,15 @@ export default function TetrisScreen() {
   }, [active, board, lock, over, paused]);
 
   useEffect(() => {
-    const interval = setInterval(stepDown, Math.max(230, 700 - Math.floor(score / 500) * 55));
+    const interval = setInterval(stepDown, Math.max(165, 720 - (level - 1) * 65));
     return () => clearInterval(interval);
-  }, [score, stepDown]);
+  }, [level, stepDown]);
+
+  useEffect(() => {
+    if (!over || recorded.current) return;
+    recorded.current = true;
+    recordScore("tetris", score, `Уровень ${level}`);
+  }, [level, over, recordScore, score]);
 
   const move = (dx: number) => {
     const next = { ...active, x: active.x + dx };
@@ -149,49 +169,66 @@ export default function TetrisScreen() {
     setBoard(emptyBoard());
     setActive(createPiece(0));
     setScore(0);
+    setLines(0);
     setPaused(false);
     setOver(false);
+    recorded.current = false;
   };
 
   return (
-    <GameShell title="Тетрис" meta={<AppText variant="label">{score}</AppText>}>
+    <GameShell title="Тетрис" gameId="tetris" meta={<AppText style={styles.metaScore}>{score}</AppText>}>
       <View style={styles.layout}>
-        <GlassSurface variant="strong" intensity={58} style={[styles.board, { width: cell * COLS + 12 }]}>
-          {display.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.row}>
-              {row.map((value, columnIndex) => (
-                <View
-                  key={`${rowIndex}-${columnIndex}`}
-                  style={[
-                    styles.cell,
-                    {
-                      width: cell,
-                      height: cell,
-                      backgroundColor: value ? colors[value] : theme.mode === "dark" ? "rgba(255,255,255,0.035)" : "rgba(13,27,53,0.035)",
-                      borderColor: value ? "rgba(255,255,255,0.34)" : "rgba(127,148,176,0.08)",
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-          ))}
-          {over ? (
-            <View style={styles.overlay}>
-              <AppText variant="heading" color="#FFFFFF">Игра окончена</AppText>
-              <Pressable onPress={restart} style={styles.restart}><AppText variant="label" color="#FFFFFF">Ещё раз</AppText></Pressable>
-            </View>
-          ) : null}
-        </GlassSurface>
-        <View style={styles.controls}>
-          <GameControl label="Влево" color={String(theme.text)} icon="arrow-back" onPress={() => move(-1)} />
-          <GameControl label="Повернуть" color={String(theme.text)} icon="refresh" onPress={rotate} />
-          <GameControl label="Вниз" color={String(theme.text)} icon="arrow-down" onPress={stepDown} />
-          <GameControl label="Вправо" color={String(theme.text)} icon="arrow-forward" onPress={() => move(1)} />
-          <GameControl label="Сбросить" color={String(theme.text)} icon="chevron-collapse" onPress={hardDrop} />
+        <View style={styles.stats}>
+          <PixelStat label="Рекорд" value={Math.max(progress.bestScore, score)} />
+          <PixelStat label="Прошлый" value={progress.previousScore} />
+          <PixelStat label="Уровень" value={level} />
+          <PixelStat label="Линии" value={lines} />
         </View>
-        <Pressable accessibilityRole="button" onPress={() => setPaused((value) => !value)} style={styles.pause}>
-          <AppText variant="caption" muted>{paused ? "Продолжить" : "Пауза"}</AppText>
-        </Pressable>
+        <View style={[styles.playArea, isWide && styles.playAreaWide]}>
+          <PixelArena
+            style={{ width: cell * COLS + PIXEL_ARENA_CHROME, height: cell * ROWS + PIXEL_ARENA_CHROME }}
+            contentStyle={styles.board}
+          >
+            {display.map((row, rowIndex) => (
+              <View key={rowIndex} style={styles.row}>
+                {row.map((value, columnIndex) => (
+                  <View
+                    key={`${rowIndex}-${columnIndex}`}
+                    style={[
+                      styles.cell,
+                      {
+                        width: cell,
+                        height: cell,
+                        backgroundColor: value ? colors[value] : "rgba(183,51,40,0.13)",
+                        borderColor: value ? PIXEL_GAME_COLORS.frameWarm : "rgba(183,51,40,0.2)",
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            ))}
+            {over ? (
+              <View style={styles.overlay}>
+                <AppText variant="heading" color="#FFFFFF">Игра окончена</AppText>
+                <PixelActionButton label="Ещё раз" icon="refresh" onPress={restart} />
+              </View>
+            ) : null}
+          </PixelArena>
+          <View style={[styles.controls, isWide && styles.controlsWide]}>
+            <GameControl label="Влево" icon="arrow-back" onPress={() => move(-1)} />
+            <GameControl label="Повернуть" icon="refresh" onPress={rotate} />
+            <GameControl label="Вниз" icon="arrow-down" onPress={stepDown} />
+            <GameControl label="Вправо" icon="arrow-forward" onPress={() => move(1)} />
+            <GameControl label="Сбросить" icon="chevron-collapse" onPress={hardDrop} />
+            <PixelIconButton
+              label={paused ? "Продолжить" : "Пауза"}
+              icon={paused ? "play" : "pause"}
+              active={paused}
+              onPress={() => setPaused((value) => !value)}
+              size={52}
+            />
+          </View>
+        </View>
       </View>
     </GameShell>
   );
@@ -199,21 +236,21 @@ export default function TetrisScreen() {
 
 const styles = StyleSheet.create({
   layout: { alignItems: "center", gap: 16 },
-  board: { padding: 6, borderRadius: 24, alignSelf: "center" },
+  stats: { width: "100%", maxWidth: 520, flexDirection: "row", gap: 7 },
+  metaScore: { color: PIXEL_GAME_COLORS.ink, fontWeight: "900", fontSize: 15 },
+  playArea: { alignItems: "center", justifyContent: "center", gap: 12 },
+  playAreaWide: { flexDirection: "row" },
+  board: { alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row" },
-  cell: { borderWidth: 0.5, borderRadius: 4 },
+  cell: { borderWidth: 1 },
   overlay: {
     position: "absolute",
     inset: 0,
-    backgroundColor: "rgba(3,8,16,0.82)",
+    backgroundColor: "rgba(183,51,40,0.94)",
     alignItems: "center",
     justifyContent: "center",
     gap: 14,
   },
-  restart: { backgroundColor: "#0A84FF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
   controls: { flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "center" },
-  controlPress: { width: 54, height: 54, borderRadius: 27 },
-  control: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center" },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.94 }] },
-  pause: { minHeight: 44, justifyContent: "center", paddingHorizontal: 20 },
+  controlsWide: { width: 116, flexDirection: "row" },
 });

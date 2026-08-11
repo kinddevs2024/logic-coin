@@ -1,21 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { GameShell } from "@/components/game-shell";
-import { GlassSurface } from "@/components/glass-surface";
-import { useAppTheme } from "@/hooks/use-app-theme";
+import {
+  PIXEL_ARENA_CHROME,
+  PIXEL_GAME_COLORS,
+  PixelActionButton,
+  PixelArena,
+  PixelIconButton,
+  PixelStat,
+} from "@/components/pixel-game-ui";
+import { EMPTY_GAME_PROGRESS, useGameProgressStore } from "@/games/progress-store";
 
 type Direction = "left" | "right" | "up" | "down";
 type Grid = number[][];
 
 const tileColors: Record<number, string> = {
-  2: "#E9F3FF", 4: "#D6E9FF", 8: "#A8D1FF", 16: "#72B5FF",
-  32: "#3C98FF", 64: "#0A7CFF", 128: "#7C5CFC", 256: "#6544E8",
-  512: "#FF9F43", 1024: "#FF7A3D", 2048: "#FF4F6D",
+  2: "#FFF1E6", 4: "#FFE1CF", 8: "#FFD079", 16: "#FFC43D",
+  32: "#FFE500", 64: "#F5B51B", 128: "#E87559", 256: "#D75A43",
+  512: "#C84E3C", 1024: "#B73328", 2048: "#38394A",
 };
 
 function initialGrid(): Grid {
@@ -80,49 +87,47 @@ function canContinue(grid: Grid): boolean {
 function GameControl({
   direction,
   icon,
-  color,
   onMove,
 }: {
   direction: Direction;
   icon: React.ComponentProps<typeof Ionicons>["name"];
-  color: string;
   onMove: (direction: Direction) => void;
 }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={{ left: "Влево", right: "Вправо", up: "Вверх", down: "Вниз" }[direction]}
-      onPress={() => onMove(direction)}
-      style={({ pressed }) => [styles.controlPress, pressed && styles.pressed]}
-    >
-      <GlassSurface variant="strong" intensity={46} style={styles.control}>
-        <Ionicons name={icon} size={23} color={color} />
-      </GlassSurface>
-    </Pressable>
-  );
+  return <PixelIconButton icon={icon} label={{ left: "Влево", right: "Вправо", up: "Вверх", down: "Вниз" }[direction]} onPress={() => onMove(direction)} size={52} />;
 }
 
 export default function MergeScreen() {
-  const theme = useAppTheme();
+  const progress = useGameProgressStore((state) => state.games["2048"]) ?? EMPTY_GAME_PROGRESS;
+  const recordScore = useGameProgressStore((state) => state.recordScore);
   const { width } = useWindowDimensions();
   const [grid, setGrid] = useState<Grid>(() => initialGrid());
   const [score, setScore] = useState(0);
   const [over, setOver] = useState(false);
+  const [history, setHistory] = useState<{ grid: Grid; score: number }[]>([]);
+  const recorded = useRef(false);
   const viewportWidth = width > 0 ? width : 390;
-  const boardSize = Math.min(480, viewportWidth - 32);
+  const boardSize = Math.min(480, viewportWidth - 60);
   const gap = 8;
   const tile = Math.floor((boardSize - gap * 5) / 4);
+  const maxTile = Math.max(...grid.flat());
+  const level = Math.max(1, Math.floor(Math.log2(Math.max(128, maxTile))) - 6);
+  const nextGoal = 2 ** (level + 7);
 
   const move = useCallback((direction: Direction) => {
-    setGrid((current) => {
-      const result = moveGrid(current, direction);
-      if (!result.changed) return current;
-      const next = spawn(result.next);
-      setScore((value) => value + result.gained);
-      setOver(!canContinue(next));
-      return next;
-    });
-  }, []);
+    const result = moveGrid(grid, direction);
+    if (!result.changed) return;
+    setHistory((items) => [...items.slice(-9), { grid: grid.map((row) => [...row]), score }]);
+    const next = spawn(result.next);
+    setGrid(next);
+    setScore(score + result.gained);
+    setOver(!canContinue(next));
+  }, [grid, score]);
+
+  useEffect(() => {
+    if (!over || recorded.current) return;
+    recorded.current = true;
+    recordScore("2048", score, `Плитка ${maxTile}`);
+  }, [maxTile, over, recordScore, score]);
 
   const gesture = useMemo(
     () => Gesture.Pan().minDistance(18).onEnd((event) => {
@@ -137,19 +142,35 @@ export default function MergeScreen() {
   );
 
   const restart = () => {
+    if (score > 0 && !recorded.current) recordScore("2048", score, `Плитка ${maxTile}`);
     setGrid(initialGrid());
     setScore(0);
     setOver(false);
+    setHistory([]);
+    recorded.current = false;
+  };
+
+  const undo = () => {
+    const previous = history[history.length - 1];
+    if (!previous || over) return;
+    setGrid(previous.grid.map((row) => [...row]));
+    setScore(previous.score);
+    setHistory((items) => items.slice(0, -1));
   };
 
   return (
-    <GameShell title="2048" meta={<AppText variant="label">{score}</AppText>}>
+    <GameShell title="2048" gameId="2048" meta={<AppText style={styles.metaScore}>{score}</AppText>}>
       <View style={styles.layout}>
+        <View style={styles.stats}>
+          <PixelStat label="Рекорд" value={Math.max(progress.bestScore, score)} />
+          <PixelStat label="Прошлый" value={progress.previousScore} />
+          <PixelStat label="Уровень" value={level} />
+          <PixelStat label="Цель" value={nextGoal} />
+        </View>
         <GestureDetector gesture={gesture}>
-          <GlassSurface
-            variant="strong"
-            intensity={58}
-            style={[styles.board, { width: tile * 4 + gap * 5, padding: gap, gap }]}
+          <PixelArena
+            style={{ width: tile * 4 + gap * 5 + PIXEL_ARENA_CHROME, height: tile * 4 + gap * 5 + PIXEL_ARENA_CHROME }}
+            contentStyle={[styles.board, { padding: gap, gap }]}
           >
             {grid.map((row, rowIndex) => (
               <View key={rowIndex} style={[styles.row, { gap }]}>
@@ -163,13 +184,13 @@ export default function MergeScreen() {
                         height: tile,
                         backgroundColor: value
                           ? tileColors[value] ?? "#101E4B"
-                          : theme.mode === "dark" ? "rgba(255,255,255,0.055)" : "rgba(13,27,53,0.055)",
+                          : "rgba(183,51,40,0.16)",
                       },
                     ]}
                   >
                     {value ? (
                       <AppText
-                        color={value >= 8 ? "#FFFFFF" : "#17304E"}
+                        color={value >= 128 ? "#FFFFFF" : PIXEL_GAME_COLORS.ink}
                         style={{ fontSize: value >= 1024 ? 20 : value >= 128 ? 24 : 29, lineHeight: 34, fontWeight: "800" }}
                       >
                         {value}
@@ -182,22 +203,21 @@ export default function MergeScreen() {
             {over ? (
               <View style={styles.overlay}>
                 <AppText variant="heading" color="#FFFFFF">Игра окончена</AppText>
-                <Pressable onPress={restart} style={styles.restart}>
-                  <AppText variant="label" color="#FFFFFF">Ещё раз</AppText>
-                </Pressable>
+                <PixelActionButton label="Ещё раз" icon="refresh" onPress={restart} />
               </View>
             ) : null}
-          </GlassSurface>
+          </PixelArena>
         </GestureDetector>
         <View style={styles.controls}>
-          <GameControl color={String(theme.text)} onMove={move} direction="left" icon="arrow-back" />
-          <GameControl color={String(theme.text)} onMove={move} direction="up" icon="arrow-up" />
-          <GameControl color={String(theme.text)} onMove={move} direction="down" icon="arrow-down" />
-          <GameControl color={String(theme.text)} onMove={move} direction="right" icon="arrow-forward" />
+          <GameControl onMove={move} direction="left" icon="arrow-back" />
+          <GameControl onMove={move} direction="up" icon="arrow-up" />
+          <GameControl onMove={move} direction="down" icon="arrow-down" />
+          <GameControl onMove={move} direction="right" icon="arrow-forward" />
         </View>
-        <Pressable accessibilityRole="button" onPress={restart} style={styles.newGame}>
-          <AppText variant="caption" muted>Новая игра</AppText>
-        </Pressable>
+        <View style={styles.bottomActions}>
+          <PixelActionButton disabled={!history.length || over} onPress={undo} icon="arrow-undo" label="Отменить ход" />
+          <PixelActionButton onPress={restart} icon="refresh" label="Новая игра" />
+        </View>
       </View>
     </GameShell>
   );
@@ -205,21 +225,19 @@ export default function MergeScreen() {
 
 const styles = StyleSheet.create({
   layout: { alignItems: "center", gap: 18 },
-  board: { borderRadius: 26 },
+  stats: { width: "100%", maxWidth: 520, flexDirection: "row", gap: 7 },
+  metaScore: { color: PIXEL_GAME_COLORS.ink, fontWeight: "900", fontSize: 15 },
+  board: {},
   row: { flexDirection: "row" },
-  tile: { borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  tile: { borderRadius: 3, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,249,241,0.42)" },
   overlay: {
     position: "absolute",
     inset: 0,
-    backgroundColor: "rgba(3,8,16,0.82)",
+    backgroundColor: "rgba(183,51,40,0.94)",
     alignItems: "center",
     justifyContent: "center",
     gap: 14,
   },
-  restart: { backgroundColor: "#0A84FF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
   controls: { flexDirection: "row", gap: 8 },
-  controlPress: { width: 54, height: 54, borderRadius: 27 },
-  control: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center" },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.94 }] },
-  newGame: { minHeight: 44, justifyContent: "center", paddingHorizontal: 20 },
+  bottomActions: { flexDirection: "row", alignItems: "center", gap: 8 },
 });

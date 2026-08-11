@@ -1,10 +1,17 @@
-import { useMemo, useState } from "react";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { GameShell } from "@/components/game-shell";
-import { GlassSurface } from "@/components/glass-surface";
-import { useAppTheme } from "@/hooks/use-app-theme";
+import {
+  PIXEL_ARENA_CHROME,
+  PIXEL_GAME_COLORS,
+  PixelActionButton,
+  PixelArena,
+  PixelStat,
+} from "@/components/pixel-game-ui";
+import { EMPTY_GAME_PROGRESS, useGameProgressStore } from "@/games/progress-store";
 
 type Color = "w" | "b";
 type Kind = "k" | "q" | "r" | "b" | "n" | "p";
@@ -12,9 +19,13 @@ type Piece = `${Color}${Kind}`;
 type Board = (Piece | null)[][];
 type Square = { row: number; col: number };
 
-const symbols: Record<Piece, string> = {
-  wk: "♔", wq: "♕", wr: "♖", wb: "♗", wn: "♘", wp: "♙",
-  bk: "♚", bq: "♛", br: "♜", bb: "♝", bn: "♞", bp: "♟",
+const pieceIcons: Record<Kind, React.ComponentProps<typeof MaterialCommunityIcons>["name"]> = {
+  k: "chess-king",
+  q: "chess-queen",
+  r: "chess-rook",
+  b: "chess-bishop",
+  n: "chess-knight",
+  p: "chess-pawn",
 };
 
 function initialBoard(): Board {
@@ -71,14 +82,19 @@ function canMove(board: Board, from: Square, to: Square): boolean {
 }
 
 export default function ChessScreen() {
-  const theme = useAppTheme();
+  const progress = useGameProgressStore((state) => state.games.chess) ?? EMPTY_GAME_PROGRESS;
+  const recordScore = useGameProgressStore((state) => state.recordScore);
   const { width } = useWindowDimensions();
   const [board, setBoard] = useState<Board>(() => initialBoard());
   const [selected, setSelected] = useState<Square | null>(null);
   const [turn, setTurn] = useState<Color>("w");
   const [winner, setWinner] = useState<Color | null>(null);
+  const [moves, setMoves] = useState(0);
+  const [captures, setCaptures] = useState(0);
+  const [history, setHistory] = useState<{ board: Board; turn: Color; moves: number; captures: number }[]>([]);
+  const recorded = useRef(false);
   const viewportWidth = width > 0 ? width : 390;
-  const boardSize = Math.min(520, viewportWidth - 32);
+  const boardSize = Math.min(520, viewportWidth - 60);
   const cell = Math.floor(boardSize / 8);
   const legal = useMemo(() => {
     if (!selected) return new Set<string>();
@@ -104,6 +120,7 @@ export default function ChessScreen() {
     }
     const to = { row, col };
     if (!canMove(board, selected, to)) return;
+    setHistory((items) => [...items, { board: board.map((line) => [...line]), turn, moves, captures }]);
     const next = board.map((line) => [...line]);
     const moving = next[selected.row]![selected.col]!;
     const captured = next[row]![col];
@@ -112,24 +129,60 @@ export default function ChessScreen() {
     next[row]![col] = promotion ? (`${moving[0]}q` as Piece) : moving;
     setBoard(next);
     setSelected(null);
+    setMoves((value) => value + 1);
+    if (captured) setCaptures((value) => value + 1);
     if (captured?.[1] === "k") setWinner(turn);
     else setTurn((value) => (value === "w" ? "b" : "w"));
   };
+
+  useEffect(() => {
+    if (!winner || recorded.current) return;
+    recorded.current = true;
+    const points = Math.max(100, 1_000 - moves * 12 + captures * 25);
+    recordScore("chess", points, winner === "w" ? "Победа белых" : "Победа чёрных", true);
+  }, [captures, moves, recordScore, winner]);
 
   const restart = () => {
     setBoard(initialBoard());
     setSelected(null);
     setTurn("w");
     setWinner(null);
+    setMoves(0);
+    setCaptures(0);
+    setHistory([]);
+    recorded.current = false;
+  };
+
+  const undo = () => {
+    const previous = history[history.length - 1];
+    if (!previous) return;
+    setBoard(previous.board.map((line) => [...line]));
+    setTurn(previous.turn);
+    setMoves(previous.moves);
+    setCaptures(previous.captures);
+    setSelected(null);
+    setWinner(null);
+    setHistory((items) => items.slice(0, -1));
+    recorded.current = false;
   };
 
   return (
     <GameShell
+      gameId="chess"
       title="Шахматы"
-      meta={<AppText variant="caption" muted>{winner ? `${winner === "w" ? "Белые" : "Чёрные"} выиграли` : turn === "w" ? "Ход белых" : "Ход чёрных"}</AppText>}
+      meta={<AppText style={styles.turnMeta}>{winner ? "Финиш" : turn === "w" ? "Белые" : "Чёрные"}</AppText>}
     >
       <View style={styles.layout}>
-        <GlassSurface variant="strong" intensity={54} style={[styles.board, { width: cell * 8 + 8 }]}>
+        <View style={styles.stats}>
+          <PixelStat label="Рекорд" value={progress.bestScore} />
+          <PixelStat label="Прошлый" value={progress.previousScore} />
+          <PixelStat label="Ходы" value={moves} />
+          <PixelStat label="Победы" value={progress.wins} />
+        </View>
+        <PixelArena
+          style={{ width: cell * 8 + PIXEL_ARENA_CHROME, height: cell * 8 + PIXEL_ARENA_CHROME }}
+          contentStyle={styles.board}
+        >
           {board.map((row, rowIndex) => (
             <View key={rowIndex} style={styles.row}>
               {row.map((piece, colIndex) => {
@@ -148,37 +201,33 @@ export default function ChessScreen() {
                         width: cell,
                         height: cell,
                         backgroundColor: active
-                          ? String(theme.primary)
+                          ? PIXEL_GAME_COLORS.yellow
                           : (rowIndex + colIndex) % 2 === 0
-                            ? theme.mode === "dark" ? "#C8D0DA" : "#EDF2F7"
-                            : theme.mode === "dark" ? "#617086" : "#8CA0B8",
-                        borderColor: isLegal ? String(theme.primary) : "transparent",
+                            ? PIXEL_GAME_COLORS.panelStrong
+                            : PIXEL_GAME_COLORS.arena,
+                        borderColor: isLegal ? PIXEL_GAME_COLORS.yellow : "transparent",
                         borderWidth: isLegal ? 3 : 0,
                       },
                     ]}
                   >
                     {piece ? (
-                      <AppText
-                        style={[styles.piece, { fontSize: cell * 0.7, lineHeight: cell * 0.78 }]}
-                        color={piece[0] === "w" ? "#FFFFFF" : "#101820"}
-                      >
-                        {symbols[piece]}
-                      </AppText>
+                      <MaterialCommunityIcons
+                        name={pieceIcons[piece[1] as Kind]}
+                        size={cell * 0.68}
+                        color={piece[0] === "w" ? PIXEL_GAME_COLORS.frame : PIXEL_GAME_COLORS.ink}
+                        style={styles.piece}
+                      />
                     ) : null}
                   </Pressable>
                 );
               })}
             </View>
           ))}
-        </GlassSurface>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Новая партия"
-          onPress={restart}
-          style={({ pressed }) => [styles.restart, pressed && styles.pressed]}
-        >
-          <AppText variant="label" color={String(theme.primary)}>Новая партия</AppText>
-        </Pressable>
+        </PixelArena>
+        <View style={styles.actions}>
+          <PixelActionButton disabled={!history.length} label="Отменить" icon="arrow-undo" onPress={undo} />
+          <PixelActionButton label="Новая партия" icon="refresh" onPress={restart} />
+        </View>
       </View>
     </GameShell>
   );
@@ -186,10 +235,11 @@ export default function ChessScreen() {
 
 const styles = StyleSheet.create({
   layout: { alignItems: "center", gap: 16 },
-  board: { padding: 4, borderRadius: 22 },
+  stats: { width: "100%", maxWidth: 560, flexDirection: "row", gap: 7 },
+  turnMeta: { color: PIXEL_GAME_COLORS.ink, fontSize: 11, lineHeight: 14, fontWeight: "900", textAlign: "center" },
+  board: {},
   row: { flexDirection: "row" },
   square: { alignItems: "center", justifyContent: "center" },
-  piece: { fontWeight: "400", textShadowColor: "rgba(0,0,0,0.24)", textShadowRadius: 1 },
-  restart: { minHeight: 46, paddingHorizontal: 20, justifyContent: "center", borderRadius: 999 },
-  pressed: { opacity: 0.65 },
+  piece: { textShadowColor: "rgba(56,57,74,0.42)", textShadowOffset: { width: 0, height: 3 }, textShadowRadius: 0 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
 });

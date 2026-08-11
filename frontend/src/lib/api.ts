@@ -13,12 +13,15 @@ import type {
   WithdrawalOverview,
 } from "@/types";
 import type { ThemeMode } from "@/constants/theme";
+import type { GameId, GamesProgress } from "@/games/progress-store";
 import { useAppStore } from "@/store/app-store";
 import { Platform } from "react-native";
 
 const defaultApiUrl =
   Platform.OS === "web"
-    ? "/api/v1"
+    ? process.env.NODE_ENV === "development"
+      ? "http://localhost:4000/api/v1"
+      : "/api/v1"
     : Platform.OS === "android"
       ? "http://10.0.2.2:4000/api/v1"
       : "http://localhost:4000/api/v1";
@@ -454,6 +457,31 @@ export const meApi = {
       },
     );
     return payload.preferences;
+  },
+};
+
+export const gameProgressApi = {
+  get(token: string) {
+    return request<{ games: GamesProgress }>("/games/progress", { token });
+  },
+  put(games: GamesProgress, token: string) {
+    return request<{ games: GamesProgress }>("/games/progress", {
+      method: "PUT",
+      token,
+      body: JSON.stringify({ games }),
+    });
+  },
+  convert(input: { gameId: GameId; coins: number; idempotencyKey: string }, token: string) {
+    return request<{
+      convertedUnits: number;
+      games: GamesProgress;
+      wallet: Wallet;
+      idempotentReplay: boolean;
+    }>("/games/convert", {
+      method: "POST",
+      token,
+      body: JSON.stringify(input),
+    });
   },
 };
 
