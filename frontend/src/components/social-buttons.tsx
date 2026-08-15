@@ -165,28 +165,6 @@ export function SocialButtons({
         onCredential={(credential: string) => void google(credential)}
         disabled={busy !== null}
       />
-      <ProviderButton
-        label={t("auth.yandex")}
-        busy={busy === "yandex"}
-        disabled={busy !== null}
-        onPress={() => void yandex()}
-        icon={
-          <View style={[styles.brandDot, { backgroundColor: "#FC3F1D" }]}>
-            <AppText variant="label" color="#FFFFFF">Я</AppText>
-          </View>
-        }
-      />
-      <ProviderButton
-        label="Telegram"
-        busy={busy === "telegram"}
-        disabled={busy !== null}
-        onPress={() => void telegram()}
-        icon={
-          <View style={[styles.brandDot, { backgroundColor: "#229ED9" }]}>
-            <Ionicons name="paper-plane" color="#FFFFFF" size={17} />
-          </View>
-        }
-      />
     </View>
   );
 }

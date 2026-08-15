@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     alignItems: "center",
     justifyContent: "center",
-    top: 0,
+    top: -10,
     zIndex: 9,
   },
   balanceText: {
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 112,
     height: 140,
-    top: 116,
+    top: 111,
     borderRadius: 38,
     overflow: "hidden",
     zIndex: 3,
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 300,
     height: 300,
-    top: 14,
+    top: 9,
     zIndex: 4,
   },
   insideLayer: {

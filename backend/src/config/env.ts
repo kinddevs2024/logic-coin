@@ -33,6 +33,8 @@ const rawEnvSchema = z.object({
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_ID_WEB: z.string().optional(),
+  GOOGLE_CLIENT_ID_MOBILE: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   YANDEX_CLIENT_ID: z.string().optional(),
   YANDEX_CLIENT: z.string().optional(),

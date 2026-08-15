@@ -28,15 +28,8 @@ export function LogicCoinLogo({
         gap: 10,
       }}
     >
-      <LogoMark size={compact ? 38 : 48} />
+      <LogoMark size={compact ? 88 : 98} />
       <View>
-        <AppText
-          variant={compact ? "heading" : "title"}
-          color={light ? "#FFFFFF" : undefined}
-          style={{ lineHeight: compact ? 23 : 30 }}
-        >
-          Logic Coin
-        </AppText>
         {!compact ? (
           <AppText
             variant="caption"

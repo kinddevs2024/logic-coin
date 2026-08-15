@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { AuthScaffold } from "@/components/auth-scaffold";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
-import { FormField } from "@/components/form-field";
+import { PinInput } from "@/components/pin-input";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { authApi } from "@/lib/api";
@@ -61,25 +61,22 @@ export default function VerifyScreen() {
     <AuthScaffold
       title={t("auth.verifyTitle")}
       subtitle={`${t("auth.verifyBody")} ${email}`}
+      headerAction={
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.backButtonPressed,
+          ]}
+        >
+          <Ionicons name="chevron-back" size={24} color={String(theme.primary)} />
+        </Pressable>
+      }
     >
-      <View
-        style={[
-          styles.mail,
-          { backgroundColor: theme.primarySoft },
-        ]}
-      >
-        <Ionicons name="mail-unread" size={30} color={String(theme.primary)} />
-      </View>
-      <FormField
-        label={t("auth.code")}
-        icon="keypad-outline"
+      <PinInput
         value={code}
-        onChangeText={(value) => setCode(value.replace(/\D/g, "").slice(0, 6))}
-        keyboardType="number-pad"
-        textContentType="oneTimeCode"
-        autoComplete="one-time-code"
-        placeholder="000000"
-        maxLength={6}
+        onChangeValue={setCode}
+        length={6}
       />
       {verify.error ? (
         <AppText
@@ -114,13 +111,12 @@ export default function VerifyScreen() {
 }
 
 const styles = StyleSheet.create({
-  mail: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    alignSelf: "center",
-    alignItems: "center",
-    justifyContent: "center",
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  backButtonPressed: {
+    opacity: 0.7,
   },
   resend: {
     alignItems: "center",

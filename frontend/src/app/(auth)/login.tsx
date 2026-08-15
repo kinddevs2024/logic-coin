@@ -6,7 +6,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import { AuthScaffold } from "@/components/auth-scaffold";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
-import { FormField } from "@/components/form-field";
+import { StyledInput } from "@/components/styled-input";
 import { SocialButtons } from "@/components/social-buttons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -80,17 +80,16 @@ export default function LoginScreen() {
   return (
     <AuthScaffold>
       <View style={styles.form}>
-        <FormField
+        <StyledInput
+          label={t("auth.email")}
           icon="mail-outline"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
-          placeholder="Email"
-          accessibilityLabel={t("auth.email")}
-          returnKeyType="go"
-          onSubmitEditing={() => valid && emailFlow.mutate()}
+          placeholder="olivia@untitledui.com"
+          required
         />
         <AppButton
           onPress={() => emailFlow.mutate()}
