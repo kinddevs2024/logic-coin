@@ -15,6 +15,7 @@ import {
   PixelStat,
 } from "@/components/pixel-game-ui";
 import { EMPTY_GAME_PROGRESS, useGameProgressStore } from "@/games/progress-store";
+import { gameCoinReward } from "@/games/rewards";
 
 type Direction = "left" | "right" | "up" | "down";
 type Grid = number[][];
@@ -159,7 +160,7 @@ export default function MergeScreen() {
   };
 
   return (
-    <GameShell title="2048" gameId="2048" meta={<AppText style={styles.metaScore}>{score}</AppText>}>
+    <GameShell title="2048" gameId="2048" meta={<AppText style={styles.metaScore}>{gameCoinReward(score)} coin</AppText>}>
       <View style={styles.layout}>
         <View style={styles.stats}>
           <PixelStat label="Рекорд" value={Math.max(progress.bestScore, score)} />

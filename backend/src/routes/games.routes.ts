@@ -1,25 +1,27 @@
 import { Router } from "express";
-import mongoose from "mongoose";
 import { z } from "zod";
 import { ApiError } from "../lib/api-error.js";
-import { rewardLimiter } from "../middleware/rate-limits.js";
+import { canonicalGameKey } from "../lib/game-key.js";
 import { validateBody } from "../middleware/validate.js";
 import { GameProgress } from "../models/GameProgress.js";
-import { LedgerEntry } from "../models/LedgerEntry.js";
-import { User } from "../models/User.js";
-import { serializeWallet } from "../services/serialization.service.js";
-import { creditReward } from "../services/wallet.service.js";
+import { listGamesForUser } from "../services/game.service.js";
 
 const router = Router();
+
+router.get("/", async (request, response) => {
+  const games = await listGamesForUser(request.auth!.userId);
+  response.json({ data: { games } });
+});
 
 const gameStateSchema = z
   .object({
     bestScore: z.number().int().min(0).max(1_000_000_000),
     previousScore: z.number().int().min(0).max(1_000_000_000),
-    coins: z.number().int().min(0).max(1_000_000_000),
-    lifetimeCoins: z.number().int().min(0).max(1_000_000_000),
-    spentCoins: z.number().int().min(0).max(1_000_000_000),
-    transferredCoins: z.number().int().min(0).max(1_000_000_000),
+    // Accepted for legacy-client compatibility, but never trusted or persisted.
+    coins: z.number().int().min(0).max(1_000_000_000).optional(),
+    lifetimeCoins: z.number().int().min(0).max(1_000_000_000).optional(),
+    spentCoins: z.number().int().min(0).max(1_000_000_000).optional(),
+    transferredCoins: z.number().int().min(0).max(1_000_000_000).optional(),
     currentLevel: z.number().int().min(1).max(10_000),
     highestUnlockedLevel: z.number().int().min(1).max(10_000),
     completedLevels: z.array(z.number().int().min(1).max(10_000)).max(10_000),
@@ -40,19 +42,40 @@ const progressSchema = z
     games: z.record(z.string().regex(/^[a-z0-9-]{1,40}$/), gameStateSchema)
   })
   .strict()
-  .refine((value) => Object.keys(value.games).length <= 20, "Too many game entries");
+  .refine((value) => Object.keys(value.games).length <= 32, "Too many game entries");
 
-const conversionSchema = z
-  .object({
-    gameId: z.string().regex(/^[a-z0-9-]{1,40}$/),
-    coins: z.number().int().min(10).max(10_000).refine((value) => value % 10 === 0),
-    idempotencyKey: z.string().trim().min(8).max(120)
-  })
-  .strict();
+type ClientGameState = z.infer<typeof gameStateSchema>;
+
+function withoutClientEconomy(state: ClientGameState | Record<string, unknown>) {
+  return {
+    ...state,
+    coins: 0,
+    lifetimeCoins: 0,
+    spentCoins: 0,
+    transferredCoins: 0
+  };
+}
+
+function canonicalizeProgressGames(gamesValue: unknown): Record<string, Record<string, unknown>> {
+  const games =
+    gamesValue && typeof gamesValue === "object"
+      ? (gamesValue as Record<string, Record<string, unknown>>)
+      : {};
+  // Legacy aliases are applied first so an explicit canonical record always wins.
+  return Object.fromEntries(
+    Object.entries(games)
+      .sort(([first], [second]) => {
+        const firstCanonical = canonicalGameKey(first) === first ? 1 : 0;
+        const secondCanonical = canonicalGameKey(second) === second ? 1 : 0;
+        return firstCanonical - secondCanonical;
+      })
+      .map(([gameKey, state]) => [canonicalGameKey(gameKey), withoutClientEconomy(state)])
+  );
+}
 
 router.get("/progress", async (request, response) => {
   const progress = await GameProgress.findOne({ userId: request.auth!.userId }).lean();
-  response.json({ data: { games: progress?.games ?? {} } });
+  response.json({ data: { games: canonicalizeProgressGames(progress?.games) } });
 });
 
 router.put(
@@ -60,93 +83,25 @@ router.put(
   validateBody(progressSchema),
   async (request, response) => {
     const input = request.body as z.infer<typeof progressSchema>;
+    const safeGames = canonicalizeProgressGames(input.games);
     const progress = await GameProgress.findOneAndUpdate(
       { userId: request.auth!.userId },
       {
-        $set: { games: input.games },
+        $set: { games: safeGames },
         $setOnInsert: { userId: request.auth!.userId }
       },
       { upsert: true, new: true, runValidators: true }
     ).lean();
-    response.json({ data: { games: progress.games } });
+    response.json({ data: { games: canonicalizeProgressGames(progress.games) } });
   }
 );
 
-router.post(
-  "/convert",
-  rewardLimiter,
-  validateBody(conversionSchema),
-  async (request, response) => {
-    const input = request.body as z.infer<typeof conversionSchema>;
-    const sourceId = `game:${input.gameId}:${input.idempotencyKey}`;
-    const existing = await LedgerEntry.findOne({
-      userId: request.auth!.userId,
-      type: "game_reward",
-      sourceId
-    }).lean();
-    if (existing) {
-      const [user, progress] = await Promise.all([
-        User.findById(request.auth!.userId).select("wallet").lean(),
-        GameProgress.findOne({ userId: request.auth!.userId }).lean()
-      ]);
-      if (!user) throw new ApiError(404, "user_not_found", "User not found");
-      response.json({
-        data: {
-          convertedUnits: existing.amountUnits,
-          games: progress?.games ?? {},
-          wallet: serializeWallet(user.wallet),
-          idempotentReplay: true
-        }
-      });
-      return;
-    }
-
-    const session = await mongoose.startSession();
-    let result: { convertedUnits: number; games: Record<string, unknown>; wallet: ReturnType<typeof serializeWallet> } | undefined;
-    try {
-      await session.withTransaction(async () => {
-        const progress = await GameProgress.findOne({ userId: request.auth!.userId }).session(session);
-        const games = (progress?.games ?? {}) as Record<string, Record<string, unknown>>;
-        const current = games[input.gameId];
-        const availableCoins = Number(current?.coins ?? 0);
-        if (!progress || !current || !Number.isSafeInteger(availableCoins) || availableCoins < input.coins) {
-          throw new ApiError(409, "insufficient_game_coins", "Not enough game coins");
-        }
-
-        const convertedUnits = input.coins / 10;
-        const nextGame = {
-          ...current,
-          coins: availableCoins - input.coins,
-          transferredCoins: Number(current.transferredCoins ?? 0) + input.coins,
-          updatedAt: Date.now()
-        };
-        const nextGames = { ...games, [input.gameId]: nextGame };
-        progress.set("games", nextGames);
-        progress.markModified("games");
-        await progress.save({ session });
-
-        await creditReward(
-          {
-            userId: request.auth!.userId,
-            amountUnits: convertedUnits,
-            type: "game_reward",
-            sourceId,
-            description: `Game coin conversion: ${input.gameId}`,
-            metadata: { gameId: input.gameId, coins: input.coins }
-          },
-          session
-        );
-        const user = await User.findById(request.auth!.userId).select("wallet").session(session);
-        if (!user) throw new ApiError(404, "user_not_found", "User not found");
-        result = { convertedUnits, games: nextGames, wallet: serializeWallet(user.wallet) };
-      });
-    } finally {
-      await session.endSession();
-    }
-
-    if (!result) throw new ApiError(500, "game_conversion_failed", "Game coin conversion failed");
-    response.status(201).json({ data: { ...result, idempotentReplay: false } });
-  }
-);
+router.post("/convert", () => {
+  throw new ApiError(
+    410,
+    "feature_disabled",
+    "Legacy game coin conversion is disabled; only server-issued rewards can affect the wallet"
+  );
+});
 
 export default router;

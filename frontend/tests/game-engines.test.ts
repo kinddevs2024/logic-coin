@@ -41,6 +41,18 @@ import {
   validatePuzzleDefinition,
 } from "../src/games/brain-tricks/engine";
 import { BRAIN_TRICKS_LEVELS } from "../src/games/brain-tricks/levels";
+import {
+  gameCoinReward,
+  MAX_GAME_COIN_REWARD,
+  MIN_GAME_COIN_REWARD,
+} from "../src/games/rewards";
+import {
+  randomIntExcluding,
+  shuffleAvoidingFirst,
+  suggestedCoins,
+} from "../src/games/arcade/a/utils";
+import { rewardCoins } from "../src/games/arcade/b/utils";
+import { shuffledIndexes } from "../src/games/random";
 
 describe("longcat engine", () => {
   it("fills every crossed cell and stops at walls or its body", () => {
@@ -190,5 +202,37 @@ describe("brain tricks engine", () => {
     const finished = applyPuzzleEvent(level, installed, { type: "tap", actorId: "machine" });
     expect(finished.completed).toBe(true);
     expect(normalizedToPixels({ x: 50, y: 25 }, 400, 800)).toEqual({ x: 200, y: 200 });
+  });
+});
+
+describe("game reward contract", () => {
+  it("is deterministic and shared-result safe", () => {
+    expect(gameCoinReward(2_400, true)).toBe(gameCoinReward(2_400, true));
+    expect(gameCoinReward(2_400, true)).toBe(145);
+    expect(gameCoinReward(2_400, false)).toBe(145);
+    expect(suggestedCoins(2_400, true)).toBe(gameCoinReward(2_400, true));
+    expect(rewardCoins(2_400, false)).toBe(gameCoinReward(2_400, false));
+  });
+
+  it("normalizes invalid scores and never exceeds the game cap", () => {
+    expect(gameCoinReward(Number.NaN, false)).toBe(MIN_GAME_COIN_REWARD);
+    expect(gameCoinReward(-500, false)).toBe(MIN_GAME_COIN_REWARD);
+    expect(gameCoinReward(9_999_999, true)).toBe(MAX_GAME_COIN_REWARD);
+  });
+});
+
+describe("arcade randomizer guards", () => {
+  it("avoids immediate prompt repeats when alternatives exist", () => {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      expect(shuffleAvoidingFirst(["a", "b", "c", "d"], "a")[0]).not.toBe("a");
+      expect(randomIntExcluding(0, 5, 3)).not.toBe(3);
+    }
+  });
+
+  it("preserves every shuffled candidate exactly once", () => {
+    expect(shuffleAvoidingFirst([1, 2, 3, 4], 1).sort()).toEqual([1, 2, 3, 4]);
+    const bag = shuffledIndexes(7, 0, () => 0);
+    expect(bag[0]).not.toBe(0);
+    expect([...bag].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 });

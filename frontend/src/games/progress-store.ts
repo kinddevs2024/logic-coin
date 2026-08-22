@@ -3,6 +3,8 @@ import { Platform } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { gameCoinReward } from "./rewards";
+
 export type GameId =
   | "tetris"
   | "chess"
@@ -10,7 +12,20 @@ export type GameId =
   | "longcat"
   | "gobble"
   | "loops"
-  | "brain-tricks";
+  | "brain-tricks"
+  | "one-second"
+  | "tsvet"
+  | "udar"
+  | "space-find-number"
+  | "brain-training"
+  | "find-letter"
+  | "volt-match"
+  | "geography-quiz"
+  | "pulse"
+  | "volt-numbers"
+  | "math-quiz"
+  | "math-duel"
+  | "shadow";
 
 export type GameProgress = {
   bestScore: number;
@@ -74,7 +89,7 @@ function initialProgress(gameId: GameId): GameProgress {
   };
 }
 
-const DEFAULT_GAME_PROGRESS: Record<GameId, Readonly<GameProgress>> = {
+const DEFAULT_GAME_PROGRESS: Partial<Record<GameId, Readonly<GameProgress>>> = {
   tetris: initialProgress("tetris"),
   chess: initialProgress("chess"),
   "2048": initialProgress("2048"),
@@ -82,6 +97,19 @@ const DEFAULT_GAME_PROGRESS: Record<GameId, Readonly<GameProgress>> = {
   gobble: initialProgress("gobble"),
   loops: initialProgress("loops"),
   "brain-tricks": initialProgress("brain-tricks"),
+  "one-second": initialProgress("one-second"),
+  tsvet: initialProgress("tsvet"),
+  udar: initialProgress("udar"),
+  "space-find-number": initialProgress("space-find-number"),
+  "brain-training": initialProgress("brain-training"),
+  "find-letter": initialProgress("find-letter"),
+  "volt-match": initialProgress("volt-match"),
+  "geography-quiz": initialProgress("geography-quiz"),
+  pulse: initialProgress("pulse"),
+  "volt-numbers": initialProgress("volt-numbers"),
+  "math-quiz": initialProgress("math-quiz"),
+  "math-duel": initialProgress("math-duel"),
+  shadow: initialProgress("shadow"),
 };
 
 function normalizeProgress(value: Partial<GameProgress> | undefined, gameId: GameId = "tetris"): GameProgress {
@@ -119,9 +147,6 @@ type GameProgressState = {
   mergeRemote: (remote: GamesProgress) => GamesProgress;
 };
 
-const scoreCoinReward = (score: number, won: boolean) =>
-  Math.max(3, Math.min(40, 3 + Math.floor(Math.max(0, score) / 500) + (won ? 7 : 0)));
-
 export const useGameProgressStore = create<GameProgressState>()(
   persist(
     (set, get) => ({
@@ -131,7 +156,7 @@ export const useGameProgressStore = create<GameProgressState>()(
       recordScore: (gameId, score, result = "", won = false) =>
         set((state) => {
           const current = normalizeProgress(state.games[gameId], gameId);
-          const coinReward = scoreCoinReward(score, won);
+          const coinReward = gameCoinReward(score, won);
           return {
             games: {
               ...state.games,
@@ -298,14 +323,15 @@ export const useGameProgressStore = create<GameProgressState>()(
     }),
     {
       name: "logic-coin-games-v1",
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => AsyncStorage),
       skipHydration: Platform.OS === "web",
       migrate: (persisted) => {
         const state = (persisted ?? {}) as { games?: GamesProgress };
-        const games = { ...(state.games ?? {}) };
+        const games = { ...(state.games ?? {}) } as Record<string, GameProgress>;
+        delete games["gold-rush-2048"];
         for (const gameId of Object.keys(games) as GameId[]) games[gameId] = normalizeProgress(games[gameId], gameId);
-        return { ...state, games } as GameProgressState;
+        return { ...state, games: games as GamesProgress } as GameProgressState;
       },
       partialize: ({ hydrated: _hydrated, ...state }) => state,
       onRehydrateStorage: () => (state) => state?.setHydrated(true),
@@ -317,5 +343,5 @@ export function gameProgressFor(
   games: GamesProgress,
   gameId: GameId,
 ): Readonly<GameProgress> {
-  return games[gameId] ?? DEFAULT_GAME_PROGRESS[gameId];
+  return games[gameId] ?? DEFAULT_GAME_PROGRESS[gameId] ?? initialProgress(gameId);
 }

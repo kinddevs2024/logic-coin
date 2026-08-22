@@ -12,7 +12,7 @@ export type GameCosmetic = {
   secondary: string;
 };
 
-export const GAME_COSMETICS: Record<GameId, GameCosmetic[]> = {
+export const GAME_COSMETICS: Partial<Record<GameId, GameCosmetic[]>> = {
   tetris: [
     { id: "classic", name: "Классика", price: 0, icon: "view-grid", primary: "#0EA5E9", secondary: "#7DD3FC" },
     { id: "arcade", name: "Аркада", price: 90, icon: "gamepad-variant", primary: "#8B5CF6", secondary: "#F472B6" },
@@ -54,6 +54,17 @@ export const GAME_COSMETICS: Record<GameId, GameCosmetic[]> = {
   ],
 };
 
+const ARCADE_COSMETICS: GameCosmetic[] = [
+  { id: "classic", name: "Original", price: 0, icon: "circle-slice-8", primary: "#087CFF", secondary: "#DDEEFF" },
+  { id: "neon", name: "Neon", price: 160, icon: "lightning-bolt", primary: "#7C3AED", secondary: "#EDE9FE" },
+  { id: "gold", name: "Gold", price: 320, icon: "crown", primary: "#D99A00", secondary: "#FEF3C7" },
+];
+
+export function cosmeticsFor(gameId: GameId): GameCosmetic[] {
+  return GAME_COSMETICS[gameId] ?? ARCADE_COSMETICS;
+}
+
 export function cosmeticFor(gameId: GameId, cosmeticId: string): GameCosmetic {
-  return GAME_COSMETICS[gameId].find((item) => item.id === cosmeticId) ?? GAME_COSMETICS[gameId][0]!;
+  const cosmetics = cosmeticsFor(gameId);
+  return cosmetics.find((item) => item.id === cosmeticId) ?? cosmetics[0]!;
 }

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Redirect } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
@@ -23,6 +24,10 @@ const activeDays = new Set([
 ]);
 
 export default function BonusesScreen() {
+  return <Redirect href="/" />;
+}
+
+export function PreservedBonusesScreen() {
   const theme = useAppTheme();
   const { t } = useTranslation();
   const storedStreak = useAppStore((state) => state.streak);

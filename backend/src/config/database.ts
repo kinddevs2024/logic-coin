@@ -29,8 +29,11 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
     });
 
   const connection = await connectionPromise;
-  seedPromise ??= import("../services/task-seed.service.js")
-    .then(({ seedDefaultTasks }) => seedDefaultTasks())
+  seedPromise ??= Promise.all([
+    import("../services/task-seed.service.js").then(({ seedDefaultTasks }) => seedDefaultTasks()),
+    import("../services/game-seed.service.js").then(({ seedDefaultGames }) => seedDefaultGames())
+  ])
+    .then(() => undefined)
     .catch((error: unknown) => {
       seedPromise = null;
       throw error;

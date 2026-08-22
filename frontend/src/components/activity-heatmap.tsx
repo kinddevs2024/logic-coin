@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { localDayKey } from "@/lib/date";
 import type { ActivityDay } from "@/types";
 
 const activity = Array.from({ length: 84 }, (_, index) => {
@@ -37,7 +38,7 @@ export function ActivityHeatmap({
     days?.map((day) => [day.dayKey, day.actionCount]) ?? [],
   );
   const endDate = new Date(
-    `${toDayKey ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`,
+    `${toDayKey ?? localDayKey()}T00:00:00Z`,
   );
   const levels = days
     ? Array.from({ length: 84 }, (_, index) => {

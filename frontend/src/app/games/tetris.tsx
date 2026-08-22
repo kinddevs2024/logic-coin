@@ -13,6 +13,8 @@ import {
   PixelStat,
 } from "@/components/pixel-game-ui";
 import { EMPTY_GAME_PROGRESS, useGameProgressStore } from "@/games/progress-store";
+import { gameCoinReward } from "@/games/rewards";
+import { shuffledIndexes } from "@/games/random";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const ROWS = 18;
@@ -87,6 +89,8 @@ export default function TetrisScreen() {
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const recorded = useRef(false);
+  const pieceBag = useRef<number[]>([]);
+  const previousPiece = useRef(0);
   const level = Math.floor(lines / 10) + 1;
   const viewportWidth = width > 0 ? width : 390;
   const viewportHeight = height > 0 ? height : 760;
@@ -107,6 +111,15 @@ export default function TetrisScreen() {
     return next;
   }, [active, board]);
 
+  const drawNextPiece = useCallback(() => {
+    if (!pieceBag.current.length) {
+      pieceBag.current = shuffledIndexes(shapes.length, previousPiece.current);
+    }
+    const index = pieceBag.current.shift() ?? 0;
+    previousPiece.current = index;
+    return createPiece(index);
+  }, []);
+
   const lock = useCallback((piece: Piece) => {
     setBoard((current) => {
       const merged = current.map((row) => [...row]);
@@ -125,13 +138,13 @@ export default function TetrisScreen() {
       }
       return [...Array.from({ length: cleared }, () => Array(COLS).fill(0) as number[]), ...remaining];
     });
-    const nextPiece = createPiece();
+    const nextPiece = drawNextPiece();
     setActive(nextPiece);
     setBoard((current) => {
       if (collides(current, nextPiece)) setOver(true);
       return current;
     });
-  }, [level]);
+  }, [drawNextPiece, level]);
 
   const stepDown = useCallback(() => {
     if (paused || over) return;
@@ -167,6 +180,8 @@ export default function TetrisScreen() {
   };
   const restart = () => {
     setBoard(emptyBoard());
+    pieceBag.current = [];
+    previousPiece.current = 0;
     setActive(createPiece(0));
     setScore(0);
     setLines(0);
@@ -176,7 +191,7 @@ export default function TetrisScreen() {
   };
 
   return (
-    <GameShell title="Тетрис" gameId="tetris" meta={<AppText style={styles.metaScore}>{score}</AppText>}>
+    <GameShell title="Тетрис" gameId="tetris" meta={<AppText style={styles.metaScore}>{gameCoinReward(score)} coin</AppText>}>
       <View style={styles.layout}>
         <View style={styles.stats}>
           <PixelStat label="Рекорд" value={Math.max(progress.bestScore, score)} />

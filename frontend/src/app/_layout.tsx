@@ -14,7 +14,7 @@ import { RewardBurst } from "@/components/reward-burst";
 import { WebAnalytics } from "@/components/web-analytics";
 import { useGameProgressStore } from "@/games/progress-store";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { configureDailyReminder } from "@/lib/notifications";
+import { configureDailyReminder, syncPushNotifications } from "@/lib/notifications";
 import { useAppStore } from "@/store/app-store";
 
 void SplashScreen.preventAutoHideAsync();
@@ -32,6 +32,7 @@ export default function RootLayout() {
   const theme = useAppTheme();
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
+  const accessToken = useAppStore((state) => state.accessToken);
   const notificationsEnabled = useAppStore(
     (state) => state.notificationsEnabled,
   );
@@ -85,12 +86,22 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!hydrated || !authMode) return;
-    void configureDailyReminder(
-      notificationsEnabled,
-      notificationTime,
-      language,
-    ).catch(() => {});
+    void (async () => {
+      const localReady = await configureDailyReminder(
+        notificationsEnabled,
+        notificationTime,
+        language,
+      );
+      if (authMode === "authenticated" && accessToken) {
+        await syncPushNotifications({
+          accessToken,
+          enabled: notificationsEnabled && localReady,
+          reminderTime: notificationTime,
+        });
+      }
+    })().catch(() => {});
   }, [
+    accessToken,
     authMode,
     hydrated,
     language,

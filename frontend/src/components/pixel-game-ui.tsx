@@ -9,6 +9,7 @@ import {
 } from "react-native";
 
 import { AppText } from "@/components/app-text";
+import { gameCoinReward } from "@/games/rewards";
 
 export const PIXEL_GAME_COLORS = {
   background: "#FFB38B",
@@ -59,10 +60,13 @@ export function PixelPanel({
 }
 
 export function PixelStat({ label, value }: { label: string; value: ReactNode }) {
+  const coinMetric = /(рекорд|прошлый|best|score)/i.test(label);
+  const visibleLabel = coinMetric ? (/(рекорд|best)/i.test(label) ? "ЛУЧШИЙ COIN" : "ПРОШЛЫЙ COIN") : label.toUpperCase();
+  const visibleValue = coinMetric && typeof value === "number" ? gameCoinReward(value) : value;
   return (
     <PixelPanel style={styles.stat}>
-      <AppText style={styles.statLabel}>{label.toUpperCase()}</AppText>
-      <AppText style={styles.statValue}>{value}</AppText>
+      <AppText style={styles.statLabel}>{visibleLabel}</AppText>
+      <AppText style={styles.statValue}>{visibleValue}</AppText>
     </PixelPanel>
   );
 }

@@ -165,6 +165,20 @@ export function SocialButtons({
         onCredential={(credential: string) => void google(credential)}
         disabled={busy !== null}
       />
+      <ProviderButton
+        label={t("auth.yandex")}
+        icon={<Ionicons name="search-outline" size={21} color="#FC3F1D" />}
+        onPress={() => void yandex()}
+        busy={busy === "yandex"}
+        disabled={busy !== null && busy !== "yandex"}
+      />
+      <ProviderButton
+        label="Telegram"
+        icon={<Ionicons name="paper-plane" size={21} color="#229ED9" />}
+        onPress={() => void telegram()}
+        busy={busy === "telegram"}
+        disabled={busy !== null && busy !== "telegram"}
+      />
     </View>
   );
 }

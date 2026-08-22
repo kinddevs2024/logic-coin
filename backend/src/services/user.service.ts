@@ -2,6 +2,7 @@ import type { ClientSession, Types } from "mongoose";
 import { User } from "../models/User.js";
 import { generateReferralCode, normalizeEmail } from "../lib/crypto.js";
 import { ApiError } from "../lib/api-error.js";
+import { env } from "../config/env.js";
 
 interface CreateUserInput {
   email: string;
@@ -17,6 +18,7 @@ interface CreateUserInput {
 }
 
 export async function createUser(input: CreateUserInput) {
+  const normalizedEmail = normalizeEmail(input.email);
   let referredBy: Types.ObjectId | undefined;
   if (input.referralCode) {
     const inviter = await User.findOne({
@@ -28,7 +30,8 @@ export async function createUser(input: CreateUserInput) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
       return await User.create({
-        email: normalizeEmail(input.email),
+        email: normalizedEmail,
+        role: env.ADMIN_EMAILS.includes(normalizedEmail) ? "admin" : "user",
         name: input.name.trim(),
         ...(input.passwordHash ? { passwordHash: input.passwordHash } : {}),
         ...(input.registrationTokenHash
@@ -76,7 +79,6 @@ export async function processReferralSignupReward(
     return;
   }
 
-  const { env } = await import("../config/env.js");
   if (env.REFERRAL_SIGNUP_REWARD_UNITS === 0) {
     return;
   }

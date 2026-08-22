@@ -16,7 +16,7 @@ test("Expo and web deployment config target Logic Coin", async () => {
   ]);
   assert.equal(app.expo.name, "Logic Coin");
   assert.equal(app.expo.android.package, "com.kinddevs.logiccoin");
-  assert.equal(app.expo.web.output, "static");
+  assert.equal(app.expo.web.output, "single");
   assert.equal(vercel.outputDirectory, "dist");
   assert.equal(pkg.scripts["build:web"], "expo export --platform web");
   assert.equal(pkg.scripts.typecheck, "tsc --noEmit");

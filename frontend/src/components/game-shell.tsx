@@ -1,6 +1,7 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useRef, useState, type PropsWithChildren, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useRef, useState, type PropsWithChildren, type ReactNode } from "react";
+import { Platform, ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/app-text";
@@ -37,7 +38,15 @@ export function GameShell({
   const theme = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
   const [economyOpen, setEconomyOpen] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const drift = useSharedValue(0);
   const background = backgroundColor ?? (variant === "app" ? String(theme.background) : GAME_BACKGROUNDS[variant]);
+  useEffect(() => {
+    if (reducedMotion) return;
+    drift.value = withRepeat(withSequence(withTiming(1, { duration: 7_600, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 7_600, easing: Easing.inOut(Easing.sin) })), -1);
+    return () => cancelAnimation(drift);
+  }, [drift, reducedMotion]);
+  const ambientMotion = useAnimatedStyle(() => ({ transform: [{ translateX: drift.value * -32 }, { translateY: drift.value * 36 }, { scale: 1 + drift.value * 0.08 }] }));
 
   useFocusEffect(
     useCallback(() => {
@@ -61,7 +70,7 @@ export function GameShell({
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: background }]} edges={["top", "left", "right"]}>
-      <View pointerEvents="none" style={[styles.ambient, variant === "app" ? { backgroundColor: String(theme.orbOne) } : styles.ambientGame]} />
+      <Animated.View pointerEvents="none" style={[styles.ambient, variant === "app" ? { backgroundColor: String(theme.orbOne) } : styles.ambientGame, ambientMotion]} />
       <ScrollView ref={scrollRef} role="main" style={styles.scroll} contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         {variant === "app" ? <GlassSurface intensity={58} style={styles.headerGlass}>{header}</GlassSurface> : <View style={styles.headerPlain}>{header}</View>}
         {children}
@@ -75,7 +84,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { flex: 1 },
   page: { width: "100%", maxWidth: 920, alignSelf: "center", paddingHorizontal: 16, paddingTop: 10, paddingBottom: 48 },
-  ambient: { position: "absolute", width: 360, height: 360, borderRadius: 180, opacity: 0.16, top: -150, right: -120 },
+  ambient: { position: "absolute", width: 360, height: 360, borderRadius: 180, opacity: 0.12, top: -150, right: -120, ...(Platform.OS === "web" ? ({ filter: "blur(36px)" } as unknown as ViewStyle) : {}) },
   ambientGame: { backgroundColor: "#FFFFFF", opacity: 0.13 },
   headerGlass: { borderRadius: 28, marginBottom: 18 },
   headerPlain: { marginBottom: 10 },

@@ -34,9 +34,9 @@ export function AuthScaffold({
           <View style={styles.heading}>
             {title ? <AppText variant="heading">{title}</AppText> : null}
             {subtitle ? (
-              <AppText 
-                variant="caption" 
-                muted 
+              <AppText
+                variant="caption"
+                muted
                 style={[{ textAlign: "center" }, styles.subtitle]}
               >
                 {subtitle}

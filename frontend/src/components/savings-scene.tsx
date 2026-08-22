@@ -18,86 +18,14 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
 import { useAppStore } from "@/store/app-store";
 
-const jarShellSource = require("../../assets/scene/jar-shell.png");
 const islandSource = require("../../assets/scene/island.png");
-
-const fillItems: {
-  source: ImageSourcePropType;
-  size: number;
-  left: number;
-  bottom: number;
-  rotation: number;
-}[] = [
-  {
-    source: require("../../assets/scene/coin-gold-a.png"),
-    size: 40,
-    left: 4,
-    bottom: -4,
-    rotation: -10,
-  },
-  {
-    source: require("../../assets/scene/coin-silver.png"),
-    size: 38,
-    left: 37,
-    bottom: -3,
-    rotation: 12,
-  },
-  {
-    source: require("../../assets/scene/coin-angle.png"),
-    size: 42,
-    left: 70,
-    bottom: 2,
-    rotation: -22,
-  },
-  {
-    source: require("../../assets/scene/bill-1.png"),
-    size: 58,
-    left: 7,
-    bottom: 20,
-    rotation: -18,
-  },
-  {
-    source: require("../../assets/scene/coin-gold-b.png"),
-    size: 38,
-    left: 47,
-    bottom: 28,
-    rotation: 5,
-  },
-  {
-    source: require("../../assets/scene/coin-silver.png"),
-    size: 36,
-    left: 75,
-    bottom: 34,
-    rotation: 16,
-  },
-  {
-    source: require("../../assets/scene/bill-10.png"),
-    size: 56,
-    left: 13,
-    bottom: 54,
-    rotation: 14,
-  },
-  {
-    source: require("../../assets/scene/coin-angle.png"),
-    size: 38,
-    left: 55,
-    bottom: 60,
-    rotation: -9,
-  },
-  {
-    source: require("../../assets/scene/bill-5.png"),
-    size: 52,
-    left: 7,
-    bottom: 82,
-    rotation: -8,
-  },
-  {
-    source: require("../../assets/scene/coin-gold-a.png"),
-    size: 36,
-    left: 68,
-    bottom: 88,
-    rotation: 17,
-  },
+const jarStateSources: ImageSourcePropType[] = [
+  require("../../assets/scene/Make_empty_jar_202607261857-Photoroom.png"),
+  require("../../assets/scene/Piggy_bank_with_few_coins_202607261857-Photoroom.png"),
+  require("../../assets/scene/Jar_one-third_filled_money_202607261857-Photoroom.png"),
+  require("../../assets/scene/Jar_half-filled_with_money_202607261857-Photoroom.png"),
+  require("../../assets/scene/Jar_half_filled_with_money_202607261857-Photoroom.png"),
+  require("../../assets/scene/Money_inside_piggy_bank_202607261857 (1)-Photoroom.png"),
 ];
 
 const moneyDrops: {
@@ -163,10 +91,6 @@ function jarIndex(progress: number) {
   if (progress <= 0.55) return 3;
   if (progress <= 0.8) return 4;
   return 5;
-}
-
-function visibleFillCount(stateIndex: number) {
-  return [0, 2, 4, 6, 8, 10][stateIndex] ?? 0;
 }
 
 function MoneyDrop({
@@ -374,9 +298,6 @@ export function SavingsScene({
           <AppText variant="display" style={styles.balanceText}>
             {formatMoney(balance)}
           </AppText>
-          <View
-            style={[styles.progressDot, { backgroundColor: theme.primary }]}
-          />
         </GlassSurface>
 
         <Image
@@ -387,30 +308,8 @@ export function SavingsScene({
         />
         <View style={styles.contactShadow} />
         <MoneyLayer eventId={rewardEventId} phase="inside" />
-        <Animated.View style={[styles.jarFill, { opacity: jarOpacity }]}>
-          {fillItems
-            .slice(0, visibleFillCount(stateIndex))
-            .map((item, index) => (
-              <Image
-                key={`${index}-${item.bottom}`}
-                source={item.source}
-                resizeMode="contain"
-                accessibilityIgnoresInvertColors
-                style={[
-                  styles.fillItem,
-                  {
-                    width: item.size,
-                    height: item.size,
-                    left: item.left,
-                    bottom: item.bottom,
-                    transform: [{ rotate: `${item.rotation}deg` }],
-                  },
-                ]}
-              />
-            ))}
-        </Animated.View>
         <Animated.Image
-          source={jarShellSource}
+          source={jarStateSources[stateIndex]}
           resizeMode="contain"
           accessibilityLabel={`${Math.round(progress * 100)}%`}
           accessibilityIgnoresInvertColors
@@ -466,34 +365,26 @@ const styles = StyleSheet.create({
       : {}),
   },
   balanceBubble: {
-    minWidth: 150,
-    minHeight: 68,
-    borderRadius: 26,
-    paddingHorizontal: 22,
-    paddingVertical: 11,
+    minWidth: 124,
+    minHeight: 56,
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
     alignItems: "center",
     justifyContent: "center",
     top: -10,
     zIndex: 9,
   },
   balanceText: {
-    fontSize: 34,
-    lineHeight: 40,
-    letterSpacing: -1.4,
-  },
-  progressDot: {
-    position: "absolute",
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    right: 12,
-    top: 12,
+    fontSize: 29,
+    lineHeight: 35,
+    letterSpacing: -1.1,
   },
   island: {
     position: "absolute",
     width: 372,
     height: 272,
-    top: 160,
+    top: 165,
     zIndex: 1,
   },
   contactShadow: {
@@ -501,30 +392,19 @@ const styles = StyleSheet.create({
     width: 154,
     height: 30,
     borderRadius: 77,
-    top: 278,
+    top: 294,
     backgroundColor: "rgba(18,38,28,0.24)",
     zIndex: 2,
     ...(Platform.OS === "web"
       ? ({ filter: "blur(12px)" } as unknown as ViewStyle)
       : {}),
   },
-  jarFill: {
-    position: "absolute",
-    width: 112,
-    height: 140,
-    top: 111,
-    borderRadius: 38,
-    overflow: "hidden",
-    zIndex: 3,
-  },
-  fillItem: {
-    position: "absolute",
-  },
   jarShell: {
     position: "absolute",
-    width: 300,
-    height: 300,
-    top: 9,
+    width: 286,
+    height: 286,
+    top: 12,
+    borderRadius: 143,
     zIndex: 4,
   },
   insideLayer: {

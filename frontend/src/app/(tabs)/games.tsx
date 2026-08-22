@@ -1,93 +1,166 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
+import { GameEconomyModal } from "@/components/game-economy";
 import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
-import { EMPTY_GAME_PROGRESS, type GameId, type GameProgress, useGameProgressStore } from "@/games/progress-store";
+import { gameCoverFor } from "@/constants/game-covers";
+import { GAME_BY_KEY, GAME_CATALOG, localizeGame, type LocalizedGame } from "@/constants/games";
+import { EMPTY_GAME_PROGRESS, type GameId, useGameProgressStore } from "@/games/progress-store";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useClientReady } from "@/hooks/use-client-ready";
 import { useGameProgressSync } from "@/hooks/use-game-progress-sync";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
+import { gamesApi } from "@/lib/api";
+import { useAppStore } from "@/store/app-store";
+import type { GameCatalogItem } from "@/types";
 
 const copy = {
-  ru: { title: "Игры", subtitle: "Продолжайте с последнего уровня", tetris: "Тетрис", chess: "Шахматы", merge: "2048", longcat: "Хвостатый путь", gobble: "Карманная воронка", loops: "Живые линии", brain: "Хитрые мысли", solo: "Один игрок", duo: "Два игрока", fill: "Заполни всё поле", eat: "Поглоти предметы — избегай людей", connect: "Соедини каждый путь", think: "Думай иначе", newBadge: "Новое", level: "Уровень", best: "Рекорд", play: "Играть" },
-  en: { title: "Games", subtitle: "Continue where you left off", tetris: "Tetris", chess: "Chess", merge: "2048", longcat: "Trail Cat", gobble: "Pocket Vortex", loops: "Living Lines", brain: "Brain Tricks", solo: "Solo", duo: "Two players", fill: "Fill every space", eat: "Swallow objects — avoid people", connect: "Connect every path", think: "Think differently", newBadge: "New", level: "Level", best: "Best", play: "Play" },
-  uz: { title: "O'yinlar", subtitle: "Oxirgi bosqichdan davom eting", tetris: "Tetris", chess: "Shaxmat", merge: "2048", longcat: "Uzun mushuk", gobble: "Cho‘ntak girdobi", loops: "Jonli chiziqlar", brain: "Aqlli topishmoqlar", solo: "Bir o'yinchi", duo: "Ikki o'yinchi", fill: "Barcha maydonni to'ldiring", eat: "Buyumlarni yuting — odamlardan saqlaning", connect: "Barcha yo'llarni ulang", think: "Boshqacha o'ylang", newBadge: "Yangi", level: "Bosqich", best: "Rekord", play: "O'ynash" },
+  ru: { title: "Игры", best: "Монеты", play: "Играть" },
+  en: { title: "Games", best: "Coins", play: "Play" },
+  uz: { title: "O‘yinlar", best: "Tangalar", play: "O‘ynash" },
 } as const;
 
-type Copy = { [Key in keyof (typeof copy)["en"]]: string };
-type GameDef = { key: GameId; title: keyof Copy; caption: keyof Copy; icon: React.ComponentProps<typeof Ionicons>["name"]; accent: string; levels?: number; isNew?: boolean };
+const CATALOG_KEY_BY_SERVER_KEY: Readonly<Record<string, string>> = {
+  "color-focus": "tsvet",
+  "color-stroop": "tsvet",
+  "reflex-hit": "udar",
+  strike: "udar",
+  "find-number": "space-find-number",
+  "geo-master": "geography-quiz",
+  "shadow-match": "shadow",
+};
 
-const gameDefs: GameDef[] = [
-  { key: "tetris", title: "tetris", caption: "solo", icon: "grid-outline", accent: "#087CFF" },
-  { key: "chess", title: "chess", caption: "duo", icon: "people-outline", accent: "#705CF6" },
-  { key: "2048", title: "merge", caption: "solo", icon: "apps-outline", accent: "#F59E0B" },
-  { key: "longcat", title: "longcat", caption: "fill", icon: "git-branch-outline", accent: "#F07D5A", levels: 20 },
-  { key: "gobble", title: "gobble", caption: "eat", icon: "radio-button-on-outline", accent: "#8A5CF6", levels: 30 },
-  { key: "loops", title: "loops", caption: "connect", icon: "infinite-outline", accent: "#B45C66", levels: 30, isNew: true },
-  { key: "brain-tricks", title: "brain", caption: "think", icon: "bulb-outline", accent: "#27A66F", levels: 40, isNew: true },
-];
+const PROGRESS_KEY_BY_SERVER_KEY: Partial<Record<string, GameId>> = {
+  "color-focus": "tsvet",
+  "color-stroop": "tsvet",
+  "reflex-hit": "udar",
+  strike: "udar",
+  "find-number": "space-find-number",
+  "geo-master": "geography-quiz",
+  "shadow-match": "shadow",
+};
 
-function GameCard({ game, progress, c, wide, onPress }: { game: GameDef; progress: Readonly<GameProgress>; c: Copy; wide: boolean; onPress: () => void }) {
-  const theme = useAppTheme();
-  const level = Math.min(game.levels ?? progress.highestUnlockedLevel, Math.max(1, progress.currentLevel));
-  return (
-    <View style={[styles.cell, wide && styles.cellWide]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`${c[game.title]}. ${c.play}`} onPress={onPress} style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}>
-        <GlassSurface intensity={64} variant="strong" style={styles.card}>
-          <View style={[styles.icon, { backgroundColor: `${game.accent}18`, borderColor: `${game.accent}38` }]}><Ionicons name={game.icon} color={game.accent} size={29} /></View>
-          <View style={styles.copy}>
-            <View style={styles.titleRow}><AppText style={[styles.gameTitle, { color: theme.text }]}>{c[game.title]}</AppText>{game.isNew ? <View style={[styles.badge, { backgroundColor: `${game.accent}18` }]}><AppText style={[styles.badgeText, { color: game.accent }]}>{c.newBadge}</AppText></View> : null}</View>
-            <AppText style={[styles.caption, { color: theme.textMuted }]} numberOfLines={1}>{c[game.caption]}</AppText>
-            <AppText style={[styles.progress, { color: game.accent }]}>{game.levels ? `${c.level} ${level} / ${game.levels}` : `${c.best} ${progress.bestScore}`}</AppText>
-          </View>
-          <View style={[styles.arrow, { backgroundColor: `${game.accent}12` }]}><Ionicons name="arrow-forward" color={game.accent} size={18} /></View>
-        </GlassSurface>
-      </Pressable>
-    </View>
-  );
+function mapServerGame(entry: GameCatalogItem): LocalizedGame | null {
+  const catalog = GAME_BY_KEY[CATALOG_KEY_BY_SERVER_KEY[entry.key] ?? entry.key];
+  if (!catalog) return null;
+  return {
+    ...catalog,
+    id: entry.id,
+    key: entry.key,
+    slug: entry.slug,
+    challengeEnabled: entry.challengeEnabled,
+    practiceEnabled: entry.practiceEnabled,
+  };
 }
 
 export default function GamesScreen() {
+  const theme = useAppTheme();
   const router = useRouter();
   const { language } = useTranslation();
   const { isTablet, isDesktop } = useResponsiveLayout();
-  const games = useGameProgressStore((state) => state.games);
-  const clientReady = useClientReady();
-  const c = copy[language];
+  const accessToken = useAppStore((state) => state.accessToken);
+  const authMode = useAppStore((state) => state.authMode);
+  const progress = useGameProgressStore((state) => state.games);
+  const coinBalance = useAppStore((state) => state.coinBalance);
+  const ready = useClientReady();
+  const [economyGameId, setEconomyGameId] = useState<GameId | null>(null);
   useGameProgressSync();
+  const c = copy[language];
   const wide = isTablet || isDesktop;
+  const query = useQuery({
+    queryKey: ["games", accessToken],
+    queryFn: () => gamesApi.list(accessToken!),
+    enabled: authMode === "authenticated" && Boolean(accessToken),
+    staleTime: 60_000,
+  });
+  const authenticated = authMode === "authenticated" && Boolean(accessToken);
+  const games = authenticated && query.isSuccess
+    ? query.data
+        .filter((entry) => entry.practiceEnabled)
+        .map(mapServerGame)
+        .filter((entry): entry is LocalizedGame => entry !== null)
+    : GAME_CATALOG;
+
   return (
     <AppFrame wide desktopNavigationInset contentStyle={styles.page}>
-      <ScreenHeader title={c.title} subtitle={c.subtitle} action={<GlassSurface intensity={54} style={styles.headerIcon}><Ionicons name="game-controller-outline" size={25} color="#087CFF" /></GlassSurface>} />
+      <ScreenHeader
+        title={c.title}
+        action={
+          <GlassSurface intensity={64} variant="strong" style={styles.count}>
+            <Ionicons name="diamond" size={18} color={String(theme.primary)} />
+            <AppText style={[styles.countText, { color: theme.primary }]}>{coinBalance} coin</AppText>
+          </GlassSurface>
+        }
+      />
       <View style={[styles.grid, wide && styles.gridWide]}>
-        {gameDefs.map((game) => <GameCard key={game.key} game={game} c={c} progress={clientReady ? games[game.key] ?? EMPTY_GAME_PROGRESS : EMPTY_GAME_PROGRESS} wide={wide} onPress={() => router.push(`/games/${game.key}` as never)} />)}
+        {games.map((entry, index) => {
+          const game = localizeGame(entry, language);
+          const progressKey = PROGRESS_KEY_BY_SERVER_KEY[game.key] ?? (game.key as GameId);
+          const saved = ready ? progress[progressKey] ?? EMPTY_GAME_PROGRESS : EMPTY_GAME_PROGRESS;
+          const cover = gameCoverFor(game.key);
+          return (
+            <Animated.View key={game.key} entering={FadeInDown.delay(Math.min(index, 12) * 35).duration(380)} style={[styles.cell, wide && styles.cellWide]}>
+              <GlassSurface intensity={68} variant="strong" style={styles.card}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never)} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
+                  <View style={[styles.icon, { backgroundColor: `${game.color}18`, borderColor: `${game.color}38` }]}>
+                    {cover ? <Image source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} color={game.color} size={28} />}
+                  </View>
+                  <View style={styles.copy}>
+                    <AppText style={[styles.title, { color: theme.text }]} numberOfLines={1}>{game.title}</AppText>
+                    <AppText style={[styles.caption, { color: theme.textMuted }]} numberOfLines={1}>{game.description}</AppText>
+                    <View style={styles.bestRow}>
+                      <Ionicons name="diamond-outline" size={13} color={game.color} />
+                      <AppText style={[styles.best, { color: game.color }]}>{c.best} {Math.min(1000, saved.coins)}</AppText>
+                    </View>
+                  </View>
+                </Pressable>
+                <View style={styles.cardActions}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Скины: ${game.title}`} onPress={() => setEconomyGameId(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${game.color}42`, backgroundColor: `${game.color}13` }, pressed && styles.pressed]}>
+                    <Ionicons name="shirt-outline" color={game.color} size={17} />
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never)} style={({ pressed }) => [styles.playButton, { backgroundColor: game.color }, pressed && styles.pressed]}>
+                    <Ionicons name="play" color="#FFFFFF" size={15} />
+                    <AppText style={styles.playText}>{c.play}</AppText>
+                  </Pressable>
+                </View>
+              </GlassSurface>
+            </Animated.View>
+          );
+        })}
       </View>
+      {economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
     </AppFrame>
   );
 }
 
 const styles = StyleSheet.create({
   page: { maxWidth: 1180 },
-  headerIcon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
-  grid: { gap: 12 },
+  count: { minHeight: 46, borderRadius: 18, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6 },
+  countText: { fontSize: 12, lineHeight: 15, fontWeight: "900" },
+  grid: { gap: 11 },
   gridWide: { flexDirection: "row", flexWrap: "wrap" },
   cell: { width: "100%" },
-  cellWide: { width: "49%", minWidth: 320, flexGrow: 1 },
-  pressable: { borderRadius: 29 },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
-  card: { minHeight: 116, borderRadius: 29, padding: 16, flexDirection: "row", alignItems: "center", gap: 14 },
-  icon: { width: 60, height: 60, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  copy: { flex: 1, gap: 3 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  gameTitle: { fontSize: 18, lineHeight: 23, fontWeight: "900" },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: "600" },
-  progress: { marginTop: 3, fontSize: 11, lineHeight: 14, fontWeight: "800" },
-  badge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText: { fontSize: 9, lineHeight: 11, fontWeight: "900", textTransform: "uppercase" },
-  arrow: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  cellWide: { width: "49%", minWidth: 330, flexGrow: 1 },
+  playArea: { flex: 1, minWidth: 0, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 13, borderRadius: 22 },
+  pressed: { opacity: 0.87, transform: [{ scale: 0.99 }] },
+  card: { minHeight: 106, borderRadius: 28, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, overflow: "hidden" },
+  icon: { width: 62, height: 62, borderRadius: 31, borderWidth: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  cover: { width: "100%", height: "100%", borderRadius: 31 },
+  copy: { flex: 1, gap: 2, minWidth: 0 },
+  title: { fontSize: 17, lineHeight: 22, fontWeight: "900" },
+  caption: { fontSize: 11, lineHeight: 15, fontWeight: "600" },
+  bestRow: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 4 },
+  best: { fontSize: 10, lineHeight: 13, fontWeight: "900" },
+  cardActions: { alignItems: "center", gap: 7 },
+  skinButton: { width: 34, height: 34, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  playButton: { minWidth: 82, minHeight: 42, borderRadius: 21, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  playText: { color: "#FFFFFF", fontSize: 11, lineHeight: 14, fontWeight: "900" },
 });

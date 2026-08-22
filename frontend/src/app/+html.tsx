@@ -19,12 +19,13 @@ export default function RootHtml({ children }: { children: ReactNode }) {
         />
         <meta
           name="description"
-          content="Logic Coin — копите монеты, выполняйте задания и сохраняйте ежедневную серию."
+          content="Logic Coin — ежедневные игровые челленджи, coins, рейтинг и умная копилка."
         />
         <meta name="theme-color" content="#0860F0" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3345266316761728" crossOrigin="anonymous"></script>
+        <link rel="preload" href="/fonts/Ionicons.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/MaterialCommunityIcons.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         <ScrollViewStyleReset />
         {headNodes}
       </head>

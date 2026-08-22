@@ -5,11 +5,9 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/app-text";
-import { GAME_COSMETICS, cosmeticFor } from "@/games/cosmetics";
+import { cosmeticFor, cosmeticsFor } from "@/games/cosmetics";
 import { gameProgressFor, type GameId, useGameProgressStore } from "@/games/progress-store";
 import { useClientReady } from "@/hooks/use-client-ready";
-import { gameProgressApi } from "@/lib/api";
-import { useAppStore } from "@/store/app-store";
 
 export function GameEconomyHud({
   gameId,
@@ -55,72 +53,46 @@ export function GameEconomyModal({
   const progress = ready ? saved : gameProgressFor({}, gameId);
   const purchaseCosmetic = useGameProgressStore((state) => state.purchaseCosmetic);
   const selectCosmetic = useGameProgressStore((state) => state.selectCosmetic);
-  const transferCoins = useGameProgressStore((state) => state.transferCoins);
-  const games = useGameProgressStore((state) => state.games);
-  const mergeRemote = useGameProgressStore((state) => state.mergeRemote);
-  const addGameReward = useAppStore((state) => state.addGameReward);
-  const accessToken = useAppStore((state) => state.accessToken);
-  const authMode = useAppStore((state) => state.authMode);
-  const setBalance = useAppStore((state) => state.setBalance);
   const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
-  const skins = useMemo(() => GAME_COSMETICS[gameId], [gameId]);
-  const convertibleUnits = Math.floor(progress.coins / 10);
+  const [pendingSkinId, setPendingSkinId] = useState<string | null>(null);
+  const skins = useMemo(() => cosmeticsFor(gameId), [gameId]);
+  const pendingSkin = skins.find((skin) => skin.id === pendingSkinId) ?? null;
+
+  const close = () => {
+    setPendingSkinId(null);
+    setNotice("");
+    onClose();
+  };
 
   const chooseSkin = (id: string, price: number) => {
     if (progress.unlockedCosmetics.includes(id)) {
       selectCosmetic(gameId, id);
       setNotice("Выбрано");
+      setPendingSkinId(null);
       return;
     }
-    const purchased = purchaseCosmetic(gameId, id, price);
-    setNotice(purchased ? "Скин открыт" : "Недостаточно coin");
+    setPendingSkinId(id);
+    setNotice(progress.coins < price ? "Недостаточно coin" : "");
   };
 
-  const convert = async () => {
-    const coinAmount = Math.floor(progress.coins / 10) * 10;
-    if (!coinAmount) {
-      setNotice("Нужно минимум 10 coin");
-      return;
-    }
-    if (authMode === "authenticated" && accessToken) {
-      setBusy(true);
-      try {
-        await gameProgressApi.put(games, accessToken);
-        const result = await gameProgressApi.convert(
-          {
-            gameId,
-            coins: coinAmount,
-            idempotencyKey: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-          },
-          accessToken,
-        );
-        mergeRemote(result.games);
-        setBalance(result.wallet.availableUnits);
-        setNotice(`+${result.convertedUnits} в копилку`);
-      } catch {
-        setNotice("Не удалось перевести coin");
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    const units = transferCoins(gameId, coinAmount);
-    addGameReward(gameId, units);
-    setNotice(`+${units} в копилку`);
+  const confirmPurchase = () => {
+    if (!pendingSkin) return;
+    const purchased = purchaseCosmetic(gameId, pendingSkin.id, pendingSkin.price);
+    setNotice(purchased ? `${pendingSkin.name} куплен и выбран` : "Недостаточно coin");
+    if (purchased) setPendingSkinId(null);
   };
 
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+    <Modal transparent visible={visible} animationType="none" onRequestClose={close}>
       <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.backdrop}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={onClose} style={StyleSheet.absoluteFill} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={StyleSheet.absoluteFill} />
         <View style={[styles.sheet, { paddingBottom: Math.max(18, insets.bottom + 10) }]}>
           <View style={styles.sheetTop}>
             <View style={styles.walletTitle}>
               <MaterialCommunityIcons name="hexagon-multiple" size={23} color="#F5B800" />
               <AppText style={styles.sheetTitle}>{progress.coins} coin</AppText>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={onClose} style={styles.closeButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={styles.closeButton}>
               <Ionicons name="close" size={22} color="#282936" />
             </Pressable>
           </View>
@@ -144,12 +116,34 @@ export function GameEconomyModal({
             })}
           </ScrollView>
 
-          <Pressable accessibilityRole="button" accessibilityLabel="Перевести игровые монеты в копилку" disabled={!convertibleUnits || busy} onPress={() => void convert()} style={({ pressed }) => [styles.convertButton, (!convertibleUnits || busy) && styles.disabled, pressed && styles.convertPressed]}>
-            <MaterialCommunityIcons name="piggy-bank" size={23} color="#FFFFFF" />
-            <AppText style={styles.convertText}>В копилку</AppText>
-            <AppText style={styles.convertAmount}>{convertibleUnits} LC</AppText>
-          </Pressable>
-          <AppText style={styles.rate}>10 coin = 1 LC</AppText>
+          {pendingSkin ? (
+            <Animated.View entering={FadeIn.duration(140)} style={styles.confirmCard}>
+              <View style={[styles.confirmPreview, { backgroundColor: pendingSkin.secondary }]}>
+                <MaterialCommunityIcons name={pendingSkin.icon} size={32} color={pendingSkin.primary} />
+              </View>
+              <View style={styles.confirmCopy}>
+                <AppText style={styles.confirmTitle}>Купить «{pendingSkin.name}»?</AppText>
+                <AppText style={styles.confirmMeta}>{pendingSkin.price} coin · останется {Math.max(0, progress.coins - pendingSkin.price)}</AppText>
+              </View>
+              <View style={styles.confirmActions}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Отменить покупку" onPress={() => setPendingSkinId(null)} style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
+                  <AppText style={styles.cancelText}>Отмена</AppText>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Купить ${pendingSkin.name} за ${pendingSkin.price} coin`} disabled={progress.coins < pendingSkin.price} onPress={confirmPurchase} style={({ pressed }) => [styles.buyButton, { backgroundColor: pendingSkin.primary }, progress.coins < pendingSkin.price && styles.disabled, pressed && styles.pressed]}>
+                  <Ionicons name="bag-check-outline" size={17} color="#FFFFFF" />
+                  <AppText style={styles.buyText}>Купить</AppText>
+                </Pressable>
+              </View>
+            </Animated.View>
+          ) : null}
+
+          <View style={styles.cosmeticNote}>
+            <MaterialCommunityIcons name="shield-check-outline" size={20} color="#705CF6" />
+            <View style={styles.cosmeticNoteCopy}>
+              <AppText style={styles.cosmeticNoteTitle}>Игровые coin</AppText>
+              <AppText style={styles.cosmeticNoteText}>Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.</AppText>
+            </View>
+          </View>
           {notice ? <AppText style={styles.notice}>{notice}</AppText> : null}
         </View>
       </Animated.View>
@@ -174,12 +168,21 @@ const styles = StyleSheet.create({
   skinName: { color: "#262833", fontSize: 12, lineHeight: 15, fontWeight: "900", maxWidth: "100%" },
   skinPrice: { minHeight: 21, borderRadius: 999, paddingHorizontal: 8, backgroundColor: "#F0F1F5", flexDirection: "row", alignItems: "center", gap: 4 },
   skinPriceText: { color: "#555866", fontSize: 9, lineHeight: 12, fontWeight: "900" },
-  convertButton: { minHeight: 54, borderRadius: 18, paddingHorizontal: 16, backgroundColor: "#1688F2", flexDirection: "row", alignItems: "center", gap: 9, shadowColor: "#1688F2", shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 7 } },
-  convertText: { flex: 1, color: "#FFFFFF", fontSize: 15, lineHeight: 19, fontWeight: "900" },
-  convertAmount: { color: "#FFFFFF", fontSize: 14, lineHeight: 18, fontWeight: "900" },
-  rate: { color: "#888B98", fontSize: 10, lineHeight: 13, fontWeight: "700", textAlign: "center", marginTop: 8 },
+  confirmCard: { marginBottom: 12, borderRadius: 20, borderWidth: 1, borderColor: "#D9DBE5", backgroundColor: "#FFFFFF", padding: 11, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
+  confirmPreview: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  confirmCopy: { flex: 1, minWidth: 160, gap: 2 },
+  confirmTitle: { color: "#20222E", fontSize: 14, lineHeight: 18, fontWeight: "900" },
+  confirmMeta: { color: "#737685", fontSize: 10, lineHeight: 14, fontWeight: "700" },
+  confirmActions: { width: "100%", flexDirection: "row", justifyContent: "flex-end", gap: 8 },
+  cancelButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#ECEEF4" },
+  cancelText: { color: "#454855", fontSize: 12, lineHeight: 16, fontWeight: "900" },
+  buyButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  buyText: { color: "#FFFFFF", fontSize: 12, lineHeight: 16, fontWeight: "900" },
+  cosmeticNote: { minHeight: 64, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: "#EEEAFE", flexDirection: "row", alignItems: "center", gap: 10 },
+  cosmeticNoteCopy: { flex: 1, gap: 2 },
+  cosmeticNoteTitle: { color: "#3B2E73", fontSize: 12, lineHeight: 15, fontWeight: "900" },
+  cosmeticNoteText: { color: "#6F6888", fontSize: 10, lineHeight: 14, fontWeight: "700" },
   notice: { color: "#236A42", fontSize: 11, lineHeight: 14, fontWeight: "900", textAlign: "center", marginTop: 4 },
   disabled: { opacity: 0.38 },
   pressed: { transform: [{ scale: 0.97 }] },
-  convertPressed: { transform: [{ scale: 0.985 }] },
 });

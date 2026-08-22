@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useAppTheme } from "@/hooks/use-app-theme";
 
@@ -13,105 +13,89 @@ export function PinInput({
   length?: number;
 }) {
   const theme = useAppTheme();
-  const inputs = useRef<Array<TextInput | null>>([]);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const input = useRef<TextInput>(null);
+  const [focused, setFocused] = useState(false);
+  const activeIndex = Math.min(value.length, length - 1);
 
-  const handleChange = (index: number, text: string) => {
-    // Only allow digits
-    const digits = text.replace(/\D/g, "");
-    
-    if (digits.length === 1) {
-      // Single digit input
-      const newValue = value.split("");
-      newValue[index] = digits;
-      const result = newValue.slice(0, length).join("");
-      onChangeValue(result);
-
-      // Auto-move to next field
-      if (digits && index < length - 1) {
-        inputs.current[index + 1]?.focus();
-      }
-    } else if (digits.length > 1) {
-      // Multi-digit paste - use as complete code
-      const newValue = digits.slice(0, length);
-      onChangeValue(newValue);
-      
-      // Focus the last filled field
-      const lastIndex = Math.min(newValue.length - 1, length - 1);
-      setTimeout(() => inputs.current[lastIndex]?.focus(), 50);
-    }
+  const updateCode = (text: string) => {
+    onChangeValue(text.replace(/\D/g, "").slice(0, length));
   };
 
-  const handleKeyPress = (index: number, key: string) => {
-    // Handle backspace
-    if (key === "Backspace") {
-      if (!value[index] && index > 0) {
-        const newValue = value.slice(0, index - 1) + value.slice(index);
-        onChangeValue(newValue);
-        inputs.current[index - 1]?.focus();
-      } else if (value[index]) {
-        const newValue = value.slice(0, index) + value.slice(index + 1);
-        onChangeValue(newValue);
-      }
-    }
-  };
-
-  const slots = Array.from({ length }).map((_, i) => (
-    <View
-      key={i}
-      style={[
-        styles.slotWrapper,
-        i === Math.floor(length / 2) - 1 && length > 3 && styles.beforeSeparator,
-      ]}
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Код подтверждения"
+      onPress={() => input.current?.focus()}
+      style={styles.container}
     >
-      <View
-        style={[
-          styles.slot,
-          {
-            backgroundColor: String(theme.surface),
-            borderColor:
-              focusedIndex === i
-                ? String(theme.primary)
-                : String(theme.border),
-            borderWidth: focusedIndex === i ? 2 : 1,
-          },
-        ]}
-      >
-        <TextInput
-          ref={(ref) => {
-            inputs.current[i] = ref;
-          }}
+      <TextInput
+        ref={input}
+        value={value}
+        onChangeText={updateCode}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        keyboardType="number-pad"
+        textContentType="oneTimeCode"
+        autoComplete="one-time-code"
+        maxLength={length}
+        caretHidden
+        style={styles.hiddenInput}
+      />
+      {Array.from({ length }, (_, index) => (
+        <View
+          key={index}
           style={[
-            styles.input,
-            { color: String(theme.text) },
+            styles.slotWrapper,
+            index === Math.floor(length / 2) - 1 && length > 3
+              ? styles.beforeSeparator
+              : null,
           ]}
-          value={value[i] ?? ""}
-          onChangeText={(text) => handleChange(i, text)}
-          onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
-          onFocus={() => setFocusedIndex(i)}
-          onBlur={() => setFocusedIndex(-1)}
-          keyboardType="number-pad"
-          selectTextOnFocus
-          textContentType="oneTimeCode"
-          autoComplete="one-time-code"
-        />
-      </View>
-      {i === Math.floor(length / 2) - 1 && length > 3 && (
-        <View style={[styles.separator, { backgroundColor: String(theme.border) }]} />
-      )}
-    </View>
-  ));
-
-  return <View style={styles.container}>{slots}</View>;
+        >
+          <View
+            style={[
+              styles.slot,
+              {
+                backgroundColor: String(theme.surface),
+                borderColor:
+                  focused && activeIndex === index
+                    ? String(theme.primary)
+                    : String(theme.border),
+                borderWidth: focused && activeIndex === index ? 2 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.digit, { color: String(theme.text) }]}>
+              {value[index] ?? ""}
+            </Text>
+          </View>
+          {index === Math.floor(length / 2) - 1 && length > 3 ? (
+            <View
+              style={[
+                styles.separator,
+                { backgroundColor: String(theme.border) },
+              ]}
+            />
+          ) : null}
+        </View>
+      ))}
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
+    position: "relative",
     flexDirection: "row",
     gap: 8,
     justifyContent: "center",
     marginVertical: 20,
     alignItems: "center",
+  },
+  hiddenInput: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
   slotWrapper: {
     flexDirection: "row",
@@ -124,16 +108,14 @@ const styles = StyleSheet.create({
   slot: {
     width: 50,
     height: 60,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  input: {
+  digit: {
     fontSize: 24,
-    fontWeight: "600",
+    fontWeight: "700",
     textAlign: "center",
-    width: "100%",
-    height: "100%",
   },
   separator: {
     width: 8,

@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   animatedContentDesktopNavigation: {
-    paddingLeft: 112,
+    paddingLeft: 130,
   },
   content: {
     width: "100%",

@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import React, { type ComponentProps } from "react";
+import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { AppText } from "@/components/app-text";
@@ -10,12 +10,12 @@ export interface StyledInputProps {
   placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
-  icon?: string;
+  icon?: ComponentProps<typeof Ionicons>["name"];
   error?: string;
   hint?: string;
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
-  autoComplete?: string;
-  keyboardType?: "default" | "email-address" | "numeric" | "phone-pad";
+  autoComplete?: TextInputProps["autoComplete"];
+  keyboardType?: TextInputProps["keyboardType"];
   disabled?: boolean;
   required?: boolean;
 }
@@ -58,7 +58,7 @@ export function StyledInput({
               : isFocused
                 ? String(theme.primary)
                 : String(theme.border),
-            backgroundColor: disabled ? String(theme.surfaceDisabled) : String(theme.surface),
+            backgroundColor: disabled ? String(theme.surfaceMuted) : String(theme.surface),
           },
         ]}
       >

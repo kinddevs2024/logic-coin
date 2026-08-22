@@ -1,33 +1,40 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { ActivityHeatmap } from "@/components/activity-heatmap";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { AppButton, IconButton } from "@/components/buttons";
+import { EditProfileModal } from "@/components/edit-profile-modal";
 import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
-import { activityApi, authApi, referralsApi } from "@/lib/api";
+import { authApi, referralsApi } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { sharePublicProfile } from "@/lib/profile-link";
 import { useAppStore } from "@/store/app-store";
 
 export default function ProfileScreen() {
   const theme = useAppTheme();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { isDesktop } = useResponsiveLayout();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const user = useAppStore((state) => state.user);
   const balance = useAppStore((state) => state.balanceUnits);
-  const activeDays = useAppStore((state) => state.activeDays);
-  const streak = useAppStore((state) => state.streak);
+  const coinBalance = useAppStore((state) => state.coinBalance);
+  const todayChallengesCompleted = useAppStore((state) => state.todayChallengesCompleted);
+  const { today } = useChallenges();
+  const monthlyChallengeCount = today?.monthlyChallengeCount ?? 0;
+  const gamesCompletedToday = today?.gamesCompletedToday ?? todayChallengesCompleted;
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
   const refreshToken = useAppStore((state) => state.refreshToken);
@@ -39,14 +46,9 @@ export default function ProfileScreen() {
     enabled: authenticated,
     staleTime: 30_000,
   });
-  const activityQuery = useQuery({
-    queryKey: ["activity", "profile", accessToken],
-    queryFn: () => activityApi.list(accessToken!),
-    enabled: authenticated,
-    staleTime: 30_000,
-  });
   const referral = referralQuery.data;
-  const activity = activityQuery.data;
+  const friendCount = authenticated ? referral?.invitedCount ?? 0 : 0;
+  const referralCode = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";
 
   const signOut = async () => {
     if (authenticated) {
@@ -77,25 +79,13 @@ export default function ProfileScreen() {
             variant="strong"
             style={styles.profileCard}
           >
-            <Avatar name={user.name} size={84} />
+            <Avatar name={user.name} avatarUrl={user.avatarUrl} size={84} />
             <View style={styles.identity}>
               <AppText variant="title">{user.name}</AppText>
               <AppText muted>{user.email ?? t("common.demo")}</AppText>
-              <View
-                style={[
-                  styles.language,
-                  { backgroundColor: theme.primarySoft },
-                ]}
-              >
-                <Ionicons
-                  name="globe-outline"
-                  size={14}
-                  color={String(theme.primary)}
-                />
-                <AppText variant="caption" color={String(theme.primary)}>
-                  {language.toUpperCase()}
-                </AppText>
-              </View>
+            </View>
+            <View style={styles.editButton}>
+              <IconButton name="create-outline" label={t("profile.edit")} onPress={() => setEditing(true)} />
             </View>
           </GlassSurface>
 
@@ -108,18 +98,28 @@ export default function ProfileScreen() {
                 color: String(theme.primary),
               },
               {
-                icon: "calendar-outline" as const,
-                label: t("home.drawer.activeDays"),
-                value: String(activity?.totalActiveDays ?? activeDays),
-                color: String(theme.success),
+                icon: "diamond-outline" as const,
+                label: "coin",
+                value: String(coinBalance),
+                color: "#7A5AF8",
               },
               {
                 icon: "people-outline" as const,
                 label: t("profile.friends"),
-                value: String(
-                  referral?.invitedCount ?? (authenticated ? 0 : 3),
-                ),
+                value: String(friendCount),
                 color: "#7A5AF8",
+              },
+              {
+                icon: "game-controller-outline" as const,
+                label: "Игр сегодня",
+                value: String(gamesCompletedToday),
+                color: String(theme.primary),
+              },
+              {
+                icon: "calendar-outline" as const,
+                label: "Челленджей за месяц",
+                value: String(monthlyChallengeCount),
+                color: String(theme.success),
               },
             ].map((stat) => (
               <GlassSurface
@@ -142,34 +142,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <GlassSurface
-          intensity={68}
-          style={[styles.activity, isDesktop && styles.activityDesktop]}
-        >
-          <View style={styles.activityHeader}>
-            <View>
-              <AppText variant="heading">{t("profile.active")}</AppText>
-              <AppText variant="caption" muted>
-                {activity?.totalActiveDays ?? activeDays}{" "}
-                {t("home.drawer.activeDays")}
-              </AppText>
-            </View>
-            <View
-              style={[
-                styles.streakBadge,
-                { backgroundColor: theme.primarySoft },
-              ]}
-            >
-              <Ionicons name="flame" size={16} color={String(theme.primary)} />
-              <AppText variant="caption" color={String(theme.primary)}>
-                {activity?.streak.activeDays ?? streak}
-              </AppText>
-            </View>
-          </View>
-          <View style={styles.heatmapScroll}>
-            <ActivityHeatmap days={activity?.days} toDayKey={activity?.to} />
-          </View>
-        </GlassSurface>
       </View>
 
       <GlassSurface intensity={62} style={styles.referralSurface}>
@@ -188,8 +160,8 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <AppText variant="label">{t("profile.invite")}</AppText>
             <AppText variant="caption" muted>
-              {referral?.code ?? user.referralCode ?? "LOGIC-7Q2M"} ·{" "}
-              {referral?.invitedCount ?? (authenticated ? 0 : 3)}{" "}
+              {referralCode} ·{" "}
+              {friendCount}{" "}
               {t("invite.people")}
             </AppText>
           </View>
@@ -202,6 +174,7 @@ export default function ProfileScreen() {
       </GlassSurface>
 
       <View style={styles.actions}>
+        <AppButton variant="secondary" icon="share-social-outline" onPress={() => void sharePublicProfile(user.name, user.referralCode)}>Поделиться профилем</AppButton>
         <AppButton
           variant="secondary"
           icon="settings-outline"
@@ -217,12 +190,14 @@ export default function ProfileScreen() {
           {t("profile.logout")}
         </AppButton>
       </View>
+      <EditProfileModal visible={editing} onClose={() => setEditing(false)} />
     </AppFrame>
   );
 }
 
 const styles = StyleSheet.create({
   profileCard: {
+    position: "relative",
     borderRadius: radii.xl,
     padding: 22,
     flexDirection: "row",
@@ -244,24 +219,19 @@ const styles = StyleSheet.create({
   identity: {
     flex: 1,
     gap: 2,
+    paddingRight: 50,
   },
-  language: {
-    marginTop: 7,
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
+  editButton: { position: "absolute", top: 14, right: 14 },
   stats: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 9,
     marginTop: 14,
   },
   stat: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: "30%",
+    minWidth: 100,
     minHeight: 116,
     borderWidth: 1,
     borderRadius: radii.lg,

@@ -6,6 +6,7 @@ import { Share, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
+import { Avatar } from "@/components/avatar";
 import { AppButton } from "@/components/buttons";
 import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
@@ -30,16 +31,23 @@ export default function InviteScreen() {
     staleTime: 30_000,
   });
   const referral = referralQuery.data;
-  const code = referral?.code ?? user.referralCode ?? "LOGIC-7Q2M";
-  const inviteUrl =
-    referral?.link ?? `https://logic-coin.app/invite/${code}`;
+  const friends = referral?.friends ?? [];
+  const code = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";
+  const inviteUrl = authenticated
+    ? referral?.link ?? (code !== "—" ? `https://logic-coin.app/invite/${code}` : "")
+    : "";
 
-  const share = () =>
-    Share.share({
+  const share = () => {
+    if (!authenticated || !inviteUrl) {
+      router.push("/login");
+      return;
+    }
+    void Share.share({
       title: "Logic Coin",
       message: `Logic Coin · ${code}\n${inviteUrl}`,
       url: inviteUrl,
     });
+  };
 
   return (
     <AppFrame>
@@ -51,20 +59,16 @@ export default function InviteScreen() {
 
       <GlassSurface intensity={84} variant="strong" style={styles.hero}>
         <View style={styles.people}>
-          {["A", "L", "M"].map((letter, index) => (
+          {friends.slice(0, 3).map((friend, index) => (
             <View
-              key={letter}
+              key={friend.id}
               style={[
-                styles.person,
                 {
                   marginLeft: index ? -12 : 0,
-                  backgroundColor: ["#50BAFF", "#FFB84D", "#EC4899"][index],
                 },
               ]}
             >
-              <AppText variant="label" color="#FFFFFF">
-                {letter}
-              </AppText>
+              <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={48} />
             </View>
           ))}
           <View
@@ -114,11 +118,11 @@ export default function InviteScreen() {
         <AppButton
           variant="secondary"
           icon="copy-outline"
-          onPress={() => void Clipboard.setStringAsync(code)}
+          onPress={() => authenticated && code !== "—" ? void Clipboard.setStringAsync(code) : router.push("/login")}
         >
           {t("invite.copy")}
         </AppButton>
-        <AppButton icon="share-social-outline" glow onPress={() => void share()}>
+        <AppButton icon="share-social-outline" glow onPress={share}>
           {t("invite.share")}
         </AppButton>
       </GlassSurface>
@@ -133,7 +137,7 @@ export default function InviteScreen() {
             />
           </View>
           <AppText variant="title">
-            {referral?.invitedCount ?? (authenticated ? 0 : 3)}
+            {authenticated ? referral?.invitedCount ?? 0 : 0}
           </AppText>
           <AppText variant="caption" muted>
             {t("invite.invited")}
@@ -148,13 +152,25 @@ export default function InviteScreen() {
             />
           </View>
           <AppText variant="title">
-            {referral?.earnedUnits ?? (authenticated ? 0 : 124)} LC
+            {authenticated ? referral?.earnedUnits ?? 0 : 0} LC · {authenticated ? referral?.earnedCoins ?? 0 : 0} coin
           </AppText>
           <AppText variant="caption" muted>
             {t("invite.reward")}
           </AppText>
         </GlassSurface>
       </View>
+
+      {friends.length ? (
+        <GlassSurface intensity={58} variant="soft" style={styles.friendList}>
+          {friends.slice(0, 6).map((friend) => (
+            <View key={friend.id} style={styles.friendRow}>
+              <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={40} />
+              <AppText variant="label" style={{ flex: 1 }}>{friend.name}</AppText>
+              {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.success)} /> : null}
+            </View>
+          ))}
+        </GlassSurface>
+      ) : null}
 
       <GlassSurface variant="soft" intensity={58} style={styles.info}>
         <View style={[styles.infoIcon, { backgroundColor: theme.primarySoft }]}>
@@ -165,8 +181,8 @@ export default function InviteScreen() {
           />
         </View>
         <AppText variant="caption" muted style={{ flex: 1 }}>
-          2% от подтверждённых наград друзей начисляются вам как реферальный
-          бонус. Баланс друга не уменьшается.
+          25% от денежных и coin-призов приглашённых друзей начисляются вам.
+          Баланс друга не уменьшается.
         </AppText>
       </GlassSurface>
     </AppFrame>
@@ -246,6 +262,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 11,
   },
+  friendList: { marginTop: 14, borderRadius: radii.lg, padding: 10, gap: 5 },
+  friendRow: { minHeight: 48, borderRadius: 16, paddingHorizontal: 7, flexDirection: "row", alignItems: "center", gap: 10 },
   infoIcon: {
     width: 42,
     height: 42,

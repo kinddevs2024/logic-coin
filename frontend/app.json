@@ -27,7 +27,7 @@
     },
 
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/brand/favicon.png",
       "bundler": "metro"
     },
@@ -35,6 +35,12 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Logic Coin использует выбранное фото только как аватар профиля."
+        }
+      ],
       "@react-native-google-signin/google-signin",
       [
         "expo-notifications",
