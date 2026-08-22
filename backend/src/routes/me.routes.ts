@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { PIGGY_BANK_VARIANTS, SUPPORTED_LANGUAGES, THEMES } from "../config/constants.js";
+import { SUPPORTED_LANGUAGES, THEMES } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import { isValidTimeZone } from "../lib/timezone.js";
 import { validateBody } from "../middleware/validate.js";
@@ -17,28 +17,55 @@ router.get("/", async (request, response) => {
   response.json({ data: { user: serializeUser(user) } });
 });
 
+const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
+
+function validAvatarDataUrl(value: string): boolean {
+  const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if (!match?.[1] || !match[2]) return false;
+  const bytes = Buffer.from(match[2], "base64");
+  if (bytes.length === 0 || bytes.length > MAX_AVATAR_BYTES) return false;
+  if (match[1] === "jpeg") {
+    return bytes.length >= 4 &&
+      bytes[0] === 0xff &&
+      bytes[1] === 0xd8 &&
+      bytes[2] === 0xff &&
+      bytes.at(-2) === 0xff &&
+      bytes.at(-1) === 0xd9;
+  }
+  if (match[1] === "png") {
+    return bytes.length >= 24 &&
+      bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) &&
+      bytes.subarray(12, 16).toString("ascii") === "IHDR";
+  }
+  return bytes.length >= 16 &&
+    bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+    bytes.subarray(8, 12).toString("ascii") === "WEBP" &&
+    ["VP8 ", "VP8L", "VP8X"].includes(bytes.subarray(12, 16).toString("ascii"));
+}
+
 const profileSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional(),
-    avatarUrl: z.string().url().max(2_048).nullable().optional(),
-    savingsGoalCents: z.number().int().min(0).max(1_000_000_000).optional(),
-    piggyBankVariant: z.enum(PIGGY_BANK_VARIANTS).optional()
+    avatarDataUrl: z
+      .string()
+      .max(2_100_000)
+      .refine(validAvatarDataUrl, "Avatar must be a valid JPEG, PNG, or WebP image up to 10 MiB")
+      .nullable()
+      .optional(),
+    savingsGoalCents: z.number().int().min(0).max(1_000_000_000).optional()
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, "At least one field is required");
 
-router.patch("/", validateBody(profileSchema), async (request, response) => {
+router.patch(["/", "/profile"], validateBody(profileSchema), async (request, response) => {
   const input = request.body as z.infer<typeof profileSchema>;
   const set: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
   if (input.name !== undefined) set.name = input.name;
-  if (input.avatarUrl === null) unset.avatarUrl = 1;
-  else if (input.avatarUrl !== undefined) set.avatarUrl = input.avatarUrl;
+  if (input.avatarDataUrl === null) unset.avatarUrl = 1;
+  else if (input.avatarDataUrl !== undefined) set.avatarUrl = input.avatarDataUrl;
   if (input.savingsGoalCents !== undefined) {
     set["preferences.savingsGoalCents"] = input.savingsGoalCents;
-  }
-  if (input.piggyBankVariant !== undefined) {
-    set["preferences.piggyBankVariant"] = input.piggyBankVariant;
   }
 
   const user = await User.findByIdAndUpdate(

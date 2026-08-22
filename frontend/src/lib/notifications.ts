@@ -1,6 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
+import { devicesApi } from "@/lib/api";
 import type { Language } from "@/types";
+
+const deviceIdStorageKey = "logic-coin-push-device-id-v1";
 
 const contentByLanguage: Record<
   Language,
@@ -61,4 +65,76 @@ export async function configureDailyReminder(
     },
   });
   return true;
+}
+
+function platformForDevice() {
+  return Platform.OS === "android" ? "android" : Platform.OS === "ios" ? "ios" : "web";
+}
+
+function currentTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+async function getDeviceId() {
+  const saved = await AsyncStorage.getItem(deviceIdStorageKey);
+  if (saved) return saved;
+  const created = `logic-${Platform.OS}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  await AsyncStorage.setItem(deviceIdStorageKey, created);
+  return created;
+}
+
+/**
+ * Keeps the server's Expo token in sync with the user's notification choice.
+ * Web keeps its own service-worker path; only native devices receive Expo push.
+ */
+export async function syncPushNotifications(input: {
+  accessToken: string;
+  enabled: boolean;
+  reminderTime: string;
+}) {
+  if (Platform.OS === "web") return false;
+
+  const deviceId = await getDeviceId();
+  const Notifications = await import("expo-notifications");
+  let pushToken: string | null = null;
+
+  if (input.enabled) {
+    try {
+      const permission = await Notifications.getPermissionsAsync();
+      if (permission.status === "granted") {
+        const Constants = (await import("expo-constants")).default;
+        const projectId =
+          Constants.easConfig?.projectId ??
+          Constants.expoConfig?.extra?.eas?.projectId ??
+          process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+        const response = await Notifications.getExpoPushTokenAsync(
+          projectId ? { projectId } : undefined,
+        );
+        pushToken = response.data || null;
+      }
+    } catch {
+      // A token is not available in simulators and unconfigured development builds.
+      // The server still receives `null`, preventing delivery to a stale device token.
+      pushToken = null;
+    }
+  }
+
+  await devicesApi.updatePreferences(
+    deviceId,
+    {
+      platform: platformForDevice(),
+      pushToken,
+      notificationsEnabled: input.enabled && Boolean(pushToken),
+      dailyReminderEnabled: input.enabled,
+      reminderTime: input.reminderTime,
+      timezone: currentTimeZone(),
+    },
+    input.accessToken,
+  );
+
+  return Boolean(pushToken);
 }

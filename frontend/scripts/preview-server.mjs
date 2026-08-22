@@ -36,13 +36,23 @@ function getFilePath(rawUrl) {
     }
   }
 
-  return resolve(distRoot, "+not-found.html");
+  if (!extname(relativePath)) {
+    const appShell = resolve(distRoot, "index.html");
+    if (existsSync(appShell)) return appShell;
+  }
+
+  return null;
 }
 
 const server = createServer((request, response) => {
   try {
     const filePath = getFilePath(request.url ?? "/");
-    response.writeHead(filePath.endsWith("+not-found.html") ? 404 : 200, {
+    if (!filePath) {
+      response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end("Not found");
+      return;
+    }
+    response.writeHead(200, {
       "Cache-Control": "no-store",
       "Content-Type":
         mimeTypes[extname(filePath).toLowerCase()] ??

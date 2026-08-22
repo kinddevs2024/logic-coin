@@ -14,11 +14,17 @@ import bonusesRoutes from "./routes/bonuses.routes.js";
 import bootstrapRoutes from "./routes/bootstrap.routes.js";
 import devicesRoutes from "./routes/devices.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import gamesRoutes from "./routes/games.routes.js";
 import meRoutes from "./routes/me.routes.js";
 import referralsRoutes from "./routes/referrals.routes.js";
 import tasksRoutes from "./routes/tasks.routes.js";
 import walletRoutes from "./routes/wallet.routes.js";
 import withdrawalsRoutes from "./routes/withdrawals.routes.js";
+import challengesRoutes from "./routes/challenges.routes.js";
+import giftsRoutes from "./routes/gifts.routes.js";
+import leaderboardRoutes from "./routes/leaderboard.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import publicProfileRoutes from "./routes/public-profile.routes.js";
 
 export const app = express();
 
@@ -46,13 +52,16 @@ app.use(
     exposedHeaders: ["x-request-id", "ratelimit", "ratelimit-policy"]
   })
 );
-app.use(express.json({ limit: "32kb" }));
+// Avatar uploads are accepted as validated image data URLs capped at 10 MiB.
+app.use(express.json({ limit: "14mb" }));
 app.use(globalLimiter);
 
 const api = express.Router();
 api.use("/health", healthRoutes);
 api.use(requireDatabase);
 api.use("/auth", authRoutes);
+api.use("/admin", adminRoutes);
+api.use("/profile", publicProfileRoutes);
 api.use(requireAuth);
 api.use("/bootstrap", bootstrapRoutes);
 api.use("/me", meRoutes);
@@ -63,6 +72,10 @@ api.use("/bonuses", bonusesRoutes);
 api.use("/referrals", referralsRoutes);
 api.use("/withdrawals", withdrawalsRoutes);
 api.use("/devices", devicesRoutes);
+api.use("/games", gamesRoutes);
+api.use("/challenges", challengesRoutes);
+api.use("/gifts", giftsRoutes);
+api.use("/leaderboard", leaderboardRoutes);
 
 app.get("/", (_request, response) => {
   response.json({

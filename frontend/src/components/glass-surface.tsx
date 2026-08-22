@@ -71,8 +71,8 @@ export function GlassSurface({
         },
         Platform.OS === "web"
           ? ({
-              backdropFilter: `blur(${Math.max(12, intensity / 2)}px) saturate(165%)`,
-              WebkitBackdropFilter: `blur(${Math.max(12, intensity / 2)}px) saturate(165%)`,
+              backdropFilter: `blur(${Math.max(12, intensity / 2)}px) saturate(138%)`,
+              WebkitBackdropFilter: `blur(${Math.max(12, intensity / 2)}px) saturate(138%)`,
             } as unknown as ViewStyle)
           : null,
         style,
@@ -86,8 +86,8 @@ export function GlassSurface({
         pointerEvents="none"
         colors={[
           String(theme.glassHighlight),
-          "rgba(255,255,255,0.08)",
-          "rgba(76,164,255,0.04)",
+          "rgba(255,255,255,0.03)",
+          "rgba(76,164,255,0.015)",
         ]}
         locations={[0, 0.42, 1]}
         start={{ x: 0.08, y: 0 }}
@@ -117,10 +117,10 @@ const styles = StyleSheet.create({
     position: "relative",
     borderWidth: 1,
     overflow: "hidden",
-    shadowOpacity: Platform.OS === "web" ? 0.15 : 0.2,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 9,
+    shadowOpacity: Platform.OS === "web" ? 0.08 : 0.13,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   rim: {
     position: "absolute",

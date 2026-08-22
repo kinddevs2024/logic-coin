@@ -13,27 +13,28 @@ import {
 } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 
-import { ActivityHeatmap } from "@/components/activity-heatmap";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
-import { AppButton, IconButton } from "@/components/buttons";
+import { AppButton } from "@/components/buttons";
+import { EditProfileModal } from "@/components/edit-profile-modal";
 import { useGlassBlurTarget } from "@/components/glass-blur-target";
 import { GlassSurface } from "@/components/glass-surface";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { formatMoney } from "@/lib/format";
+import { sharePublicProfile } from "@/lib/profile-link";
 import { useAppStore } from "@/store/app-store";
 
 export function ProfileDrawer({
   visible,
   onClose,
-  onProfile,
+  onSettings,
   onInvite,
 }: {
   visible: boolean;
   onClose: () => void;
-  onProfile: () => void;
+  onSettings: () => void;
   onInvite: () => void;
 }) {
   const theme = useAppTheme();
@@ -42,10 +43,11 @@ export function ProfileDrawer({
   const reduceMotion = useReducedMotion();
   const user = useAppStore((state) => state.user);
   const balance = useAppStore((state) => state.balanceUnits);
+  const coinBalance = useAppStore((state) => state.coinBalance);
   const streak = useAppStore((state) => state.streak);
-  const activeDays = useAppStore((state) => state.activeDays);
   const [translateX] = useState(() => new Animated.Value(-440));
   const [backdrop] = useState(() => new Animated.Value(0));
+  const [editing, setEditing] = useState(false);
   const closing = useRef(false);
 
   useEffect(() => {
@@ -147,13 +149,6 @@ export function ProfileDrawer({
               contentContainerStyle={styles.content}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.close}>
-                <IconButton
-                  name="close"
-                  label={t("common.close")}
-                  onPress={close}
-                />
-              </View>
               <LinearGradient
                 colors={["rgba(33,139,255,0.92)", "#155DD8", "#5745E9"]}
                 start={{ x: 0, y: 0 }}
@@ -166,7 +161,7 @@ export function ProfileDrawer({
                   style={StyleSheet.absoluteFill}
                 />
                 <View style={styles.profileTop}>
-                  <Avatar name={user.name} size={72} />
+                  <Avatar name={user.name} avatarUrl={user.avatarUrl} size={72} />
                   <View style={{ flex: 1 }}>
                     <AppText variant="heading" color="#FFFFFF">
                       {user.name}
@@ -175,6 +170,24 @@ export function ProfileDrawer({
                       {user.email ?? t("common.demo")}
                     </AppText>
                   </View>
+                </View>
+                <View style={styles.profileActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("profile.edit")}
+                    onPress={() => setEditing(true)}
+                    style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
+                  >
+                    <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Поделиться профилем"
+                    onPress={() => void sharePublicProfile(user.name, user.referralCode)}
+                    style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
+                  >
+                    <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
+                  </Pressable>
                 </View>
                 <View style={styles.balanceRow}>
                   <View>
@@ -197,10 +210,10 @@ export function ProfileDrawer({
               <View style={styles.stats}>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>
-                    {activeDays}
+                    {coinBalance}
                   </AppText>
                   <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                    {t("home.drawer.activeDays")}
+                    coin
                   </AppText>
                 </GlassSurface>
                 <GlassSurface style={styles.stat} intensity={48}>
@@ -213,40 +226,12 @@ export function ProfileDrawer({
                 </GlassSurface>
               </View>
 
-              <GlassSurface
-                intensity={52}
-                style={[styles.activity, { borderColor: theme.border }]}
-              >
-                <View style={styles.activityTitle}>
-                  <View>
-                    <AppText variant="label">{t("profile.active")}</AppText>
-                    <AppText variant="caption" muted>
-                      {t("bonus.calendar")}
-                    </AppText>
-                  </View>
-                  <View
-                    style={[
-                      styles.liveDot,
-                      { backgroundColor: theme.primarySoft },
-                    ]}
-                  >
-                    <View
-                      style={[styles.dot, { backgroundColor: theme.primary }]}
-                    />
-                    <AppText variant="caption" color={String(theme.primary)}>
-                      {activeDays}
-                    </AppText>
-                  </View>
-                </View>
-                <ActivityHeatmap compact />
-              </GlassSurface>
-
               <AppButton
                 variant="secondary"
-                icon="person-outline"
-                onPress={() => closeWithAction(onProfile)}
+                icon="settings-outline"
+                onPress={() => closeWithAction(onSettings)}
               >
-                {t("home.drawer.profile")}
+                {t("profile.settings")}
               </AppButton>
               <AppButton
                 icon="person-add-outline"
@@ -258,6 +243,7 @@ export function ProfileDrawer({
             </ScrollView>
           </GlassSurface>
         </Animated.View>
+        <EditProfileModal visible={editing} onClose={() => setEditing(false)} />
       </View>
     </Modal>
   );
@@ -269,8 +255,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   drawer: {
-    width: "86%",
-    maxWidth: 430,
+    width: "78%",
+    maxWidth: 390,
     height: "100%",
     shadowOpacity: 0.3,
     shadowRadius: 24,
@@ -289,10 +275,8 @@ const styles = StyleSheet.create({
     paddingBottom: 34,
     gap: 14,
   },
-  close: {
-    alignItems: "flex-end",
-  },
   profileCard: {
+    position: "relative",
     borderRadius: radii.xl,
     padding: 20,
     gap: 22,
@@ -301,7 +285,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
+    paddingRight: 88,
   },
+  profileActions: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    flexDirection: "row",
+    gap: 8,
+  },
+  profileAction: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.26)",
+  },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.96 }] },
   balanceRow: {
     flexDirection: "row",
     alignItems: "flex-end",

@@ -1,0 +1,102 @@
+{
+  "app": "Logic Coin",
+  "package": "com.kinddevs.logiccoin",
+  "assets": [
+    {
+      "file": "app-icon-512.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "bytes": 304450,
+      "sha256": "636a2e36efc1faf7e011e6119ae377e4ca9c5d91959b56e11bbd4d5754f2a4b7"
+    },
+    {
+      "file": "feature-graphic-1024x500.png",
+      "width": 1024,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 199201,
+      "sha256": "a1b214f9e299009b9ed00bcf0d082604a4133383364022b6ba0ecf4034a8f593"
+    },
+    {
+      "file": "phone/01-home.png",
+      "width": 1080,
+      "height": 1920,
+      "mode": "RGBA",
+      "bytes": 1002896,
+      "sha256": "363476d6055f743631f4775cc8b28adf9a1db44cb5eb8df61479776c67d2db4a"
+    },
+    {
+      "file": "phone/02-tasks.png",
+      "width": 1080,
+      "height": 1920,
+      "mode": "RGBA",
+      "bytes": 671176,
+      "sha256": "3743c9d5cc3630b6afcc9b787bc6dcb55b533792c223778fc99bf4c987e20be1"
+    },
+    {
+      "file": "phone/03-bonuses.png",
+      "width": 1080,
+      "height": 1920,
+      "mode": "RGBA",
+      "bytes": 691835,
+      "sha256": "c7e977fb7e150c9c695bd4b9f5fe8d19d8c802615d3d766c3386489a787f13b9"
+    },
+    {
+      "file": "phone/04-games.png",
+      "width": 1080,
+      "height": 1920,
+      "mode": "RGBA",
+      "bytes": 393766,
+      "sha256": "7ca70563d565252741711fb64ebd1c0d7bb32dc83e632da782029529a616aa08"
+    },
+    {
+      "file": "phone/05-profile.png",
+      "width": 1080,
+      "height": 1920,
+      "mode": "RGBA",
+      "bytes": 630999,
+      "sha256": "33107a0986fcd17018a656bd40dc6ade76b7f8904beb7d15333a0e88564eb10e"
+    },
+    {
+      "file": "tablet/01-home.png",
+      "width": 1440,
+      "height": 2560,
+      "mode": "RGBA",
+      "bytes": 607155,
+      "sha256": "19cb7990707caf7a3e39c715fea1f143c22455d9d27e319d0fa404430c8b0ccd"
+    },
+    {
+      "file": "tablet/02-tasks.png",
+      "width": 1440,
+      "height": 2560,
+      "mode": "RGBA",
+      "bytes": 523156,
+      "sha256": "bc158afe647c7ddb798cc4dd66d942b7fdab4aaac49e84f97c400af533f2ed8e"
+    },
+    {
+      "file": "tablet/03-bonuses.png",
+      "width": 1440,
+      "height": 2560,
+      "mode": "RGBA",
+      "bytes": 636602,
+      "sha256": "e2862bc7953925cc9db3872ff5b5b14781cc622a9fca9003fe35289e2198389d"
+    },
+    {
+      "file": "tablet/04-games.png",
+      "width": 1440,
+      "height": 2560,
+      "mode": "RGBA",
+      "bytes": 301530,
+      "sha256": "aef1b1d67512fba063fb13647100ae978a2380463f631841b9a02fb248002ce1"
+    },
+    {
+      "file": "tablet/05-profile.png",
+      "width": 1440,
+      "height": 2560,
+      "mode": "RGBA",
+      "bytes": 530467,
+      "sha256": "58edf0bc5ac81758c044cfbdbbf90bec11a63c5623111acfc4cc468ba7fe2642"
+    }
+  ]
+}

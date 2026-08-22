@@ -5,6 +5,7 @@
   "installCommand": "npx --yes npm@11.18.0 ci",
   "buildCommand": "npm run build:web",
   "outputDirectory": "frontend/dist",
+  "cleanUrls": true,
   "functions": {
     "api/index.ts": {
       "maxDuration": 20
@@ -16,7 +17,11 @@
       "destination": "/api"
     },
     {
-      "source": "/(.*)",
+      "source": "/_vercel/(.*)",
+      "destination": "/_vercel/$1"
+    },
+    {
+      "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ]

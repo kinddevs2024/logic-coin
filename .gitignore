@@ -26,6 +26,9 @@ frontend/dist/
 frontend/web-build/
 *.apk
 *.aab
+store-assets/*.zip
+store-assets/android-release-*/
+store-assets/downloads/
 
 # Build and test output
 dist/
@@ -57,5 +60,6 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+.qa/
 *.tmp
 *.swp

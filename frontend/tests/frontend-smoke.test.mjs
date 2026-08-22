@@ -16,7 +16,7 @@ test("Expo and web deployment config target Logic Coin", async () => {
   ]);
   assert.equal(app.expo.name, "Logic Coin");
   assert.equal(app.expo.android.package, "com.kinddevs.logiccoin");
-  assert.equal(app.expo.web.output, "static");
+  assert.equal(app.expo.web.output, "single");
   assert.equal(vercel.outputDirectory, "dist");
   assert.equal(pkg.scripts["build:web"], "expo export --platform web");
   assert.equal(pkg.scripts.typecheck, "tsc --noEmit");
@@ -47,6 +47,18 @@ test("brand assets and core routes exist", async () => {
     "src/app/settings.tsx",
     "src/app/withdraw.tsx",
     "src/app/invite.tsx",
+    "src/app/games/longcat.tsx",
+    "src/app/games/gobble.tsx",
+    "src/app/games/loops.tsx",
+    "src/app/games/brain-tricks.tsx",
+    "src/app/dev/brain-tricks-editor.tsx",
+    "src/games/longcat/engine.ts",
+    "src/games/gobble/engine.ts",
+    "src/games/loops/engine.ts",
+    "src/games/loops/solver.ts",
+    "src/games/brain-tricks/engine.ts",
+    "src/games/brain-tricks/levels.ts",
+    "src/games/progress-store.ts",
   ];
   for (const file of files) {
     assert.ok((await stat(new URL(file, root))).size > 100, `${file} is empty`);

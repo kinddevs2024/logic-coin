@@ -3,10 +3,16 @@ import type {
   BonusKind,
   BonusOverview,
   BootstrapPayload,
+  CoinWallet,
+  GameCatalogItem,
+  GiftItem,
+  GiftUseEffect,
   Language,
+  LeaderboardMetric,
+  LeaderboardPayload,
   LogicTask,
-  PiggyKind,
   ReferralOverview,
+  TodayChallenges,
   User,
   UserPreferences,
   Wallet,
@@ -14,12 +20,15 @@ import type {
   WithdrawalOverview,
 } from "@/types";
 import type { ThemeMode } from "@/constants/theme";
+import type { GameId, GamesProgress } from "@/games/progress-store";
 import { useAppStore } from "@/store/app-store";
 import { Platform } from "react-native";
 
 const defaultApiUrl =
   Platform.OS === "web"
-    ? "/api/v1"
+    ? process.env.NODE_ENV === "development"
+      ? "http://localhost:4000/api/v1"
+      : "/api/v1"
     : Platform.OS === "android"
       ? "http://10.0.2.2:4000/api/v1"
       : "http://localhost:4000/api/v1";
@@ -167,6 +176,22 @@ async function refreshAccessToken(expiredToken: string): Promise<string> {
 }
 
 export const authApi = {
+  startEmail(email: string) {
+    return request<{
+      email: string;
+      flowToken: string;
+      verification?: { expiresInSeconds?: number };
+    }>("/auth/email/start", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+  completeEmail(input: { email: string; code: string; flowToken: string }) {
+    return request<AuthResult>("/auth/email/complete", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
   register(input: { name: string; email: string; password: string }) {
     return request<{
       userId: string;
@@ -222,6 +247,35 @@ export const authApi = {
     return request<AuthResult>("/auth/yandex/exchange", {
       method: "POST",
       body: JSON.stringify(input),
+    });
+  },
+  telegramStart() {
+    return request<{
+      flowId: string;
+      pollToken: string;
+      botUrl: string;
+      expiresInSeconds: number;
+    }>("/auth/telegram/start", { method: "POST" });
+  },
+  telegramStatus(input: { flowId: string; pollToken: string }) {
+    return request<
+      | { status: "pending" }
+      | ({ status: "complete" } & AuthResult)
+    >("/auth/telegram/status", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  telegramComplete(resumeToken: string) {
+    return request<AuthResult>("/auth/telegram/complete", {
+      method: "POST",
+      body: JSON.stringify({ resumeToken }),
+    });
+  },
+  telegramMiniApp(initData: string) {
+    return request<AuthResult>("/auth/telegram/mini-app", {
+      method: "POST",
+      body: JSON.stringify({ initData }),
     });
   },
   logout(token: string, refreshToken?: string | null) {
@@ -282,6 +336,361 @@ export const bootstrapApi = {
   },
 };
 
+export const gamesApi = {
+  async list(token: string) {
+    const payload = await request<{ games: GameCatalogItem[] }>("/games", {
+      token,
+    });
+    return payload.games;
+  },
+};
+
+export type ChallengeCompleteResult = {
+  attempt: {
+    id: string;
+    gameKey: string;
+    dayKey?: string;
+    mode?: "challenge" | "practice";
+    score: number;
+    coinsAwarded: number;
+    completedAt: string | null;
+  };
+  coins?: CoinWallet;
+};
+
+export type ChallengeStartResult = {
+  attemptId: string;
+  dayKey: string;
+  gameKey: string;
+  status: string;
+  resumed: boolean;
+};
+
+export const challengesApi = {
+  async today(token: string) {
+    const payload = await request<{ today: TodayChallenges }>(
+      "/challenges/today",
+      { token },
+    );
+    return payload.today;
+  },
+  start(gameKey: string, token: string) {
+    return request<ChallengeStartResult>(`/challenges/${encodeURIComponent(gameKey)}/start`, {
+      method: "POST",
+      token,
+    });
+  },
+  complete(
+    gameKey: string,
+    input: { score: number; durationMs?: number },
+    token: string,
+  ) {
+    return request<ChallengeCompleteResult>(
+      `/challenges/${encodeURIComponent(gameKey)}/complete`,
+      {
+        method: "POST",
+        token,
+        body: JSON.stringify(input),
+      },
+    );
+  },
+  completePractice(
+    gameKey: string,
+    input: { score: number; durationMs?: number },
+    token: string,
+  ) {
+    return request<ChallengeCompleteResult>(
+      `/challenges/practice/${encodeURIComponent(gameKey)}/complete`,
+      {
+        method: "POST",
+        token,
+        body: JSON.stringify(input),
+      },
+    );
+  },
+  double(scope: "game" | "day", token: string, receiptId?: string) {
+    return request<{
+      scope: "game" | "day";
+      credited: number;
+      coins: CoinWallet;
+    }>("/challenges/double", {
+      method: "POST",
+      token,
+      body: JSON.stringify({
+        scope,
+        ad: {
+          provider: "demo",
+          receiptId: receiptId ?? "placeholder-rewarded-video",
+        },
+      }),
+    });
+  },
+};
+
+export const giftsApi = {
+  async list(token: string) {
+    const payload = await request<{ gifts: GiftItem[] }>("/gifts", { token });
+    return payload.gifts;
+  },
+  use(giftId: string, token: string, gameKey?: string) {
+    return request<{ gift: GiftItem; effect: GiftUseEffect }>(
+      `/gifts/${encodeURIComponent(giftId)}/use`,
+      {
+        method: "POST",
+        token,
+        body: JSON.stringify(gameKey ? { gameKey } : {}),
+      },
+    );
+  },
+};
+
+export const leaderboardApi = {
+  async get(metric: LeaderboardMetric, token: string): Promise<LeaderboardPayload> {
+    const payload = await request<{
+      metric: string;
+      entries: {
+        rank: number;
+        userId: string;
+        name: string;
+        avatarUrl: string | null;
+        walletBalanceUnits: number;
+        coinBalance: number;
+        lifetimeEarnedUnits: number;
+      }[];
+      self: {
+        rank: number;
+        userId: string;
+        name: string;
+        avatarUrl: string | null;
+        walletBalanceUnits: number;
+        coinBalance: number;
+        lifetimeEarnedUnits: number;
+      } | null;
+    }>(
+      `/leaderboard?metric=${encodeURIComponent(metric)}&limit=50`,
+      { token },
+    );
+    const valueOf = (entry: { walletBalanceUnits: number; coinBalance: number; lifetimeEarnedUnits: number }) =>
+      metric === "coins" ? entry.coinBalance : metric === "lifetime" ? entry.lifetimeEarnedUnits : entry.walletBalanceUnits;
+    const entries: LeaderboardPayload["entries"] = payload.entries.map((entry) => ({
+      rank: entry.rank,
+      userId: entry.userId,
+      name: entry.name,
+      avatarUrl: entry.avatarUrl,
+      value: valueOf(entry),
+      isCurrentUser: entry.userId === payload.self?.userId,
+    }));
+    const me: LeaderboardPayload["me"] = payload.self
+      ? {
+          rank: payload.self.rank,
+          userId: payload.self.userId,
+          name: payload.self.name,
+          avatarUrl: payload.self.avatarUrl,
+          value: valueOf(payload.self),
+          isCurrentUser: true,
+        }
+      : null;
+    const entriesWithSelf = me && !entries.some((entry) => entry.userId === me.userId)
+      ? [...entries, me]
+      : entries;
+    return {
+      metric,
+      entries: entriesWithSelf,
+      me,
+    };
+  },
+};
+
+export type AdminGame = GameCatalogItem & {
+  titleI18n?: Record<Language, string>;
+  descriptionI18n?: Record<Language, string>;
+  enabled?: boolean;
+  sortOrder?: number;
+  scoring?: { higherIsBetter?: boolean; maxCoins?: number };
+};
+
+export type AdminGameInput = {
+  key: string;
+  slug: string;
+  title: Record<Language, string>;
+  description: Record<Language, string>;
+  icon: string;
+  color: string;
+  engine: "native" | "webview";
+  clientPath?: string;
+  assetPath?: string;
+  enabled?: boolean;
+  challengeEnabled?: boolean;
+  practiceEnabled?: boolean;
+  sortOrder?: number;
+  difficulty?: "easy" | "medium" | "hard";
+  scoring?: { higherIsBetter?: boolean; maxCoins?: number };
+};
+
+export type AdminAuthSession = {
+  adminToken: string;
+  expiresAt: string;
+  tokenType: "Bearer";
+};
+
+export type AdminChallengeStatus = "draft" | "published" | "settled";
+export type AdminChallengeSelectionMode = "manual" | "random";
+
+export type AdminChallenge = {
+  id: string;
+  dayKey: string;
+  timezone: string;
+  status: AdminChallengeStatus;
+  selectionMode: AdminChallengeSelectionMode;
+  games: AdminGame[];
+  cashPrizeMinUnits: number;
+  cashPrizeMaxUnits: number;
+  prizePoolUnits: number;
+  maxAttemptsPerGame: number;
+  oneSecondAttemptLimit: number;
+  publishedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type AdminSettlement = {
+  status: string;
+  participantCount: number;
+  cashWinnersCount: number;
+  giftWinnersCount: number;
+  coinWinnersCount: number;
+  cashDistributedUnits: number;
+  settledAt: string | null;
+};
+
+export type AdminOverview = {
+  dayKey: string;
+  timezone: string;
+  registrations: number;
+  registrationGrowthPercent: number | null;
+  totalUsers: number;
+  activePlayers: number;
+  challengeParticipants: number;
+  completedAttempts: number;
+  coinsIssued: number;
+  moneyIssuedUnits: number;
+  challenge: AdminChallenge | null;
+  settlement: AdminSettlement | null;
+  trends?: AdminOverviewTrendPoint[];
+};
+
+export type AdminOverviewTrendPoint = {
+  dayKey: string;
+  registrations: number;
+  activePlayers: number;
+  challengeParticipants: number;
+  coinsIssued: number;
+};
+
+export type AdminBudgetDay = {
+  dayKey: string;
+  adRevenueUnits: number;
+  otherRevenueUnits: number;
+  operatingExpenseUnits: number;
+  revenueUnits: number;
+  challengeSpendUnits: number;
+  netUnits: number;
+};
+
+export type AdminBudget = {
+  range: {
+    from: string;
+    to: string;
+    days: number;
+  };
+  summary: {
+    adRevenueUnits: number;
+    otherRevenueUnits: number;
+    totalRevenueUnits: number;
+    operatingExpenseUnits: number;
+    challengeSpendUnits: number;
+    netUnits: number;
+    arpuUnits: number;
+    averageDailyRevenueUnits: number;
+    growthPercent: number | null;
+    activeUsers: number;
+  };
+  daily: AdminBudgetDay[];
+};
+
+export const adminApi = {
+  login(password: string) {
+    return request<AdminAuthSession>("/admin/auth", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+      skipAuthRefresh: true,
+    });
+  },
+  async games(token: string) {
+    const payload = await request<{ games: AdminGame[] }>("/admin/games", {
+      token,
+      skipAuthRefresh: true,
+    });
+    return payload.games;
+  },
+  createGame(input: AdminGameInput, token: string) {
+    return request<{ game: AdminGame }>("/admin/games", {
+      method: "POST",
+      token,
+      body: JSON.stringify(input),
+      skipAuthRefresh: true,
+    });
+  },
+  updateGame(gameKey: string, input: Partial<Omit<AdminGameInput, "key">>, token: string) {
+    return request<{ game: AdminGame }>(
+      `/admin/games/${encodeURIComponent(gameKey)}`,
+      {
+        method: "PATCH",
+        token,
+        body: JSON.stringify(input),
+        skipAuthRefresh: true,
+      },
+    );
+  },
+  challenge(dayKey: string, token: string) {
+    return request<{ challenge: AdminChallenge | null }>(
+      `/admin/daily-challenges/${encodeURIComponent(dayKey)}`,
+      { token, skipAuthRefresh: true },
+    );
+  },
+  challenges(range: { from: string; to: string }, token: string) {
+    const search = new URLSearchParams(range);
+    return request<{ challenges: AdminChallenge[] }>(
+      `/admin/daily-challenges?${search.toString()}`,
+      { token, skipAuthRefresh: true },
+    );
+  },
+  saveChallenge(input: { dayKey: string; selectionMode: AdminChallengeSelectionMode; gameKeys?: string[]; cashPrizeMinUnits: number; cashPrizeMaxUnits: number; prizePoolUnits: number; maxAttemptsPerGame: number; oneSecondAttemptLimit: number; publish: boolean }, token: string) {
+    const { dayKey, ...body } = input;
+    return request<{ challenge: AdminChallenge; notificationEvent: null | { id: string; status: string; targetCount: number } }>(`/admin/daily-challenges/${encodeURIComponent(dayKey)}`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify(body),
+      skipAuthRefresh: true,
+    });
+  },
+  settle(dayKey: string, token: string) {
+    return request<{ settlement: AdminSettlement; alreadySettled: boolean }>(`/admin/daily-challenges/${encodeURIComponent(dayKey)}/settle`, { method: "POST", token, skipAuthRefresh: true });
+  },
+  overview(dayKey: string, token: string) {
+    return request<AdminOverview>(`/admin/overview?dayKey=${encodeURIComponent(dayKey)}`, {
+      token,
+      skipAuthRefresh: true,
+    });
+  },
+  budget(days: number, token: string) {
+    return request<AdminBudget>(`/admin/budget?days=${encodeURIComponent(String(days))}`, {
+      token,
+      skipAuthRefresh: true,
+    });
+  },
+};
+
 export const activityApi = {
   list(
     token: string,
@@ -334,6 +743,24 @@ export const referralsApi = {
   },
 };
 
+export type PublicProfile = {
+  name: string;
+  avatarUrl: string | null;
+  referralCode: string;
+  balanceUnits: number;
+  lifetimeEarnedUnits: number;
+  coinBalance: number;
+  lifetimeCoins: number;
+  completedChallenges: number;
+  skins: string[];
+};
+
+export const publicProfileApi = {
+  get(code: string) {
+    return request<{ profile: PublicProfile }>(`/profile/${encodeURIComponent(code)}`);
+  },
+};
+
 export const withdrawalsApi = {
   overview(token: string) {
     return request<WithdrawalOverview>("/withdrawals", { token });
@@ -373,8 +800,8 @@ export const meApi = {
     input: {
       name?: string;
       avatarUrl?: string | null;
+      avatarDataUrl?: string | null;
       savingsGoalCents?: number;
-      piggyBankVariant?: PiggyKind;
     },
     token: string,
   ) {
@@ -411,6 +838,63 @@ export const meApi = {
       },
     );
     return payload.preferences;
+  },
+};
+
+export const devicesApi = {
+  updatePreferences(
+    deviceId: string,
+    input: {
+      platform: "android" | "ios" | "web";
+      pushToken: string | null;
+      notificationsEnabled: boolean;
+      dailyReminderEnabled: boolean;
+      reminderTime: string;
+      timezone: string;
+    },
+    token: string,
+  ) {
+    return request<{
+      device: {
+        id: string;
+        deviceId: string;
+        platform: "android" | "ios" | "web";
+        pushConfigured: boolean;
+        notificationsEnabled: boolean;
+        dailyReminderEnabled: boolean;
+        reminderTime: string;
+        timezone: string;
+      };
+    }>(`/devices/${encodeURIComponent(deviceId)}/preferences`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify(input),
+    });
+  },
+};
+
+export const gameProgressApi = {
+  get(token: string) {
+    return request<{ games: GamesProgress }>("/games/progress", { token });
+  },
+  put(games: GamesProgress, token: string) {
+    return request<{ games: GamesProgress }>("/games/progress", {
+      method: "PUT",
+      token,
+      body: JSON.stringify({ games }),
+    });
+  },
+  convert(input: { gameId: GameId; coins: number; idempotencyKey: string }, token: string) {
+    return request<{
+      convertedUnits: number;
+      games: GamesProgress;
+      wallet: Wallet;
+      idempotentReplay: boolean;
+    }>("/games/convert", {
+      method: "POST",
+      token,
+      body: JSON.stringify(input),
+    });
   },
 };
 

@@ -2,19 +2,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 
 import { AuthScaffold } from "@/components/auth-scaffold";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
-import { FormField } from "@/components/form-field";
+import { PinInput } from "@/components/pin-input";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export default function VerifyScreen() {
-  const params = useLocalSearchParams<{ email?: string; name?: string }>();
+  const params = useLocalSearchParams<{ email?: string }>();
   const email = params.email ?? "";
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -23,17 +23,24 @@ export default function VerifyScreen() {
   const registrationToken = useAppStore(
     (state) => state.pendingRegistrationToken,
   );
+  const setPendingRegistrationToken = useAppStore(
+    (state) => state.setPendingRegistrationToken,
+  );
   const [code, setCode] = useState("");
   const [resent, setResent] = useState(false);
 
   const verify = useMutation({
     mutationFn: () => {
       if (!registrationToken) throw new Error(t("auth.invalid"));
-      return authApi.verifyEmail({ email, code, registrationToken });
+      return authApi.completeEmail({
+        email,
+        code,
+        flowToken: registrationToken,
+      });
     },
     onSuccess: (result) => {
       authenticate({
-        user: result.user ?? { name: params.name ?? "Logic member", email },
+        user: result.user,
         accessToken: result.tokens.accessToken,
         refreshToken: result.tokens.refreshToken,
         balanceUnits: result.user.wallet?.availableUnits,
@@ -43,33 +50,33 @@ export default function VerifyScreen() {
   });
 
   const resend = useMutation({
-    mutationFn: () => authApi.resendCode(email),
-    onSuccess: () => setResent(true),
+    mutationFn: () => authApi.startEmail(email),
+    onSuccess: (result) => {
+      setPendingRegistrationToken(result.flowToken);
+      setResent(true);
+    },
   });
 
   return (
     <AuthScaffold
       title={t("auth.verifyTitle")}
       subtitle={`${t("auth.verifyBody")} ${email}`}
+      headerAction={
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.backButtonPressed,
+          ]}
+        >
+          <Ionicons name="chevron-back" size={24} color={String(theme.primary)} />
+        </Pressable>
+      }
     >
-      <View
-        style={[
-          styles.mail,
-          { backgroundColor: theme.primarySoft },
-        ]}
-      >
-        <Ionicons name="mail-unread" size={30} color={String(theme.primary)} />
-      </View>
-      <FormField
-        label={t("auth.code")}
-        icon="keypad-outline"
+      <PinInput
         value={code}
-        onChangeText={(value) => setCode(value.replace(/\D/g, "").slice(0, 6))}
-        keyboardType="number-pad"
-        textContentType="oneTimeCode"
-        autoComplete="one-time-code"
-        placeholder="000000"
-        maxLength={6}
+        onChangeValue={setCode}
+        length={6}
       />
       {verify.error ? (
         <AppText
@@ -104,13 +111,12 @@ export default function VerifyScreen() {
 }
 
 const styles = StyleSheet.create({
-  mail: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    alignSelf: "center",
-    alignItems: "center",
-    justifyContent: "center",
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  backButtonPressed: {
+    opacity: 0.7,
   },
   resend: {
     alignItems: "center",

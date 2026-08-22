@@ -5,7 +5,16 @@ const ledgerEntrySchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     type: {
       type: String,
-      enum: ["task_reward", "daily_bonus", "weekly_bonus", "monthly_bonus", "referral_bonus", "withdrawal"],
+      enum: [
+        "task_reward",
+        "daily_bonus",
+        "weekly_bonus",
+        "monthly_bonus",
+        "referral_bonus",
+        "game_reward",
+        "contest_cash_prize",
+        "withdrawal"
+      ],
       required: true
     },
     amountUnits: { type: Number, required: true },

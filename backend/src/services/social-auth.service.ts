@@ -79,19 +79,27 @@ async function processNewSocialReferral(userId: mongoose.Types.ObjectId): Promis
 }
 
 export async function authenticateGoogle(idToken: string, referralCode?: string) {
-  if (!env.GOOGLE_CLIENT_ID) {
+  const validClientIds = [
+    env.GOOGLE_CLIENT_ID,
+    env.GOOGLE_CLIENT_ID_WEB,
+    env.GOOGLE_CLIENT_ID_MOBILE
+  ].filter(Boolean) as string[];
+
+  if (validClientIds.length === 0) {
     throw new ApiError(503, "google_auth_unavailable", "Google sign-in is not configured");
   }
-  googleClient ??= new OAuth2Client(env.GOOGLE_CLIENT_ID);
+
+  googleClient ??= new OAuth2Client();
 
   let payload;
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: env.GOOGLE_CLIENT_ID
+      audience: validClientIds
     });
     payload = ticket.getPayload();
-  } catch {
+  } catch (error) {
+    console.error("Google token verification failed:", error);
     throw new ApiError(401, "invalid_google_token", "Google ID token is invalid");
   }
 

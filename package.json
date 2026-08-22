@@ -4,6 +4,11 @@
   "private": true,
   "packageManager": "npm@11.18.0",
   "description": "Logic Coin monorepo: Expo application and Node.js API",
+  "overrides": {
+    "xml2js": {
+      "xmlbuilder": "15.1.1"
+    }
+  },
   "workspaces": [
     "frontend",
     "backend"
@@ -27,6 +32,6 @@
     "npm": ">=11 <12"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.4"
   }
 }

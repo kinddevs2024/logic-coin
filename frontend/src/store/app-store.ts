@@ -8,7 +8,6 @@ import type {
   AuthMode,
   BootstrapPayload,
   Language,
-  PiggyKind,
   User,
 } from "@/types";
 import type { ThemeMode } from "@/constants/theme";
@@ -23,10 +22,16 @@ type AppState = {
   pendingRegistrationToken: string | null;
   user: User;
   balanceUnits: number;
+  coinBalance: number;
+  todayChallengesCompleted: number;
+  todayChallengesTotal: number;
+  guestChallengeDay: string;
+  guestChallengeResults: Record<string, { score: number; coinsAwarded: number; doubled: boolean }>;
+  guestGameDoubleUsed: boolean;
+  guestDayDoubleUsed: boolean;
   goalUnits: number;
   streak: number;
   activeDays: number;
-  selectedPiggy: PiggyKind;
   theme: ThemeMode;
   notificationsEnabled: boolean;
   notificationTime: string;
@@ -47,10 +52,15 @@ type AppState = {
   syncBootstrap: (payload: BootstrapPayload) => void;
   logout: () => void;
   addReward: (taskId: string, units: number) => void;
+  addGameReward: (gameId: string, units: number) => void;
   setBalance: (units: number) => void;
+  setCoinBalance: (coins: number) => void;
+  setTodayChallengeProgress: (completed: number, total: number) => void;
+  resetGuestChallengeDay: (dayKey: string) => void;
+  recordGuestChallenge: (gameKey: string, score: number, coinsAwarded: number) => void;
+  applyGuestChallengeDouble: (scope: "game" | "day", firstGameKey?: string) => number;
   clearLatestReward: () => void;
   setGoal: (units: number) => void;
-  selectPiggy: (piggy: PiggyKind) => void;
   setTheme: (theme: ThemeMode) => void;
   setNotifications: (enabled: boolean) => void;
   setNotificationTime: (time: string) => void;
@@ -82,7 +92,7 @@ const secureStorage: StateStorage = {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       hydrated: false,
       language: null,
       onboardingDone: false,
@@ -92,10 +102,16 @@ export const useAppStore = create<AppState>()(
       pendingRegistrationToken: null,
       user: { name: "Alex" },
       balanceUnits: 640,
+      coinBalance: 0,
+      todayChallengesCompleted: 0,
+      todayChallengesTotal: 0,
+      guestChallengeDay: "",
+      guestChallengeResults: {},
+      guestGameDoubleUsed: false,
+      guestDayDoubleUsed: false,
       goalUnits: 1000,
       streak: 8,
       activeDays: 34,
-      selectedPiggy: "pig",
       theme: "light",
       notificationsEnabled: true,
       notificationTime: "19:00",
@@ -125,6 +141,12 @@ export const useAppStore = create<AppState>()(
         set({
           user: payload.user,
           balanceUnits: payload.user.wallet.availableUnits,
+          coinBalance:
+            payload.todayChallenges?.coins.balance ??
+            payload.user.coins?.balance ??
+            0,
+          todayChallengesCompleted: payload.todayChallenges?.completedCount ?? 0,
+          todayChallengesTotal: payload.todayChallenges?.totalCount ?? 0,
           goalUnits: Math.max(
             100,
             Math.ceil(
@@ -134,7 +156,6 @@ export const useAppStore = create<AppState>()(
           ),
           streak: payload.activity.streak.activeDays,
           activeDays: payload.activity.totalActiveDays,
-          selectedPiggy: payload.user.preferences.piggyBankVariant,
           theme: payload.user.preferences.theme,
           language: payload.user.preferences.language,
           notificationsEnabled:
@@ -149,6 +170,13 @@ export const useAppStore = create<AppState>()(
           pendingRegistrationToken: null,
           user: { name: "Alex" },
           balanceUnits: 640,
+          coinBalance: 0,
+          todayChallengesCompleted: 0,
+          todayChallengesTotal: 0,
+          guestChallengeDay: "",
+          guestChallengeResults: {},
+          guestGameDoubleUsed: false,
+          guestDayDoubleUsed: false,
           goalUnits: 1000,
           streak: 8,
           activeDays: 34,
@@ -168,10 +196,80 @@ export const useAppStore = create<AppState>()(
             },
           };
         }),
+      addGameReward: (gameId, units) =>
+        set((state) => {
+          const safeUnits = Math.max(0, Math.round(units));
+          if (!safeUnits) return state;
+          const rewardEventId = state.rewardEventId + 1;
+          return {
+            balanceUnits: state.balanceUnits + safeUnits,
+            rewardEventId,
+            latestReward: { amount: safeUnits, id: rewardEventId },
+            taskCounts: {
+              ...state.taskCounts,
+              [`game:${gameId}`]: (state.taskCounts[`game:${gameId}`] ?? 0) + 1,
+            },
+          };
+        }),
       setBalance: (balanceUnits) => set({ balanceUnits }),
+      setCoinBalance: (coinBalance) => set({ coinBalance: Math.max(0, Math.round(coinBalance)) }),
+      setTodayChallengeProgress: (todayChallengesCompleted, todayChallengesTotal) =>
+        set({ todayChallengesCompleted, todayChallengesTotal }),
+      resetGuestChallengeDay: (guestChallengeDay) =>
+        set((state) =>
+          state.guestChallengeDay === guestChallengeDay
+            ? state
+            : {
+                guestChallengeDay,
+                guestChallengeResults: {},
+                guestGameDoubleUsed: false,
+                guestDayDoubleUsed: false,
+                todayChallengesCompleted: 0,
+              },
+        ),
+      recordGuestChallenge: (gameKey, score, coinsAwarded) =>
+        set((state) => {
+          if (state.guestChallengeResults[gameKey]) return state;
+          return {
+            coinBalance: state.coinBalance + Math.max(0, Math.round(coinsAwarded)),
+            guestChallengeResults: {
+              ...state.guestChallengeResults,
+              [gameKey]: {
+                score: Math.max(0, Math.round(score)),
+                coinsAwarded: Math.max(0, Math.round(coinsAwarded)),
+                doubled: false,
+              },
+            },
+          };
+        }),
+      applyGuestChallengeDouble: (scope, firstGameKey) => {
+        const state = get();
+        if (scope === "game") {
+          if (state.guestGameDoubleUsed || !firstGameKey) return 0;
+          const result = state.guestChallengeResults[firstGameKey];
+          if (!result) return 0;
+          const credited = result.coinsAwarded;
+          set({
+            coinBalance: state.coinBalance + credited,
+            guestGameDoubleUsed: true,
+            guestChallengeResults: {
+              ...state.guestChallengeResults,
+              [firstGameKey]: { ...result, doubled: true },
+            },
+          });
+          return credited;
+        }
+        if (state.guestDayDoubleUsed) return 0;
+        const credited = Object.values(state.guestChallengeResults).reduce(
+          (sum, result) => sum + result.coinsAwarded,
+          0,
+        );
+        if (!credited) return 0;
+        set({ coinBalance: state.coinBalance + credited, guestDayDoubleUsed: true });
+        return credited;
+      },
       clearLatestReward: () => set({ latestReward: null }),
       setGoal: (goalUnits) => set({ goalUnits: Math.max(100, goalUnits) }),
-      selectPiggy: (selectedPiggy) => set({ selectedPiggy }),
       setTheme: (theme) => set({ theme }),
       setNotifications: (notificationsEnabled) => set({ notificationsEnabled }),
       setNotificationTime: (notificationTime) => set({ notificationTime }),
@@ -180,6 +278,16 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "logic-coin-state-v1",
+      version: 2,
+      migrate: (persistedState) => {
+        if (!persistedState || typeof persistedState !== "object") {
+          return persistedState as AppState;
+        }
+        const next = { ...(persistedState as Record<string, unknown>) };
+        delete next.selectedPiggy;
+        delete next.selectPiggy;
+        return next as AppState;
+      },
       storage: createJSONStorage(() => secureStorage),
       skipHydration: Platform.OS === "web",
       partialize: ({

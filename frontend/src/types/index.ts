@@ -1,7 +1,6 @@
 import type { ThemeMode } from "@/constants/theme";
 
 export type Language = "ru" | "uz" | "en";
-export type PiggyKind = "pig" | "jar" | "safe" | "car" | "rocket";
 export type AuthMode = "guest" | "authenticated" | null;
 
 export type Wallet = {
@@ -17,10 +16,15 @@ export type Wallet = {
   currency?: string;
 };
 
+export type CoinWallet = {
+  balance: number;
+  lifetimeEarned: number;
+  referralEarned: number;
+};
+
 export type UserPreferences = {
   language: Language;
   theme: ThemeMode;
-  piggyBankVariant: PiggyKind;
   savingsGoalCents: number;
   notificationsEnabled: boolean;
   dailyReminderEnabled: boolean;
@@ -29,6 +33,7 @@ export type UserPreferences = {
 
 export type User = {
   id?: string;
+  role?: "user" | "admin";
   name: string;
   email?: string;
   avatarUrl?: string | null;
@@ -36,6 +41,7 @@ export type User = {
   emailVerified?: boolean;
   preferences?: UserPreferences;
   wallet?: Partial<Wallet>;
+  coins?: Partial<CoinWallet>;
 };
 
 export type GraceStreak = {
@@ -88,6 +94,7 @@ export type ReferralOverview = {
   verifiedInvitedCount: number;
   earnedUnits: number;
   earnedCents: number;
+  earnedCoins?: number;
   signupRewardUnits: number;
   friends: {
     id: string;
@@ -100,6 +107,11 @@ export type ReferralOverview = {
     id: string;
     amountUnits: number;
     amountCents: number;
+    createdAt: string;
+  }[];
+  coinHistory?: {
+    id: string;
+    amount: number;
     createdAt: string;
   }[];
 };
@@ -124,9 +136,103 @@ export type WithdrawalOverview = {
   withdrawals: Withdrawal[];
 };
 
+export type GameDifficulty = "easy" | "medium" | "hard";
+
+export type GameCatalogItem = {
+  id: string;
+  key: string;
+  slug: string;
+  icon: string;
+  color: string;
+  engine: "native" | "webview";
+  difficulty: GameDifficulty;
+  title: string;
+  description: string;
+  challengeEnabled: boolean;
+  practiceEnabled: boolean;
+};
+
+export type ChallengeGameState = {
+  status: "not_started" | "started" | "completed";
+  score: number | null;
+  coinsAwarded: number;
+  doubled: boolean;
+  completedAt: string | null;
+};
+
+export type TodayChallengeGame = GameCatalogItem & {
+  attemptLimit?: number;
+  state: ChallengeGameState;
+};
+
+export type ChallengeDoublingInfo = {
+  firstGameKey: string | null;
+  gameDoubled: boolean;
+  dayDoubled: boolean;
+  dayEligible: boolean;
+};
+
+export type DailyPrizeConfig = {
+  cashMinUnits: number;
+  cashMaxUnits: number;
+  poolUnits: number;
+};
+
+export type TodayChallenges = {
+  status: "published" | "no_challenge";
+  available: boolean;
+  dayKey: string;
+  nextChallengeAt: string | null;
+  totalCount: number;
+  completedCount: number;
+  gamesCompletedToday?: number;
+  totalCoinsToday: number;
+  monthlyChallengeCount?: number;
+  games: TodayChallengeGame[];
+  coins: CoinWallet;
+  doubling?: ChallengeDoublingInfo;
+  prizes: DailyPrizeConfig | null;
+};
+
+export type GiftItem = {
+  id: string;
+  kind: "time_extension" | "extra_time" | "replay" | "coin";
+  amountSeconds: number | null;
+  replayCount: number | null;
+  coinAmount: number | null;
+  status: "available" | "used";
+  description: string;
+  usedAt: string | null;
+  usedOnGameKey: string | null;
+  createdAt: string;
+};
+
+export type GiftUseEffect =
+  | { kind: "time_extension"; additionalTimeSeconds: number }
+  | { kind: "replay"; replayCount: number; gameKey: string }
+  | { kind: "coin"; coinsCredited: number };
+
+export type LeaderboardMetric = "wallet" | "coins" | "lifetime";
+
+export type LeaderboardEntry = {
+  rank: number;
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  value: number;
+  isCurrentUser?: boolean;
+};
+
+export type LeaderboardPayload = {
+  metric: LeaderboardMetric;
+  entries: LeaderboardEntry[];
+  me: LeaderboardEntry | null;
+};
+
 export type BootstrapPayload = {
   user: User & { preferences: UserPreferences; wallet: Wallet };
   tasks: unknown[];
+  todayChallenges?: TodayChallenges;
   bonuses: BonusOverview;
   activity: {
     totalActiveDays: number;
@@ -142,7 +248,6 @@ export type BootstrapPayload = {
   };
   supported: {
     languages: Language[];
-    piggyBankVariants: PiggyKind[];
   };
 };
 

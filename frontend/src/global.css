@@ -8,6 +8,22 @@
   --font-serif: Georgia, 'Times New Roman', serif;
 }
 
+@font-face {
+  font-family: "Ionicons";
+  src: url("/fonts/Ionicons.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "MaterialCommunityIcons";
+  src: url("/fonts/MaterialCommunityIcons.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
 html,
 body,
 #root {
@@ -28,4 +44,14 @@ body {
 button,
 input {
   font: inherit;
+}
+
+[role="tab"] {
+  outline: none;
+}
+
+[role="tab"]:focus-visible {
+  outline: 2px solid rgba(8, 124, 255, 0.34);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(123, 193, 255, 0.14);
 }

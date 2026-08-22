@@ -8,6 +8,7 @@ import { getBonusOverview } from "../services/bonus.service.js";
 import { getReferralOverview } from "../services/referral.service.js";
 import { serializeUser } from "../services/serialization.service.js";
 import { listTasksForUser } from "../services/task.service.js";
+import { getTodayChallengeOverview } from "../services/daily-challenge.service.js";
 
 const router = Router();
 
@@ -17,8 +18,9 @@ router.get("/", async (request, response) => {
     throw new ApiError(404, "user_not_found", "User not found");
   }
   const today = localDayKey(new Date(), user.preferences.timezone);
-  const [tasks, bonuses, referral, recentDays, totalActiveDays] = await Promise.all([
+  const [tasks, todayChallenges, bonuses, referral, recentDays, totalActiveDays] = await Promise.all([
     listTasksForUser(user._id),
+    getTodayChallengeOverview(user._id),
     getBonusOverview(user._id),
     getReferralOverview(user._id),
     ActivityDay.find({
@@ -34,6 +36,8 @@ router.get("/", async (request, response) => {
     data: {
       user: serializeUser(user),
       tasks,
+      todayChallenges,
+      coins: todayChallenges.coins,
       bonuses,
       activity: {
         totalActiveDays,
@@ -51,8 +55,7 @@ router.get("/", async (request, response) => {
         taskProvider: "demo"
       },
       supported: {
-        languages: ["en", "ru", "uz"],
-        piggyBankVariants: ["pig", "jar", "safe", "car", "rocket"]
+        languages: ["en", "ru", "uz"]
       }
     }
   });

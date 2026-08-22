@@ -1,4 +1,4 @@
-name: Android APK
+name: Android APK and AAB
 
 on:
   workflow_dispatch:
@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-apk:
-    name: Build unsigned APK
+  build-android:
+    name: Build unsigned APK and AAB
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -63,36 +63,44 @@ jobs:
         working-directory: frontend
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build release APK for modern Android phones
+      - name: Build release APK and Play Store bundle
         working-directory: frontend/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --stacktrace
+          ./gradlew assembleRelease bundleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --stacktrace
 
-      - name: Prepare unsigned APK artifact
+      - name: Prepare unsigned Android artifacts
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts/unsigned
 
           release_apk="$(find frontend/android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          release_aab="$(find frontend/android/app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
           if [ -z "${release_apk}" ]; then
             echo "Release APK was not produced" >&2
             exit 1
           fi
+          if [ -z "${release_aab}" ]; then
+            echo "Release AAB was not produced" >&2
+            exit 1
+          fi
           cp "${release_apk}" artifacts/unsigned/logic-coin-unsigned.apk
+          cp "${release_aab}" artifacts/unsigned/logic-coin-unsigned.aab
 
-      - name: Upload unsigned APK
+      - name: Upload unsigned Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: logic-coin-unsigned-apk
-          path: artifacts/unsigned/logic-coin-unsigned.apk
+          name: logic-coin-unsigned-android
+          path: |
+            artifacts/unsigned/logic-coin-unsigned.apk
+            artifacts/unsigned/logic-coin-unsigned.aab
           if-no-files-found: error
           retention-days: 7
 
-  sign-apk:
-    name: Sign and verify APK
-    needs: build-apk
+  sign-android:
+    name: Sign and verify APK and AAB
+    needs: build-android
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -122,21 +130,26 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Download unsigned APK
+      - name: Download unsigned Android artifacts
         uses: actions/download-artifact@v4
         with:
-          name: logic-coin-unsigned-apk
+          name: logic-coin-unsigned-android
           path: artifacts/unsigned
 
-      - name: Sign standalone APK and create checksum
+      - name: Sign Android artifacts and create checksums
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts/signed
 
           release_apk="artifacts/unsigned/logic-coin-unsigned.apk"
+          release_aab="artifacts/unsigned/logic-coin-unsigned.aab"
           if [ ! -f "${release_apk}" ]; then
             echo "Unsigned APK artifact was not downloaded" >&2
+            exit 1
+          fi
+          if [ ! -f "${release_aab}" ]; then
+            echo "Unsigned AAB artifact was not downloaded" >&2
             exit 1
           fi
 
@@ -160,15 +173,30 @@ jobs:
             "${RUNNER_TEMP}/logic-coin-aligned.apk"
           "${build_tools}/apksigner" verify --verbose --print-certs artifacts/signed/logic-coin.apk
 
+          cp "${release_aab}" artifacts/signed/logic-coin.aab
+          jarsigner \
+            -keystore "${keystore}" \
+            -storetype PKCS12 \
+            -storepass "${ANDROID_KEYSTORE_PASSWORD}" \
+            -keypass "${ANDROID_KEY_PASSWORD}" \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            artifacts/signed/logic-coin.aab \
+            "${ANDROID_KEY_ALIAS}"
+          jarsigner -verify -verbose -certs artifacts/signed/logic-coin.aab
+
           cd artifacts/signed
           sha256sum logic-coin.apk > logic-coin.apk.sha256
+          sha256sum logic-coin.aab > logic-coin.aab.sha256
 
-      - name: Upload APK
+      - name: Upload signed APK and AAB
         uses: actions/upload-artifact@v4
         with:
-          name: logic-coin-apk
+          name: logic-coin-android-release
           path: |
             artifacts/signed/logic-coin.apk
             artifacts/signed/logic-coin.apk.sha256
+            artifacts/signed/logic-coin.aab
+            artifacts/signed/logic-coin.aab.sha256
           if-no-files-found: error
           retention-days: 30

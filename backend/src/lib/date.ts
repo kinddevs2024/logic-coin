@@ -12,7 +12,11 @@ function partsInTimeZone(date: Date, timeZone: string): Record<string, string> {
     timeZone,
     year: "numeric",
     month: "2-digit",
-    day: "2-digit"
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
   }).formatToParts(date);
 
   return Object.fromEntries(parts.map((part) => [part.type, part.value]));
@@ -21,6 +25,36 @@ function partsInTimeZone(date: Date, timeZone: string): Record<string, string> {
 export function localDayKey(date: Date, timeZone: string): string {
   const parts = partsInTimeZone(date, timeZone);
   return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function timeZoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = partsInTimeZone(date, timeZone);
+  const hours = Number(parts.hour ?? 0);
+  const asUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    hours === 24 ? 0 : hours,
+    Number(parts.minute ?? 0),
+    Number(parts.second ?? 0)
+  );
+  return asUtc - date.getTime();
+}
+
+export function dayBoundsInTimeZone(
+  dayKey: string,
+  timeZone: string
+): { from: Date; to: Date } {
+  const day = parseDayKey(dayKey);
+  const nextDay = parseDayKey(addDays(dayKey, 1));
+  const convert = (value: Date) => {
+    let timestamp = value.getTime();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      timestamp = value.getTime() - timeZoneOffsetMs(new Date(timestamp), timeZone);
+    }
+    return new Date(timestamp);
+  };
+  return { from: convert(day), to: convert(nextDay) };
 }
 
 export function parseDayKey(dayKey: string): Date {

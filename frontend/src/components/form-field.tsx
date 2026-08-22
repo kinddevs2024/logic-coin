@@ -19,7 +19,7 @@ export function FormField({
   error,
   ...props
 }: TextInputProps & {
-  label: string;
+  label?: string;
   icon: ComponentProps<typeof Ionicons>["name"];
   error?: string;
 }) {
@@ -29,9 +29,11 @@ export function FormField({
 
   return (
     <View style={styles.wrapper}>
-      <AppText variant="caption" muted>
-        {label}
-      </AppText>
+      {label ? (
+        <AppText variant="caption" muted>
+          {label}
+        </AppText>
+      ) : null}
       <View
         style={[
           styles.field,
@@ -52,7 +54,7 @@ export function FormField({
         />
         <TextInput
           {...props}
-          accessibilityLabel={props.accessibilityLabel ?? label}
+          accessibilityLabel={props.accessibilityLabel ?? label ?? props.placeholder}
           onFocus={(event) => {
             setFocused(true);
             props.onFocus?.(event);
@@ -97,9 +99,9 @@ const styles = StyleSheet.create({
   },
   field: {
     minHeight: 56,
-    borderWidth: 1.5,
-    borderRadius: radii.md,
-    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderRadius: radii.pill,
+    paddingHorizontal: 17,
     flexDirection: "row",
     alignItems: "center",
     gap: 11,

@@ -1,47 +1,59 @@
-import { LinearGradient } from "expo-linear-gradient";
-import { View } from "react-native";
+import { useState } from "react";
+import { Image, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { initials } from "@/lib/format";
 
 export function Avatar({
   name,
+  avatarUrl,
   size = 44,
 }: {
   name?: string;
+  avatarUrl?: string | null;
   size?: number;
 }) {
   return (
-    <LinearGradient
-      colors={["#50BAFF", "#0866FF", "#5945E8"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+    <View
       style={{
         width: size,
         height: size,
         borderRadius: size / 2,
-        padding: Math.max(2, size * 0.045),
+        overflow: "hidden",
+        backgroundColor: "#E9EDF4",
       }}
     >
-      <View
-        style={{
-          flex: 1,
-          borderRadius: size / 2,
-          backgroundColor: "rgba(255,255,255,0.16)",
-          alignItems: "center",
-          justifyContent: "center",
-          borderWidth: 1,
-          borderColor: "rgba(255,255,255,0.35)",
-        }}
-      >
-        <AppText
-          variant={size > 64 ? "heading" : "label"}
-          color="#FFFFFF"
-          style={{ fontSize: size * 0.32 }}
-        >
-          {initials(name)}
-        </AppText>
-      </View>
-    </LinearGradient>
+      <AvatarContent key={avatarUrl || "initials"} name={name} avatarUrl={avatarUrl} size={size} />
+    </View>
+  );
+}
+
+function AvatarContent({ name, avatarUrl, size }: { name?: string; avatarUrl?: string | null; size: number }) {
+  const [failed, setFailed] = useState(false);
+  if (avatarUrl && !failed) {
+    return (
+      <Image
+        accessibilityLabel={name ? `Фото ${name}` : "Фото профиля"}
+        source={{ uri: avatarUrl }}
+        style={{ flex: 1, width: "100%", borderRadius: size / 2 }}
+        resizeMode="cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <View
+      style={{
+        flex: 1,
+        borderRadius: size / 2,
+        backgroundColor: "#E9EDF4",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <AppText variant={size > 64 ? "heading" : "label"} color="#34415A" style={{ fontSize: size * 0.32 }}>
+        {initials(name)}
+      </AppText>
+    </View>
   );
 }

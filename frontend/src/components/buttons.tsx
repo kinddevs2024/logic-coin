@@ -104,19 +104,15 @@ export function AppButton({
     >
       {isPrimary ? (
         <LinearGradient
-          colors={[
-            `${String(theme.primary)}E8`,
-            String(theme.primaryDark),
-            "#0648B8",
-          ]}
-          locations={[0, 0.66, 1]}
+          colors={[String(theme.primary), String(theme.primaryDark)]}
+          locations={[0, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
         >
           <LinearGradient
             pointerEvents="none"
-            colors={["rgba(255,255,255,0.52)", "rgba(255,255,255,0)"]}
+            colors={["rgba(255,255,255,0.22)", "rgba(255,255,255,0)"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0.8, y: 0.8 }}
             style={StyleSheet.absoluteFill}
