@@ -24,6 +24,7 @@ router.get("/", async (request, response) => {
   response.json({
     data: {
       sandbox: true,
+      processingTimeHours: 12,
       minimumCents: env.MIN_WITHDRAWAL_CENTS,
       eligible: wallet.availableCents >= env.MIN_WITHDRAWAL_CENTS,
       wallet,
@@ -33,6 +34,8 @@ router.get("/", async (request, response) => {
         amountUnits: withdrawal.amountUnits,
         method: withdrawal.method,
         accountLabel: withdrawal.accountLabel ?? null,
+        cardBrand: withdrawal.cardBrand ?? null,
+        cardLast4: withdrawal.cardLast4 ?? null,
         status: withdrawal.status,
         requestedAt: withdrawal.requestedAt,
         processedAt: withdrawal.processedAt ?? null
@@ -44,8 +47,15 @@ router.get("/", async (request, response) => {
 const createWithdrawalSchema = z
   .object({
     amountCents: z.number().int().positive(),
-    method: z.literal("sandbox").default("sandbox"),
-    accountLabel: z.string().trim().min(1).max(120).optional(),
+    method: z.literal("bank_card"),
+    card: z.object({
+      brand: z.enum(["visa", "mastercard", "other"]),
+      last4: z.string().regex(/^\d{4}$/),
+      holderName: z.string().trim().min(2).max(80),
+      expiration: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/)
+    }).strict(),
+    agreementAccepted: z.literal(true),
+    agreementVersion: z.literal("2026-08-23"),
     idempotencyKey: z.string().trim().min(8).max(160).optional()
   })
   .strict();
@@ -68,14 +78,16 @@ router.post(
       userId: request.auth!.userId,
       amountCents: input.amountCents,
       idempotencyKey,
-      ...(input.accountLabel ? { accountLabel: input.accountLabel } : {})
+      card: input.card,
+      agreementVersion: input.agreementVersion
     });
     const notification = result.idempotentReplay
       ? "not_repeated"
       : await notifyWithdrawalAdmin({
           withdrawalId: result.withdrawal._id.toString(),
           userId: request.auth!.userId.toString(),
-          amountCents: result.withdrawal.amountCents
+          amountCents: result.withdrawal.amountCents,
+          accountLabel: result.withdrawal.accountLabel ?? "Bank card"
         });
 
     response.status(result.idempotentReplay ? 200 : 201).json({
@@ -86,6 +98,9 @@ router.post(
           amountCents: result.withdrawal.amountCents,
           amountUnits: result.withdrawal.amountUnits,
           method: result.withdrawal.method,
+          accountLabel: result.withdrawal.accountLabel ?? null,
+          cardBrand: result.withdrawal.cardBrand ?? null,
+          cardLast4: result.withdrawal.cardLast4 ?? null,
           status: result.withdrawal.status,
           requestedAt: result.withdrawal.requestedAt,
           idempotentReplay: result.idempotentReplay

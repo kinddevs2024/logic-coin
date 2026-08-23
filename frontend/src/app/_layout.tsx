@@ -75,13 +75,25 @@ export default function RootLayout() {
   }, [language]);
 
   useEffect(() => {
-    if (
-      Platform.OS === "web" &&
-      "serviceWorker" in navigator &&
-      process.env.NODE_ENV === "production"
-    ) {
-      void navigator.serviceWorker.register("/service-worker.js").catch(() => {});
-    }
+    if (Platform.OS !== "web" || !("serviceWorker" in navigator)) return;
+
+    // The former shell worker could keep an old HTML document while its hashed
+    // JS/CSS files had already been replaced by a new Vercel deployment. Clear
+    // it once so production always loads one coherent deployment.
+    void navigator.serviceWorker
+      .getRegistrations()
+      .then(async (registrations) => {
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+        if ("caches" in globalThis) {
+          const keys = await caches.keys();
+          await Promise.all(
+            keys
+              .filter((key) => key.startsWith("logic-coin-shell-"))
+              .map((key) => caches.delete(key)),
+          );
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

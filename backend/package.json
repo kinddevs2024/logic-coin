@@ -13,7 +13,8 @@
     "start": "node dist/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "cross-env NODE_ENV=test vitest run",
-    "test:watch": "cross-env NODE_ENV=test vitest"
+    "test:watch": "cross-env NODE_ENV=test vitest",
+    "provision:admin": "tsx scripts/provision-admin.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

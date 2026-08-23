@@ -11,7 +11,13 @@ export async function createSandboxWithdrawal(input: {
   userId: Types.ObjectId;
   amountCents: number;
   idempotencyKey: string;
-  accountLabel?: string;
+  card: {
+    brand: "visa" | "mastercard" | "other";
+    last4: string;
+    holderName: string;
+    expiration: string;
+  };
+  agreementVersion: string;
 }) {
   if (input.amountCents < env.MIN_WITHDRAWAL_CENTS) {
     throw new ApiError(409, "withdrawal_below_minimum", "Withdrawal amount is below the minimum", {
@@ -72,9 +78,14 @@ export async function createSandboxWithdrawal(input: {
             idempotencyKey: input.idempotencyKey,
             amountCents: input.amountCents,
             amountUnits,
-            method: "sandbox",
-            ...(input.accountLabel ? { accountLabel: input.accountLabel } : {}),
-            status: "sandbox_pending",
+            method: "bank_card",
+            accountLabel: `${input.card.brand.toUpperCase()} •••• ${input.card.last4}`,
+            cardBrand: input.card.brand,
+            cardLast4: input.card.last4,
+            cardHolder: input.card.holderName,
+            cardExpiration: input.card.expiration,
+            agreementVersion: input.agreementVersion,
+            status: "pending_review",
             requestedAt: now
           }
         ],
@@ -93,8 +104,14 @@ export async function createSandboxWithdrawal(input: {
             amountUnits: -amountUnits,
             balanceAfterUnits: user.wallet.availableUnits,
             sourceId: withdrawal._id.toString(),
-            description: "Sandbox withdrawal request",
-            metadata: { amountCents: input.amountCents, method: "sandbox" }
+            description: "Bank card withdrawal review request",
+            metadata: {
+              amountCents: input.amountCents,
+              method: "bank_card",
+              cardBrand: input.card.brand,
+              cardLast4: input.card.last4,
+              agreementVersion: input.agreementVersion
+            }
           }
         ],
         { session }

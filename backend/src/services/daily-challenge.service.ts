@@ -9,12 +9,14 @@ import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { Game } from "../models/Game.js";
 import { User } from "../models/User.js";
 import { serializeCoins, serializeGame } from "./serialization.service.js";
+import { settleExpiredDailyContests } from "./contest.service.js";
 
 export function challengeDayKey(date: Date = new Date()): string {
   return localDayKey(date, env.DEFAULT_TIMEZONE);
 }
 
 export async function getDailyChallengeSet(dayKey: string = challengeDayKey()) {
+  await settleExpiredDailyContests(dayKey);
   return DailyChallengeSet.findOne({ dayKey });
 }
 

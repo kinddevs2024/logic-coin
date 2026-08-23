@@ -12,6 +12,13 @@ import type {
 } from "@/types";
 import type { ThemeMode } from "@/constants/theme";
 
+export type RememberedWithdrawalCard = {
+  brand: "visa" | "mastercard" | "other";
+  last4: string;
+  holderName: string;
+  expiration: string;
+};
+
 type AppState = {
   hydrated: boolean;
   language: Language | null;
@@ -20,9 +27,11 @@ type AppState = {
   accessToken: string | null;
   refreshToken: string | null;
   pendingRegistrationToken: string | null;
+  pendingPasswordSetupToken: string | null;
   user: User;
   balanceUnits: number;
   coinBalance: number;
+  rememberedWithdrawalCard: RememberedWithdrawalCard | null;
   todayChallengesCompleted: number;
   todayChallengesTotal: number;
   guestChallengeDay: string;
@@ -42,6 +51,7 @@ type AppState = {
   setLanguage: (language: Language) => void;
   finishOnboarding: () => void;
   setPendingRegistrationToken: (token: string | null) => void;
+  setPendingPasswordSetupToken: (token: string | null) => void;
   continueAsGuest: () => void;
   authenticate: (input: {
     user: User;
@@ -55,6 +65,7 @@ type AppState = {
   addGameReward: (gameId: string, units: number) => void;
   setBalance: (units: number) => void;
   setCoinBalance: (coins: number) => void;
+  setRememberedWithdrawalCard: (card: RememberedWithdrawalCard | null) => void;
   setTodayChallengeProgress: (completed: number, total: number) => void;
   resetGuestChallengeDay: (dayKey: string) => void;
   recordGuestChallenge: (gameKey: string, score: number, coinsAwarded: number) => void;
@@ -100,9 +111,11 @@ export const useAppStore = create<AppState>()(
       accessToken: null,
       refreshToken: null,
       pendingRegistrationToken: null,
+      pendingPasswordSetupToken: null,
       user: { name: "Alex" },
       balanceUnits: 640,
       coinBalance: 0,
+      rememberedWithdrawalCard: null,
       todayChallengesCompleted: 0,
       todayChallengesTotal: 0,
       guestChallengeDay: "",
@@ -123,6 +136,8 @@ export const useAppStore = create<AppState>()(
       finishOnboarding: () => set({ onboardingDone: true }),
       setPendingRegistrationToken: (pendingRegistrationToken) =>
         set({ pendingRegistrationToken }),
+      setPendingPasswordSetupToken: (pendingPasswordSetupToken) =>
+        set({ pendingPasswordSetupToken }),
       continueAsGuest: () =>
         set({
           authMode: "guest",
@@ -135,6 +150,7 @@ export const useAppStore = create<AppState>()(
           accessToken,
           refreshToken: refreshToken ?? null,
           pendingRegistrationToken: null,
+          pendingPasswordSetupToken: null,
           balanceUnits: balanceUnits ?? state.balanceUnits,
         })),
       syncBootstrap: (payload) =>
@@ -168,6 +184,7 @@ export const useAppStore = create<AppState>()(
           accessToken: null,
           refreshToken: null,
           pendingRegistrationToken: null,
+          pendingPasswordSetupToken: null,
           user: { name: "Alex" },
           balanceUnits: 640,
           coinBalance: 0,
@@ -213,6 +230,7 @@ export const useAppStore = create<AppState>()(
         }),
       setBalance: (balanceUnits) => set({ balanceUnits }),
       setCoinBalance: (coinBalance) => set({ coinBalance: Math.max(0, Math.round(coinBalance)) }),
+      setRememberedWithdrawalCard: (rememberedWithdrawalCard) => set({ rememberedWithdrawalCard }),
       setTodayChallengeProgress: (todayChallengesCompleted, todayChallengesTotal) =>
         set({ todayChallengesCompleted, todayChallengesTotal }),
       resetGuestChallengeDay: (guestChallengeDay) =>

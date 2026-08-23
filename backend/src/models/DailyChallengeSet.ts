@@ -52,6 +52,7 @@ const dailyChallengeSetSchema = new Schema(
       required: true
     },
     publishedAt: { type: Date },
+    endsAt: { type: Date },
     publishedBy: { type: Schema.Types.ObjectId, ref: "User" },
     publishedBySubject: { type: String, trim: true, maxlength: 120 }
   },
@@ -60,6 +61,7 @@ const dailyChallengeSetSchema = new Schema(
 
 dailyChallengeSetSchema.index({ dayKey: 1 }, { unique: true });
 dailyChallengeSetSchema.index({ status: 1, dayKey: -1 });
+dailyChallengeSetSchema.index({ status: 1, endsAt: 1 });
 
 export type DailyChallengeSetDocument = InferSchemaType<typeof dailyChallengeSetSchema>;
 export const DailyChallengeSet =

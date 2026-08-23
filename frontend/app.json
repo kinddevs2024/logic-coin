@@ -3,7 +3,7 @@
     "name": "Logic Coin",
     "slug": "logic-coin",
     "scheme": "logiccoin",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,6 +15,7 @@
 
     "android": {
       "package": "com.kinddevs.logiccoin",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#F7FAFF",
         "foregroundImage": "./assets/brand/adaptive-icon.png"

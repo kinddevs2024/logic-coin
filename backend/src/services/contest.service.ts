@@ -277,6 +277,30 @@ export async function settleDailyContest(dayKey: string) {
   };
 }
 
+export async function settleExpiredDailyContests(dayKey?: string, now: Date = new Date()) {
+  const legacyCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1_000);
+  const expired = await DailyChallengeSet.find({
+    status: "published",
+    ...(dayKey ? { dayKey } : {}),
+    $or: [
+      { endsAt: { $lte: now } },
+      { endsAt: { $exists: false }, publishedAt: { $lte: legacyCutoff } }
+    ]
+  })
+    .select("dayKey")
+    .lean();
+
+  for (const challenge of expired) {
+    try {
+      await settleDailyContest(challenge.dayKey);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.code !== "settlement_in_progress") {
+        throw error;
+      }
+    }
+  }
+}
+
 export async function getContestResultForUser(dayKey: string, userId: Types.ObjectId) {
   return DailyContestResult.findOne({ dayKey, userId }).lean();
 }

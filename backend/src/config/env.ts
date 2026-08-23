@@ -46,12 +46,6 @@ const rawEnvSchema = z.object({
   MIN_WITHDRAWAL_CENTS: z.coerce.number().int().min(100).default(1000),
   REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(50),
   ADMIN_EMAILS: z.string().default(""),
-  ADMIN_PASSWORD_HASH: z.preprocess(
-    emptyToUndefined,
-    z.string().regex(/^\$2[aby]\$\d{2}\$.{53}$/).optional()
-  ),
-  ADMIN_JWT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
-  ADMIN_TOKEN_TTL: z.string().default("30m"),
   EXPO_PUSH_API_URL: z.string().url().default("https://exp.host/--/api/v2/push/send"),
   EXPO_PUSH_ACCESS_TOKEN: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
@@ -91,10 +85,6 @@ if (raw.OTP_PEPPER && raw.OTP_PEPPER.length < 32) {
   throw new Error("OTP_PEPPER must contain at least 32 characters");
 }
 
-if (raw.NODE_ENV === "production" && raw.ADMIN_PASSWORD_HASH && !raw.ADMIN_JWT_SECRET) {
-  throw new Error("ADMIN_JWT_SECRET must be configured when admin password login is enabled");
-}
-
 try {
   new Intl.DateTimeFormat("en-US", { timeZone: raw.DEFAULT_TIMEZONE }).format();
 } catch {
@@ -108,7 +98,6 @@ export const env = Object.freeze({
   MONGODB_URI: raw.MONGODB_URI ?? raw.MONGODB_SYNC_TARGET_URI,
   JWT_SECRET: raw.JWT_SECRET ?? developmentSecret,
   OTP_PEPPER: raw.OTP_PEPPER ?? `${developmentSecret}-otp`,
-  ADMIN_JWT_SECRET: raw.ADMIN_JWT_SECRET ?? raw.JWT_SECRET ?? developmentSecret,
   YANDEX_CLIENT_ID: raw.YANDEX_CLIENT_ID ?? raw.YANDEX_CLIENT,
   TELEGRAM_BOT_TOKEN: raw.TELEGRAM_BOT_TOKEN ?? raw.TELEGRAM_BOT,
   ADMIN_EMAILS: raw.ADMIN_EMAILS.split(",")

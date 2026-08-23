@@ -5,7 +5,13 @@ const budgetEntrySchema = new Schema(
     dayKey: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
     type: {
       type: String,
-      enum: ["ad_revenue", "other_revenue", "operating_expense"],
+      enum: [
+        "ad_revenue",
+        "other_revenue",
+        "operating_expense",
+        "manual_credit",
+        "manual_debit"
+      ],
       required: true
     },
     amountUnits: { type: Number, required: true, min: 1 },

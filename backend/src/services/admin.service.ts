@@ -20,9 +20,16 @@ import { User } from "../models/User.js";
 import { challengeDayKey } from "./daily-challenge.service.js";
 import { serializeGame } from "./serialization.service.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
+import { settleExpiredDailyContests } from "./contest.service.js";
 
 type ChallengeStatus = "draft" | "published" | "settled";
 type ChallengeSelectionMode = "manual" | "random";
+type BudgetEntryType =
+  | "ad_revenue"
+  | "other_revenue"
+  | "operating_expense"
+  | "manual_credit"
+  | "manual_debit";
 
 interface ChallengeSetLike {
   _id: Types.ObjectId;
@@ -38,6 +45,7 @@ interface ChallengeSetLike {
   maxAttemptsPerGame?: number;
   oneSecondAttemptLimit?: number;
   publishedAt?: Date | null;
+  endsAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -67,18 +75,25 @@ async function serializeChallengeSets(sets: readonly ChallengeSetLike[]) {
     maxAttemptsPerGame: set.maxAttemptsPerGame ?? 1,
     oneSecondAttemptLimit: set.oneSecondAttemptLimit ?? 20,
     publishedAt: set.publishedAt?.toISOString() ?? null,
+    endsAt:
+      set.endsAt?.toISOString() ??
+      (set.publishedAt
+        ? new Date(set.publishedAt.getTime() + 24 * 60 * 60 * 1_000).toISOString()
+        : null),
     createdAt: set.createdAt?.toISOString() ?? null,
     updatedAt: set.updatedAt?.toISOString() ?? null
   }));
 }
 
 export async function getAdminDailyChallenge(dayKey: string) {
+  await settleExpiredDailyContests(dayKey);
   const set = (await DailyChallengeSet.findOne({ dayKey }).lean()) as ChallengeSetLike | null;
   if (!set) return null;
   return (await serializeChallengeSets([set]))[0] ?? null;
 }
 
 export async function listAdminDailyChallenges(from: string, to: string) {
+  await settleExpiredDailyContests();
   const sets = (await DailyChallengeSet.find({ dayKey: { $gte: from, $lte: to } })
     .sort({ dayKey: -1 })
     .lean()) as ChallengeSetLike[];
@@ -171,6 +186,10 @@ export async function configureDailyChallenge(input: {
   }
 
   const isFirstPublication = input.publish && existing?.status !== "published";
+  const firstPublishedAt = isFirstPublication
+    ? new Date()
+    : existing?.publishedAt ?? new Date();
+  const endsAt = new Date(firstPublishedAt.getTime() + 24 * 60 * 60 * 1_000);
   const update = {
     $set: {
       timezone: env.DEFAULT_TIMEZONE,
@@ -184,10 +203,12 @@ export async function configureDailyChallenge(input: {
       maxAttemptsPerGame,
       oneSecondAttemptLimit,
       ...(input.publish
-        ? { publishedAt: new Date(), publishedBySubject: input.adminSubject }
+        ? { publishedAt: firstPublishedAt, endsAt, publishedBySubject: input.adminSubject }
         : {})
     },
-    ...(!input.publish ? { $unset: { publishedAt: 1, publishedBy: 1, publishedBySubject: 1 } } : {})
+    ...(!input.publish
+      ? { $unset: { publishedAt: 1, endsAt: 1, publishedBy: 1, publishedBySubject: 1 } }
+      : {})
   };
   await DailyChallengeSet.findOneAndUpdate({ dayKey: input.dayKey }, update, {
     upsert: true,
@@ -341,7 +362,14 @@ export async function getBudgetAnalytics(days: number) {
   const from = addDays(to, 1 - days);
   const previousTo = addDays(from, -1);
   const previousFrom = addDays(previousTo, 1 - days);
-  const [entries, settlements, activeUsers, previousRevenue] = await Promise.all([
+  const [
+    entries,
+    settlements,
+    activeUsers,
+    previousRevenue,
+    lifetimeEntries,
+    lifetimeSettlements
+  ] = await Promise.all([
     BudgetEntry.aggregate<{ _id: { dayKey: string; type: string }; total: number }>([
       { $match: { dayKey: { $gte: from, $lte: to } } },
       { $group: { _id: { dayKey: "$dayKey", type: "$type" }, total: { $sum: "$amountUnits" } } }
@@ -358,21 +386,38 @@ export async function getBudgetAnalytics(days: number) {
         }
       },
       { $group: { _id: null, total: { $sum: "$amountUnits" } } }
+    ]),
+    BudgetEntry.aggregate<{ _id: BudgetEntryType; total: number }>([
+      { $group: { _id: "$type", total: { $sum: "$amountUnits" } } }
+    ]),
+    DailyContestSettlement.aggregate<{ total: number }>([
+      { $match: { status: "settled" } },
+      { $group: { _id: null, total: { $sum: "$cashDistributedUnits" } } }
     ])
   ]);
   const byDay = new Map<
     string,
-    { adRevenueUnits: number; otherRevenueUnits: number; operatingExpenseUnits: number }
+    {
+      adRevenueUnits: number;
+      otherRevenueUnits: number;
+      operatingExpenseUnits: number;
+      manualCreditUnits: number;
+      manualDebitUnits: number;
+    }
   >();
   for (const entry of entries) {
     const current = byDay.get(entry._id.dayKey) ?? {
       adRevenueUnits: 0,
       otherRevenueUnits: 0,
-      operatingExpenseUnits: 0
+      operatingExpenseUnits: 0,
+      manualCreditUnits: 0,
+      manualDebitUnits: 0
     };
     if (entry._id.type === "ad_revenue") current.adRevenueUnits += entry.total;
     if (entry._id.type === "other_revenue") current.otherRevenueUnits += entry.total;
     if (entry._id.type === "operating_expense") current.operatingExpenseUnits += entry.total;
+    if (entry._id.type === "manual_credit") current.manualCreditUnits += entry.total;
+    if (entry._id.type === "manual_debit") current.manualDebitUnits += entry.total;
     byDay.set(entry._id.dayKey, current);
   }
   const spendByDay = new Map(
@@ -382,16 +427,19 @@ export async function getBudgetAnalytics(days: number) {
     const values = byDay.get(dayKey) ?? {
       adRevenueUnits: 0,
       otherRevenueUnits: 0,
-      operatingExpenseUnits: 0
+      operatingExpenseUnits: 0,
+      manualCreditUnits: 0,
+      manualDebitUnits: 0
     };
     const challengeSpendUnits = spendByDay.get(dayKey) ?? 0;
-    const revenueUnits = values.adRevenueUnits + values.otherRevenueUnits;
+    const revenueUnits = values.adRevenueUnits + values.otherRevenueUnits + values.manualCreditUnits;
     return {
       dayKey,
       ...values,
       revenueUnits,
       challengeSpendUnits,
-      netUnits: revenueUnits - values.operatingExpenseUnits - challengeSpendUnits
+      netUnits:
+        revenueUnits - values.operatingExpenseUnits - values.manualDebitUnits - challengeSpendUnits
     };
   });
   const adRevenueUnits = daily.reduce((sum, day) => sum + day.adRevenueUnits, 0);
@@ -400,6 +448,14 @@ export async function getBudgetAnalytics(days: number) {
   const operatingExpenseUnits = daily.reduce((sum, day) => sum + day.operatingExpenseUnits, 0);
   const challengeSpendUnits = daily.reduce((sum, day) => sum + day.challengeSpendUnits, 0);
   const previousRevenueUnits = previousRevenue[0]?.total ?? 0;
+  const lifetimeByType = new Map(lifetimeEntries.map((entry) => [entry._id, entry.total]));
+  const platformBalanceUnits =
+    (lifetimeByType.get("ad_revenue") ?? 0) +
+    (lifetimeByType.get("other_revenue") ?? 0) +
+    (lifetimeByType.get("manual_credit") ?? 0) -
+    (lifetimeByType.get("operating_expense") ?? 0) -
+    (lifetimeByType.get("manual_debit") ?? 0) -
+    (lifetimeSettlements[0]?.total ?? 0);
   return {
     range: { from, to, days },
     summary: {
@@ -412,7 +468,8 @@ export async function getBudgetAnalytics(days: number) {
       arpuUnits: activeUsers.length === 0 ? 0 : Math.round(totalRevenueUnits / activeUsers.length),
       averageDailyRevenueUnits: Math.round(totalRevenueUnits / days),
       growthPercent: percentGrowth(totalRevenueUnits, previousRevenueUnits),
-      activeUsers: activeUsers.length
+      activeUsers: activeUsers.length,
+      platformBalanceUnits
     },
     daily
   };
@@ -420,7 +477,7 @@ export async function getBudgetAnalytics(days: number) {
 
 export async function recordBudgetEntry(input: {
   dayKey: string;
-  type: "ad_revenue" | "other_revenue" | "operating_expense";
+  type: BudgetEntryType;
   amountUnits: number;
   sourceId: string;
   description?: string;

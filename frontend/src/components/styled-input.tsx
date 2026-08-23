@@ -16,6 +16,7 @@ export interface StyledInputProps {
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   autoComplete?: TextInputProps["autoComplete"];
   keyboardType?: TextInputProps["keyboardType"];
+  secureTextEntry?: boolean;
   disabled?: boolean;
   required?: boolean;
 }
@@ -31,6 +32,7 @@ export function StyledInput({
   autoCapitalize = "none",
   autoComplete,
   keyboardType = "default",
+  secureTextEntry = false,
   disabled = false,
   required = false,
 }: StyledInputProps) {
@@ -84,6 +86,7 @@ export function StyledInput({
           autoCapitalize={autoCapitalize}
           autoComplete={autoComplete}
           keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
           editable={!disabled}
         />
       </View>

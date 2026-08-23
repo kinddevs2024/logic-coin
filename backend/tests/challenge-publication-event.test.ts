@@ -25,6 +25,9 @@ vi.mock("../src/models/NotificationEvent.js", () => ({
 vi.mock("../src/services/notification.service.js", () => ({
   dispatchNotificationEvent: mocks.dispatchNotificationEvent
 }));
+vi.mock("../src/services/contest.service.js", () => ({
+  settleExpiredDailyContests: vi.fn()
+}));
 
 import { configureDailyChallenge } from "../src/services/admin.service.js";
 

@@ -7,10 +7,6 @@ declare global {
         userId: Types.ObjectId;
         sessionId?: string;
       };
-      adminAuth?: {
-        subject: "password-admin";
-        tokenId?: string;
-      };
       requestId: string;
     }
   }

@@ -177,17 +177,27 @@ async function refreshAccessToken(expiredToken: string): Promise<string> {
 
 export const authApi = {
   startEmail(email: string) {
-    return request<{
-      email: string;
-      flowToken: string;
-      verification?: { expiresInSeconds?: number };
-    }>("/auth/email/start", {
+    return request<
+      | { email: string; mode: "password" }
+      | {
+          email: string;
+          mode: "verification";
+          flowToken: string;
+          verification?: { expiresInSeconds?: number };
+        }
+    >("/auth/email/start", {
       method: "POST",
       body: JSON.stringify({ email }),
     });
   },
-  completeEmail(input: { email: string; code: string; flowToken: string }) {
-    return request<AuthResult>("/auth/email/complete", {
+  verifyEmailCode(input: { email: string; code: string; flowToken: string }) {
+    return request<{ email: string; setupToken: string }>("/auth/email/verify-code", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  setPassword(input: { email: string; password: string; setupToken: string }) {
+    return request<AuthResult>("/auth/email/set-password", {
       method: "POST",
       body: JSON.stringify(input),
     });
@@ -470,14 +480,16 @@ export const leaderboardApi = {
       `/leaderboard?metric=${encodeURIComponent(metric)}&limit=50`,
       { token },
     );
-    const valueOf = (entry: { walletBalanceUnits: number; coinBalance: number; lifetimeEarnedUnits: number }) =>
-      metric === "coins" ? entry.coinBalance : metric === "lifetime" ? entry.lifetimeEarnedUnits : entry.walletBalanceUnits;
+    const valueOf = (entry: { walletBalanceUnits: number; coinBalance: number }) =>
+      metric === "coins" ? entry.coinBalance : entry.walletBalanceUnits;
     const entries: LeaderboardPayload["entries"] = payload.entries.map((entry) => ({
       rank: entry.rank,
       userId: entry.userId,
       name: entry.name,
       avatarUrl: entry.avatarUrl,
       value: valueOf(entry),
+      walletBalanceUnits: entry.walletBalanceUnits,
+      coinBalance: entry.coinBalance,
       isCurrentUser: entry.userId === payload.self?.userId,
     }));
     const me: LeaderboardPayload["me"] = payload.self
@@ -487,6 +499,8 @@ export const leaderboardApi = {
           name: payload.self.name,
           avatarUrl: payload.self.avatarUrl,
           value: valueOf(payload.self),
+          walletBalanceUnits: payload.self.walletBalanceUnits,
+          coinBalance: payload.self.coinBalance,
           isCurrentUser: true,
         }
       : null;
@@ -527,12 +541,6 @@ export type AdminGameInput = {
   scoring?: { higherIsBetter?: boolean; maxCoins?: number };
 };
 
-export type AdminAuthSession = {
-  adminToken: string;
-  expiresAt: string;
-  tokenType: "Bearer";
-};
-
 export type AdminChallengeStatus = "draft" | "published" | "settled";
 export type AdminChallengeSelectionMode = "manual" | "random";
 
@@ -549,6 +557,7 @@ export type AdminChallenge = {
   maxAttemptsPerGame: number;
   oneSecondAttemptLimit: number;
   publishedAt: string | null;
+  endsAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -592,6 +601,8 @@ export type AdminBudgetDay = {
   adRevenueUnits: number;
   otherRevenueUnits: number;
   operatingExpenseUnits: number;
+  manualCreditUnits: number;
+  manualDebitUnits: number;
   revenueUnits: number;
   challengeSpendUnits: number;
   netUnits: number;
@@ -614,22 +625,15 @@ export type AdminBudget = {
     averageDailyRevenueUnits: number;
     growthPercent: number | null;
     activeUsers: number;
+    platformBalanceUnits: number;
   };
   daily: AdminBudgetDay[];
 };
 
 export const adminApi = {
-  login(password: string) {
-    return request<AdminAuthSession>("/admin/auth", {
-      method: "POST",
-      body: JSON.stringify({ password }),
-      skipAuthRefresh: true,
-    });
-  },
   async games(token: string) {
     const payload = await request<{ games: AdminGame[] }>("/admin/games", {
       token,
-      skipAuthRefresh: true,
     });
     return payload.games;
   },
@@ -638,7 +642,6 @@ export const adminApi = {
       method: "POST",
       token,
       body: JSON.stringify(input),
-      skipAuthRefresh: true,
     });
   },
   updateGame(gameKey: string, input: Partial<Omit<AdminGameInput, "key">>, token: string) {
@@ -648,21 +651,20 @@ export const adminApi = {
         method: "PATCH",
         token,
         body: JSON.stringify(input),
-        skipAuthRefresh: true,
       },
     );
   },
   challenge(dayKey: string, token: string) {
     return request<{ challenge: AdminChallenge | null }>(
       `/admin/daily-challenges/${encodeURIComponent(dayKey)}`,
-      { token, skipAuthRefresh: true },
+      { token },
     );
   },
   challenges(range: { from: string; to: string }, token: string) {
     const search = new URLSearchParams(range);
     return request<{ challenges: AdminChallenge[] }>(
       `/admin/daily-challenges?${search.toString()}`,
-      { token, skipAuthRefresh: true },
+      { token },
     );
   },
   saveChallenge(input: { dayKey: string; selectionMode: AdminChallengeSelectionMode; gameKeys?: string[]; cashPrizeMinUnits: number; cashPrizeMaxUnits: number; prizePoolUnits: number; maxAttemptsPerGame: number; oneSecondAttemptLimit: number; publish: boolean }, token: string) {
@@ -671,22 +673,29 @@ export const adminApi = {
       method: "PUT",
       token,
       body: JSON.stringify(body),
-      skipAuthRefresh: true,
     });
   },
   settle(dayKey: string, token: string) {
-    return request<{ settlement: AdminSettlement; alreadySettled: boolean }>(`/admin/daily-challenges/${encodeURIComponent(dayKey)}/settle`, { method: "POST", token, skipAuthRefresh: true });
+    return request<{ settlement: AdminSettlement; alreadySettled: boolean }>(`/admin/daily-challenges/${encodeURIComponent(dayKey)}/settle`, { method: "POST", token });
   },
   overview(dayKey: string, token: string) {
     return request<AdminOverview>(`/admin/overview?dayKey=${encodeURIComponent(dayKey)}`, {
       token,
-      skipAuthRefresh: true,
     });
   },
   budget(days: number, token: string) {
     return request<AdminBudget>(`/admin/budget?days=${encodeURIComponent(String(days))}`, {
       token,
-      skipAuthRefresh: true,
+    });
+  },
+  adjustBudget(input: { direction: "credit" | "debit"; amountUnits: number; note: string }, token: string) {
+    return request<{ entry: { id: string; amountUnits: number; type: "manual_credit" | "manual_debit" } }>("/admin/budget/adjustments", {
+      method: "POST",
+      token,
+      body: JSON.stringify({
+        ...input,
+        idempotencyKey: `budget-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      }),
     });
   },
 };
@@ -766,7 +775,16 @@ export const withdrawalsApi = {
     return request<WithdrawalOverview>("/withdrawals", { token });
   },
   create(
-    input: { amountCents: number; accountLabel?: string },
+    input: {
+      amountCents: number;
+      card: {
+        brand: "visa" | "mastercard" | "other";
+        last4: string;
+        holderName: string;
+        expiration: string;
+      };
+      agreementAccepted: true;
+    },
     token: string,
   ) {
     const idempotencyKey = `withdraw-${Date.now()}-${Math.random()
@@ -783,8 +801,10 @@ export const withdrawalsApi = {
       headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({
         amountCents: input.amountCents,
-        method: "sandbox",
-        ...(input.accountLabel ? { accountLabel: input.accountLabel } : {}),
+        method: "bank_card",
+        card: input.card,
+        agreementAccepted: input.agreementAccepted,
+        agreementVersion: "2026-08-23",
         idempotencyKey,
       }),
     });

@@ -14,17 +14,19 @@ import { authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export default function VerifyScreen() {
-  const params = useLocalSearchParams<{ email?: string }>();
+  const params = useLocalSearchParams<{ email?: string; next?: string }>();
   const email = params.email ?? "";
   const { t } = useTranslation();
   const theme = useAppTheme();
   const router = useRouter();
-  const authenticate = useAppStore((state) => state.authenticate);
   const registrationToken = useAppStore(
     (state) => state.pendingRegistrationToken,
   );
   const setPendingRegistrationToken = useAppStore(
     (state) => state.setPendingRegistrationToken,
+  );
+  const setPendingPasswordSetupToken = useAppStore(
+    (state) => state.setPendingPasswordSetupToken,
   );
   const [code, setCode] = useState("");
   const [resent, setResent] = useState(false);
@@ -32,26 +34,29 @@ export default function VerifyScreen() {
   const verify = useMutation({
     mutationFn: () => {
       if (!registrationToken) throw new Error(t("auth.invalid"));
-      return authApi.completeEmail({
+      return authApi.verifyEmailCode({
         email,
         code,
         flowToken: registrationToken,
       });
     },
     onSuccess: (result) => {
-      authenticate({
-        user: result.user,
-        accessToken: result.tokens.accessToken,
-        refreshToken: result.tokens.refreshToken,
-        balanceUnits: result.user.wallet?.availableUnits,
+      setPendingRegistrationToken(null);
+      setPendingPasswordSetupToken(result.setupToken);
+      router.replace({
+        pathname: "/set-password" as never,
+        params: { email: result.email, ...(params.next ? { next: params.next } : {}) },
       });
-      router.replace("/(tabs)");
     },
   });
 
   const resend = useMutation({
     mutationFn: () => authApi.startEmail(email),
     onSuccess: (result) => {
+      if (result.mode !== "verification") {
+        router.replace({ pathname: "/login", params: { email } });
+        return;
+      }
       setPendingRegistrationToken(result.flowToken);
       setResent(true);
     },

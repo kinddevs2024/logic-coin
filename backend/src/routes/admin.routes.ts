@@ -3,11 +3,10 @@ import { z } from "zod";
 import { addDays, daysBetween, parseDayKey } from "../lib/date.js";
 import { ApiError } from "../lib/api-error.js";
 import { canonicalGameKey } from "../lib/game-key.js";
-import { requireAdminToken } from "../middleware/admin.js";
-import { authLimiter } from "../middleware/rate-limits.js";
+import { requireAdmin } from "../middleware/admin.js";
+import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { Game } from "../models/Game.js";
-import { authenticateAdminPassword } from "../services/admin-auth.service.js";
 import {
   configureDailyChallenge,
   getAdminAnalytics,
@@ -33,17 +32,7 @@ const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   }
 }, "Invalid calendar day");
 
-router.post(
-  "/auth",
-  authLimiter,
-  validateBody(z.object({ password: z.string().min(1).max(128) }).strict()),
-  async (request, response) => {
-    const { password } = request.body as { password: string };
-    response.json({ data: await authenticateAdminPassword(password) });
-  }
-);
-
-router.use(requireAdminToken);
+router.use(requireAuth, requireAdmin);
 
 const localizedTextSchema = z
   .object({
@@ -170,7 +159,7 @@ router.put(
     const body = request.body as z.infer<typeof dailyChallengeSchema>;
     const result = await configureDailyChallenge({
       dayKey: dayKey.data,
-      adminSubject: request.adminAuth!.subject,
+      adminSubject: request.auth!.userId.toString(),
       selectionMode: body.selectionMode,
       ...(body.gameKeys ? { gameKeys: body.gameKeys } : {}),
       cashPrizeMinUnits: body.cashPrizeMinUnits,
@@ -206,7 +195,13 @@ router.get("/budget", async (request, response) => {
 const budgetEntrySchema = z
   .object({
     dayKey: dayKeySchema,
-    type: z.enum(["ad_revenue", "other_revenue", "operating_expense"]),
+    type: z.enum([
+      "ad_revenue",
+      "other_revenue",
+      "operating_expense",
+      "manual_credit",
+      "manual_debit"
+    ]),
     amountUnits: z.number().int().min(1).max(1_000_000_000),
     sourceId: z.string().trim().min(1).max(180),
     description: z.string().trim().min(1).max(240).optional()
@@ -224,5 +219,30 @@ router.post("/budget/entries", validateBody(budgetEntrySchema), async (request, 
   });
   response.status(201).json({ data: { entry } });
 });
+
+const budgetAdjustmentSchema = z
+  .object({
+    direction: z.enum(["credit", "debit"]),
+    amountUnits: z.number().int().min(1).max(1_000_000_000),
+    note: z.string().trim().min(1).max(240),
+    idempotencyKey: z.string().trim().min(8).max(160)
+  })
+  .strict();
+
+router.post(
+  "/budget/adjustments",
+  validateBody(budgetAdjustmentSchema),
+  async (request, response) => {
+    const body = request.body as z.infer<typeof budgetAdjustmentSchema>;
+    const entry = await recordBudgetEntry({
+      dayKey: challengeDayKey(),
+      type: body.direction === "credit" ? "manual_credit" : "manual_debit",
+      amountUnits: body.amountUnits,
+      sourceId: `manual:${request.auth!.userId.toString()}:${body.idempotencyKey}`,
+      description: body.note
+    });
+    response.status(201).json({ data: { entry } });
+  }
+);
 
 export default router;

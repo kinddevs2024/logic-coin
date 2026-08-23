@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 
 import { AdminBarChart, AdminDataState, AdminMetricCard, AdminPageHeader, formatUnits } from "@/components/admin/admin-ui";
 import { useAdminSession } from "@/components/admin/admin-session";
@@ -44,10 +45,28 @@ export default function AdminBudgetScreen() {
 
 function BudgetContent({ budget }: { budget: Awaited<ReturnType<typeof adminApi.budget>> }) {
   const theme = useAppTheme();
+  const queryClient = useQueryClient();
+  const { adminToken } = useAdminSession();
   const { summary, daily } = budget;
-  const growthTone = summary.growthPercent === null ? "primary" : summary.growthPercent >= 0 ? "success" : "danger";
-  const growthLabel = summary.growthPercent === null ? "Нет прошлого периода" : `${summary.growthPercent >= 0 ? "+" : ""}${formatUnits(summary.growthPercent)}%`;
   const chartDaily = daily.slice(-14);
+  const [adjusting, setAdjusting] = useState(false);
+  const [direction, setDirection] = useState<"credit" | "debit">("credit");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [notice, setNotice] = useState("");
+  const amountUnits = Number(amount);
+  const validAdjustment = Number.isInteger(amountUnits) && amountUnits > 0 && note.trim().length > 0;
+  const adjust = useMutation({
+    mutationFn: () => adminApi.adjustBudget({ direction, amountUnits, note: note.trim() }, adminToken),
+    onSuccess: () => {
+      setNotice(direction === "credit" ? "Бюджет пополнен." : "Сумма списана из бюджета.");
+      setAmount("");
+      setNote("");
+      setAdjusting(false);
+      void queryClient.invalidateQueries({ queryKey: ["admin", "budget"] });
+    },
+    onError: (error) => setNotice(error instanceof Error ? error.message : "Не удалось изменить бюджет"),
+  });
 
   return (
     <>
@@ -57,8 +76,22 @@ function BudgetContent({ budget }: { budget: Awaited<ReturnType<typeof adminApi.
         <AdminMetricCard label="Чистый результат" value={`${formatUnits(summary.netUnits)} LC`} icon="trending-up-outline" tone={summary.netUnits >= 0 ? "success" : "danger"} />
         <AdminMetricCard label="ARPU" value={`${formatUnits(summary.arpuUnits)} LC`} icon="person-outline" />
         <AdminMetricCard label="Доход в день" value={`${formatUnits(summary.averageDailyRevenueUnits)} LC`} icon="calendar-outline" />
-        <AdminMetricCard label="Рост" value={growthLabel} icon={summary.growthPercent !== null && summary.growthPercent < 0 ? "trending-down-outline" : "trending-up-outline"} tone={growthTone} detail={`${formatUnits(summary.activeUsers)} активных пользователей`} />
+        <GlassSurface style={styles.balanceMetric} intensity={68}>
+          <View style={styles.balanceMetricTop}>
+            <View style={[styles.balanceMetricIcon, { backgroundColor: theme.primarySoft }]}>
+              <Ionicons name="wallet-outline" size={19} color={String(theme.primary)} />
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Изменить общий бюджет" onPress={() => setAdjusting(true)} style={({ pressed }) => [styles.editBudget, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }, pressed && styles.pressed]}>
+              <Ionicons name="create-outline" size={17} color={String(theme.primary)} />
+            </Pressable>
+          </View>
+          <AppText style={[styles.balanceMetricValue, { color: summary.platformBalanceUnits < 0 ? theme.danger : theme.text }]}>{formatUnits(summary.platformBalanceUnits)} LC</AppText>
+          <AppText variant="caption" muted>Общий бюджет</AppText>
+          <AppText style={[styles.balanceHint, { color: summary.platformBalanceUnits < 0 ? theme.danger : theme.success }]}>{summary.platformBalanceUnits < 0 ? "Бюджет в минусе" : "Доступно платформе"}</AppText>
+        </GlassSurface>
       </View>
+
+      {notice ? <View style={[styles.notice, { backgroundColor: theme.primarySoft }]}><Ionicons name="information-circle-outline" size={17} color={String(theme.primary)} /><AppText variant="caption" style={styles.noticeText}>{notice}</AppText></View> : null}
 
       <GlassSurface intensity={72} variant="strong" style={styles.chartPanel}>
         <View style={styles.panelHeader}>
@@ -95,6 +128,28 @@ function BudgetContent({ budget }: { budget: Awaited<ReturnType<typeof adminApi.
           </ScrollView>
         ) : null}
       </GlassSurface>
+
+      <Modal visible={adjusting} transparent animationType="fade" onRequestClose={() => setAdjusting(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setAdjusting(false)}>
+          <Pressable style={styles.modalStop} onPress={() => undefined}>
+            <GlassSurface variant="strong" intensity={88} style={styles.adjustmentSheet}>
+              <View style={styles.sheetHeader}>
+                <View><AppText variant="heading">Изменить бюджет</AppText><AppText variant="caption" muted>Баланс может уходить в минус</AppText></View>
+                <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={() => setAdjusting(false)} style={[styles.closeButton, { backgroundColor: theme.surfaceRaised }]}><Ionicons name="close" size={20} color={String(theme.text)} /></Pressable>
+              </View>
+              <View style={[styles.direction, { borderColor: theme.border }]}>
+                {(["credit", "debit"] as const).map((item) => {
+                  const active = direction === item;
+                  return <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDirection(item)} style={[styles.directionItem, active && { backgroundColor: item === "credit" ? theme.success : theme.danger }]}><Ionicons name={item === "credit" ? "add-circle-outline" : "remove-circle-outline"} size={18} color={active ? "#FFFFFF" : String(theme.textMuted)} /><AppText variant="caption" color={active ? "#FFFFFF" : String(theme.textMuted)}>{item === "credit" ? "Добавить" : "Убавить"}</AppText></Pressable>;
+                })}
+              </View>
+              <View style={styles.adjustmentField}><AppText variant="caption" muted>Сумма, LC</AppText><TextInput value={amount} onChangeText={(value) => setAmount(value.replace(/[^0-9]/g, ""))} keyboardType="number-pad" placeholder="0" placeholderTextColor={String(theme.textMuted)} style={[styles.adjustmentInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} /></View>
+              <View style={styles.adjustmentField}><AppText variant="caption" muted>Комментарий</AppText><TextInput value={note} onChangeText={setNote} placeholder="Например, пополнение учредителя" placeholderTextColor={String(theme.textMuted)} maxLength={240} style={[styles.adjustmentInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} /></View>
+              <Pressable accessibilityRole="button" disabled={!validAdjustment || adjust.isPending} onPress={() => adjust.mutate()} style={({ pressed }) => [styles.submitAdjustment, { backgroundColor: direction === "credit" ? theme.success : theme.danger }, (!validAdjustment || adjust.isPending) && styles.disabled, pressed && styles.pressed]}><Ionicons name={direction === "credit" ? "add" : "remove"} size={20} color="#FFFFFF" /><AppText variant="label" color="#FFFFFF">{adjust.isPending ? "Сохраняем…" : direction === "credit" ? "Добавить к бюджету" : "Вычесть из бюджета"}</AppText></Pressable>
+            </GlassSurface>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   );
 }
@@ -104,6 +159,14 @@ const styles = StyleSheet.create({
   range: { minHeight: 42, borderRadius: 21, borderWidth: 1, padding: 3, flexDirection: "row", backgroundColor: "rgba(255,255,255,0.25)" },
   rangeItem: { minWidth: 43, minHeight: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  balanceMetric: { flex: 1, minWidth: 150, minHeight: 142, borderRadius: 24, padding: 15, gap: 4 },
+  balanceMetricTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  balanceMetricIcon: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  editBudget: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  balanceMetricValue: { fontSize: 23, lineHeight: 28, fontWeight: "900", letterSpacing: -0.5 },
+  balanceHint: { fontSize: 10, lineHeight: 13, fontWeight: "800", marginTop: 3 },
+  notice: { minHeight: 42, borderRadius: 15, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },
+  noticeText: { flex: 1 },
   chartPanel: { borderRadius: 28, padding: 17 },
   tablePanel: { borderRadius: 28, padding: 17, gap: 13 },
   panelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
@@ -113,4 +176,16 @@ const styles = StyleSheet.create({
   row: { minHeight: 48, borderBottomWidth: 1, flexDirection: "row", alignItems: "center" },
   headerRow: { minHeight: 40 },
   cellHeader: { fontSize: 10, lineHeight: 13, fontWeight: "900", opacity: 0.65, textTransform: "uppercase" },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(8,19,37,0.34)" },
+  modalStop: { width: "100%", alignItems: "center" },
+  adjustmentSheet: { width: "100%", maxWidth: 560, borderTopLeftRadius: 30, borderTopRightRadius: 30, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 20, paddingBottom: 30, gap: 16 },
+  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  closeButton: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  direction: { minHeight: 50, borderRadius: 18, borderWidth: 1, padding: 3, flexDirection: "row" },
+  directionItem: { flex: 1, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  adjustmentField: { gap: 7 },
+  adjustmentInput: { minHeight: 52, borderRadius: 17, borderWidth: 1, paddingHorizontal: 14, fontSize: 16, fontWeight: "800", outlineStyle: "none" } as never,
+  submitAdjustment: { minHeight: 52, borderRadius: 26, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  disabled: { opacity: 0.5 },
+  pressed: { opacity: 0.76, transform: [{ scale: 0.98 }] },
 });

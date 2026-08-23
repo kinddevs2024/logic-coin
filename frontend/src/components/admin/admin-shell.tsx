@@ -80,7 +80,7 @@ export function AdminShell({ children }: PropsWithChildren) {
             {navigation}
           </ScrollView>
         )}
-        <View style={styles.content}>{children}</View>
+        <View style={[styles.content, isDesktop && styles.contentDesktop]}>{children}</View>
       </View>
     </AppFrame>
   );
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
   sidebarSpacer: { flex: 1 },
   securityNote: { minHeight: 48, borderRadius: 16, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 8 },
   securityText: { flex: 1, fontWeight: "700" },
-  content: { flex: 1, minWidth: 0 },
+  content: { minWidth: 0 },
+  contentDesktop: { flex: 1 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
 });

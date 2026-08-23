@@ -12,9 +12,9 @@ serverless function.
 4. Open `GET http://localhost:4000/api/v1/health`.
 
 Never commit `.env`. Production requires independent `JWT_SECRET` and
-`OTP_PEPPER` values of at least 32 characters. The admin console is disabled
-until `ADMIN_PASSWORD_HASH` (bcrypt) is configured; production also requires a
-separate `ADMIN_JWT_SECRET`.
+`OTP_PEPPER` values of at least 32 characters. Administrator accounts use the
+same email/password flow as every other account and must also have role `admin`
+or an email listed in `ADMIN_EMAILS`.
 
 ## Commands
 
@@ -23,6 +23,7 @@ separate `ADMIN_JWT_SECRET`.
 - `npm run test` — Vitest suite
 - `npm run build` — compile into `dist`
 - `npm start` — start the compiled server
+- `npm run provision:admin` — create or update an administrator from temporary `ADMIN_ACCOUNT_EMAIL` and `ADMIN_ACCOUNT_PASSWORD` process variables
 
 ## API
 
@@ -34,6 +35,9 @@ Protected routes require `Authorization: Bearer <accessToken>`.
 
 - `GET /api/v1/health`
 - `POST /api/v1/auth/register`
+- `POST /api/v1/auth/email/start`
+- `POST /api/v1/auth/email/verify-code`
+- `POST /api/v1/auth/email/set-password`
 - `POST /api/v1/auth/email/verify`
 - `POST /api/v1/auth/email/resend`
 - `POST /api/v1/auth/login`
@@ -42,7 +46,6 @@ Protected routes require `Authorization: Bearer <accessToken>`.
 - `GET /api/v1/auth/yandex/start`
 - `GET /api/v1/auth/yandex/callback`
 - `POST /api/v1/auth/yandex/exchange`
-- `POST /api/v1/admin/auth` — password exchange for a short-lived admin JWT
 
 ### Authenticated
 
@@ -70,8 +73,8 @@ maximum 1.5 MiB); arbitrary URLs and other data payloads are rejected.
 
 ### Administrator
 
-Every route below requires `Authorization: Bearer <adminToken>` from
-`POST /api/v1/admin/auth`:
+Every route below requires a regular user access token whose account has the
+administrator role:
 
 - `GET /api/v1/admin/overview?dayKey=YYYY-MM-DD`
 - `GET /api/v1/admin/games`

@@ -99,3 +99,71 @@ final result: passed
 - TypeScript, scoped strict ESLint, and the production Expo web export pass.
 
 final result: passed
+
+### Pass 7 — stickered seven-state savings jar
+
+- Created and pushed the pre-change checkpoint `9a3d684` on `agent/auth-games-redesign` before replacing the savings artwork.
+- Replaced the scene source list with the supplied `1-Photoroom.png` through `7-Photoroom.png` files in strict ascending fill order and mapped progress across all seven states.
+- Removed the detached balance bubble. The formatted wallet value now moves with the jar and is centered on the beige paper label embedded in every source image.
+- Increased the jar presentation to a 340 px square stage while preserving the existing island, contact shadow, ambient drift, and reward-drop layers.
+- Source comparison: `C:\Users\MyPc\Documents\Logic-coin\frontend\assets\scene\6-Photoroom.png`.
+- Implementation composition: `C:\Users\MyPc\Documents\Logic-coin\.qa\jar-sticker-balance-final.png`; `$6.40` remains centered, legible, and contained inside the label with no clipping or collision.
+- The browser error log for the checked composition is empty. TypeScript, scoped strict ESLint, and the production Expo web export pass.
+
+final result: passed
+
+### Pass 8 — jar elevation and label optical centering
+
+- Source visual truth: `C:\Users\MyPc\AppData\Local\Temp\codex-clipboard-522347d1-a6b9-40e3-8d6e-96006f92f7a2.png`, 441 x 592 px, showing the `$6.40` sixth jar state.
+- Revised browser render: `C:\Users\MyPc\Documents\Logic-coin\.qa\jar-position-label-final-full.png`, 469 x 881 px at a 469 x 881 CSS viewport and device density 1. The source is a cropped higher-density app capture, so focused composition was normalized by jar, sticker, grass, and island proportions rather than raw pixels.
+- Earlier P2 layout finding: the jar bottom covered the central grass and weakened the visual contact with the island. Fix: moved the entire jar group 16 px upward and moved the reward-drop slot target by the same amount.
+- Earlier P2 typography finding: the balance sat above the optical center of the paper label and was undersized. Fix: moved the label center 7 px downward, preserved its horizontal center, expanded the text box from 108 px to 120 px, and increased type from 21/25 to 24/29.
+- Post-fix focused evidence: the grass line now remains visible beneath the jar, the jar still meets the island without a floating gap, and `$6.40` is centered within the beige sticker with comfortable side clearance.
+- Fidelity surfaces: typography uses the existing app family and weight; spacing and vertical rhythm are corrected without changing scene dimensions; colors and tokens are unchanged; all supplied raster assets retain their original sharpness and transparency; copy remains the formatted wallet value.
+- Browser console errors: none. No additional interaction behavior changed.
+
+final result: passed
+
+### Pass 9 — tall leaderboard sheet and animated metric switcher
+
+- User visual direction: the leaderboard must mirror the profile drawer interaction but rise from the bottom, leave roughly 200 px of the home scene visible, and close only from the empty backdrop.
+- Before/after comparison: `C:\Users\MyPc\Documents\Logic-coin\.qa\leaderboard-bottom-sheet-final.png` and `C:\Users\MyPc\Documents\Logic-coin\.qa\leaderboard-bottom-sheet-tall-final.png` were inspected together at the same mobile viewport.
+- Earlier P2 layout finding: content-sized rendering left roughly half the screen uncovered. Fix: the glass sheet now occupies 78% of the viewport, is bottom-anchored, and keeps the existing 720 px tablet/desktop cap.
+- Earlier P2 control finding: the compact home action lost the people decoration when its label was removed. Fix: restored a three-avatar stack with the trophy while keeping the visible `Рейтинг` text removed and the accessible name intact.
+- The metric order remains `Все`, `Деньги`, `Coin`. A single raised glass selection pill now springs horizontally between the three slots; the table content follows with a restrained directional fade/slide and respects reduced-motion preferences.
+- Verified both animation directions in the running web build. Switching filters keeps the sheet open; pressing the unobstructed backdrop closes it; the browser console remains clear.
+- TypeScript, scoped strict ESLint, and the production Expo web export pass.
+
+final result: passed
+
+### Pass 10 — unified email authentication and mobile admin entry
+
+- The regular login screen now branches after email discovery: verified accounts with a password see a password field; new accounts and legacy accounts without a password continue through the six-digit email code and a dedicated create-password screen.
+- The password setup screen preserves the existing minimal auth scaffold, uses one secure password field as requested, and keeps an accessible back action and eight-character validation.
+- Administrator access now starts from the same login screen and uses the regular user session with an `admin` role. The former standalone `/admin` password card and dedicated admin token flow are removed.
+- Browser evidence: `C:\Users\MyPc\Documents\Logic-coin\.qa\admin-regular-login-mobile-final.png` at the active mobile viewport. The header, horizontal admin navigation, live analytics title, refresh action, and first metric cards are visible without the former empty vertical gap.
+- The authenticated admin flow was exercised end to end against the connected database: regular login redirected to `/admin`, and the overview rendered live values from the API.
+- Local Vercel Analytics script warnings are expected outside Vercel; no application runtime errors were logged.
+
+final result: passed
+
+### Pass 11 — budget controls, challenge settlement, and card withdrawal
+
+- Source visual truth: the three annotated mobile browser captures supplied on 23 August 2026 for `/admin/budget`, `/admin/challenges`, and `/withdraw`, plus the supplied Untitled UI credit-card and checkbox examples.
+- The budget grid keeps the existing white Liquid Glass card system. The former growth tile is now `Общий бюджет`, with a compact edit action in its upper corner and a native add/subtract sheet that remains usable at the 379 x 769 mobile viewport.
+- The challenge editor keeps all primary actions full-width on phones. Immediate settlement now uses an explicit confirmation panel instead of a browser alert; save, publish, and calculate controls no longer compete for one row. A published challenge records a fixed 24-hour end time and is lazily settled on the first API access after expiry.
+- The eligible withdrawal state uses one real interactive card surface rather than detached inputs. Card number, holder, and expiry remain aligned inside the card; Visa and Mastercard are detected from the number, while unknown brands fall back to `CARD`.
+- Security comparison: the client validates the full number in memory, but only brand, holder, expiry, and last four digits cross the API boundary. CVC is not requested or persisted. Remember-card persistence uses the same truncated fields.
+- Agreement implementation: `C:\Users\MyPc\Documents\Logic-coin\.qa\withdrawal-agreement-mobile.png`, checked at the active mobile viewport. The separate document preserves the app typography and glass surfaces, explains the 12-hour review target, and remains vertically scrollable without horizontal clipping.
+- Functional verification: backend TypeScript, production build, and 21 test files / 53 tests pass; frontend TypeScript, Expo lint, 3 smoke tests, and 18 Vitest checks pass. QA did not submit a real withdrawal, change the platform budget, or settle the live challenge.
+
+final result: passed
+
+### Pass 12 — desktop Google Play handoff
+
+- Source asset: `C:\Users\MyPc\Documents\Logic-coin\frontend\assets\store\google-play-ru.png`, the official Russian Google Play badge downloaded from Google's badge CDN.
+- The badge is rendered only at the existing desktop navigation breakpoint and is anchored below the vertical Liquid Glass navigation rail; mobile and native layouts remain unchanged.
+- The complete badge is preserved at its native aspect ratio with no redraw, cropping, or substituted icon. Its accessible label identifies Logic Coin and the link opens the package listing `com.kinddevs.logiccoin` in a new browser tab.
+- Production export evidence: the built web bundle contains both the exact Play Store URL and the hashed local badge asset. Frontend TypeScript, Expo lint, smoke tests, Vitest, and the production web export pass.
+
+final result: passed

@@ -120,8 +120,10 @@ export type Withdrawal = {
   id: string;
   amountCents: number;
   amountUnits: number;
-  method: "sandbox";
+  method: "sandbox" | "bank_card";
   accountLabel?: string | null;
+  cardBrand?: "visa" | "mastercard" | "other" | null;
+  cardLast4?: string | null;
   status: string;
   requestedAt: string;
   processedAt?: string | null;
@@ -130,6 +132,7 @@ export type Withdrawal = {
 
 export type WithdrawalOverview = {
   sandbox: true;
+  processingTimeHours: number;
   minimumCents: number;
   eligible: boolean;
   wallet: Wallet;
@@ -212,7 +215,7 @@ export type GiftUseEffect =
   | { kind: "replay"; replayCount: number; gameKey: string }
   | { kind: "coin"; coinsCredited: number };
 
-export type LeaderboardMetric = "wallet" | "coins" | "lifetime";
+export type LeaderboardMetric = "wealth" | "wallet" | "coins";
 
 export type LeaderboardEntry = {
   rank: number;
@@ -220,6 +223,8 @@ export type LeaderboardEntry = {
   name: string;
   avatarUrl: string | null;
   value: number;
+  walletBalanceUnits: number;
+  coinBalance: number;
   isCurrentUser?: boolean;
 };
 

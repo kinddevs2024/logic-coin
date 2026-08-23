@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { ApiError } from "../lib/api-error.js";
+import { env } from "../config/env.js";
 import {
   generateRegistrationToken,
   hashOpaqueToken,
@@ -59,6 +60,15 @@ const emailCompleteSchema = z
     email: emailSchema,
     code: z.string().regex(/^\d{6}$/),
     flowToken: registrationTokenSchema,
+    deviceId: deviceIdSchema
+  })
+  .strict();
+
+const passwordSetupSchema = z
+  .object({
+    email: emailSchema,
+    password: passwordSchema,
+    setupToken: registrationTokenSchema,
     deviceId: deviceIdSchema
   })
   .strict();
@@ -136,12 +146,18 @@ router.post(
     const { email, referralCode } = request.body as z.infer<
       typeof emailStartSchema
     >;
+    const existing = await User.findOne({ email }).select("+passwordHash");
+    if (existing?.emailVerifiedAt && existing.passwordHash) {
+      response.json({ data: { email, mode: "password" as const } });
+      return;
+    }
+
     const flowToken = generateRegistrationToken();
     const registrationTokenHash = hashOpaqueToken(flowToken);
     const registrationTokenExpiresAt = new Date(
       Date.now() + REGISTRATION_TOKEN_TTL_MS
     );
-    let user = await User.findOne({ email });
+    let user = existing;
 
     if (!user) {
       const localName = email.split("@")[0]?.replace(/[._-]+/g, " ").trim();
@@ -168,6 +184,7 @@ router.post(
     response.status(202).json({
       data: {
         email,
+        mode: "verification" as const,
         flowToken,
         verification
       }
@@ -176,11 +193,11 @@ router.post(
 );
 
 router.post(
-  "/email/complete",
+  "/email/verify-code",
   otpLimiter,
   validateBody(emailCompleteSchema),
   async (request, response) => {
-    const { email, code, flowToken, deviceId } = request.body as z.infer<
+    const { email, code, flowToken } = request.body as z.infer<
       typeof emailCompleteSchema
     >;
     const existing = await User.findOne({ email }).select(
@@ -197,6 +214,9 @@ router.post(
 
     await consumeOtp(email, code);
     const wasVerified = Boolean(existing.emailVerifiedAt);
+    const setupToken = generateRegistrationToken();
+    const setupTokenHash = hashOpaqueToken(setupToken);
+    const setupTokenExpiresAt = new Date(Date.now() + REGISTRATION_TOKEN_TTL_MS);
     const user = await User.findOneAndUpdate(
       {
         _id: existing._id,
@@ -206,11 +226,8 @@ router.post(
       {
         $set: {
           emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
-          lastLoginAt: new Date()
-        },
-        $unset: {
-          registrationTokenHash: 1,
-          registrationTokenExpiresAt: 1
+          registrationTokenHash: setupTokenHash,
+          registrationTokenExpiresAt: setupTokenExpiresAt
         }
       },
       { new: true }
@@ -230,13 +247,61 @@ router.post(
       }
     }
 
-    const tokens = await issueTokenPair(
-      user._id,
-      sessionContext(request, deviceId)
+    response.json({ data: { email, setupToken } });
+  }
+);
+
+router.post(
+  "/email/set-password",
+  authLimiter,
+  validateBody(passwordSetupSchema),
+  async (request, response) => {
+    const { email, password, setupToken, deviceId } = request.body as z.infer<
+      typeof passwordSetupSchema
+    >;
+    const existing = await User.findOne({ email }).select(
+      "+registrationTokenHash +registrationTokenExpiresAt"
     );
+    if (
+      !existing?.emailVerifiedAt ||
+      !existing.registrationTokenHash ||
+      !existing.registrationTokenExpiresAt ||
+      existing.registrationTokenExpiresAt.getTime() <= Date.now() ||
+      !opaqueTokenMatches(setupToken, existing.registrationTokenHash)
+    ) {
+      throw new ApiError(400, "invalid_password_setup", "Password setup has expired");
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const role = env.ADMIN_EMAILS.includes(email) ? "admin" : existing.role;
+    const user = await User.findOneAndUpdate(
+      {
+        _id: existing._id,
+        registrationTokenHash: hashOpaqueToken(setupToken),
+        registrationTokenExpiresAt: { $gt: new Date() }
+      },
+      {
+        $set: { passwordHash, role, lastLoginAt: new Date() },
+        $unset: { registrationTokenHash: 1, registrationTokenExpiresAt: 1 }
+      },
+      { new: true }
+    );
+    if (!user) {
+      throw new ApiError(400, "invalid_password_setup", "Password setup has expired");
+    }
+
+    const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
     response.json({ data: { user: serializeUser(user), tokens } });
   }
 );
+
+router.post("/email/complete", (_request, _response) => {
+  throw new ApiError(
+    410,
+    "email_flow_upgraded",
+    "Verify the email code and create a password to continue"
+  );
+});
 
 router.post("/telegram/start", authLimiter, async (_request, response) => {
   response.status(201).json({ data: await createTelegramLogin() });
@@ -436,11 +501,11 @@ router.post(
   validateBody(z.object({ email: emailSchema }).strict()),
   async (request, response) => {
     const { email } = request.body as { email: string };
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+passwordHash");
     if (!user) {
       throw new ApiError(404, "account_not_found", "Account not found");
     }
-    if (user.emailVerifiedAt) {
+    if (user.emailVerifiedAt && user.passwordHash) {
       throw new ApiError(409, "email_already_verified", "Email is already verified");
     }
     const verification = await createAndSendOtp(email);
@@ -451,6 +516,9 @@ router.post(
 router.post("/login", authLimiter, validateBody(loginSchema), async (request, response) => {
   const { email, password, deviceId } = request.body as z.infer<typeof loginSchema>;
   const user = await User.findOne({ email }).select("+passwordHash");
+  if (user && !user.passwordHash) {
+    throw new ApiError(403, "password_setup_required", "Create a password before signing in");
+  }
   if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
     throw new ApiError(401, "invalid_credentials", "Email or password is incorrect");
   }
@@ -459,6 +527,7 @@ router.post("/login", authLimiter, validateBody(loginSchema), async (request, re
   }
 
   user.lastLoginAt = new Date();
+  if (env.ADMIN_EMAILS.includes(email)) user.role = "admin";
   await user.save();
   const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
   response.json({ data: { user: serializeUser(user), tokens } });

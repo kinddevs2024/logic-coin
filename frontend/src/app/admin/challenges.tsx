@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type SetStateAction } from "react";
-import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { AdminDataState, AdminPageHeader, formatUnits } from "@/components/admin/admin-ui";
 import { useAdminSession } from "@/components/admin/admin-session";
@@ -47,6 +47,7 @@ export default function AdminChallengesScreen() {
   const [dayKey, setDayKey] = useState(localDayKey());
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [notice, setNotice] = useState("");
+  const [confirmSettlement, setConfirmSettlement] = useState(false);
 
   const range = useMemo(() => ({ from: offsetDayKey(-30), to: offsetDayKey(7) }), []);
   const historyQuery = useQuery({
@@ -114,6 +115,7 @@ export default function AdminChallengesScreen() {
   const settle = useMutation({
     mutationFn: () => adminApi.settle(dayKey, adminToken),
     onSuccess: () => {
+      setConfirmSettlement(false);
       setNotice("Результаты рассчитаны и награды начислены.");
       void queryClient.invalidateQueries({ queryKey: ["admin"] });
     },
@@ -222,11 +224,20 @@ export default function AdminChallengesScreen() {
               {notice ? <View style={[styles.notice, { backgroundColor: notice.includes("не удалось") || notice.includes("cannot") ? `${String(theme.danger)}12` : `${String(theme.success)}12` }]}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /><AppText variant="caption" style={styles.noticeCopy}>{notice}</AppText></View> : null}
 
               <View style={styles.actions}>
-                <AppButton variant="secondary" icon="save-outline" disabled={!canSave} loading={save.isPending && save.variables === false} onPress={() => save.mutate(false)} style={styles.action}>Сохранить</AppButton>
-                <AppButton icon="paper-plane-outline" disabled={!canSave} loading={save.isPending && save.variables === true} onPress={() => save.mutate(true)} style={styles.action}>Опубликовать</AppButton>
+                <AppButton variant="secondary" icon="save-outline" disabled={!canSave} loading={save.isPending && save.variables === false} onPress={() => save.mutate(false)} style={[styles.action, !isDesktop && styles.actionMobile]}>Сохранить</AppButton>
+                <AppButton icon="paper-plane-outline" disabled={!canSave} loading={save.isPending && save.variables === true} onPress={() => save.mutate(true)} style={[styles.action, !isDesktop && styles.actionMobile]}>Опубликовать</AppButton>
               </View>
-              {challenge?.status === "published" ? <AppButton variant="ghost" icon="trophy-outline" loading={settle.isPending} onPress={() => Alert.alert("Рассчитать результаты?", "После расчёта челлендж нельзя будет изменить.", [{ text: "Отмена", style: "cancel" }, { text: "Рассчитать", onPress: () => settle.mutate() }])}>Рассчитать итоги</AppButton> : null}
-              {challenge ? <AppText variant="caption" muted>Фонд: {formatUnits(challenge.prizePoolUnits)} LC{challenge.updatedAt ? ` · обновлён ${new Date(challenge.updatedAt).toLocaleString("ru-RU")}` : ""}</AppText> : null}
+              {challenge?.status === "published" ? <AppButton variant="ghost" icon="trophy-outline" loading={settle.isPending} onPress={() => setConfirmSettlement(true)} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать итоги сейчас</AppButton> : null}
+              {confirmSettlement ? (
+                <View style={[styles.settlementConfirm, { backgroundColor: theme.primarySoft, borderColor: theme.border }]}>
+                  <View style={styles.settlementCopy}><AppText variant="label">Завершить челлендж?</AppText><AppText variant="caption" muted>Рейтинг будет зафиксирован, а деньги, подарки и coin сразу начислятся участникам.</AppText></View>
+                  <View style={[styles.settlementActions, !isDesktop && styles.settlementActionsMobile]}>
+                    <AppButton variant="secondary" compact onPress={() => setConfirmSettlement(false)} style={!isDesktop ? styles.actionMobile : undefined}>Отмена</AppButton>
+                    <AppButton compact icon="checkmark-circle-outline" loading={settle.isPending} onPress={() => settle.mutate()} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать</AppButton>
+                  </View>
+                </View>
+              ) : null}
+              {challenge ? <AppText variant="caption" muted>Фонд: {formatUnits(challenge.prizePoolUnits)} LC{challenge.endsAt ? ` · автостоп ${new Date(challenge.endsAt).toLocaleString("ru-RU")}` : ""}{challenge.updatedAt ? ` · обновлён ${new Date(challenge.updatedAt).toLocaleString("ru-RU")}` : ""}</AppText> : null}
             </>
           ) : null}
         </GlassSurface>
@@ -270,5 +281,10 @@ const styles = StyleSheet.create({
   noticeCopy: { flex: 1 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   action: { flex: 1, minWidth: 160 },
+  actionMobile: { flex: 0, minWidth: 0, width: "100%" },
+  settlementConfirm: { borderRadius: 19, borderWidth: 1, padding: 13, gap: 12 },
+  settlementCopy: { gap: 3 },
+  settlementActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8 },
+  settlementActionsMobile: { flexDirection: "column" },
   pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
 });

@@ -5,7 +5,8 @@ const modelMocks = vi.hoisted(() => ({
   userFindById: vi.fn(),
   challengeFindOne: vi.fn(),
   challengeDistinct: vi.fn(),
-  challengeCountDocuments: vi.fn()
+  challengeCountDocuments: vi.fn(),
+  settleExpired: vi.fn()
 }));
 
 vi.mock("../src/config/env.js", () => ({ env: { DEFAULT_TIMEZONE: "UTC" } }));
@@ -21,6 +22,9 @@ vi.mock("../src/models/ChallengeAttempt.js", () => ({
   }
 }));
 vi.mock("../src/models/CoinLedgerEntry.js", () => ({ CoinLedgerEntry: {} }));
+vi.mock("../src/services/contest.service.js", () => ({
+  settleExpiredDailyContests: modelMocks.settleExpired
+}));
 
 import { getTodayChallengeOverview } from "../src/services/daily-challenge.service.js";
 
@@ -49,6 +53,7 @@ describe("daily challenge publication boundary", () => {
       prizes: null
     });
     expect(result.nextChallengeAt).toMatch(/T/);
+    expect(modelMocks.settleExpired).toHaveBeenCalledWith(result.dayKey);
     expect(modelMocks.challengeFindOne).toHaveBeenCalledTimes(1);
   });
 });

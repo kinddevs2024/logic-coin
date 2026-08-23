@@ -2,7 +2,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
-import { Tabs, useRouter } from "expo-router";
+import { Link, Tabs, useRouter } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -13,6 +13,7 @@ import {
 import {
   Platform,
   Pressable,
+  Image,
   StyleSheet,
   View,
   type ViewStyle,
@@ -43,6 +44,9 @@ import { useAppStore } from "@/store/app-store";
 type LogicTabBarProps = Parameters<
   NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
 >[0];
+
+const PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=com.kinddevs.logiccoin";
 
 const tabMeta: Record<
   string,
@@ -324,6 +328,25 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         })}
         </GlassSurface>
       </GestureDetector>
+      {isDesktop ? (
+        <Link href={PLAY_STORE_URL} target="_blank" asChild>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Скачать Logic Coin в Google Play"
+            accessibilityHint="Откроет страницу приложения в новой вкладке"
+            style={({ pressed }) => [
+              styles.playStoreLink,
+              pressed && styles.playStoreLinkPressed,
+            ]}
+          >
+            <Image
+              source={require("../../../assets/store/google-play-ru.png")}
+              resizeMode="contain"
+              style={styles.playStoreBadge}
+            />
+          </Pressable>
+        </Link>
+      ) : null}
     </View>
   );
 }
@@ -533,5 +556,29 @@ const styles = StyleSheet.create({
     bottom: 20,
     justifyContent: "center",
     paddingHorizontal: 0,
+  },
+  playStoreLink: {
+    position: "absolute",
+    left: -6,
+    bottom: 0,
+    width: 122,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    ...(Platform.OS === "web"
+      ? ({
+          outlineStyle: "none",
+          transition: "transform 160ms ease, opacity 160ms ease",
+        } as unknown as ViewStyle)
+      : null),
+  },
+  playStoreLinkPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.97 }],
+  },
+  playStoreBadge: {
+    width: 118,
+    height: 46,
   },
 });

@@ -5,15 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const userModelMocks = vi.hoisted(() => ({
   findById: vi.fn()
 }));
-const adminTokenMocks = vi.hoisted(() => ({ verifyAdminToken: vi.fn() }));
 
 vi.mock("../src/models/User.js", () => ({ User: userModelMocks }));
 vi.mock("../src/config/env.js", () => ({
   env: { ADMIN_EMAILS: ["configured-admin@example.com"] }
 }));
-vi.mock("../src/services/admin-auth.service.js", () => adminTokenMocks);
-
-import { requireAdmin, requireAdminToken } from "../src/middleware/admin.js";
+import { requireAdmin } from "../src/middleware/admin.js";
 
 function requestFor(userId = new Types.ObjectId()): Request {
   return { auth: { userId, sessionId: "test-session" } } as unknown as Request;
@@ -66,31 +63,5 @@ describe("administrator authorization", () => {
     expect(next).toHaveBeenLastCalledWith(
       expect.objectContaining({ statusCode: 403, code: "admin_required" })
     );
-  });
-});
-
-describe("administrator token gate", () => {
-  it("requires a dedicated bearer token", () => {
-    const next = vi.fn();
-    const request = { header: vi.fn().mockReturnValue(undefined) } as unknown as Request;
-    requireAdminToken(request, {} as Response, next as NextFunction);
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ statusCode: 401, code: "admin_authentication_required" })
-    );
-  });
-
-  it("attaches verified administrator identity", () => {
-    adminTokenMocks.verifyAdminToken.mockReturnValue({
-      sub: "password-admin",
-      type: "admin",
-      jti: "admin-token-id"
-    });
-    const next = vi.fn();
-    const request = {
-      header: vi.fn().mockReturnValue("Bearer admin-token")
-    } as unknown as Request;
-    requireAdminToken(request, {} as Response, next as NextFunction);
-    expect(request.adminAuth).toEqual({ subject: "password-admin", tokenId: "admin-token-id" });
-    expect(next).toHaveBeenCalledWith();
   });
 });

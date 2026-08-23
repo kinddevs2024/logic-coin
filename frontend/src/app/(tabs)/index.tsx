@@ -49,7 +49,7 @@ export default function HomeScreen() {
               <View style={[styles.rankingFace, { backgroundColor: "#DDEBFF" }]}><Ionicons name="person" size={13} color="#3978D4" /></View>
               <View style={[styles.rankingFace, { backgroundColor: "#EFE6FF" }]}><Ionicons name="person" size={13} color="#7A5AF8" /></View>
             </View>
-            <AppText variant="label">Рейтинг</AppText>
+            <Ionicons name="trophy" size={19} color={String(theme.primary)} />
           </GlassSurface>
         </Pressable>
         <View style={[styles.headerSide, styles.headerSideEnd]}>
@@ -171,8 +171,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   rankingPress: { alignSelf: "center", zIndex: 20 },
-  rankingPill: { minHeight: 48, borderRadius: 22, paddingHorizontal: 9, paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 8 },
-  rankingFaces: { minWidth: 56, flexDirection: "row", alignItems: "center", paddingLeft: 2 },
+  rankingPill: { minHeight: 48, borderRadius: 24, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
+  rankingFaces: { minWidth: 54, flexDirection: "row", alignItems: "center", paddingLeft: 2 },
   rankingFace: { width: 28, height: 28, marginLeft: -10, borderRadius: 14, borderWidth: 2, borderColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center" },
   heroDesktop: {
     flex: 1,

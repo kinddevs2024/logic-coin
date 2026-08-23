@@ -13,19 +13,19 @@ import {
 import { useReducedMotion } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
-import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
 import { useAppStore } from "@/store/app-store";
 
 const islandSource = require("../../assets/scene/island.png");
 const jarStateSources: ImageSourcePropType[] = [
-  require("../../assets/scene/Make_empty_jar_202607261857-Photoroom.png"),
-  require("../../assets/scene/Piggy_bank_with_few_coins_202607261857-Photoroom.png"),
-  require("../../assets/scene/Jar_one-third_filled_money_202607261857-Photoroom.png"),
-  require("../../assets/scene/Jar_half-filled_with_money_202607261857-Photoroom.png"),
-  require("../../assets/scene/Jar_half_filled_with_money_202607261857-Photoroom.png"),
-  require("../../assets/scene/Money_inside_piggy_bank_202607261857 (1)-Photoroom.png"),
+  require("../../assets/scene/1-Photoroom.png"),
+  require("../../assets/scene/2-Photoroom.png"),
+  require("../../assets/scene/3-Photoroom.png"),
+  require("../../assets/scene/4-Photoroom.png"),
+  require("../../assets/scene/5-Photoroom.png"),
+  require("../../assets/scene/6-Photoroom.png"),
+  require("../../assets/scene/7-Photoroom.png"),
 ];
 
 const moneyDrops: {
@@ -86,11 +86,12 @@ const moneyDrops: {
 
 function jarIndex(progress: number) {
   if (progress <= 0) return 0;
-  if (progress <= 0.15) return 1;
-  if (progress <= 0.35) return 2;
-  if (progress <= 0.55) return 3;
-  if (progress <= 0.8) return 4;
-  return 5;
+  if (progress <= 0.14) return 1;
+  if (progress <= 0.3) return 2;
+  if (progress <= 0.46) return 3;
+  if (progress <= 0.62) return 4;
+  if (progress <= 0.8) return 5;
+  return 6;
 }
 
 function MoneyDrop({
@@ -159,7 +160,7 @@ function MoneyDrop({
             {
               translateY: progress.interpolate({
                 inputRange: [0, 0.84, 1],
-                outputRange: [startY, 117, 205],
+                outputRange: [startY, 48, 142],
               }),
             },
             {
@@ -290,16 +291,6 @@ export function SavingsScene({
           pointerEvents="none"
           style={[styles.halo, { backgroundColor: theme.orbOne }]}
         />
-        <GlassSurface
-          intensity={78}
-          variant="strong"
-          style={styles.balanceBubble}
-        >
-          <AppText variant="display" style={styles.balanceText}>
-            {formatMoney(balance)}
-          </AppText>
-        </GlassSurface>
-
         <Image
           source={islandSource}
           resizeMode="contain"
@@ -308,13 +299,9 @@ export function SavingsScene({
         />
         <View style={styles.contactShadow} />
         <MoneyLayer eventId={rewardEventId} phase="inside" />
-        <Animated.Image
-          source={jarStateSources[stateIndex]}
-          resizeMode="contain"
-          accessibilityLabel={`${Math.round(progress * 100)}%`}
-          accessibilityIgnoresInvertColors
+        <Animated.View
           style={[
-            styles.jarShell,
+            styles.jarGroup,
             {
               opacity: jarOpacity,
               transform: [
@@ -333,7 +320,20 @@ export function SavingsScene({
               ],
             },
           ]}
-        />
+        >
+          <Image
+            source={jarStateSources[stateIndex]}
+            resizeMode="contain"
+            accessibilityLabel={`${Math.round(progress * 100)}%`}
+            accessibilityIgnoresInvertColors
+            style={styles.jarShell}
+          />
+          <View style={styles.jarLabel} pointerEvents="none">
+            <AppText style={styles.jarLabelText} numberOfLines={1}>
+              {formatMoney(balance)}
+            </AppText>
+          </View>
+        </Animated.View>
         <MoneyLayer eventId={rewardEventId} phase="front" />
       </View>
     </View>
@@ -364,22 +364,6 @@ const styles = StyleSheet.create({
       ? ({ filter: "blur(44px)" } as unknown as ViewStyle)
       : {}),
   },
-  balanceBubble: {
-    minWidth: 124,
-    minHeight: 56,
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    top: -10,
-    zIndex: 9,
-  },
-  balanceText: {
-    fontSize: 29,
-    lineHeight: 35,
-    letterSpacing: -1.1,
-  },
   island: {
     position: "absolute",
     width: 372,
@@ -399,13 +383,34 @@ const styles = StyleSheet.create({
       ? ({ filter: "blur(12px)" } as unknown as ViewStyle)
       : {}),
   },
-  jarShell: {
+  jarGroup: {
     position: "absolute",
-    width: 286,
-    height: 286,
-    top: 12,
-    borderRadius: 143,
+    width: 340,
+    height: 340,
+    top: -22,
+    borderRadius: 170,
     zIndex: 4,
+  },
+  jarShell: {
+    width: "100%",
+    height: "100%",
+  },
+  jarLabel: {
+    position: "absolute",
+    left: 110,
+    top: 176,
+    width: 120,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  jarLabelText: {
+    color: "#3E3425",
+    fontSize: 24,
+    lineHeight: 29,
+    fontWeight: "800",
+    letterSpacing: -0.6,
+    textAlign: "center",
   },
   insideLayer: {
     zIndex: 3,
