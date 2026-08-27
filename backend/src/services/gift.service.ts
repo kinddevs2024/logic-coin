@@ -13,6 +13,8 @@ export interface GrantGiftInput {
   amountSeconds?: number;
   replayCount?: number;
   coinAmount?: number;
+  activationMode?: "manual" | "next_challenge";
+  sourceDayKey?: string;
   sourceId: string;
   description: string;
 }
@@ -57,6 +59,8 @@ function serializeGift(gift: {
   amountSeconds?: number | null;
   replayCount?: number | null;
   coinAmount?: number | null;
+  activationMode?: "manual" | "next_challenge" | null;
+  sourceDayKey?: string | null;
   status: string;
   description: string;
   usedAt?: Date | null;
@@ -69,6 +73,8 @@ function serializeGift(gift: {
     amountSeconds: gift.amountSeconds ?? null,
     replayCount: gift.replayCount ?? null,
     coinAmount: gift.coinAmount ?? null,
+    activationMode: gift.activationMode ?? "manual",
+    sourceDayKey: gift.sourceDayKey ?? null,
     status: gift.status,
     description: gift.description,
     usedAt: gift.usedAt?.toISOString() ?? null,
@@ -100,6 +106,13 @@ export async function useGift(input: {
   }
 
   const kind = preview.kind as GiftKind;
+  if (kind === "coin" && preview.activationMode === "next_challenge") {
+    throw new ApiError(
+      409,
+      "gift_activates_next_challenge",
+      "This coin gift activates automatically in the next published challenge"
+    );
+  }
   const needsGame = kind !== "coin";
   if (needsGame && !input.gameKey) {
     throw new ApiError(400, "game_key_required", "This gift must be applied to a game");
@@ -216,4 +229,58 @@ export async function useGift(input: {
     throw new ApiError(500, "gift_use_failed", "Gift could not be used");
   }
   return { gift: serialized, effect };
+}
+
+export async function activateNextChallengeCoinGifts(input: {
+  userId: Types.ObjectId;
+  dayKey: string;
+}) {
+  const session = await mongoose.startSession();
+  let credited = 0;
+  try {
+    await session.withTransaction(async () => {
+      const gifts = await GiftItem.find({
+        userId: input.userId,
+        kind: "coin",
+        status: "available",
+        activationMode: "next_challenge",
+        sourceDayKey: { $lt: input.dayKey }
+      })
+        .sort({ createdAt: 1 })
+        .session(session);
+
+      for (const gift of gifts) {
+        const amount = gift.coinAmount ?? 0;
+        if (amount <= 0) continue;
+        await creditCoins(
+          {
+            userId: input.userId,
+            amount,
+            type: "challenge_coin_reward",
+            sourceId: `next-challenge-gift:${gift._id.toString()}`,
+            description: `Starting bonus for challenge ${input.dayKey}`,
+            metadata: {
+              dayKey: input.dayKey,
+              kind: "starting_bonus",
+              giftId: gift._id.toString(),
+              sourceDayKey: gift.sourceDayKey
+            }
+          },
+          session
+        );
+        const consumed = await GiftItem.updateOne(
+          { _id: gift._id, status: "available" },
+          { $set: { status: "used", usedAt: new Date() } },
+          { session }
+        );
+        if (consumed.matchedCount !== 1) {
+          throw new ApiError(409, "gift_unavailable", "Starting coin gift was already used");
+        }
+        credited += amount;
+      }
+    });
+  } finally {
+    await session.endSession();
+  }
+  return credited;
 }

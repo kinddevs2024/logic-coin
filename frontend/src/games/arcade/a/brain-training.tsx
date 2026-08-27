@@ -7,6 +7,7 @@ import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from "react-native-reanima
 import { GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps } from "./types";
 import { randomInt, shuffle, suggestedCoins } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "brain-training" as const;
 const SESSION_MS = 80_000;
@@ -45,7 +46,7 @@ function makeExpressions(count: number, previousTarget?: number) {
   return { target: correct.result, expressions: shuffle(expressions) };
 }
 
-export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, skin, onExit, onComplete }: ArcadeGameProps) {
+export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
   const theme = resolveArcadeSkin(skin, "#C8A96E", "#7EB8F7");
   const sessionDuration = SESSION_MS + Math.max(0, extraTimeSeconds) * 1000;
   const { width, height } = useWindowDimensions();
@@ -67,6 +68,7 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
   const roundDeadline = useRef(0);
   const uid = useRef(0);
   const finishing = useRef(false);
+  usePauseClock(paused, [gameStartedAt, roundDeadline]);
   const lastTarget = useRef<number | undefined>(undefined);
 
   const spawnRound = useCallback((elapsed: number) => {
@@ -101,7 +103,7 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
   }, [correct, maxCombo, onComplete, score, wrong]);
 
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || paused) return;
     const movement = setInterval(() => {
       setBubbles((items) => items.map((bubble) => {
         let x = bubble.x + bubble.vx; let y = bubble.y + bubble.vy; let vx = bubble.vx; let vy = bubble.vy;
@@ -114,10 +116,10 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
       }));
     }, 16);
     return () => clearInterval(movement);
-  }, [arenaHeight, arenaWidth, phase]);
+  }, [arenaHeight, arenaWidth, paused, phase]);
 
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || paused) return;
     const timer = setInterval(() => {
       const elapsed = Date.now() - gameStartedAt.current;
       const sessionLeft = Math.max(0, sessionDuration - elapsed);
@@ -130,7 +132,7 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
       }
     }, 50);
     return () => clearInterval(timer);
-  }, [finish, flash, phase, sessionDuration, spawnRound]);
+  }, [finish, flash, paused, phase, sessionDuration, spawnRound]);
 
   const choose = (bubble: Bubble) => {
     if (flash) return;

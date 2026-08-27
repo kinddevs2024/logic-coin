@@ -4,6 +4,7 @@ import type {
   BonusOverview,
   BootstrapPayload,
   CoinWallet,
+  ContestRewardResult,
   GameCatalogItem,
   GiftItem,
   GiftUseEffect,
@@ -13,6 +14,7 @@ import type {
   LogicTask,
   ReferralOverview,
   TodayChallenges,
+  PendingContestReward,
   User,
   UserPreferences,
   Wallet,
@@ -23,6 +25,7 @@ import type { ThemeMode } from "@/constants/theme";
 import type { GameId, GamesProgress } from "@/games/progress-store";
 import { useAppStore } from "@/store/app-store";
 import { Platform } from "react-native";
+import { getDeviceId } from "@/lib/device-id";
 
 const defaultApiUrl =
   Platform.OS === "web"
@@ -50,12 +53,14 @@ type ApiErrorBody = {
 export class ApiError extends Error {
   status: number;
   code?: string;
+  details?: unknown;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(message: string, status: number, code?: string, details?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -97,6 +102,7 @@ async function request<T>(
       body.error?.message || body.message || "Request failed",
       response.status,
       body.error?.code,
+      body.error?.details,
     );
   }
 
@@ -135,7 +141,7 @@ async function refreshAccessToken(expiredToken: string): Promise<string> {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ refreshToken: state.refreshToken }),
+        body: JSON.stringify({ refreshToken: state.refreshToken, deviceId: await getDeviceId() }),
       });
       const payload = (await response.json().catch(() => ({}))) as
         | { data?: AuthResult }
@@ -176,33 +182,39 @@ async function refreshAccessToken(expiredToken: string): Promise<string> {
 }
 
 export const authApi = {
-  startEmail(email: string) {
+  async startEmail(email: string) {
+    const deviceId = await getDeviceId();
+    const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<
       | { email: string; mode: "password" }
       | {
           email: string;
           mode: "verification";
           flowToken: string;
-          verification?: { expiresInSeconds?: number };
+          verification?: { expiresInSeconds?: number; resendAvailableInSeconds?: number; sendsRemaining?: number };
         }
     >("/auth/email/start", {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, deviceId, countryCode }),
     });
   },
-  verifyEmailCode(input: { email: string; code: string; flowToken: string }) {
+  async verifyEmailCode(input: { email: string; code: string; flowToken: string }) {
+    const deviceId = await getDeviceId();
     return request<{ email: string; setupToken: string }>("/auth/email/verify-code", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, deviceId }),
     });
   },
-  setPassword(input: { email: string; password: string; setupToken: string }) {
+  async setPassword(input: { email: string; password: string; setupToken: string }) {
+    const deviceId = await getDeviceId();
     return request<AuthResult>("/auth/email/set-password", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, deviceId }),
     });
   },
-  register(input: { name: string; email: string; password: string }) {
+  async register(input: { name: string; email: string; password: string }) {
+    const deviceId = await getDeviceId();
+    const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<{
       userId: string;
       email: string;
@@ -210,82 +222,80 @@ export const authApi = {
       verification?: { expiresAt?: string };
     }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, deviceId, countryCode }),
     });
   },
-  login(input: { email: string; password: string }) {
+  async login(input: { email: string; password: string }) {
+    const deviceId = await getDeviceId();
     return request<AuthResult>("/auth/login", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, deviceId }),
     });
   },
-  refresh(refreshToken: string) {
+  async refresh(refreshToken: string) {
+    const deviceId = await getDeviceId();
     return request<AuthResult>("/auth/refresh", {
       method: "POST",
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken, deviceId }),
     });
   },
-  verifyEmail(input: {
+  async verifyEmail(input: {
     email: string;
     code: string;
     registrationToken: string;
   }) {
+    const deviceId = await getDeviceId();
     return request<AuthResult>("/auth/email/verify", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, deviceId }),
     });
   },
-  resendCode(email: string) {
-    return request<{ sent: boolean }>("/auth/email/resend", {
+  async resendCode(email: string) {
+    const deviceId = await getDeviceId();
+    return request<{ email: string; verification?: { expiresInSeconds?: number; resendAvailableInSeconds?: number; sendsRemaining?: number } }>("/auth/email/resend", {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, deviceId }),
     });
   },
-  google(idToken: string) {
+  async google(idToken: string) {
+    const deviceId = await getDeviceId();
+    const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<AuthResult>("/auth/google", {
       method: "POST",
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ idToken, deviceId, countryCode }),
     });
   },
-  yandexStart(redirectUri: string) {
-    return request<{
-      authorizationUrl: string;
-      stateExpiresInSeconds: number;
-    }>(`/auth/yandex/start?redirectUri=${encodeURIComponent(redirectUri)}`);
-  },
-  yandexExchange(input: { code: string; state: string }) {
-    return request<AuthResult>("/auth/yandex/exchange", {
-      method: "POST",
-      body: JSON.stringify(input),
-    });
-  },
-  telegramStart() {
+  async telegramStart() {
+    const deviceId = await getDeviceId();
     return request<{
       flowId: string;
       pollToken: string;
       botUrl: string;
       expiresInSeconds: number;
-    }>("/auth/telegram/start", { method: "POST" });
+    }>("/auth/telegram/start", { method: "POST", body: JSON.stringify({ deviceId }) });
   },
-  telegramStatus(input: { flowId: string; pollToken: string }) {
+  async telegramStatus(input: { flowId: string; pollToken: string }) {
+    const deviceId = await getDeviceId();
     return request<
       | { status: "pending" }
       | ({ status: "complete" } & AuthResult)
     >("/auth/telegram/status", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, deviceId }),
     });
   },
-  telegramComplete(resumeToken: string) {
+  async telegramComplete(resumeToken: string) {
+    const deviceId = await getDeviceId();
     return request<AuthResult>("/auth/telegram/complete", {
       method: "POST",
-      body: JSON.stringify({ resumeToken }),
+      body: JSON.stringify({ resumeToken, deviceId }),
     });
   },
-  telegramMiniApp(initData: string) {
+  async telegramMiniApp(initData: string) {
+    const deviceId = await getDeviceId();
     return request<AuthResult>("/auth/telegram/mini-app", {
       method: "POST",
-      body: JSON.stringify({ initData }),
+      body: JSON.stringify({ initData, deviceId }),
     });
   },
   logout(token: string, refreshToken?: string | null) {
@@ -296,7 +306,6 @@ export const authApi = {
       body: JSON.stringify({ refreshToken }),
     });
   },
-  yandexStartUrl: `${API_URL}/auth/yandex/start`,
 };
 
 type ServerTask = Partial<LogicTask> & {
@@ -418,7 +427,11 @@ export const challengesApi = {
       },
     );
   },
-  double(scope: "game" | "day", token: string, receiptId?: string) {
+  double(
+    scope: "game" | "day",
+    token: string,
+    ad?: { provider: "appodeal" | "demo"; receiptId: string },
+  ) {
     return request<{
       scope: "game" | "day";
       credited: number;
@@ -428,12 +441,84 @@ export const challengesApi = {
       token,
       body: JSON.stringify({
         scope,
-        ad: {
-          provider: "demo",
-          receiptId: receiptId ?? "placeholder-rewarded-video",
-        },
+        ad,
       }),
     });
+  },
+  async pendingReward(token: string) {
+    const payload = await request<{ reward: PendingContestReward | null }>(
+      "/challenges/rewards/pending",
+      { token },
+    );
+    return payload.reward;
+  },
+  claimReward(resultId: string, token: string) {
+    return request<{
+      result: ContestRewardResult;
+      wallet: Wallet | null;
+      coins: CoinWallet | null;
+    }>(`/challenges/rewards/${encodeURIComponent(resultId)}/claim`, {
+      method: "POST",
+      token,
+    });
+  },
+};
+
+export type RewardedAdSessionDto = {
+  sessionId: string;
+  provider: "appodeal";
+  placement: string;
+  status: "started" | "completed" | "claimed" | "expired";
+  rewardCoins: number;
+  expiresAt: string;
+};
+
+export const adsApi = {
+  async startRewarded(placement: string, token: string) {
+    const payload = await request<{ session: RewardedAdSessionDto }>(
+      "/ads/rewarded/start",
+      {
+        method: "POST",
+        token,
+        body: JSON.stringify({ placement }),
+      },
+    );
+    return payload.session;
+  },
+  async completeRewarded(sessionId: string, clientReceiptId: string, token: string) {
+    const payload = await request<{ session: RewardedAdSessionDto }>(
+      `/ads/rewarded/${encodeURIComponent(sessionId)}/complete`,
+      {
+        method: "POST",
+        token,
+        body: JSON.stringify({ clientReceiptId }),
+      },
+    );
+    return payload.session;
+  },
+  async status(sessionId: string, token: string) {
+    const payload = await request<{ session: RewardedAdSessionDto }>(
+      `/ads/rewarded/${encodeURIComponent(sessionId)}`,
+      { token },
+    );
+    return payload.session;
+  },
+  claim(sessionId: string, token: string) {
+    return request<{
+      sessionId: string;
+      credited: number;
+      idempotentReplay: boolean;
+      coins: CoinWallet;
+    }>(`/ads/rewarded/${encodeURIComponent(sessionId)}/claim`, {
+      method: "POST",
+      token,
+    });
+  },
+  replay(sessionId: string, gameKey: string, token: string) {
+    return request<{ effect: { gameKey: string; replayCount: number } }>(
+      `/ads/rewarded/${encodeURIComponent(sessionId)}/replay`,
+      { method: "POST", token, body: JSON.stringify({ gameKey }) },
+    );
   },
 };
 
@@ -463,6 +548,7 @@ export const leaderboardApi = {
         userId: string;
         name: string;
         avatarUrl: string | null;
+        countryCode: string | null;
         walletBalanceUnits: number;
         coinBalance: number;
         lifetimeEarnedUnits: number;
@@ -472,6 +558,7 @@ export const leaderboardApi = {
         userId: string;
         name: string;
         avatarUrl: string | null;
+        countryCode: string | null;
         walletBalanceUnits: number;
         coinBalance: number;
         lifetimeEarnedUnits: number;
@@ -487,6 +574,7 @@ export const leaderboardApi = {
       userId: entry.userId,
       name: entry.name,
       avatarUrl: entry.avatarUrl,
+      countryCode: entry.countryCode,
       value: valueOf(entry),
       walletBalanceUnits: entry.walletBalanceUnits,
       coinBalance: entry.coinBalance,
@@ -498,6 +586,7 @@ export const leaderboardApi = {
           userId: payload.self.userId,
           name: payload.self.name,
           avatarUrl: payload.self.avatarUrl,
+          countryCode: payload.self.countryCode,
           value: valueOf(payload.self),
           walletBalanceUnits: payload.self.walletBalanceUnits,
           coinBalance: payload.self.coinBalance,
@@ -630,6 +719,17 @@ export type AdminBudget = {
   daily: AdminBudgetDay[];
 };
 
+export type AdminBlockedDevice = {
+  id: string;
+  deviceId: string;
+  reason: "registration_limit" | "manual";
+  bannedAt: string | null;
+  lastSeenAt: string;
+  accountCount: number;
+  registrationCount: number;
+  users: { id: string; name: string; email: string }[];
+};
+
 export const adminApi = {
   async games(token: string) {
     const payload = await request<{ games: AdminGame[] }>("/admin/games", {
@@ -698,6 +798,15 @@ export const adminApi = {
       }),
     });
   },
+  blockedDevices(token: string) {
+    return request<{ devices: AdminBlockedDevice[] }>("/admin/blocked-devices", { token });
+  },
+  unbanDevice(deviceId: string, token: string) {
+    return request<{ device: { deviceId: string; unbannedAt: string | null } }>(
+      `/admin/blocked-devices/${encodeURIComponent(deviceId)}/unban`,
+      { method: "POST", token },
+    );
+  },
 };
 
 export const activityApi = {
@@ -755,6 +864,7 @@ export const referralsApi = {
 export type PublicProfile = {
   name: string;
   avatarUrl: string | null;
+  countryCode: string | null;
   referralCode: string;
   balanceUnits: number;
   lifetimeEarnedUnits: number;
@@ -822,6 +932,7 @@ export const meApi = {
       avatarUrl?: string | null;
       avatarDataUrl?: string | null;
       savingsGoalCents?: number;
+      countryCode?: string;
     },
     token: string,
   ) {

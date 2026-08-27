@@ -1,9 +1,9 @@
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useEffect, useState, type ComponentProps } from "react";
+import { useEffect, useState } from "react";
 import {
   Animated,
+  Image,
+  type ImageSourcePropType,
   Platform,
   Pressable,
   StyleSheet,
@@ -13,7 +13,6 @@ import {
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
-import { LogoMark } from "@/components/logo";
 import type { TranslationKey } from "@/constants/translations";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -22,34 +21,34 @@ import { useAppStore } from "@/store/app-store";
 type Slide = {
   title: TranslationKey;
   body: TranslationKey;
-  icon: ComponentProps<typeof Ionicons>["name"];
-  accent: string;
+  image: ImageSourcePropType;
+  imageLabel: string;
 };
 
 const slides: Slide[] = [
   {
     title: "onboarding.one.title",
     body: "onboarding.one.body",
-    icon: "trending-up",
-    accent: "#0866FF",
+    image: require("../../assets/onboarding/01-savings.png"),
+    imageLabel: "Glass savings jar on a floating island",
   },
   {
     title: "onboarding.two.title",
     body: "onboarding.two.body",
-    icon: "hand-left-outline",
-    accent: "#7A5AF8",
+    image: require("../../assets/onboarding/02-challenges.png"),
+    imageLabel: "Six daily puzzle games",
   },
   {
     title: "onboarding.three.title",
     body: "onboarding.three.body",
-    icon: "flame-outline",
-    accent: "#F79009",
+    image: require("../../assets/onboarding/03-streak.png"),
+    imageLabel: "Activity streak calendar and daily gift",
   },
   {
     title: "onboarding.four.title",
     body: "onboarding.four.body",
-    icon: "rocket-outline",
-    accent: "#12B76A",
+    image: require("../../assets/onboarding/04-withdraw.png"),
+    imageLabel: "Savings jar and payment card",
   },
 ];
 
@@ -129,24 +128,19 @@ export default function OnboardingScreen() {
           },
         ]}
       >
-        <LinearGradient
-          colors={
-            theme.mode === "dark"
-              ? ["#172B4A", "#101D34"]
-              : ["#FFFFFF", "#EAF4FF"]
-          }
+        <View
           style={[
             styles.visual,
             { borderColor: theme.border, shadowColor: theme.shadow },
           ]}
         >
-          <View
-            style={[styles.badge, { backgroundColor: `${slide.accent}19` }]}
-          >
-            <Ionicons name={slide.icon} size={21} color={slide.accent} />
-          </View>
-          <LogoMark size={154} />
-        </LinearGradient>
+          <Image
+            source={slide.image}
+            accessibilityLabel={slide.imageLabel}
+            resizeMode="cover"
+            style={styles.visualImage}
+          />
+        </View>
         <View style={styles.copy}>
           <AppText variant="display" style={{ textAlign: "center" }}>
             {t(slide.title)}
@@ -198,8 +192,8 @@ const styles = StyleSheet.create({
   },
   visual: {
     width: "100%",
-    maxWidth: 460,
-    minHeight: 330,
+    maxWidth: 420,
+    aspectRatio: 1,
     borderRadius: 40,
     borderWidth: 1,
     alignItems: "center",
@@ -209,17 +203,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 16 },
     elevation: 7,
     overflow: "hidden",
+    backgroundColor: "#EAF4FF",
   },
-  badge: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  visualImage: { width: "100%", height: "100%" },
   copy: {
     width: "100%",
     maxWidth: 520,

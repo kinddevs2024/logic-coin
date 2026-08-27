@@ -12,6 +12,7 @@ const dailyContestSettlementSchema = new Schema(
     participantCount: { type: Number, default: 0, min: 0, required: true },
     cashWinnersCount: { type: Number, default: 0, min: 0, required: true },
     caseWinnersCount: { type: Number, default: 0, min: 0, required: true },
+    randomWinnersCount: { type: Number, default: 0, min: 0, required: true },
     coinWinnersCount: { type: Number, default: 0, min: 0, required: true },
     prizePoolUnits: { type: Number, default: 0, min: 0, required: true },
     cashDistributedUnits: { type: Number, default: 0, min: 0, required: true },

@@ -1,10 +1,8 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
 import { devicesApi } from "@/lib/api";
+import { getDeviceId } from "@/lib/device-id";
 import type { Language } from "@/types";
-
-const deviceIdStorageKey = "logic-coin-push-device-id-v1";
 
 const contentByLanguage: Record<
   Language,
@@ -77,14 +75,6 @@ function currentTimeZone() {
   } catch {
     return "UTC";
   }
-}
-
-async function getDeviceId() {
-  const saved = await AsyncStorage.getItem(deviceIdStorageKey);
-  if (saved) return saved;
-  const created = `logic-${Platform.OS}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
-  await AsyncStorage.setItem(deviceIdStorageKey, created);
-  return created;
 }
 
 /**

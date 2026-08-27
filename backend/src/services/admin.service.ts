@@ -321,7 +321,9 @@ export async function getAdminOverview(dayKey: string) {
           status: settlement.status,
           participantCount: settlement.participantCount,
           cashWinnersCount: settlement.cashWinnersCount,
-          giftWinnersCount: settlement.caseWinnersCount,
+          giftWinnersCount: settlement.caseWinnersCount + (settlement.randomWinnersCount ?? 0),
+          boxWinnersCount: settlement.caseWinnersCount,
+          randomWinnersCount: settlement.randomWinnersCount ?? 0,
           coinWinnersCount: settlement.coinWinnersCount,
           cashDistributedUnits: settlement.cashDistributedUnits,
           settledAt: settlement.settledAt?.toISOString() ?? null

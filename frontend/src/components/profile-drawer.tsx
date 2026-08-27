@@ -15,6 +15,7 @@ import { useReducedMotion } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
+import { CountryFlagBadge, countryName } from "@/components/country-flag";
 import { AppButton } from "@/components/buttons";
 import { EditProfileModal } from "@/components/edit-profile-modal";
 import { useGlassBlurTarget } from "@/components/glass-blur-target";
@@ -39,7 +40,7 @@ export function ProfileDrawer({
 }) {
   const theme = useAppTheme();
   const blurTarget = useGlassBlurTarget();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const reduceMotion = useReducedMotion();
   const user = useAppStore((state) => state.user);
   const balance = useAppStore((state) => state.balanceUnits);
@@ -169,6 +170,10 @@ export function ProfileDrawer({
                     <AppText variant="caption" color="rgba(255,255,255,0.72)">
                       {user.email ?? t("common.demo")}
                     </AppText>
+                    <View style={styles.drawerCountry}>
+                      <CountryFlagBadge countryCode={user.countryCode} size={16} />
+                      <AppText variant="caption" color="rgba(255,255,255,0.78)">{countryName(user.countryCode, language)}</AppText>
+                    </View>
                   </View>
                 </View>
                 <View style={styles.profileActions}>
@@ -287,6 +292,7 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingRight: 88,
   },
+  drawerCountry: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
   profileActions: {
     position: "absolute",
     top: 14,

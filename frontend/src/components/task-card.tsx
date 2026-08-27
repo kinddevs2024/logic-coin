@@ -12,6 +12,7 @@ import { GlassSurface } from "@/components/glass-surface";
 import { radii } from "@/constants/theme";
 import type { TranslationKey } from "@/constants/translations";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { formatMoney } from "@/lib/format";
 import { useTranslation } from "@/hooks/use-translation";
 import type { LogicTask } from "@/types";
 
@@ -103,10 +104,7 @@ export function TaskCard({
       </View>
       <View style={styles.reward}>
         <AppText variant="label" color={task.color}>
-          +{task.rewardUnits}
-        </AppText>
-        <AppText variant="caption" color={task.color}>
-          LC
+          +{formatMoney(task.rewardUnits)}
         </AppText>
       </View>
       <Pressable

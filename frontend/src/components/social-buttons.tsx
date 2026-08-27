@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from "react-native";
 
@@ -60,7 +59,7 @@ export function SocialButtons({
   const { t } = useTranslation();
   const router = useRouter();
   const authenticate = useAppStore((state) => state.authenticate);
-  const [busy, setBusy] = useState<"google" | "yandex" | "telegram" | null>(null);
+  const [busy, setBusy] = useState<"google" | "telegram" | null>(null);
   const [telegramFlow, setTelegramFlow] = useState<{
     flowId: string;
     pollToken: string;
@@ -119,41 +118,14 @@ export function SocialButtons({
     }
   };
 
-  const yandex = async () => {
-    setBusy("yandex");
-    try {
-      const redirectUri = Platform.OS === "web"
-        ? `${window.location.origin}/oauth/yandex`
-        : Linking.createURL("/oauth/yandex");
-      const { authorizationUrl } = await authApi.yandexStart(redirectUri);
-      if (Platform.OS === "web") {
-        window.location.assign(authorizationUrl);
-        return;
-      }
-      const result = await WebBrowser.openAuthSessionAsync(authorizationUrl, redirectUri);
-      if (result.type !== "success") return;
-      const callback = new URL(result.url);
-      const code = callback.searchParams.get("code");
-      const state = callback.searchParams.get("state");
-      if (!code || !state) throw new Error(t("auth.invalid"));
-      completeAuth(await authApi.yandexExchange({ code, state }));
-    } catch (error) {
-      Alert.alert(t("auth.yandex"), error instanceof Error ? error.message : t("auth.invalid"));
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const telegram = async () => {
     setBusy("telegram");
-    const popup = Platform.OS === "web" ? window.open("about:blank", "logic-coin-telegram") : null;
     try {
       const flow = await authApi.telegramStart();
       setTelegramFlow({ flowId: flow.flowId, pollToken: flow.pollToken });
-      if (popup) popup.location.href = flow.botUrl;
+      if (Platform.OS === "web") window.location.assign(flow.botUrl);
       else await Linking.openURL(flow.botUrl);
     } catch (error) {
-      popup?.close();
       setBusy(null);
       Alert.alert("Telegram", error instanceof Error ? error.message : t("auth.invalid"));
     }
@@ -164,13 +136,6 @@ export function SocialButtons({
       <GoogleSignInButton
         onCredential={(credential: string) => void google(credential)}
         disabled={busy !== null}
-      />
-      <ProviderButton
-        label={t("auth.yandex")}
-        icon={<Ionicons name="search-outline" size={21} color="#FC3F1D" />}
-        onPress={() => void yandex()}
-        busy={busy === "yandex"}
-        disabled={busy !== null && busy !== "yandex"}
       />
       <ProviderButton
         label="Telegram"

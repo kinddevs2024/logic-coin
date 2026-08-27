@@ -78,7 +78,12 @@ router.post(
       userId: request.auth!.userId,
       amountCents: input.amountCents,
       idempotencyKey,
-      card: input.card,
+      card: {
+        brand: input.card.brand!,
+        last4: input.card.last4!,
+        holderName: input.card.holderName!,
+        expiration: input.card.expiration!
+      },
       agreementVersion: input.agreementVersion
     });
     const notification = result.idempotentReplay

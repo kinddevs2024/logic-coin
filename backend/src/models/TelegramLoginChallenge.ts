@@ -18,7 +18,8 @@ const telegramLoginChallengeSchema = new Schema(
     resumeTokenHash: { type: String, select: false },
     telegramUser: { type: telegramUserSchema },
     confirmedAt: { type: Date },
-    consumedAt: { type: Date },
+    pollConsumedAt: { type: Date },
+    resumeConsumedAt: { type: Date },
     expiresAt: { type: Date, required: true }
   },
   { timestamps: true, versionKey: false }

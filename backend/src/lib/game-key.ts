@@ -12,5 +12,5 @@ export function canonicalGameKey(gameKey: string): string {
 }
 
 export function isLegacyGameKey(gameKey: string): gameKey is LegacyGameKey {
-  return Object.hasOwn(LEGACY_GAME_KEY_ALIASES, gameKey);
+  return Object.prototype.hasOwnProperty.call(LEGACY_GAME_KEY_ALIASES, gameKey);
 }

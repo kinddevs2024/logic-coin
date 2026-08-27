@@ -6,6 +6,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
+import { CountryFlagBadge, countryName } from "@/components/country-flag";
 import { GlassSurface } from "@/components/glass-surface";
 import { publicProfileApi } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
@@ -32,6 +33,7 @@ export default function PublicProfileScreen() {
         <GlassSurface variant="strong" intensity={82} style={styles.hero}>
           <Avatar name={profile.name} avatarUrl={profile.avatarUrl} size={92} />
           <AppText variant="title">{profile.name}</AppText>
+          <View style={styles.countryLine}><CountryFlagBadge countryCode={profile.countryCode} size={19} /><AppText muted>{countryName(profile.countryCode)}</AppText></View>
           <AppText muted>Публичный профиль · {profile.referralCode}</AppText>
         </GlassSurface>
         <View style={styles.grid}>
@@ -57,6 +59,7 @@ function Stat({ icon, label, value }: { icon: React.ComponentProps<typeof Ionico
 
 const styles = StyleSheet.create({
   hero: { alignItems: "center", gap: 7, padding: 24, borderRadius: 28 },
+  countryLine: { flexDirection: "row", alignItems: "center", gap: 7 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
   stat: { flexGrow: 1, flexBasis: "45%", minHeight: 110, alignItems: "center", justifyContent: "center", gap: 5, borderRadius: 22 },
   skinBlock: { marginTop: 14, gap: 7, padding: 18, borderRadius: 22 },

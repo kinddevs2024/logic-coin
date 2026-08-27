@@ -6,6 +6,7 @@ import { ArcadeIcon, MATH_OPERATION_ICONS } from "./icons";
 import type { ArcadeGameProps } from "./types";
 import { AnswerButton, arcadeSkinAccent, B_COLORS, CoinPill, errorTap, GameScreen, Metric, Panel, ProgressTrack, ResultCard, StartCard, successTap } from "./ui";
 import { randomInt, rewardCoins, shuffle } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 type MathQuestion = { expression: string; answer: number; op: "+" | "−" | "×" | "÷"; double: boolean; hard: boolean; options: number[] };
 
@@ -65,7 +66,7 @@ function buildRound(): MathQuestion[] {
   return questions;
 }
 
-export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, skin }: ArcadeGameProps) {
+export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
   const accent = arcadeSkinAccent(skin, B_COLORS.gold);
   const timeBonus = Math.max(0, extraTimeSeconds);
   const [screen, setScreen] = useState<"menu" | "play" | "result">("menu");
@@ -82,6 +83,7 @@ export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
   const [timedOut, setTimedOut] = useState(false);
   const startedAt = useRef(0);
   const deadline = useRef(0);
+  usePauseClock(paused, [startedAt, deadline]);
 
   const question = questions[index];
   const duration = (question?.double ? 12.5 : 7.5) + timeBonus;
@@ -120,7 +122,7 @@ export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
   }, [correct, finish, index, maxStreak, questions, score, timeBonus, timeouts, wrong]);
 
   useEffect(() => {
-    if (screen !== "play" || selected !== null || timedOut) return;
+    if (screen !== "play" || selected !== null || timedOut || paused) return;
     const interval = setInterval(() => {
       const remaining = Math.max(0, (deadline.current - Date.now()) / 1000);
       setTimeLeft(remaining);
@@ -135,7 +137,7 @@ export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [advance, screen, selected, timedOut, timeouts]);
+  }, [advance, paused, screen, selected, timedOut, timeouts]);
 
   const begin = useCallback(() => {
     const nextQuestions = buildRound();

@@ -78,7 +78,7 @@ function GameControl({
   return <PixelIconButton icon={icon} label={label} onPress={onPress} size={52} />;
 }
 
-export default function TetrisScreen() {
+export default function TetrisScreen({ paused: hostPaused = false }: { paused?: boolean }) {
   const progress = useGameProgressStore((state) => state.games.tetris) ?? EMPTY_GAME_PROGRESS;
   const recordScore = useGameProgressStore((state) => state.recordScore);
   const { width, height, isTablet } = useResponsiveLayout();
@@ -147,11 +147,11 @@ export default function TetrisScreen() {
   }, [drawNextPiece, level]);
 
   const stepDown = useCallback(() => {
-    if (paused || over) return;
+    if (paused || hostPaused || over) return;
     const next = { ...active, y: active.y + 1 };
     if (collides(board, next)) lock(active);
     else setActive(next);
-  }, [active, board, lock, over, paused]);
+  }, [active, board, hostPaused, lock, over, paused]);
 
   useEffect(() => {
     const interval = setInterval(stepDown, Math.max(165, 720 - (level - 1) * 65));

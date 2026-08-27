@@ -21,8 +21,8 @@
       "destination": "/_vercel/$1"
     },
     {
-      "source": "/((?!.*\\.).*)",
-      "destination": "/index.html"
+      "source": "/(.*)",
+      "destination": "/"
     }
   ]
 }

@@ -5,6 +5,7 @@ import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
 import { generateRefreshToken, hashOpaqueToken } from "../lib/crypto.js";
 import { RefreshSession } from "../models/RefreshSession.js";
+import { assertDeviceAccess } from "./device-security.service.js";
 
 export interface SessionContext {
   deviceId?: string;
@@ -34,6 +35,7 @@ function signAccessToken(userId: Types.ObjectId, sessionId: Types.ObjectId): str
 }
 
 export async function issueTokenPair(userId: Types.ObjectId, context: SessionContext = {}) {
+  await assertDeviceAccess(userId, context.deviceId);
   const refreshToken = generateRefreshToken();
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 86_400_000);
   const session = await RefreshSession.create({
@@ -198,6 +200,7 @@ export async function rotateRefreshToken(refreshToken: string, context: SessionC
   if (outcome.kind !== "rotated") {
     throw new ApiError(401, "invalid_refresh_token", "Refresh token is invalid or expired");
   }
+  await assertDeviceAccess(outcome.userId, context.deviceId);
   return {
     userId: outcome.userId,
     tokens: {

@@ -32,6 +32,8 @@ export type ArcadeGameProps = {
   initialCoins?: number;
   /** Session-scoped time bonus supplied by the host after a gift is consumed. */
   extraTimeSeconds?: number;
+  /** True while a host overlay is covering gameplay. Timers and input must pause. */
+  paused?: boolean;
   /** Cosmetic palette selected by the host for this game. */
   skin?: ArcadeGameSkin;
 };

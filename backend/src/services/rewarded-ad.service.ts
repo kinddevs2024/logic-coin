@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
+import type { Types } from "mongoose";
+import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
+import { consumeRewardedAdSession } from "./rewarded-ad-session.service.js";
 
 export type RewardedAdProof = {
-  provider?: "demo" | "applovin-max";
+  provider?: "demo" | "appodeal";
   receiptId?: string;
 };
 
@@ -11,13 +14,29 @@ export type RewardedAdProof = {
  * explicit in the response. AppLovin MAX server-to-server verification can be
  * added here without changing the challenge route contract.
  */
-export async function verifyRewardedAd(proof?: RewardedAdProof) {
+export async function verifyRewardedAd(proof: RewardedAdProof | undefined, userId: Types.ObjectId) {
   const provider = proof?.provider ?? "demo";
-  if (provider !== "demo") {
+  if (provider === "appodeal") {
+    if (!proof?.receiptId) {
+      throw new ApiError(400, "rewarded_ad_receipt_required", "Rewarded ad receipt is required");
+    }
+    const session = await consumeRewardedAdSession({
+      userId,
+      sessionId: proof.receiptId,
+      placements: ["challenge-first-game", "challenge-day-complete"]
+    });
+    return {
+      provider,
+      receiptId: session.sessionId,
+      verified: true,
+      placeholder: false
+    } as const;
+  }
+  if (env.NODE_ENV === "production") {
     throw new ApiError(
-      501,
-      "rewarded_ad_provider_not_configured",
-      "Rewarded ad verification is not configured for this provider"
+      409,
+      "demo_rewarded_ads_disabled",
+      "Demo rewarded ads are disabled in production"
     );
   }
   return {

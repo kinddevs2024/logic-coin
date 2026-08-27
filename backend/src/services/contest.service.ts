@@ -3,16 +3,15 @@ import {
   CONTEST_CASE_PERCENT,
   CONTEST_CASH_TOP_PERCENT,
   CONTEST_CONSOLATION_COINS,
+  CONTEST_RANDOM_PERCENT,
   CONTEST_STANDARD_CASE_KIND,
-  GIFT_COIN_AMOUNT,
-  GIFT_REPLAY_COUNT,
-  GIFT_TIME_EXTENSION_SECONDS
 } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import {
   buildCashPrizeLadder,
+  buildContestGiftBundle,
+  buildContestRandomReward,
   computeContestBands,
-  contestGiftKindForIndex,
   rankContestStandings,
   type ContestStandingInput
 } from "../lib/contest.js";
@@ -21,13 +20,15 @@ import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { DailyContestResult } from "../models/DailyContestResult.js";
 import { DailyContestSettlement } from "../models/DailyContestSettlement.js";
-import { creditCoins } from "./coin.service.js";
+import { NotificationEvent } from "../models/NotificationEvent.js";
+import { User } from "../models/User.js";
 import { grantGift } from "./gift.service.js";
 import {
   creditReferralCashPrizeShare,
   creditReferralCoinPrizeShare
 } from "./referral.service.js";
 import { creditReward } from "./wallet.service.js";
+import { dispatchNotificationEvent } from "./notification.service.js";
 
 export async function collectContestStandings(dayKey: string): Promise<ContestStandingInput[]> {
   const attempts = await ChallengeAttempt.find({
@@ -118,7 +119,8 @@ export async function settleDailyContest(dayKey: string) {
   const bands = computeContestBands(
     standings.length,
     CONTEST_CASH_TOP_PERCENT,
-    CONTEST_CASE_PERCENT
+    CONTEST_CASE_PERCENT,
+    CONTEST_RANDOM_PERCENT
   );
   const ranked = rankContestStandings(standings, bands);
   const cashLadder = buildCashPrizeLadder(
@@ -148,9 +150,13 @@ export async function settleDailyContest(dayKey: string) {
       for (const standing of ranked) {
         const userId = new Types.ObjectId(standing.userId);
         const cashUnits = standing.rewardType === "cash" ? cashLadder[standing.rank - 1]! : 0;
-        const giftKind =
-          standing.rewardType === "case"
-            ? contestGiftKindForIndex(standing.rank - bands.cashWinners - 1)
+        const box =
+          standing.rewardType === "box"
+            ? buildContestGiftBundle(dayKey, standing.userId)
+            : undefined;
+        const random =
+          standing.rewardType === "random"
+            ? buildContestRandomReward(dayKey, standing.userId)
             : undefined;
         const [result] = await DailyContestResult.create(
           [
@@ -162,12 +168,27 @@ export async function settleDailyContest(dayKey: string) {
               rank: standing.rank,
               rewardType: standing.rewardType,
               ...(standing.rewardType === "cash" ? { cashUnits } : {}),
-              ...(standing.rewardType === "case"
-                ? { caseKind: CONTEST_STANDARD_CASE_KIND, giftKind }
+              ...(standing.rewardType === "box"
+                ? {
+                    caseKind: CONTEST_STANDARD_CASE_KIND,
+                    coinAmount: box!.coinAmount,
+                    replayCount: box!.replayCount,
+                    extraTimeSeconds: box!.extraTimeSeconds
+                  }
+                : {}),
+              ...(standing.rewardType === "random"
+                ? {
+                    caseKind: "randomizer",
+                    giftKind: random!.kind,
+                    coinAmount: random!.coinAmount,
+                    replayCount: random!.replayCount,
+                    extraTimeSeconds: random!.extraTimeSeconds
+                  }
                 : {}),
               ...(standing.rewardType === "coins"
                 ? { coinAmount: CONTEST_CONSOLATION_COINS }
                 : {}),
+              claimStatus: "pending",
               settledAt
             }
           ],
@@ -177,61 +198,6 @@ export async function settleDailyContest(dayKey: string) {
           throw new ApiError(500, "settlement_failed", "Contest result could not be created");
         }
 
-        const sourceId = `contest:${dayKey}:${standing.userId}`;
-        if (standing.rewardType === "cash") {
-          await creditReward(
-            {
-              userId,
-              amountUnits: cashUnits,
-              type: "contest_cash_prize",
-              sourceId,
-              description: `Daily contest cash prize (${dayKey})`,
-              dayKey,
-              metadata: { dayKey, contest: true, rank: standing.rank }
-            },
-            session
-          );
-          await creditReferralCashPrizeShare(
-            { winnerUserId: userId, winnerPrizeUnits: cashUnits, dayKey, sourceId },
-            session
-          );
-        } else if (standing.rewardType === "case") {
-          await grantGift(
-            {
-              userId,
-              kind: giftKind!,
-              ...(giftKind === "extra_time"
-                ? { amountSeconds: GIFT_TIME_EXTENSION_SECONDS }
-                : giftKind === "replay"
-                  ? { replayCount: GIFT_REPLAY_COUNT }
-                  : { coinAmount: GIFT_COIN_AMOUNT }),
-              sourceId,
-              description: `Daily contest ${giftKind} gift (${dayKey})`
-            },
-            session
-          );
-        } else {
-          await creditCoins(
-            {
-              userId,
-              amount: CONTEST_CONSOLATION_COINS,
-              type: "daily_consolation",
-              sourceId,
-              description: `Daily contest coin prize (${dayKey})`,
-              metadata: { dayKey, contest: true, rank: standing.rank }
-            },
-            session
-          );
-          await creditReferralCoinPrizeShare(
-            {
-              winnerUserId: userId,
-              winnerPrizeCoins: CONTEST_CONSOLATION_COINS,
-              dayKey,
-              sourceId
-            },
-            session
-          );
-        }
       }
 
       await DailyContestSettlement.updateOne(
@@ -242,6 +208,7 @@ export async function settleDailyContest(dayKey: string) {
             participantCount: bands.participantCount,
             cashWinnersCount: bands.cashWinners,
             caseWinnersCount: bands.caseWinners,
+            randomWinnersCount: bands.randomWinners,
             coinWinnersCount: bands.coinWinners,
             prizePoolUnits: set.prizePoolUnits,
             cashDistributedUnits,
@@ -269,6 +236,27 @@ export async function settleDailyContest(dayKey: string) {
     throw error;
   } finally {
     await session.endSession();
+  }
+
+  const notificationEvent = await NotificationEvent.findOneAndUpdate(
+    { eventKey: `daily-contest-settled:${dayKey}` },
+    {
+      $setOnInsert: {
+        type: "daily_contest_settled",
+        audience: "contest_participants",
+        status: "queued",
+        targetCount: bands.participantCount,
+        payload: {
+          dayKey,
+          title: "Итоги челленджа готовы",
+          body: "Откройте Logic Coin и заберите свой приз."
+        }
+      }
+    },
+    { new: true, upsert: true }
+  );
+  if (notificationEvent.status === "queued") {
+    await dispatchNotificationEvent(notificationEvent._id);
   }
 
   return {
@@ -303,4 +291,203 @@ export async function settleExpiredDailyContests(dayKey?: string, now: Date = ne
 
 export async function getContestResultForUser(dayKey: string, userId: Types.ObjectId) {
   return DailyContestResult.findOne({ dayKey, userId }).lean();
+}
+
+type ContestResultLean = {
+  _id: Types.ObjectId;
+  userId: Types.ObjectId;
+  dayKey: string;
+  totalCoins: number;
+  completedGamesCount: number;
+  rank: number;
+  rewardType: "cash" | "case" | "box" | "random" | "coins";
+  cashUnits?: number | null;
+  coinAmount?: number | null;
+  replayCount?: number | null;
+  extraTimeSeconds?: number | null;
+  giftKind?: "extra_time" | "replay" | "coin" | null;
+  claimStatus?: "pending" | "claiming" | "claimed" | null;
+  claimedAt?: Date | null;
+  settledAt: Date;
+};
+
+function serializeContestResult(result: ContestResultLean) {
+  return {
+    id: result._id.toString(),
+    userId: result.userId.toString(),
+    dayKey: result.dayKey,
+    totalCoins: result.totalCoins,
+    completedGamesCount: result.completedGamesCount,
+    rank: result.rank,
+    rewardType: result.rewardType === "case" ? "legacy_case" : result.rewardType,
+    cashUnits: result.cashUnits ?? 0,
+    coinAmount: result.coinAmount ?? 0,
+    replayCount: result.replayCount ?? 0,
+    extraTimeSeconds: result.extraTimeSeconds ?? 0,
+    giftKind: result.giftKind ?? null,
+    claimStatus: result.claimStatus ?? "claimed",
+    claimedAt: result.claimedAt?.toISOString() ?? null,
+    settledAt: result.settledAt.toISOString()
+  };
+}
+
+async function contestStandings(dayKey: string) {
+  const results = (await DailyContestResult.find({ dayKey })
+    .sort({ rank: 1 })
+    .lean()) as unknown as ContestResultLean[];
+  const users = await User.find({ _id: { $in: results.map((entry) => entry.userId) } })
+    .select("name avatarUrl countryCode")
+    .lean();
+  const usersById = new Map(users.map((entry) => [entry._id.toString(), entry]));
+  return results.map((entry) => {
+    const user = usersById.get(entry.userId.toString());
+    return {
+      ...serializeContestResult(entry),
+      name: user?.name ?? "Игрок",
+      avatarUrl: user?.avatarUrl ?? null,
+      countryCode: user?.countryCode ?? null
+    };
+  });
+}
+
+export async function getPendingContestReward(userId: Types.ObjectId) {
+  const result = (await DailyContestResult.findOne({ userId, claimStatus: "pending" })
+    .sort({ settledAt: -1 })
+    .lean()) as ContestResultLean | null;
+  if (!result) return null;
+  return {
+    result: serializeContestResult(result),
+    standings: await contestStandings(result.dayKey)
+  };
+}
+
+export async function claimContestReward(resultId: string, userId: Types.ObjectId) {
+  if (!Types.ObjectId.isValid(resultId)) {
+    throw new ApiError(400, "invalid_contest_result_id", "Contest result id is invalid");
+  }
+  const session = await mongoose.startSession();
+  let claimed: ContestResultLean | null = null;
+  try {
+    await session.withTransaction(async () => {
+      const result = (await DailyContestResult.findOneAndUpdate(
+        { _id: resultId, userId, claimStatus: "pending" },
+        { $set: { claimStatus: "claiming" } },
+        { new: true, session }
+      ).lean()) as ContestResultLean | null;
+      if (!result) {
+        const existing = await DailyContestResult.findOne({ _id: resultId, userId })
+          .select("claimStatus")
+          .session(session)
+          .lean();
+        if (existing?.claimStatus === "claimed") {
+          throw new ApiError(409, "contest_reward_claimed", "Contest reward was already claimed");
+        }
+        throw new ApiError(409, "contest_reward_unavailable", "Contest reward is unavailable");
+      }
+
+      const sourceId = `contest-claim:${result.dayKey}:${userId.toString()}`;
+      const grantNextChallengeCoins = async (amount: number, suffix: string) => {
+        if (amount <= 0) return;
+        await grantGift(
+          {
+            userId,
+            kind: "coin",
+            coinAmount: amount,
+            activationMode: "next_challenge",
+            sourceDayKey: result.dayKey,
+            sourceId: `${sourceId}:${suffix}`,
+            description: `${amount} coin на следующий челлендж`
+          },
+          session
+        );
+        await creditReferralCoinPrizeShare(
+          {
+            winnerUserId: userId,
+            winnerPrizeCoins: amount,
+            dayKey: result.dayKey,
+            sourceId: `${sourceId}:${suffix}`
+          },
+          session
+        );
+      };
+      const grantTime = async (seconds: number, suffix: string) => {
+        if (seconds <= 0) return;
+        await grantGift(
+          {
+            userId,
+            kind: "extra_time",
+            amountSeconds: seconds,
+            sourceId: `${sourceId}:${suffix}`,
+            description: `Продление времени +${seconds} секунд`
+          },
+          session
+        );
+      };
+      const grantReplay = async (count: number, suffix: string) => {
+        if (count <= 0) return;
+        await grantGift(
+          {
+            userId,
+            kind: "replay",
+            replayCount: count,
+            sourceId: `${sourceId}:${suffix}`,
+            description: `Повторное прохождение ×${count}`
+          },
+          session
+        );
+      };
+
+      if (result.rewardType === "cash") {
+        const amount = result.cashUnits ?? 0;
+        await creditReward(
+          {
+            userId,
+            amountUnits: amount,
+            type: "contest_cash_prize",
+            sourceId,
+            description: `Daily contest cash prize (${result.dayKey})`,
+            dayKey: result.dayKey,
+            metadata: { dayKey: result.dayKey, contest: true, rank: result.rank }
+          },
+          session
+        );
+        await creditReferralCashPrizeShare(
+          { winnerUserId: userId, winnerPrizeUnits: amount, dayKey: result.dayKey, sourceId },
+          session
+        );
+      } else if (result.rewardType === "box") {
+        await grantNextChallengeCoins(result.coinAmount ?? 0, "box-coins");
+        await grantReplay(result.replayCount ?? 0, "box-replay");
+        await grantTime(result.extraTimeSeconds ?? 0, "box-time");
+      } else if (result.rewardType === "random") {
+        if (result.giftKind === "coin") await grantNextChallengeCoins(result.coinAmount ?? 0, "random-coins");
+        if (result.giftKind === "replay") await grantReplay(result.replayCount ?? 0, "random-replay");
+        if (result.giftKind === "extra_time") {
+          await grantTime(result.extraTimeSeconds ?? 0, "random-time");
+        }
+      } else if (result.rewardType === "coins") {
+        await grantNextChallengeCoins(result.coinAmount ?? 0, "coins");
+      } else {
+        throw new ApiError(409, "legacy_reward_already_delivered", "Legacy reward was already delivered");
+      }
+
+      const claimedAt = new Date();
+      const updated = (await DailyContestResult.findOneAndUpdate(
+        { _id: result._id, claimStatus: "claiming" },
+        { $set: { claimStatus: "claimed", claimedAt } },
+        { new: true, session }
+      ).lean()) as ContestResultLean | null;
+      if (!updated) throw new ApiError(409, "contest_reward_unavailable", "Contest reward changed");
+      claimed = updated;
+    });
+  } finally {
+    await session.endSession();
+  }
+  if (!claimed) throw new ApiError(500, "contest_reward_claim_failed", "Contest reward claim failed");
+  const user = await User.findById(userId).select("wallet coins").lean();
+  return {
+    result: serializeContestResult(claimed),
+    wallet: user?.wallet ?? null,
+    coins: user?.coins ?? null
+  };
 }

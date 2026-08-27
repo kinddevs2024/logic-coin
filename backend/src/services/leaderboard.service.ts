@@ -8,6 +8,7 @@ type LeanUser = {
   _id: Types.ObjectId;
   name: string;
   avatarUrl?: string | null;
+  countryCode?: string | null;
   wallet: { availableUnits: number; lifetimeEarnedUnits: number };
   coins?: { balance?: number };
 };
@@ -76,6 +77,7 @@ function serializeEntry(user: LeanUser, rank: number) {
     userId: user._id.toString(),
     name: user.name,
     avatarUrl: user.avatarUrl ?? null,
+    countryCode: user.countryCode ?? null,
     walletBalanceUnits: user.wallet.availableUnits ?? 0,
     coinBalance: user.coins?.balance ?? 0,
     lifetimeEarnedUnits: user.wallet.lifetimeEarnedUnits ?? 0
@@ -89,12 +91,12 @@ export async function getLeaderboard(input: {
 }) {
   const [users, self, total] = await Promise.all([
     User.find()
-      .select("name avatarUrl wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
+      .select("name avatarUrl countryCode wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
       .sort(sortFor(input.metric))
       .limit(input.limit)
       .lean<LeanUser[]>(),
     User.findById(input.userId)
-      .select("name avatarUrl wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
+      .select("name avatarUrl countryCode wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
       .lean<LeanUser | null>(),
     User.countDocuments()
   ]);

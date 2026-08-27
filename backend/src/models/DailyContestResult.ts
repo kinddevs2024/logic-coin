@@ -7,11 +7,19 @@ const dailyContestResultSchema = new Schema(
     totalCoins: { type: Number, required: true, min: 0 },
     completedGamesCount: { type: Number, required: true, min: 0, max: 6 },
     rank: { type: Number, required: true, min: 1 },
-    rewardType: { type: String, enum: ["cash", "case", "coins"], required: true },
+    rewardType: {
+      type: String,
+      enum: ["cash", "case", "box", "random", "coins"],
+      required: true
+    },
     cashUnits: { type: Number, min: 0 },
     coinAmount: { type: Number, min: 0 },
+    replayCount: { type: Number, min: 0, max: 10 },
+    extraTimeSeconds: { type: Number, min: 0, max: 3_600 },
     caseKind: { type: String, maxlength: 80 },
     giftKind: { type: String, enum: ["extra_time", "replay", "coin"] },
+    claimStatus: { type: String, enum: ["pending", "claiming", "claimed"] },
+    claimedAt: { type: Date },
     settledAt: { type: Date, required: true }
   },
   { timestamps: true, versionKey: false }
@@ -19,6 +27,7 @@ const dailyContestResultSchema = new Schema(
 
 dailyContestResultSchema.index({ dayKey: 1, userId: 1 }, { unique: true });
 dailyContestResultSchema.index({ dayKey: 1, rank: 1 }, { unique: true });
+dailyContestResultSchema.index({ userId: 1, claimStatus: 1, settledAt: -1 });
 
 export type DailyContestResultDocument = InferSchemaType<typeof dailyContestResultSchema>;
 export const DailyContestResult =

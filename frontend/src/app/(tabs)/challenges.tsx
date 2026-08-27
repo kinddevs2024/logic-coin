@@ -14,6 +14,7 @@ import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
+import { formatMoney } from "@/lib/format";
 
 const copy = {
   ru: { title: "Челленджи", subtitle: "Шесть игр. Один общий рейтинг.", daily: "Сегодня", complete: "пройдено", earned: "Заработано", rule: "До 1 000 coin за игру", empty: "Готовим игры дня", refresh: "Обновить", pool: "Призовой фонд" },
@@ -67,7 +68,7 @@ export default function ChallengesScreen() {
             <View style={styles.prizeRow}>
               <Ionicons name="trophy-outline" size={17} color="#F5A623" />
               <AppText variant="caption" muted>{c.pool}</AppText>
-              <AppText variant="label">{today.prizes.poolUnits} LC</AppText>
+              <AppText variant="label">{formatMoney(today.prizes.poolUnits)}</AppText>
             </View>
           ) : null}
         </GlassSurface>

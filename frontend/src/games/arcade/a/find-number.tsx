@@ -6,6 +6,7 @@ import Animated, { ZoomIn } from "react-native-reanimated";
 import { ArcadeButton, GameHeader, GameRoot, HudStat, IntroScreen, LivesStat, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps } from "./types";
 import { formatClock, nowMs, shuffle, suggestedCoins } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "find-number" as const;
 const LEVELS = [
@@ -19,7 +20,7 @@ const LEVELS = [
   { name: "НЕПТУН", columns: 6, count: 36, seconds: 71 },
 ] as const;
 
-export function FindNumberGame({ initialBestScore = 0, skin, onExit, onComplete }: ArcadeGameProps) {
+export function FindNumberGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
   const theme = resolveArcadeSkin(skin, "#00FFE0", "#7B5FFF");
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState<"intro" | "playing" | "level" | "result">("intro");
@@ -37,6 +38,7 @@ export function FindNumberGame({ initialBestScore = 0, skin, onExit, onComplete 
   const gameStartedAt = useRef(0);
   const levelDeadline = useRef(0);
   const finishing = useRef(false);
+  usePauseClock(paused, [gameStartedAt, levelDeadline]);
   const level = LEVELS[levelIndex]!;
 
   const loadLevel = useCallback((index: number) => {
@@ -59,14 +61,14 @@ export function FindNumberGame({ initialBestScore = 0, skin, onExit, onComplete 
   }, [levelIndex, lives, onComplete, score]);
 
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || paused) return;
     const timer = setInterval(() => {
       const next = Math.max(0, levelDeadline.current - Date.now());
       setTimeLeft(next); setElapsedMs(Date.now() - gameStartedAt.current);
       if (next <= 0) finish(false);
     }, 100);
     return () => clearInterval(timer);
-  }, [finish, phase]);
+  }, [finish, paused, phase]);
 
   const choose = (value: number) => {
     if (phase !== "playing" || found.includes(value) || feedback) return;

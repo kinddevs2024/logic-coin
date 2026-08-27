@@ -6,6 +6,7 @@ import { ArcadeIcon, type ArcadeIconName, SHADOW_ICON_POOL } from "./icons";
 import type { ArcadeGameProps } from "./types";
 import { arcadeSkinAccent, B_COLORS, CoinPill, errorTap, GameScreen, Metric, Panel, ProgressTrack, ResultCard, StartCard, successTap } from "./ui";
 import { rewardCoins, shuffle, shuffleAvoidingFirst } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 type ShadowStats = { score: number; lives: number; combo: number; maxCombo: number; correct: number; wrong: number; round: number };
 type ShadowPhase = { start: number; count: number; duration: number; label: string; color: string };
@@ -26,7 +27,7 @@ function initialStats(): ShadowStats {
   return { score: 0, lives: 3, combo: 0, maxCombo: 0, correct: 0, wrong: 0, round: 0 };
 }
 
-export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoins = 0, extraTimeSeconds = 0, skin }: ArcadeGameProps) {
+export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
   const accent = arcadeSkinAccent(skin, B_COLORS.green);
   const { width } = useWindowDimensions();
   const sessionDuration = TOTAL_SECONDS + Math.max(0, extraTimeSeconds);
@@ -45,6 +46,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statsRef = useRef(stats);
   const reported = useRef(false);
+  usePauseClock(paused, [startedAt, roundStartedAt, roundDeadline]);
   const lastTarget = useRef<ArcadeIconName | undefined>(undefined);
 
   useEffect(() => {
@@ -122,7 +124,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
   }, [finish, locked, nextRound, revealing, screen]);
 
   useEffect(() => {
-    if (screen !== "play") return;
+    if (screen !== "play" || paused) return;
     const interval = setInterval(() => {
       const seconds = (Date.now() - startedAt.current) / 1000;
       setElapsed(seconds);
@@ -132,10 +134,10 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [finish, screen, sessionDuration]);
+  }, [finish, paused, screen, sessionDuration]);
 
   useEffect(() => {
-    if (screen !== "play" || revealing || locked || roundDeadline.current <= 0) return;
+    if (screen !== "play" || revealing || locked || roundDeadline.current <= 0 || paused) return;
     const interval = setInterval(() => {
       const phase = phaseFor((Date.now() - startedAt.current) / 1000);
       const fraction = Math.max(0, (roundDeadline.current - Date.now()) / phase.duration);
@@ -146,7 +148,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
       }
     }, 75);
     return () => clearInterval(interval);
-  }, [failRound, locked, revealing, screen]);
+  }, [failRound, locked, paused, revealing, screen]);
 
   useEffect(() => () => { if (revealTimer.current) clearTimeout(revealTimer.current); }, []);
 

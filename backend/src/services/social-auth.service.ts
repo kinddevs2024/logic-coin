@@ -141,7 +141,7 @@ export async function authenticateGoogle(idToken: string, referralCode?: string)
   if (created) {
     await processNewSocialReferral(user._id);
   }
-  return user;
+  return { user, created };
 }
 
 interface YandexState extends JwtPayload {

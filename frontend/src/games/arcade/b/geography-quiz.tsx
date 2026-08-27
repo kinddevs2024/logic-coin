@@ -6,6 +6,7 @@ import { ArcadeIcon, type ArcadeIconName } from "./icons";
 import type { ArcadeGameProps } from "./types";
 import { AnswerButton, arcadeSkinAccent, B_COLORS, CoinPill, errorTap, GameScreen, Metric, Panel, ProgressTrack, ResultCard, StartCard, successTap } from "./ui";
 import { rewardCoins, shuffle, shuffleAvoidingFirst } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 type GeoDifficulty = "easy" | "medium" | "hard";
 type GeoCategory = "all" | "capitals" | "flags" | "world";
@@ -52,7 +53,7 @@ const DIFFICULTIES: { id: GeoDifficulty; label: string }[] = [
 const ROUND_LENGTH = 12;
 const TIMER_BY_DIFFICULTY: Record<GeoDifficulty, number> = { easy: 30, medium: 25, hard: 20 };
 
-export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, skin }: ArcadeGameProps) {
+export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
   const accent = arcadeSkinAccent(skin, B_COLORS.cyan);
   const timeBonus = Math.max(0, extraTimeSeconds);
   const [screen, setScreen] = useState<"menu" | "play" | "result">("menu");
@@ -70,6 +71,7 @@ export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTim
   const startedAt = useRef(0);
   const deadline = useRef(0);
   const previousFirstQuestion = useRef<GeoQuestion | undefined>(undefined);
+  usePauseClock(paused, [startedAt, deadline]);
 
   const finish = useCallback((finalScore: number, finalCorrect: number, finalStreak: number) => {
     const coins = rewardCoins(finalScore, finalCorrect >= 6);
@@ -99,7 +101,7 @@ export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTim
   }, [correct, difficulty, finish, index, maxStreak, round.length, score, timeBonus]);
 
   useEffect(() => {
-    if (screen !== "play" || selected !== null || timedOut) return;
+    if (screen !== "play" || selected !== null || timedOut || paused) return;
     const interval = setInterval(() => {
       const remaining = Math.max(0, (deadline.current - Date.now()) / 1000);
       setTimeLeft(remaining);
@@ -112,7 +114,7 @@ export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTim
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [advance, screen, selected, timedOut]);
+  }, [advance, paused, screen, selected, timedOut]);
 
   const begin = useCallback(() => {
     const exact = QUESTIONS.filter((question) => (category === "all" || question.category === category) && question.difficulty === difficulty);

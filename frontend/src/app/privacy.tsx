@@ -21,7 +21,7 @@ const copy = {
       {
         title: "Какие данные мы обрабатываем",
         body:
-          "Данные аккаунта: имя, email, аватар и идентификатор выбранного способа входа Google, Яндекс или Telegram. Данные приложения: баланс LC, задания, бонусы, активность, приглашения, настройки и заявки на вывод. Технические данные: тип устройства, push-токен, IP-адрес, журналы ошибок и обезличенная аналитика использования.",
+          "Данные аккаунта: имя, email, аватар и идентификатор выбранного способа входа Google или Telegram. Данные приложения: денежный баланс, баланс коинов, задания, бонусы, активность, приглашения, настройки и заявки на вывод. Технические данные: тип устройства, push-токен, IP-адрес, журналы ошибок и обезличенная аналитика использования.",
       },
       {
         title: "Зачем нужны данные",
@@ -31,7 +31,7 @@ const copy = {
       {
         title: "Сервисы и передача данных",
         body:
-          "Для работы Logic Coin могут использоваться Google, Яндекс и Telegram для входа, MongoDB Atlas для хранения, Vercel для хостинга и аналитики, Umami для аналитики, Gmail/SMTP для кодов подтверждения и Expo или системные службы устройства для уведомлений. Мы не продаём персональные данные.",
+          "Для работы Logic Coin могут использоваться Google и Telegram для входа, MongoDB Atlas для хранения, Vercel для хостинга и аналитики, Umami для аналитики, Gmail/SMTP для кодов подтверждения и Expo или системные службы устройства для уведомлений. Мы не продаём персональные данные.",
       },
       {
         title: "Хранение и защита",
@@ -61,7 +61,7 @@ const copy = {
       {
         title: "Qanday ma’lumotlarni qayta ishlaymiz",
         body:
-          "Hisob ma’lumotlari: ism, email, avatar va Google, Yandex yoki Telegram kirish identifikatori. Ilova ma’lumotlari: LC balansi, vazifalar, bonuslar, faollik, takliflar, sozlamalar va yechib olish so‘rovlari. Texnik ma’lumotlar: qurilma turi, push-token, IP manzil, xato jurnallari va anonim foydalanish tahlili.",
+          "Hisob ma’lumotlari: ism, email, avatar va Google yoki Telegram kirish identifikatori. Ilova ma’lumotlari: pul balansi, coin balansi, vazifalar, bonuslar, faollik, takliflar, sozlamalar va yechib olish so‘rovlari. Texnik ma’lumotlar: qurilma turi, push-token, IP manzil, xato jurnallari va anonim foydalanish tahlili.",
       },
       {
         title: "Ma’lumotlardan foydalanish",
@@ -71,7 +71,7 @@ const copy = {
       {
         title: "Xizmatlar va uzatish",
         body:
-          "Logic Coin Google, Yandex va Telegram kirish xizmatlaridan, MongoDB Atlas saqlash xizmatidan, Vercel hosting va tahlilidan, Umami tahlilidan, tasdiqlash kodlari uchun Gmail/SMTP xizmatidan hamda bildirishnomalar uchun Expo yoki qurilma xizmatlaridan foydalanishi mumkin. Shaxsiy ma’lumotlarni sotmaymiz.",
+          "Logic Coin Google va Telegram kirish xizmatlaridan, MongoDB Atlas saqlash xizmatidan, Vercel hosting va tahlilidan, Umami tahlilidan, tasdiqlash kodlari uchun Gmail/SMTP xizmatidan hamda bildirishnomalar uchun Expo yoki qurilma xizmatlaridan foydalanishi mumkin. Shaxsiy ma’lumotlarni sotmaymiz.",
       },
       {
         title: "Saqlash va himoya",
@@ -101,7 +101,7 @@ const copy = {
       {
         title: "Data we process",
         body:
-          "Account data: name, email, avatar, and the identifier from Google, Yandex, or Telegram sign-in. App data: LC balance, tasks, bonuses, activity, referrals, preferences, and withdrawal requests. Technical data: device type, push token, IP address, error logs, and de-identified usage analytics.",
+          "Account data: name, email, avatar, and the identifier from Google or Telegram sign-in. App data: cash balance, coin balance, tasks, bonuses, activity, referrals, preferences, and withdrawal requests. Technical data: device type, push token, IP address, error logs, and de-identified usage analytics.",
       },
       {
         title: "How we use data",
@@ -111,7 +111,7 @@ const copy = {
       {
         title: "Services and sharing",
         body:
-          "Logic Coin may use Google, Yandex, and Telegram for sign-in; MongoDB Atlas for storage; Vercel for hosting and analytics; Umami for analytics; Gmail/SMTP for verification codes; and Expo or device services for notifications. We do not sell personal data.",
+          "Logic Coin may use Google and Telegram for sign-in; MongoDB Atlas for storage; Vercel for hosting and analytics; Umami for analytics; Gmail/SMTP for verification codes; and Expo or device services for notifications. We do not sell personal data.",
       },
       {
         title: "Retention and security",

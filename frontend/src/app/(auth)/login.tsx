@@ -11,7 +11,7 @@ import { StyledInput } from "@/components/styled-input";
 import { SocialButtons } from "@/components/social-buttons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
-import { ApiError, authApi, type AuthResult } from "@/lib/api";
+import { ApiError, authApi, meApi, type AuthResult } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 type TelegramWindow = Window & {
@@ -24,6 +24,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ telegram_token?: string; next?: string; email?: string }>();
   const authenticate = useAppStore((state) => state.authenticate);
+  const selectedCountryCode = useAppStore((state) => state.user.countryCode);
+  const updateUser = useAppStore((state) => state.updateUser);
   const setPendingRegistrationToken = useAppStore(
     (state) => state.setPendingRegistrationToken,
   );
@@ -39,8 +41,13 @@ export default function LoginScreen() {
       refreshToken: result.tokens.refreshToken,
       balanceUnits: result.user.wallet?.availableUnits,
     });
+    if (!result.user.countryCode && selectedCountryCode) {
+      void meApi.updateProfile({ countryCode: selectedCountryCode }, result.tokens.accessToken)
+        .then((user) => updateUser(user))
+        .catch(() => {});
+    }
     router.replace(result.user.role === "admin" ? "/admin" : "/(tabs)");
-  }, [authenticate, router]);
+  }, [authenticate, router, selectedCountryCode, updateUser]);
 
   const emailFlow = useMutation({
     mutationFn: () => authApi.startEmail(email.trim()),
@@ -52,7 +59,12 @@ export default function LoginScreen() {
       setPendingRegistrationToken(result.flowToken);
       router.push({
         pathname: "/verify",
-        params: { email: result.email, ...(params.next ? { next: params.next } : {}) },
+        params: {
+          email: result.email,
+          cooldown: String(result.verification?.resendAvailableInSeconds ?? 60),
+          sends: String(result.verification?.sendsRemaining ?? 2),
+          ...(params.next ? { next: params.next } : {}),
+        },
       });
     },
   });

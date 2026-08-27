@@ -15,6 +15,7 @@ interface CreateUserInput {
   yandexSub?: string;
   telegramSub?: string;
   referralCode?: string;
+  countryCode?: string;
 }
 
 export async function createUser(input: CreateUserInput) {
@@ -33,6 +34,7 @@ export async function createUser(input: CreateUserInput) {
         email: normalizedEmail,
         role: env.ADMIN_EMAILS.includes(normalizedEmail) ? "admin" : "user",
         name: input.name.trim(),
+        ...(input.countryCode ? { countryCode: input.countryCode.toUpperCase() } : {}),
         ...(input.passwordHash ? { passwordHash: input.passwordHash } : {}),
         ...(input.registrationTokenHash
           ? { registrationTokenHash: input.registrationTokenHash }

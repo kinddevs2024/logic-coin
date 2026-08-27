@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
+import { CountryFlagBadge } from "@/components/country-flag";
 import { GlassSurface } from "@/components/glass-surface";
 import { LogicCoinLogo } from "@/components/logo";
 import { radii } from "@/constants/theme";
@@ -15,23 +15,25 @@ import type { Language } from "@/types";
 
 const choices: {
   id: Language;
-  flag: string;
+  country: "RU" | "UZ" | "US";
   nativeName: string;
   helper: string;
 }[] = [
-  { id: "ru", flag: "RU", nativeName: "Русский", helper: "Русский язык" },
-  { id: "uz", flag: "UZ", nativeName: "O‘zbekcha", helper: "O‘zbek tili" },
-  { id: "en", flag: "EN", nativeName: "English", helper: "English language" },
+  { id: "ru", country: "RU", nativeName: "Русский", helper: "Русский язык" },
+  { id: "uz", country: "UZ", nativeName: "O‘zbekcha", helper: "O‘zbek tili" },
+  { id: "en", country: "US", nativeName: "English", helper: "English language" },
 ];
 
 export default function LanguageScreen() {
   const theme = useAppTheme();
   const { t } = useTranslation();
   const setLanguage = useAppStore((state) => state.setLanguage);
+  const updateUser = useAppStore((state) => state.updateUser);
   const router = useRouter();
 
-  const select = (language: Language) => {
+  const select = (language: Language, countryCode: "RU" | "UZ" | "US") => {
     setLanguage(language);
+    updateUser({ countryCode });
     router.replace("/onboarding");
   };
 
@@ -59,7 +61,7 @@ export default function LanguageScreen() {
                 key={choice.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${choice.nativeName}. ${choice.helper}`}
-                onPress={() => select(choice.id)}
+                onPress={() => select(choice.id, choice.country)}
                 style={({ pressed }) => [
                   styles.choice,
                   {
@@ -70,14 +72,7 @@ export default function LanguageScreen() {
                   },
                 ]}
               >
-                <LinearGradient
-                  colors={["#39AAFF", "#0866FF"]}
-                  style={styles.flag}
-                >
-                  <AppText variant="caption" color="#FFFFFF">
-                    {choice.flag}
-                  </AppText>
-                </LinearGradient>
+                <CountryFlagBadge countryCode={choice.country} size={36} />
                 <View style={{ flex: 1 }}>
                   <AppText variant="heading">{choice.nativeName}</AppText>
                   <AppText variant="caption" muted>
@@ -135,13 +130,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 13,
-  },
-  flag: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
   },
   arrow: {
     width: 36,

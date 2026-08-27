@@ -7,6 +7,7 @@ import Svg, { Circle } from "react-native-svg";
 import { GameHeader, GameRoot, HudStat, IntroScreen, LivesStat, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps } from "./types";
 import { formatClock, shuffle, shuffleAvoidingFirst, suggestedCoins } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "find-letter" as const;
 const LETTERS = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ".split("");
@@ -29,7 +30,7 @@ function makeRound(round: number, previousAnswer?: string) {
   return { answer, letters: shuffle([answer, answer, ...others]) };
 }
 
-export function FindLetterGame({ initialBestScore = 0, skin, onExit, onComplete }: ArcadeGameProps) {
+export function FindLetterGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
   const theme = resolveArcadeSkin(skin, "#38BDF8", "#FBBF24");
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
@@ -47,6 +48,7 @@ export function FindLetterGame({ initialBestScore = 0, skin, onExit, onComplete 
   const deadline = useRef(0);
   const finishing = useRef(false);
   const busy = useRef(false);
+  usePauseClock(paused, [startedAt, deadline]);
   const lastAnswer = useRef<string | undefined>(undefined);
   const config = configFor(round);
 
@@ -78,7 +80,7 @@ export function FindLetterGame({ initialBestScore = 0, skin, onExit, onComplete 
   }, [finish, prepareRound]);
 
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || paused) return;
     const timer = setInterval(() => {
       const next = Math.max(0, deadline.current - Date.now());
       setTimeLeft(next); setElapsedMs(Date.now() - startedAt.current);
@@ -90,7 +92,7 @@ export function FindLetterGame({ initialBestScore = 0, skin, onExit, onComplete 
       }
     }, 100);
     return () => clearInterval(timer);
-  }, [advance, correctCount, lives, phase, round, score]);
+  }, [advance, correctCount, lives, paused, phase, round, score]);
 
   const choose = (letter: string) => {
     if (busy.current || phase !== "playing") return;

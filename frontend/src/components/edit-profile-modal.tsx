@@ -7,6 +7,7 @@ import Animated, { FadeIn, FadeInUp, FadeOut } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
+import { CountryFlagBadge, countryName } from "@/components/country-flag";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -26,13 +27,14 @@ export function EditProfileModal({ visible, onClose }: { visible: boolean; onClo
 
 function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const theme = useAppTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const user = useAppStore((state) => state.user);
   const updateUser = useAppStore((state) => state.updateUser);
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const [name, setName] = useState(user.name);
   const [avatarDataUrl, setAvatarDataUrl] = useState(user.avatarUrl ?? "");
+  const [countryCode, setCountryCode] = useState(user.countryCode ?? (language === "uz" ? "UZ" : language === "en" ? "US" : "RU"));
   const [message, setMessage] = useState("");
   const [picking, setPicking] = useState(false);
   const queryClient = useQueryClient();
@@ -78,9 +80,9 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       const cleanName = name.trim().slice(0, 80);
       if (!cleanName) throw new Error("name_required");
       if (authMode === "authenticated" && accessToken) {
-        return meApi.updateProfile({ name: cleanName, avatarDataUrl: avatarDataUrl || null }, accessToken);
+        return meApi.updateProfile({ name: cleanName, avatarDataUrl: avatarDataUrl || null, countryCode }, accessToken);
       }
-      return { ...user, name: cleanName, avatarUrl: avatarDataUrl || null };
+      return { ...user, name: cleanName, avatarUrl: avatarDataUrl || null, countryCode };
     },
     onSuccess: (nextUser) => {
       updateUser(nextUser);
@@ -118,6 +120,17 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
               <AppText variant="caption" muted>{t("profile.name")}</AppText>
               <TextInput value={name} onChangeText={setName} maxLength={80} autoCapitalize="words" placeholder={t("profile.name")} placeholderTextColor={String(theme.textMuted)} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} />
             </View>
+            <View style={styles.field}>
+              <AppText variant="caption" muted>Страна</AppText>
+              <View style={styles.countryOptions}>
+                {(["RU", "UZ", "US"] as const).map((code) => (
+                  <Pressable key={code} accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => setCountryCode(code)} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
+                    <CountryFlagBadge countryCode={code} size={22} />
+                    <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
             {message ? <AppText style={styles.error}>{message}</AppText> : null}
             <Pressable disabled={saveMutation.isPending} onPress={() => saveMutation.mutate()} style={[styles.save, { backgroundColor: theme.primary }, saveMutation.isPending && { opacity: 0.55 }]}>
               {saveMutation.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="checkmark" size={19} color="#FFFFFF" />}
@@ -143,6 +156,8 @@ const styles = StyleSheet.create({
   removePhoto: { minHeight: 30, flexDirection: "row", alignItems: "center", gap: 5 },
   removePhotoText: { color: "#C33B4A", fontSize: 11, lineHeight: 14, fontWeight: "800" },
   field: { gap: 6 },
+  countryOptions: { flexDirection: "row", gap: 7 },
+  countryOption: { flex: 1, minWidth: 0, minHeight: 56, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 5 },
   input: { minHeight: 52, borderRadius: 18, borderWidth: 1, paddingHorizontal: 15, fontSize: 15, fontWeight: "700" },
   save: { minHeight: 52, borderRadius: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   error: { color: "#DC2626", fontSize: 12, lineHeight: 16, fontWeight: "700" },

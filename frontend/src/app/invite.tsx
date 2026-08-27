@@ -15,6 +15,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { referralsApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import { formatMoney } from "@/lib/format";
 
 export default function InviteScreen() {
   const router = useRouter();
@@ -152,7 +153,7 @@ export default function InviteScreen() {
             />
           </View>
           <AppText variant="title">
-            {authenticated ? referral?.earnedUnits ?? 0 : 0} LC · {authenticated ? referral?.earnedCoins ?? 0 : 0} coin
+            {formatMoney(authenticated ? referral?.earnedUnits ?? 0 : 0)} · {authenticated ? referral?.earnedCoins ?? 0 : 0} coin
           </AppText>
           <AppText variant="caption" muted>
             {t("invite.reward")}

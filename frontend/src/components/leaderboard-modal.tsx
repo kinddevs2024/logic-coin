@@ -17,6 +17,7 @@ import { useReducedMotion } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
+import { CountryFlagBadge } from "@/components/country-flag";
 import { useGlassBlurTarget } from "@/components/glass-blur-target";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -297,7 +298,10 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                     >
                       <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F5A623" : theme.textMuted }]}>{entry.rank}</AppText>
                       <Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={38} />
-                      <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{entry.name}</AppText>
+                      <View style={styles.nameBlock}>
+                        <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{entry.name}</AppText>
+                        {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={15} /> : null}
+                      </View>
                       <EntryValue entry={entry} metric={metric} />
                     </View>
                   ))}
@@ -382,6 +386,7 @@ const styles = StyleSheet.create({
   stateButton: { minHeight: 44, minWidth: 130, borderRadius: 15, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
   row: { minHeight: 58, borderRadius: 18, borderWidth: 1, borderColor: "transparent", paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 9 },
   rank: { width: 24, textAlign: "center", fontSize: 13, lineHeight: 17, fontWeight: "900" },
+  nameBlock: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
   name: { flex: 1, minWidth: 0, fontSize: 14, lineHeight: 18, fontWeight: "800" },
   combinedValue: { alignItems: "flex-end", gap: 2 },
   valueLine: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 },

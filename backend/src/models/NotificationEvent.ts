@@ -5,10 +5,15 @@ const notificationEventSchema = new Schema(
     eventKey: { type: String, required: true, trim: true, maxlength: 180 },
     type: {
       type: String,
-      enum: ["daily_challenge_published"],
+      enum: ["daily_challenge_published", "daily_contest_settled"],
       required: true
     },
-    audience: { type: String, enum: ["all_users"], default: "all_users", required: true },
+    audience: {
+      type: String,
+      enum: ["all_users", "contest_participants"],
+      default: "all_users",
+      required: true
+    },
     status: {
       type: String,
       enum: ["queued", "processing", "sent", "failed"],

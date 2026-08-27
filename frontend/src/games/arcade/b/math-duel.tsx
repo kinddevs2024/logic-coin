@@ -7,6 +7,7 @@ import { ArcadeIcon } from "./icons";
 import type { ArcadeGameProps } from "./types";
 import { arcadeSkinAccent, B_COLORS, CoinPill, errorTap, GameScreen, Metric, ProgressTrack, ResultCard, StartCard, successTap } from "./ui";
 import { randomInt, rewardCoins } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 type Statement = { expression: string; shownAnswer: number; correct: boolean };
 type Field = { lives: number; correct: number; wrong: number; question: Statement };
@@ -67,7 +68,7 @@ function makeInitialState(): DuelState {
   };
 }
 
-export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, skin }: ArcadeGameProps) {
+export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
   const sessionTime = GAME_TIME + Math.max(0, extraTimeSeconds);
   const accent = arcadeSkinAccent(skin, B_COLORS.violet);
   const secondaryAccent = skin && skin.id !== "classic" ? skin.secondary : "#FF8B3D";
@@ -77,6 +78,7 @@ export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
   const startedAt = useRef(0);
   const gameRef = useRef(game);
   const reported = useRef(false);
+  usePauseClock(paused, [startedAt]);
 
   useEffect(() => {
     gameRef.current = game;
@@ -101,7 +103,7 @@ export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
   }, [onFinish]);
 
   useEffect(() => {
-    if (screen !== "play") return;
+    if (screen !== "play" || paused) return;
     const interval = setInterval(() => {
       setTimeLeft((value) => {
         if (value <= 1) {
@@ -113,7 +115,7 @@ export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [finish, screen]);
+  }, [finish, paused, screen]);
 
   const begin = useCallback(() => {
     const state = makeInitialState();

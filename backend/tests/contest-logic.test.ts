@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCashPrizeLadder,
+  buildContestGiftBundle,
+  buildContestRandomReward,
   computeContestBands,
   contestGiftKindForIndex,
   rankContestStandings
@@ -46,12 +48,13 @@ describe("contest settlement rules", () => {
     ]);
   });
 
-  it("splits 100 participants into 10 percent cash, 45 percent cases, and the rest coins", () => {
+  it("splits 100 participants into cash, box, randomizer, and coin bands", () => {
     expect(computeContestBands(100)).toEqual({
       participantCount: 100,
       cashWinners: 10,
       caseWinners: 45,
-      coinWinners: 45
+      randomWinners: 35,
+      coinWinners: 10
     });
   });
 
@@ -60,8 +63,22 @@ describe("contest settlement rules", () => {
       participantCount: 3,
       cashWinners: 1,
       caseWinners: 1,
-      coinWinners: 1
+      randomWinners: 1,
+      coinWinners: 0
     });
+  });
+
+  it("preselects valid deterministic box and roulette prizes", () => {
+    const box = buildContestGiftBundle("2026-08-25", "user-1");
+    expect(box.coinAmount).toBeGreaterThanOrEqual(500);
+    expect(box.coinAmount).toBeLessThanOrEqual(1_500);
+    expect(box.coinAmount % 100).toBe(0);
+    expect([1, 2]).toContain(box.replayCount);
+    expect([15, 30, 45, 60]).toContain(box.extraTimeSeconds);
+    expect(buildContestGiftBundle("2026-08-25", "user-1")).toEqual(box);
+    expect(["coin", "replay", "extra_time"]).toContain(
+      buildContestRandomReward("2026-08-25", "user-2").kind
+    );
   });
 
   it("builds a monotonic cash ladder with exact max and min endpoints", () => {

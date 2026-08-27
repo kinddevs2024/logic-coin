@@ -6,7 +6,7 @@ import { gameCoinReward } from "@/games/rewards";
 import { useTranslation } from "@/hooks/use-translation";
 import { challengesApi } from "@/lib/api";
 import { localDayKey } from "@/lib/date";
-import { rewardedAds } from "@/lib/rewarded-ad";
+import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
 import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
@@ -129,12 +129,17 @@ export function useChallenges() {
 
   const doubleMutation = useMutation({
     mutationFn: async (scope: "game" | "day") => {
-      const receipt = await rewardedAds.show(
-        scope === "game" ? "challenge-first-game" : "challenge-day-complete",
-      );
-      if (!receipt.completed) throw new Error("rewarded_ad_incomplete");
+      const ad = await showVerifiedRewardedAd({
+        placement: scope === "game" ? "challenge-first-game" : "challenge-day-complete",
+        accessToken,
+      });
+      if (!ad.receipt.completed || !ad.verified) throw new Error("rewarded_ad_incomplete");
       if (authenticated && accessToken) {
-        return challengesApi.double(scope, accessToken, receipt.proof);
+        if (!ad.sessionId) throw new Error("rewarded_ad_not_verified");
+        return challengesApi.double(scope, accessToken, {
+          provider: "appodeal",
+          receiptId: ad.sessionId,
+        });
       }
       const credited = applyGuestChallengeDouble(scope, guestToday.doubling?.firstGameKey ?? undefined);
       if (!credited) throw new Error("nothing_to_double");

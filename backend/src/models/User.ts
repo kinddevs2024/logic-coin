@@ -51,6 +51,7 @@ const userSchema = new Schema(
     role: { type: String, enum: USER_ROLES, default: "user", required: true },
     name: { type: String, required: true, trim: true, minlength: 1, maxlength: 80 },
     avatarUrl: { type: String, trim: true, maxlength: 14_000_000 },
+    countryCode: { type: String, trim: true, uppercase: true, match: /^[A-Z]{2}$/ },
     providers: { type: providerSchema, required: true, default: () => ({}) },
     referralCode: { type: String, required: true, uppercase: true },
     referredBy: { type: Schema.Types.ObjectId, ref: "User" },

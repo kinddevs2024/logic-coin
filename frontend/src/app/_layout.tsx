@@ -10,7 +10,9 @@ import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AppearanceTransition } from "@/components/appearance-transition";
+import { AdRuntime } from "@/components/ad-runtime";
 import { RewardBurst } from "@/components/reward-burst";
+import { ContestRewardModal } from "@/components/contest-reward-modal";
 import { WebAnalytics } from "@/components/web-analytics";
 import { useGameProgressStore } from "@/games/progress-store";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -134,7 +136,9 @@ export default function RootLayout() {
           }}
         />
         <AppearanceTransition />
+        <AdRuntime />
         <RewardBurst />
+        <ContestRewardModal />
         <WebAnalytics />
       </QueryClientProvider>
     </GestureHandlerRootView>

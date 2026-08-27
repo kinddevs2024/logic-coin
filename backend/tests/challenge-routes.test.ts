@@ -10,7 +10,9 @@ const challengeMocks = vi.hoisted(() => ({
   completeChallengeAttempt: vi.fn(),
   completePracticeAttempt: vi.fn(),
   doubleChallengeCoins: vi.fn(),
-  getContestResultForUser: vi.fn()
+  getContestResultForUser: vi.fn(),
+  getPendingContestReward: vi.fn(),
+  claimContestReward: vi.fn()
 }));
 
 vi.mock("../src/services/daily-challenge.service.js", () => ({
@@ -23,7 +25,9 @@ vi.mock("../src/services/challenge-attempt.service.js", () => ({
   doubleChallengeCoins: challengeMocks.doubleChallengeCoins
 }));
 vi.mock("../src/services/contest.service.js", () => ({
-  getContestResultForUser: challengeMocks.getContestResultForUser
+  getContestResultForUser: challengeMocks.getContestResultForUser,
+  getPendingContestReward: challengeMocks.getPendingContestReward,
+  claimContestReward: challengeMocks.claimContestReward
 }));
 
 import challengeRoutes from "../src/routes/challenges.routes.js";
@@ -71,6 +75,12 @@ describe("challenge routes", () => {
       coins: { balance: 1_000 },
       adVerification: { provider: "demo", verified: true, placeholder: true }
     });
+    challengeMocks.getPendingContestReward.mockResolvedValue(null);
+    challengeMocks.claimContestReward.mockResolvedValue({
+      result: { id: new Types.ObjectId().toString(), claimStatus: "claimed" },
+      wallet: { availableUnits: 100 },
+      coins: { balance: 500 }
+    });
   });
 
   it("returns one shared daily set", async () => {
@@ -95,5 +105,12 @@ describe("challenge routes", () => {
       scope: "game",
       ad: { provider: "demo", receiptId: "demo-receipt" }
     });
+  });
+
+  it("exposes and claims a server-owned pending contest reward", async () => {
+    await request(app).get("/rewards/pending").expect(200);
+    const resultId = new Types.ObjectId().toString();
+    await request(app).post(`/rewards/${resultId}/claim`).expect(200);
+    expect(challengeMocks.claimContestReward).toHaveBeenCalledWith(resultId, userId);
   });
 });

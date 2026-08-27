@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable inside gesture worklets. */
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Tabs, useRouter } from "expo-router";
@@ -12,9 +13,12 @@ import {
 } from "react";
 import {
   Platform,
+  ActivityIndicator,
+  Modal,
   Pressable,
   Image,
   StyleSheet,
+  Text,
   View,
   type ViewStyle,
 } from "react-native";
@@ -39,6 +43,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { ApiError, bootstrapApi } from "@/lib/api";
+import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
 import { useAppStore } from "@/store/app-store";
 
 type LogicTabBarProps = Parameters<
@@ -47,6 +52,11 @@ type LogicTabBarProps = Parameters<
 
 const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.kinddevs.logiccoin";
+const NAV_AD_COUNTER_KEY = "logic-coin:appodeal-navigation-counter:v1";
+
+function nextAdThreshold() {
+  return 10 + Math.floor(Math.random() * 26);
+}
 
 const tabMeta: Record<
   string,
@@ -98,6 +108,10 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
     visibleRoutes.findIndex((route) => route.key === focusedRouteKey),
   );
   const [barSize, setBarSize] = useState({ width: 0, height: 0 });
+  const [rewardOfferVisible, setRewardOfferVisible] = useState(false);
+  const [rewardAdBusy, setRewardAdBusy] = useState(false);
+  const accessToken = useAppStore((store) => store.accessToken);
+  const setCoinBalance = useAppStore((store) => store.setCoinBalance);
   const lensPosition = useSharedValue(activeIndex);
   const lensMorph = useSharedValue(0);
   const dragOrigin = useSharedValue(activeIndex);
@@ -116,9 +130,40 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
       if (!focused && !event.defaultPrevented) {
         navigation.navigate(route.name, route.params);
       }
+      if (Platform.OS === "android") {
+        void AsyncStorage.getItem(NAV_AD_COUNTER_KEY).then(async (stored) => {
+          const parsed = stored ? JSON.parse(stored) as { count?: number; threshold?: number } : {};
+          const count = (parsed.count ?? 0) + 1;
+          const threshold = parsed.threshold ?? nextAdThreshold();
+          if (count >= threshold) {
+            await AsyncStorage.setItem(NAV_AD_COUNTER_KEY, JSON.stringify({ count: 0, threshold: nextAdThreshold() }));
+            setRewardOfferVisible(true);
+          } else {
+            await AsyncStorage.setItem(NAV_AD_COUNTER_KEY, JSON.stringify({ count, threshold }));
+          }
+        }).catch(() => undefined);
+      }
     },
     [focusedRouteKey, navigation, visibleRoutes],
   );
+
+  const watchNavigationReward = useCallback(async () => {
+    if (rewardAdBusy) return;
+    setRewardAdBusy(true);
+    try {
+      const reward = await showVerifiedRewardedAd({
+        placement: "navigation-frequency",
+        accessToken,
+        claimCoins: true,
+      });
+      if (reward.receipt.completed && reward.verified) {
+        if (reward.coinBalance !== undefined) setCoinBalance(reward.coinBalance);
+        setRewardOfferVisible(false);
+      }
+    } finally {
+      setRewardAdBusy(false);
+    }
+  }, [accessToken, rewardAdBusy, setCoinBalance]);
 
   const clearPointerFocus = useCallback(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
@@ -347,6 +392,19 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
           </Pressable>
         </Link>
       ) : null}
+      <Modal visible={rewardOfferVisible} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.adOfferBackdrop}>
+          <GlassSurface intensity={76} variant="strong" style={styles.adOfferCard}>
+            <View style={styles.adOfferIcon}><Ionicons name="play" size={26} color="#FFFFFF" /></View>
+            <Text style={styles.adOfferTitle}>Получить 25 coin?</Text>
+            <Text style={styles.adOfferText}>Посмотрите короткое видео. Награда начислится после полного просмотра.</Text>
+            <Pressable disabled={rewardAdBusy} onPress={() => void watchNavigationReward()} style={({ pressed }) => [styles.adOfferPrimary, pressed && styles.playStoreLinkPressed]}>
+              {rewardAdBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle" size={21} color="#FFFFFF" /><Text style={styles.adOfferPrimaryText}>Смотреть</Text></>}
+            </Pressable>
+            <Pressable disabled={rewardAdBusy} onPress={() => setRewardOfferVisible(false)} style={styles.adOfferSkip}><Text style={styles.adOfferSkipText}>Не сейчас</Text></Pressable>
+          </GlassSurface>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -581,4 +639,13 @@ const styles = StyleSheet.create({
     width: 118,
     height: 46,
   },
+  adOfferBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(4,12,26,0.52)" },
+  adOfferCard: { width: "100%", maxWidth: 360, alignItems: "center", borderRadius: 32, padding: 24, overflow: "hidden" },
+  adOfferIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#147DFF" },
+  adOfferTitle: { marginTop: 16, color: "#0D1B35", fontSize: 23, fontWeight: "900" },
+  adOfferText: { marginTop: 8, color: "#5D6C83", fontSize: 14, lineHeight: 20, fontWeight: "600", textAlign: "center" },
+  adOfferPrimary: { marginTop: 20, width: "100%", minHeight: 54, borderRadius: 18, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#147DFF" },
+  adOfferPrimaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "900" },
+  adOfferSkip: { paddingHorizontal: 18, paddingVertical: 13 },
+  adOfferSkipText: { color: "#65758B", fontSize: 13, fontWeight: "800" },
 });

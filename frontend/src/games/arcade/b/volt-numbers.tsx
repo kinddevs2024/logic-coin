@@ -6,6 +6,7 @@ import { ArcadeIcon } from "./icons";
 import type { ArcadeGameProps } from "./types";
 import { arcadeSkinAccent, B_COLORS, CoinPill, errorTap, GameButton, GameScreen, Metric, Panel, ProgressTrack, ResultCard, StartCard, successTap } from "./ui";
 import { clamp, rewardCoins, shuffle, shuffleAvoidingFirst } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 type VoltDifficulty = "easy" | "normal" | "hard";
 type Phase = "menu" | "look" | "play" | "result";
@@ -17,7 +18,7 @@ const CONFIG: Record<VoltDifficulty, { count: number; label: string; columns: nu
 };
 const PALETTES = ["#7C3AED", "#B45309", "#0369A1", "#067A57", "#9D174D", "#1D4ED8", "#B91C1C", "#0F766E", "#7E22CE", "#C2410C"];
 
-export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, skin }: ArcadeGameProps) {
+export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = false, skin }: ArcadeGameProps) {
   const { width } = useWindowDimensions();
   const accent = arcadeSkinAccent(skin, B_COLORS.gold);
   const palette = skin && skin.id !== "classic"
@@ -32,6 +33,7 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, skin }: Ar
   const [elapsed, setElapsed] = useState(0);
   const [won, setWon] = useState(false);
   const startedAt = useRef(0);
+  usePauseClock(paused, [startedAt]);
 
   const config = CONFIG[difficulty];
   const okTaps = config.count - remaining.size;
@@ -39,10 +41,10 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, skin }: Ar
   const coins = rewardCoins(score, won);
 
   useEffect(() => {
-    if (phase !== "play") return;
+    if (phase !== "play" || paused) return;
     const interval = setInterval(() => setElapsed(Date.now() - startedAt.current), 100);
     return () => clearInterval(interval);
-  }, [phase]);
+  }, [paused, phase]);
 
   const begin = useCallback(() => {
     const numbers = shuffle(Array.from({ length: CONFIG[difficulty].count }, (_, index) => index + 1));

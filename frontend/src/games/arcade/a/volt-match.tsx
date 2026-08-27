@@ -7,6 +7,7 @@ import Animated, { FadeInDown, ZoomIn, ZoomOut } from "react-native-reanimated";
 import { ArcadeButton, GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps } from "./types";
 import { formatClock, randomInt, shuffle, suggestedCoins } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "volt-match" as const;
 const TOTAL_ROUNDS = 12;
@@ -30,7 +31,7 @@ type Cell = { id: number; iconIndex: number; target: boolean; removed: boolean }
 
 function roundDuration(round: number) { return Math.max(2, 7 - Math.max(0, round - 6) * 0.3); }
 
-export function VoltMatchGame({ initialBestScore = 0, skin, onExit, onComplete }: ArcadeGameProps) {
+export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
   const theme = resolveArcadeSkin(skin, "#F5C842", "#C084FC");
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState<"intro" | "playing" | "round" | "result">("intro");
@@ -54,6 +55,7 @@ export function VoltMatchGame({ initialBestScore = 0, skin, onExit, onComplete }
   const startedAt = useRef(0);
   const canTap = useRef(false);
   const finishing = useRef(false);
+  usePauseClock(paused, [deadline, startedAt]);
   const usedTargets = useRef<number[]>([]);
 
   const buildRound = useCallback((roundNumber: number) => {
@@ -86,13 +88,13 @@ export function VoltMatchGame({ initialBestScore = 0, skin, onExit, onComplete }
   }, [correctTaps, maxCombo, mistakes, onComplete, round, score, wrongTaps]);
 
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || paused) return;
     const timer = setInterval(() => {
       const next = Math.max(0, deadline.current - Date.now()); setTimeLeft(next); setElapsedMs(Date.now() - startedAt.current);
       if (next <= 0 && canTap.current) { canTap.current = false; setRoundWon(false); setFeedback("wrong"); impact("error"); setTimeout(() => setPhase("round"), 360); }
     }, 50);
     return () => clearInterval(timer);
-  }, [phase]);
+  }, [paused, phase]);
 
   const choose = (cell: Cell) => {
     if (!canTap.current || cell.removed) return;

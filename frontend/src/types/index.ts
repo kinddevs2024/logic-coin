@@ -37,6 +37,7 @@ export type User = {
   name: string;
   email?: string;
   avatarUrl?: string | null;
+  countryCode?: string | null;
   referralCode?: string;
   emailVerified?: boolean;
   preferences?: UserPreferences;
@@ -203,6 +204,8 @@ export type GiftItem = {
   amountSeconds: number | null;
   replayCount: number | null;
   coinAmount: number | null;
+  activationMode: "manual" | "next_challenge";
+  sourceDayKey: string | null;
   status: "available" | "used";
   description: string;
   usedAt: string | null;
@@ -215,6 +218,37 @@ export type GiftUseEffect =
   | { kind: "replay"; replayCount: number; gameKey: string }
   | { kind: "coin"; coinsCredited: number };
 
+export type ContestRewardType = "cash" | "box" | "random" | "coins" | "legacy_case";
+
+export type ContestRewardResult = {
+  id: string;
+  userId: string;
+  dayKey: string;
+  totalCoins: number;
+  completedGamesCount: number;
+  rank: number;
+  rewardType: ContestRewardType;
+  cashUnits: number;
+  coinAmount: number;
+  replayCount: number;
+  extraTimeSeconds: number;
+  giftKind: "extra_time" | "replay" | "coin" | null;
+  claimStatus: "pending" | "claiming" | "claimed";
+  claimedAt: string | null;
+  settledAt: string;
+};
+
+export type ContestStanding = ContestRewardResult & {
+  name: string;
+  avatarUrl: string | null;
+  countryCode: string | null;
+};
+
+export type PendingContestReward = {
+  result: ContestRewardResult;
+  standings: ContestStanding[];
+};
+
 export type LeaderboardMetric = "wealth" | "wallet" | "coins";
 
 export type LeaderboardEntry = {
@@ -222,6 +256,7 @@ export type LeaderboardEntry = {
   userId: string;
   name: string;
   avatarUrl: string | null;
+  countryCode: string | null;
   value: number;
   walletBalanceUnits: number;
   coinBalance: number;

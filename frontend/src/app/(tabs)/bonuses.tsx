@@ -15,6 +15,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { activityApi, bonusesApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import { formatMoney } from "@/lib/format";
 import type { BonusKind } from "@/types";
 
 const days = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -150,7 +151,7 @@ export function PreservedBonusesScreen() {
             {t("bonus.next")}
           </AppText>
           <AppText variant="label" color={String(theme.primary)}>
-            +{daily.rewardUnits} LC
+            +{formatMoney(daily.rewardUnits)}
           </AppText>
           <AppText variant="caption" muted>
             {t("bonus.nextIn")}
@@ -170,7 +171,7 @@ export function PreservedBonusesScreen() {
         >
           {daily.claimed
             ? t("task.received")
-            : `${t("task.perform")} · +${daily.rewardUnits} LC`}
+            : `${t("task.perform")} · +${formatMoney(daily.rewardUnits)}`}
         </AppButton>
       </View>
 
@@ -263,7 +264,7 @@ export function PreservedBonusesScreen() {
               </AppText>
             </View>
             <AppText variant="label" color={String(theme.primary)}>
-              +{weekly.rewardUnits} LC
+              +{formatMoney(weekly.rewardUnits)}
             </AppText>
           </View>
           <ProgressBar
@@ -298,7 +299,7 @@ export function PreservedBonusesScreen() {
               </AppText>
             </View>
             <AppText variant="label" color="#7A5AF8">
-              +{monthly.rewardUnits} LC
+              +{formatMoney(monthly.rewardUnits)}
             </AppText>
           </View>
           <ProgressBar

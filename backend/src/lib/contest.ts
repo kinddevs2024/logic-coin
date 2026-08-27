@@ -1,4 +1,6 @@
-export type ContestRewardType = "cash" | "case" | "coins";
+import { createHash } from "node:crypto";
+
+export type ContestRewardType = "cash" | "box" | "random" | "coins";
 export type ContestGiftKind = "extra_time" | "replay" | "coin";
 
 const CONTEST_GIFT_ROTATION: readonly ContestGiftKind[] = ["extra_time", "replay", "coin"];
@@ -14,6 +16,7 @@ export interface ContestBands {
   participantCount: number;
   cashWinners: number;
   caseWinners: number;
+  randomWinners: number;
   coinWinners: number;
 }
 
@@ -37,16 +40,28 @@ function ceilStable(value: number): number {
 export function computeContestBands(
   participantCount: number,
   cashPercent = 0.1,
-  casePercent = 0.45
+  casePercent = 0.45,
+  randomPercent = 0.35
 ): ContestBands {
   if (!Number.isSafeInteger(participantCount) || participantCount < 0) {
     throw new Error("participantCount must be a non-negative integer");
   }
-  if (cashPercent < 0 || casePercent < 0 || cashPercent + casePercent > 1) {
+  if (
+    cashPercent < 0 ||
+    casePercent < 0 ||
+    randomPercent < 0 ||
+    cashPercent + casePercent + randomPercent > 1
+  ) {
     throw new Error("contest percentages must be non-negative and total no more than one");
   }
   if (participantCount === 0) {
-    return { participantCount: 0, cashWinners: 0, caseWinners: 0, coinWinners: 0 };
+    return {
+      participantCount: 0,
+      cashWinners: 0,
+      caseWinners: 0,
+      randomWinners: 0,
+      coinWinners: 0
+    };
   }
   const cashWinners = Math.min(
     participantCount,
@@ -59,11 +74,46 @@ export function computeContestBands(
     ceilStable(participantCount * (cashPercent + casePercent))
   );
   const caseWinners = Math.max(0, rewardedThrough - cashWinners);
+  const randomizedThrough = Math.min(
+    participantCount,
+    ceilStable(participantCount * (cashPercent + casePercent + randomPercent))
+  );
+  const randomWinners = Math.max(0, randomizedThrough - cashWinners - caseWinners);
   return {
     participantCount,
     cashWinners,
     caseWinners,
-    coinWinners: participantCount - cashWinners - caseWinners
+    randomWinners,
+    coinWinners: participantCount - cashWinners - caseWinners - randomWinners
+  };
+}
+
+function seededIndex(seed: string, length: number): number {
+  const digest = createHash("sha256").update(seed).digest();
+  return digest.readUInt32BE(0) % length;
+}
+
+export function buildContestGiftBundle(dayKey: string, userId: string) {
+  const coinSteps = Array.from({ length: 11 }, (_, index) => 500 + index * 100);
+  const timeOptions = [15, 30, 45, 60] as const;
+  return {
+    coinAmount: coinSteps[seededIndex(`${dayKey}:${userId}:box:coins`, coinSteps.length)]!,
+    replayCount: seededIndex(`${dayKey}:${userId}:box:replay`, 2) + 1,
+    extraTimeSeconds:
+      timeOptions[seededIndex(`${dayKey}:${userId}:box:time`, timeOptions.length)]!
+  };
+}
+
+export function buildContestRandomReward(dayKey: string, userId: string) {
+  const kind = CONTEST_GIFT_ROTATION[
+    seededIndex(`${dayKey}:${userId}:random:kind`, CONTEST_GIFT_ROTATION.length)
+  ]!;
+  const bundle = buildContestGiftBundle(dayKey, userId);
+  return {
+    kind,
+    coinAmount: kind === "coin" ? bundle.coinAmount : 0,
+    replayCount: kind === "replay" ? bundle.replayCount : 0,
+    extraTimeSeconds: kind === "extra_time" ? bundle.extraTimeSeconds : 0
   };
 }
 
@@ -119,8 +169,10 @@ export function rankContestStandings(
       rank <= bands.cashWinners
         ? "cash"
         : rank <= bands.cashWinners + bands.caseWinners
-          ? "case"
-          : "coins";
+          ? "box"
+          : rank <= bands.cashWinners + bands.caseWinners + bands.randomWinners
+            ? "random"
+            : "coins";
     return { ...standing, rank, rewardType };
   });
 }

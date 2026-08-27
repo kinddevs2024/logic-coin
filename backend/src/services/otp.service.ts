@@ -6,6 +6,27 @@ import { sendVerificationCode } from "./email.service.js";
 
 export async function createAndSendOtp(emailInput: string) {
   const email = normalizeEmail(emailInput);
+  const dailyWindowStart = new Date(Date.now() - 24 * 60 * 60_000);
+  const sentToday = await OtpChallenge.countDocuments({
+    email,
+    purpose: "verify_email",
+    sentAt: { $gte: dailyWindowStart }
+  });
+  if (sentToday >= 3) {
+    const firstInWindow = await OtpChallenge.findOne({
+      email,
+      purpose: "verify_email",
+      sentAt: { $gte: dailyWindowStart }
+    }).sort({ sentAt: 1 });
+    const retryAfterSeconds = Math.max(
+      60,
+      Math.ceil(((firstInWindow?.sentAt.getTime() ?? Date.now()) + 24 * 60 * 60_000 - Date.now()) / 1_000)
+    );
+    throw new ApiError(429, "otp_daily_limit", "No more than three verification emails are allowed per day", {
+      retryAfterSeconds,
+      sendsRemaining: 0
+    });
+  }
   const latest = await OtpChallenge.findOne({ email, purpose: "verify_email" }).sort({ createdAt: -1 });
   if (latest && Date.now() - latest.sentAt.getTime() < 60_000) {
     const retryAfterSeconds = Math.ceil((60_000 - (Date.now() - latest.sentAt.getTime())) / 1_000);
@@ -14,14 +35,9 @@ export async function createAndSendOtp(emailInput: string) {
     });
   }
 
-  await OtpChallenge.updateMany(
-    { email, purpose: "verify_email", consumedAt: { $exists: false } },
-    { $set: { consumedAt: new Date() } }
-  );
-
   const code = generateOtp();
   const now = new Date();
-  await OtpChallenge.create({
+  const challenge = await OtpChallenge.create({
     email,
     purpose: "verify_email",
     codeHash: hashOtp(email, code),
@@ -30,10 +46,27 @@ export async function createAndSendOtp(emailInput: string) {
     expiresAt: new Date(now.getTime() + env.OTP_TTL_MINUTES * 60_000)
   });
 
-  const delivery = await sendVerificationCode(email, code);
+  let delivery: "sent" | "disabled";
+  try {
+    delivery = await sendVerificationCode(email, code);
+  } catch (error) {
+    await OtpChallenge.deleteOne({ _id: challenge._id });
+    throw error;
+  }
+  await OtpChallenge.updateMany(
+    {
+      _id: { $ne: challenge._id },
+      email,
+      purpose: "verify_email",
+      consumedAt: { $exists: false }
+    },
+    { $set: { consumedAt: new Date() } }
+  );
   return {
     delivery,
     expiresInSeconds: env.OTP_TTL_MINUTES * 60,
+    resendAvailableInSeconds: 60,
+    sendsRemaining: Math.max(0, 2 - sentToday),
     ...(env.OTP_EXPOSE_CODE && env.NODE_ENV !== "production" ? { devOtp: code } : {})
   };
 }

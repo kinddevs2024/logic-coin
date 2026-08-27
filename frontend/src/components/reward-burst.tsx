@@ -6,6 +6,7 @@ import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
+import { formatMoney } from "@/lib/format";
 
 export function RewardBurst() {
   const reward = useAppStore((state) => state.latestReward);
@@ -78,7 +79,7 @@ export function RewardBurst() {
             {t("task.added")}
           </AppText>
           <AppText variant="heading" color={String(theme.primary)}>
-            +{reward.amount} LC
+            +{formatMoney(reward.amount)}
           </AppText>
         </View>
       </Animated.View>

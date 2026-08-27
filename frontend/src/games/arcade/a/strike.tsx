@@ -6,6 +6,7 @@ import Animated, { ZoomIn, useAnimatedStyle, useSharedValue, withSequence, withT
 import { GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps } from "./types";
 import { suggestedCoins } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "strike" as const;
 const TOTAL = 38;
@@ -31,7 +32,7 @@ function classify(position: number): Hit {
   return "miss";
 }
 
-export function StrikeGame({ initialBestScore = 0, skin, onExit, onComplete }: ArcadeGameProps) {
+export function StrikeGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
   const theme = resolveArcadeSkin(skin, "#FF2D2D", "#F0C040");
   const resultAccent = skin && skin.id !== "classic" ? theme.primary : "#F0C040";
   const tapAccent = skin && skin.id !== "classic" ? theme.secondary : "#F5F5F0";
@@ -48,12 +49,13 @@ export function StrikeGame({ initialBestScore = 0, skin, onExit, onComplete }: A
   const gameStartedAt = useRef(0);
   const canTap = useRef(false);
   const finishing = useRef(false);
+  usePauseClock(paused, [lastFrame, gameStartedAt]);
   const buttonScale = useSharedValue(1);
   const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: buttonScale.value }] }));
 
   const currentSpeed = speedFor(hits.length + 1);
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || paused) return;
     lastFrame.current = Date.now();
     const timer = setInterval(() => {
       const now = Date.now();
@@ -67,7 +69,7 @@ export function StrikeGame({ initialBestScore = 0, skin, onExit, onComplete }: A
       });
     }, 16);
     return () => clearInterval(timer);
-  }, [currentSpeed, phase]);
+  }, [currentSpeed, paused, phase]);
 
   const start = useCallback(() => {
     finishing.current = false; canTap.current = true; direction.current = 1; gameStartedAt.current = Date.now();

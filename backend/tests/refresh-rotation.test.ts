@@ -17,6 +17,7 @@ vi.mock("mongoose", async (importOriginal) => {
   const actual = await importOriginal<typeof import("mongoose")>();
   return {
     ...actual,
+    models: actual.models ?? {},
     default: {
       ...actual.default,
       startSession: mongoMocks.startSession

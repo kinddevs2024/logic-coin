@@ -33,6 +33,7 @@ function isTimeGift(gift: GiftItem) {
 
 function canUseGift(gift: GiftItem, context: GiftContext) {
   if (gift.status !== "available") return false;
+  if (gift.activationMode === "next_challenge") return false;
   if (gift.kind === "coin") return true;
   if (gift.kind === "replay") return context.completed && context.hasGame;
   return isTimeGift(gift) && context.sessionReady && context.hasGame && context.supportsTimeExtension;
@@ -40,11 +41,12 @@ function canUseGift(gift: GiftItem, context: GiftContext) {
 
 function giftPresentation(gift: GiftItem) {
   if (gift.kind === "coin") {
+    const nextChallenge = gift.activationMode === "next_challenge";
     return {
       icon: "cash-outline" as const,
       title: `+${gift.coinAmount ?? 0} coin`,
-      fallback: "Монеты сразу поступят на баланс",
-      accessibility: `Получить ${gift.coinAmount ?? 0} coin`,
+      fallback: nextChallenge ? "Автоматически активируются в следующем челлендже" : "Монеты сразу поступят на баланс",
+      accessibility: nextChallenge ? `${gift.coinAmount ?? 0} coin на следующий челлендж` : `Получить ${gift.coinAmount ?? 0} coin`,
     };
   }
   if (gift.kind === "replay") {
@@ -65,6 +67,7 @@ function giftPresentation(gift: GiftItem) {
 
 function giftActionLabel(gift: GiftItem, usable: boolean, context: GiftContext) {
   if (gift.status === "used") return "Готово";
+  if (gift.activationMode === "next_challenge") return "Следующий челлендж";
   if (usable) return gift.kind === "coin" ? "Получить" : "Применить";
   if (gift.kind === "replay") return "После игры";
   if (isTimeGift(gift) && !context.supportsTimeExtension) return "Игра без таймера";

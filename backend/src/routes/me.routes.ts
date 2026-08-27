@@ -18,6 +18,7 @@ router.get("/", async (request, response) => {
 });
 
 const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
+const MAX_AVATAR_DATA_URL_CHARS = Math.ceil((MAX_AVATAR_BYTES * 4) / 3) + 64;
 
 function validAvatarDataUrl(value: string): boolean {
   const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
@@ -29,8 +30,8 @@ function validAvatarDataUrl(value: string): boolean {
       bytes[0] === 0xff &&
       bytes[1] === 0xd8 &&
       bytes[2] === 0xff &&
-      bytes.at(-2) === 0xff &&
-      bytes.at(-1) === 0xd9;
+      bytes[bytes.length - 2] === 0xff &&
+      bytes[bytes.length - 1] === 0xd9;
   }
   if (match[1] === "png") {
     return bytes.length >= 24 &&
@@ -48,11 +49,12 @@ const profileSchema = z
     name: z.string().trim().min(1).max(80).optional(),
     avatarDataUrl: z
       .string()
-      .max(2_100_000)
+      .max(MAX_AVATAR_DATA_URL_CHARS)
       .refine(validAvatarDataUrl, "Avatar must be a valid JPEG, PNG, or WebP image up to 10 MiB")
       .nullable()
       .optional(),
-    savingsGoalCents: z.number().int().min(0).max(1_000_000_000).optional()
+    savingsGoalCents: z.number().int().min(0).max(1_000_000_000).optional(),
+    countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()).optional()
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, "At least one field is required");
@@ -67,6 +69,7 @@ router.patch(["/", "/profile"], validateBody(profileSchema), async (request, res
   if (input.savingsGoalCents !== undefined) {
     set["preferences.savingsGoalCents"] = input.savingsGoalCents;
   }
+  if (input.countryCode !== undefined) set.countryCode = input.countryCode;
 
   const user = await User.findByIdAndUpdate(
     request.auth!.userId,

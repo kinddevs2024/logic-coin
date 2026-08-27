@@ -31,6 +31,8 @@ export type ArcadeGameProps = {
   challengeMode?: boolean;
   attemptLimit?: number;
   sessionKey?: string;
+  /** True while a host overlay is covering gameplay. Timers and input must pause. */
+  paused?: boolean;
   /** The cosmetic selected in the host. `classic` preserves the game's original art direction. */
   skin?: ArcadeGameSkin;
   onExit?: () => void;

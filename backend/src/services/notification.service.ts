@@ -1,6 +1,7 @@
 import type { Types } from "mongoose";
 import { env } from "../config/env.js";
 import { Device } from "../models/Device.js";
+import { DailyContestResult } from "../models/DailyContestResult.js";
 import { NotificationEvent } from "../models/NotificationEvent.js";
 
 const EXPO_BATCH_SIZE = 100;
@@ -29,14 +30,19 @@ export async function dispatchNotificationEvent(
   if (!event) return { status: "skipped" as const, targetCount: 0, sentCount: 0, failedCount: 0 };
 
   try {
+    const payload = (event.payload ?? {}) as { dayKey?: string; title?: string; body?: string };
+    const participantUserIds =
+      event.audience === "contest_participants" && payload.dayKey
+        ? await DailyContestResult.distinct("userId", { dayKey: payload.dayKey })
+        : null;
     const devices = await Device.find({
       notificationsEnabled: true,
-      pushToken: { $exists: true, $ne: "" }
+      pushToken: { $exists: true, $ne: "" },
+      ...(participantUserIds ? { userId: { $in: participantUserIds } } : {})
     })
       .select("pushToken")
       .lean();
     const tokens = [...new Set(devices.map((device) => device.pushToken).filter(expoToken))];
-    const payload = (event.payload ?? {}) as { dayKey?: string; title?: string };
     let sentCount = 0;
     let failedCount = 0;
 
@@ -55,8 +61,8 @@ export async function dispatchNotificationEvent(
             to,
             sound: "default",
             title: payload.title ?? "Новый челлендж доступен",
-            body: "Шесть новых игр уже ждут вас.",
-            data: { type: "daily_challenge_published", dayKey: payload.dayKey ?? null }
+            body: payload.body ?? "Шесть новых игр уже ждут вас.",
+            data: { type: event.type, dayKey: payload.dayKey ?? null }
           }))
         ),
         signal: AbortSignal.timeout(8_000)

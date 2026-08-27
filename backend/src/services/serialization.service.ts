@@ -56,6 +56,7 @@ export function serializeUser(userValue: unknown) {
     emailVerified: Boolean(user.emailVerifiedAt),
     name: user.name,
     avatarUrl: user.avatarUrl ?? null,
+    countryCode: user.countryCode ?? null,
     role: user.role ?? "user",
     referralCode: user.referralCode,
     preferences: user.preferences,

@@ -25,11 +25,7 @@ import {
 } from "../services/token.service.js";
 import { createUser, processReferralSignupReward } from "../services/user.service.js";
 import { serializeUser } from "../services/serialization.service.js";
-import {
-  authenticateGoogle,
-  authenticateYandex,
-  createYandexAuthorization
-} from "../services/social-auth.service.js";
+import { authenticateGoogle } from "../services/social-auth.service.js";
 import {
   assertTelegramWebhookSecret,
   authenticateTelegram,
@@ -39,19 +35,23 @@ import {
   pollTelegramLogin,
   verifyTelegramMiniApp
 } from "../services/telegram-auth.service.js";
+import { assertDeviceNotBanned, registerDeviceAccount } from "../services/device-security.service.js";
 
 const router = Router();
 
 const emailSchema = z.string().trim().email().max(254).transform(normalizeEmail);
 const passwordSchema = z.string().min(8).max(72);
 const deviceIdSchema = z.string().trim().min(1).max(160).optional();
+const countryCodeSchema = z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()).optional();
 const registrationTokenSchema = z.string().min(32).max(1_024);
 const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60_000;
 
 const emailStartSchema = z
   .object({
     email: emailSchema,
-    referralCode: z.string().trim().min(4).max(32).optional()
+    referralCode: z.string().trim().min(4).max(32).optional(),
+    deviceId: deviceIdSchema,
+    countryCode: countryCodeSchema
   })
   .strict();
 
@@ -78,7 +78,9 @@ const registerSchema = z
     email: emailSchema,
     password: passwordSchema,
     name: z.string().trim().min(1).max(80),
-    referralCode: z.string().trim().min(4).max(32).optional()
+    referralCode: z.string().trim().min(4).max(32).optional(),
+    deviceId: deviceIdSchema,
+    countryCode: countryCodeSchema
   })
   .strict();
 
@@ -117,15 +119,8 @@ const googleSchema = z
   .object({
     idToken: z.string().min(100).max(20_000),
     deviceId: deviceIdSchema,
-    referralCode: z.string().trim().min(4).max(32).optional()
-  })
-  .strict();
-
-const yandexExchangeSchema = z
-  .object({
-    code: z.string().min(3).max(2_048),
-    state: z.string().min(20).max(10_000),
-    deviceId: deviceIdSchema
+    referralCode: z.string().trim().min(4).max(32).optional(),
+    countryCode: countryCodeSchema
   })
   .strict();
 
@@ -143,9 +138,10 @@ router.post(
   otpLimiter,
   validateBody(emailStartSchema),
   async (request, response) => {
-    const { email, referralCode } = request.body as z.infer<
+    const { email, referralCode, deviceId, countryCode } = request.body as z.infer<
       typeof emailStartSchema
     >;
+    await assertDeviceNotBanned(deviceId);
     const existing = await User.findOne({ email }).select("+passwordHash");
     if (existing?.emailVerifiedAt && existing.passwordHash) {
       response.json({ data: { email, mode: "password" as const } });
@@ -166,7 +162,8 @@ router.post(
         name: localName || "Logic member",
         registrationTokenHash,
         registrationTokenExpiresAt,
-        ...(referralCode ? { referralCode } : {})
+        ...(referralCode ? { referralCode } : {}),
+        ...(countryCode ? { countryCode } : {})
       });
     } else {
       await User.updateOne(
@@ -174,7 +171,8 @@ router.post(
         {
           $set: {
             registrationTokenHash,
-            registrationTokenExpiresAt
+            registrationTokenExpiresAt,
+            ...(countryCode && !user.countryCode ? { countryCode } : {})
           }
         }
       );
@@ -290,6 +288,7 @@ router.post(
       throw new ApiError(400, "invalid_password_setup", "Password setup has expired");
     }
 
+    await registerDeviceAccount(user._id, deviceId);
     const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
     response.json({ data: { user: serializeUser(user), tokens } });
   }
@@ -303,7 +302,10 @@ router.post("/email/complete", (_request, _response) => {
   );
 });
 
-router.post("/telegram/start", authLimiter, async (_request, response) => {
+router.post("/telegram/start", authLimiter, async (request, response) => {
+  const parsed = z.object({ deviceId: deviceIdSchema }).strict().safeParse(request.body ?? {});
+  if (!parsed.success) throw new ApiError(400, "validation_error", "Telegram login data is invalid");
+  await assertDeviceNotBanned(parsed.data.deviceId);
   response.status(201).json({ data: await createTelegramLogin() });
 });
 
@@ -377,7 +379,8 @@ router.post("/telegram/webhook", async (request, response) => {
 });
 
 router.post("/register", authLimiter, validateBody(registerSchema), async (request, response) => {
-  const { email, password, name, referralCode } = request.body as z.infer<typeof registerSchema>;
+  const { email, password, name, referralCode, deviceId, countryCode } = request.body as z.infer<typeof registerSchema>;
+  await assertDeviceNotBanned(deviceId);
   let user = await User.findOne({ email });
   if (user?.emailVerifiedAt) {
     throw new ApiError(409, "email_already_registered", "An account with this email already exists");
@@ -411,7 +414,8 @@ router.post("/register", authLimiter, validateBody(registerSchema), async (reque
       passwordHash,
       registrationTokenHash,
       registrationTokenExpiresAt,
-      ...(referralCode ? { referralCode } : {})
+      ...(referralCode ? { referralCode } : {}),
+      ...(countryCode ? { countryCode } : {})
     });
   }
 
@@ -490,6 +494,7 @@ router.post(
     if (!user) {
       throw new ApiError(404, "account_not_found", "Account not found");
     }
+    await registerDeviceAccount(user._id, deviceId);
     const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
     response.json({ data: { user: serializeUser(user), tokens } });
   }
@@ -498,9 +503,10 @@ router.post(
 router.post(
   "/email/resend",
   otpLimiter,
-  validateBody(z.object({ email: emailSchema }).strict()),
+  validateBody(z.object({ email: emailSchema, deviceId: deviceIdSchema }).strict()),
   async (request, response) => {
-    const { email } = request.body as { email: string };
+    const { email, deviceId } = request.body as { email: string; deviceId?: string };
+    await assertDeviceNotBanned(deviceId);
     const user = await User.findOne({ email }).select("+passwordHash");
     if (!user) {
       throw new ApiError(404, "account_not_found", "Account not found");
@@ -561,61 +567,16 @@ router.post(
 );
 
 router.post("/google", authLimiter, validateBody(googleSchema), async (request, response) => {
-  const { idToken, deviceId, referralCode } = request.body as z.infer<typeof googleSchema>;
-  const user = await authenticateGoogle(idToken, referralCode);
+  const { idToken, deviceId, referralCode, countryCode } = request.body as z.infer<typeof googleSchema>;
+  await assertDeviceNotBanned(deviceId);
+  const { user, created } = await authenticateGoogle(idToken, referralCode);
+  if (countryCode && !user.countryCode) {
+    user.countryCode = countryCode;
+    await user.save();
+  }
+  if (created) await registerDeviceAccount(user._id, deviceId);
   const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
   response.json({ data: { user: serializeUser(user), tokens } });
 });
-
-router.get("/yandex/start", authLimiter, async (request, response) => {
-  const query = z
-    .object({
-      redirectUri: z.string().url().max(2_048).optional(),
-      referralCode: z.string().trim().min(4).max(32).optional(),
-      deviceId: deviceIdSchema
-    })
-    .safeParse(request.query);
-  if (!query.success) {
-    throw new ApiError(400, "validation_error", "Yandex OAuth parameters are invalid");
-  }
-  response.json({
-    data: await createYandexAuthorization({
-      ...(query.data.redirectUri ? { redirectUri: query.data.redirectUri } : {}),
-      ...(query.data.referralCode ? { referralCode: query.data.referralCode } : {}),
-      binding: sessionContext(request, query.data.deviceId)
-    })
-  });
-});
-
-router.get("/yandex/callback", authLimiter, async (request, response) => {
-  const query = z
-    .object({
-      code: z.string().min(3).max(2_048),
-      state: z.string().min(20).max(10_000)
-    })
-    .safeParse(request.query);
-  if (!query.success) {
-    throw new ApiError(400, "validation_error", "Yandex callback parameters are invalid");
-  }
-  const user = await authenticateYandex(
-    query.data.code,
-    query.data.state,
-    sessionContext(request)
-  );
-  const tokens = await issueTokenPair(user._id, sessionContext(request));
-  response.json({ data: { user: serializeUser(user), tokens } });
-});
-
-router.post(
-  "/yandex/exchange",
-  authLimiter,
-  validateBody(yandexExchangeSchema),
-  async (request, response) => {
-    const { code, state, deviceId } = request.body as z.infer<typeof yandexExchangeSchema>;
-    const user = await authenticateYandex(code, state, sessionContext(request, deviceId));
-    const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
-    response.json({ data: { user: serializeUser(user), tokens } });
-  }
-);
 
 export default router;

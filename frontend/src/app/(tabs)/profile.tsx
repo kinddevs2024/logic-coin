@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
+import { CountryFlagBadge, countryName } from "@/components/country-flag";
 import { AppButton, IconButton } from "@/components/buttons";
 import { EditProfileModal } from "@/components/edit-profile-modal";
 import { GlassSurface } from "@/components/glass-surface";
@@ -83,6 +84,10 @@ export default function ProfileScreen() {
             <View style={styles.identity}>
               <AppText variant="title">{user.name}</AppText>
               <AppText muted>{user.email ?? t("common.demo")}</AppText>
+              <View style={styles.countryLine}>
+                <CountryFlagBadge countryCode={user.countryCode} size={18} />
+                <AppText variant="caption" muted>{countryName(user.countryCode, useAppStore.getState().language ?? "ru")}</AppText>
+              </View>
             </View>
             <View style={styles.editButton}>
               <IconButton name="create-outline" label={t("profile.edit")} onPress={() => setEditing(true)} />
@@ -221,6 +226,7 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingRight: 50,
   },
+  countryLine: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 4 },
   editButton: { position: "absolute", top: 14, right: 14 },
   stats: {
     flexDirection: "row",

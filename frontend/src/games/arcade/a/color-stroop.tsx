@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
 import { GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps } from "./types";
 import { nowMs, randomIntExcluding, shuffle, suggestedCoins } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "color-stroop" as const;
 const DURATION_MS = 60_000;
@@ -28,7 +29,7 @@ function createPuzzle(previousInk?: number): Puzzle {
   return { word, ink, options: shuffle([ink, distractor]), createdAt: Date.now() };
 }
 
-export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, skin, onExit, onComplete }: ArcadeGameProps) {
+export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
   const theme = resolveArcadeSkin(skin, "#EAB308", "#FDE68A");
   const sessionDuration = DURATION_MS + Math.max(0, extraTimeSeconds) * 1000;
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
@@ -47,6 +48,7 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, sk
   const gameStartedAt = useRef(0);
   const roundDeadline = useRef(0);
   const finishing = useRef(false);
+  usePauseClock(paused, [gameStartedAt, roundDeadline]);
 
   const finish = useCallback((snapshot?: Partial<{ score: number; correct: number; total: number; maxStreak: number; reactionTimes: number[]; lives: number }>) => {
     if (finishing.current) return;
@@ -81,7 +83,7 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, sk
   }, [nextPuzzle, sessionDuration]);
 
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || paused) return;
     const tick = setInterval(() => {
       const sessionLeft = Math.max(0, sessionDuration - (Date.now() - gameStartedAt.current));
       const promptLeft = Math.max(0, roundDeadline.current - Date.now());
@@ -98,7 +100,7 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, sk
       }
     }, 50);
     return () => clearInterval(tick);
-  }, [finish, flash, lives, nextPuzzle, phase, sessionDuration, total]);
+  }, [finish, flash, lives, nextPuzzle, paused, phase, sessionDuration, total]);
 
   const choose = (index: number) => {
     if (phase !== "playing" || flash) return;

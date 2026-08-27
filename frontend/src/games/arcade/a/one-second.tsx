@@ -7,6 +7,7 @@ import Svg, { Circle } from "react-native-svg";
 import { ArcadeButton, GameHeader, GameRoot, GlassPanel, HudStat, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps, ArcadeGameResult } from "./types";
 import { suggestedCoins } from "./utils";
+import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "one-second" as const;
 const TARGET_MS = 1000;
@@ -47,7 +48,7 @@ function IntroRule({ icon, color, children }: { icon: React.ComponentProps<typeo
   );
 }
 
-export function OneSecondGame({ initialBestScore = 0, skin, challengeMode = false, attemptLimit = DEFAULT_CHALLENGE_ATTEMPTS, onExit, onComplete }: ArcadeGameProps) {
+export function OneSecondGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, attemptLimit = DEFAULT_CHALLENGE_ATTEMPTS, onExit, onComplete }: ArcadeGameProps) {
   const theme = resolveArcadeSkin(skin, "#7C6FFF", "#C9B8FF");
   const resultAccent = skin && skin.id !== "classic" ? theme.primary : "#34D399";
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
@@ -59,6 +60,7 @@ export function OneSecondGame({ initialBestScore = 0, skin, challengeMode = fals
   const pressStartedAt = useRef(0);
   const gameStartedAt = useRef(0);
   const finishing = useRef(false);
+  usePauseClock(paused, [pressStartedAt, gameStartedAt]);
   const scale = useSharedValue(1);
   const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const challengeAttempts = Math.max(1, Math.min(100, Math.round(attemptLimit)));
@@ -66,10 +68,10 @@ export function OneSecondGame({ initialBestScore = 0, skin, challengeMode = fals
   const score = useMemo(() => attempts.reduce((sum, item) => sum + item.points, 0), [attempts]);
 
   useEffect(() => {
-    if (!holding) return;
+    if (!holding || paused) return;
     const timer = setInterval(() => setHoldMs(Date.now() - pressStartedAt.current), 16);
     return () => clearInterval(timer);
-  }, [holding]);
+  }, [holding, paused]);
 
   const start = useCallback(() => {
     finishing.current = false;

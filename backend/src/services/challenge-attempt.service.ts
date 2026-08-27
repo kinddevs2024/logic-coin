@@ -11,6 +11,7 @@ import { User } from "../models/User.js";
 import { creditCoins } from "./coin.service.js";
 import { challengeDayKey, getDailyChallengeSet } from "./daily-challenge.service.js";
 import { findActiveGameByKey } from "./game.service.js";
+import { activateNextChallengeCoinGifts } from "./gift.service.js";
 import { creditReferralCoinPrizeShare } from "./referral.service.js";
 import { verifyRewardedAd, type RewardedAdProof } from "./rewarded-ad.service.js";
 import { serializeCoins } from "./serialization.service.js";
@@ -68,6 +69,10 @@ export async function startChallengeAttempt(input: {
 }) {
   const dayKey = challengeDayKey();
   const { game, set } = await dailyGame({ gameKey: input.gameKey, dayKey });
+  const startingBonusCoins = await activateNextChallengeCoinGifts({
+    userId: input.userId,
+    dayKey
+  });
   const existing = await ChallengeAttempt.findOne({
     userId: input.userId,
     dayKey,
@@ -80,7 +85,8 @@ export async function startChallengeAttempt(input: {
       dayKey,
       gameKey: game.key,
       status: existing.status,
-      resumed: true
+      resumed: true,
+      startingBonusCoins
     };
   }
   const completedAttempts = await ChallengeAttempt.countDocuments({
@@ -111,7 +117,8 @@ export async function startChallengeAttempt(input: {
       dayKey,
       gameKey: game.key,
       status: attempt.status,
-      resumed: false
+      resumed: false,
+      startingBonusCoins
     };
   } catch (error) {
     if ((error as { code?: number }).code !== 11_000) throw error;
@@ -129,7 +136,8 @@ export async function startChallengeAttempt(input: {
       dayKey,
       gameKey: game.key,
       status: concurrent.status,
-      resumed: true
+      resumed: true,
+      startingBonusCoins
     };
   }
 }
@@ -337,7 +345,7 @@ export async function doubleChallengeCoins(input: {
   scope: "game" | "day";
   ad?: RewardedAdProof;
 }) {
-  const adVerification = await verifyRewardedAd(input.ad);
+  const adVerification = await verifyRewardedAd(input.ad, input.userId);
   const dayKey = challengeDayKey();
   const set = await getDailyChallengeSet(dayKey);
   if (!set || set.status !== "published") {

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
 
 import { AuthScaffold } from "@/components/auth-scaffold";
@@ -14,7 +14,7 @@ import { authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export default function VerifyScreen() {
-  const params = useLocalSearchParams<{ email?: string; next?: string }>();
+  const params = useLocalSearchParams<{ email?: string; next?: string; cooldown?: string; sends?: string }>();
   const email = params.email ?? "";
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -29,7 +29,14 @@ export default function VerifyScreen() {
     (state) => state.setPendingPasswordSetupToken,
   );
   const [code, setCode] = useState("");
-  const [resent, setResent] = useState(false);
+  const [cooldown, setCooldown] = useState(() => Math.max(0, Number(params.cooldown ?? 60) || 60));
+  const [sendsRemaining, setSendsRemaining] = useState(() => Math.max(0, Number(params.sends ?? 2) || 0));
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((current) => Math.max(0, current - 1)), 1_000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const verify = useMutation({
     mutationFn: () => {
@@ -51,14 +58,10 @@ export default function VerifyScreen() {
   });
 
   const resend = useMutation({
-    mutationFn: () => authApi.startEmail(email),
+    mutationFn: () => authApi.resendCode(email),
     onSuccess: (result) => {
-      if (result.mode !== "verification") {
-        router.replace({ pathname: "/login", params: { email } });
-        return;
-      }
-      setPendingRegistrationToken(result.flowToken);
-      setResent(true);
+      setCooldown(result.verification?.resendAvailableInSeconds ?? 60);
+      setSendsRemaining(result.verification?.sendsRemaining ?? Math.max(0, sendsRemaining - 1));
     },
   });
 
@@ -103,14 +106,22 @@ export default function VerifyScreen() {
       </AppButton>
       <Pressable
         onPress={() => resend.mutate()}
-        disabled={resend.isPending}
-        style={styles.resend}
+        disabled={resend.isPending || cooldown > 0 || sendsRemaining <= 0}
+        style={[styles.resend, (cooldown > 0 || sendsRemaining <= 0) && styles.resendDisabled]}
       >
         <AppText variant="label" color={String(theme.primary)}>
-          {resent ? "✓ " : ""}
-          {t("auth.resend")}
+          {sendsRemaining <= 0
+            ? "Лимит писем исчерпан"
+            : cooldown > 0
+              ? `Отправить через 00:${String(cooldown).padStart(2, "0")} · осталось ${sendsRemaining}`
+              : `${t("auth.resend")} · осталось ${sendsRemaining}`}
         </AppText>
       </Pressable>
+      {resend.error ? (
+        <AppText variant="caption" color={String(theme.danger)} style={{ textAlign: "center" }}>
+          {resend.error.message}
+        </AppText>
+      ) : null}
     </AuthScaffold>
   );
 }
@@ -127,4 +138,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 3,
   },
+  resendDisabled: { opacity: 0.55 },
 });

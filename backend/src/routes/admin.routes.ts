@@ -20,6 +20,7 @@ import {
 import { settleDailyContest } from "../services/contest.service.js";
 import { challengeDayKey } from "../services/daily-challenge.service.js";
 import { serializeGame } from "../services/serialization.service.js";
+import { listBannedDevices, unbanDevice } from "../services/device-security.service.js";
 
 const router = Router();
 
@@ -244,5 +245,15 @@ router.post(
     response.status(201).json({ data: { entry } });
   }
 );
+
+router.get("/blocked-devices", async (_request, response) => {
+  response.json({ data: { devices: await listBannedDevices() } });
+});
+
+router.post("/blocked-devices/:deviceId/unban", async (request, response) => {
+  const deviceId = z.string().trim().min(1).max(160).safeParse(request.params.deviceId);
+  if (!deviceId.success) throw new ApiError(400, "invalid_device_id", "Device identifier is invalid");
+  response.json({ data: { device: await unbanDevice(deviceId.data, request.auth!.userId) } });
+});
 
 export default router;

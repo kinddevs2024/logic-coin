@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Types } from "mongoose";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
@@ -30,16 +30,18 @@ type TelegramMessageUpdate = {
 
 const LOGIN_TTL_MS = 10 * 60_000;
 let cachedBotUsername: string | null = null;
+let webhookSetup: Promise<void> | null = null;
 
 function requireBotToken(): string {
-  if (!env.TELEGRAM_BOT_TOKEN) {
+  const token = env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!token || token === "replace-me" || !/^\d+:[A-Za-z0-9_-]{20,}$/.test(token)) {
     throw new ApiError(
       503,
       "telegram_auth_unavailable",
       "Telegram sign-in is not configured"
     );
   }
-  return env.TELEGRAM_BOT_TOKEN;
+  return token;
 }
 
 function safeEqualHex(left: string, right: string): boolean {
@@ -59,12 +61,63 @@ function startSignature(flowId: string): string {
 }
 
 export function telegramWebhookSecret(): string {
-  return (
+  const source =
     env.TELEGRAM_WEBHOOK_SECRET ??
     createHmac("sha256", env.JWT_SECRET)
       .update("logic-coin-telegram-webhook")
-      .digest("hex")
+      .digest("hex");
+  return createHash("sha256").update(source).digest("hex");
+}
+
+export function telegramWebhookUrl(
+  baseUrl = env.API_PUBLIC_URL,
+  localPolling = env.TELEGRAM_LOCAL_POLLING,
+): string | null {
+  if (localPolling) return null;
+  const base = new URL(baseUrl);
+  if (base.protocol !== "https:") return null;
+  return new URL("/api/v1/auth/telegram/webhook", base).toString();
+}
+
+async function configureTelegramWebhook() {
+  const webhookUrl = telegramWebhookUrl();
+  if (!webhookUrl) return;
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${requireBotToken()}/setWebhook`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        url: webhookUrl,
+        secret_token: telegramWebhookSecret(),
+        allowed_updates: ["message"],
+        drop_pending_updates: false
+      }),
+      signal: AbortSignal.timeout(8_000)
+    }
   );
+  const payload = (await response.json().catch(() => null)) as
+    | { ok?: boolean; description?: string }
+    | null;
+  if (!response.ok || !payload?.ok) {
+    throw new ApiError(
+      502,
+      "telegram_webhook_unavailable",
+      payload?.description || "Telegram webhook could not be configured"
+    );
+  }
+}
+
+export async function ensureTelegramWebhook() {
+  if (!telegramWebhookUrl()) return;
+  if (!webhookSetup) {
+    webhookSetup = configureTelegramWebhook().catch((error) => {
+      webhookSetup = null;
+      throw error;
+    });
+  }
+  await webhookSetup;
 }
 
 function telegramName(identity: TelegramIdentity): string {
@@ -97,8 +150,9 @@ export async function authenticateTelegram(identity: TelegramIdentity) {
 }
 
 async function resolveBotUsername(): Promise<string> {
-  if (env.TELEGRAM_BOT_USERNAME) {
-    return env.TELEGRAM_BOT_USERNAME.replace(/^@/, "");
+  const configuredUsername = env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "");
+  if (configuredUsername && configuredUsername !== "replace-me") {
+    return configuredUsername;
   }
   if (cachedBotUsername) return cachedBotUsername;
 
@@ -122,6 +176,7 @@ async function resolveBotUsername(): Promise<string> {
 
 export async function createTelegramLogin() {
   requireBotToken();
+  await ensureTelegramWebhook();
   const flowId = randomBytes(16).toString("base64url");
   const pollToken = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + LOGIN_TTL_MS);
@@ -165,22 +220,30 @@ function parseStartIdentity(update: TelegramMessageUpdate): {
 }
 
 async function sendBotReturnLink(chatId: string, resumeToken: string) {
-  const returnUrl = new URL("/login", env.APP_PUBLIC_URL);
-  returnUrl.searchParams.set("telegram_token", resumeToken);
+  const returnUrl = buildTelegramReturnUrl(resumeToken);
   await fetch(`https://api.telegram.org/bot${requireBotToken()}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: "Logic Coin",
+      text: "Вход подтверждён. Вернитесь в Logic Coin.",
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Открыть Logic Coin", url: returnUrl.toString() }]
+          [{ text: "Открыть Logic Coin", url: returnUrl }]
         ]
       }
     }),
     signal: AbortSignal.timeout(5_000)
   }).catch(() => undefined);
+}
+
+export function buildTelegramReturnUrl(
+  resumeToken: string,
+  appPublicUrl = env.APP_PUBLIC_URL
+) {
+  const returnUrl = new URL("/telegram-login", appPublicUrl);
+  returnUrl.searchParams.set("telegram_token", resumeToken);
+  return returnUrl.toString();
 }
 
 export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
@@ -192,7 +255,6 @@ export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
     {
       flowId: parsed.flowId,
       confirmedAt: { $exists: false },
-      consumedAt: { $exists: false },
       expiresAt: { $gt: new Date() }
     },
     {
@@ -209,15 +271,53 @@ export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
   return { accepted: true, matched: true };
 }
 
-async function consumeConfirmedChallenge(filter: Record<string, unknown>) {
+let localPollingActive = false;
+let localPollingOffset = 0;
+
+export async function startTelegramLocalPolling() {
+  if (!env.TELEGRAM_LOCAL_POLLING || localPollingActive) return;
+  localPollingActive = true;
+  const token = requireBotToken();
+  await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`, {
+    method: "POST",
+    signal: AbortSignal.timeout(8_000)
+  });
+  void (async () => {
+    while (localPollingActive) {
+      try {
+        const response = await fetch(
+          `https://api.telegram.org/bot${token}/getUpdates?timeout=20&offset=${localPollingOffset}`,
+          { signal: AbortSignal.timeout(25_000) }
+        );
+        const payload = (await response.json()) as { ok?: boolean; result?: (TelegramMessageUpdate & { update_id: number })[] };
+        if (!payload.ok) throw new Error("Telegram polling failed");
+        for (const update of payload.result ?? []) {
+          localPollingOffset = Math.max(localPollingOffset, update.update_id + 1);
+          await confirmTelegramBotUpdate(update);
+        }
+      } catch {
+        if (localPollingActive) await new Promise((resolve) => setTimeout(resolve, 1_500));
+      }
+    }
+  })();
+}
+
+export function stopTelegramLocalPolling() {
+  localPollingActive = false;
+}
+
+async function consumeConfirmedChallenge(
+  filter: Record<string, unknown>,
+  consumptionField: "pollConsumedAt" | "resumeConsumedAt"
+) {
   const challenge = await TelegramLoginChallenge.findOneAndUpdate(
     {
       ...filter,
       confirmedAt: { $exists: true },
-      consumedAt: { $exists: false },
+      [consumptionField]: { $exists: false },
       expiresAt: { $gt: new Date() }
     },
-    { $set: { consumedAt: new Date() } },
+    { $set: { [consumptionField]: new Date() } },
     { new: false }
   );
   if (!challenge?.telegramUser) return null;
@@ -240,7 +340,7 @@ export async function pollTelegramLogin(flowId: string, pollToken: string) {
   const challenge = await TelegramLoginChallenge.findOne({
     flowId,
     expiresAt: { $gt: new Date() }
-  }).select("+pollTokenHash confirmedAt consumedAt");
+  }).select("+pollTokenHash confirmedAt pollConsumedAt");
   if (
     !challenge?.pollTokenHash ||
     !opaqueTokenMatches(pollToken, challenge.pollTokenHash)
@@ -248,15 +348,18 @@ export async function pollTelegramLogin(flowId: string, pollToken: string) {
     throw new ApiError(400, "invalid_telegram_flow", "Telegram login has expired");
   }
   if (!challenge.confirmedAt) return null;
-  if (challenge.consumedAt) {
+  if (challenge.pollConsumedAt) {
     throw new ApiError(409, "telegram_flow_consumed", "Telegram login was already used");
   }
-  return consumeConfirmedChallenge({ _id: challenge._id });
+  return consumeConfirmedChallenge({ _id: challenge._id }, "pollConsumedAt");
 }
 
 export async function completeTelegramResume(resumeToken: string) {
   const tokenHash = hashOpaqueToken(resumeToken);
-  const user = await consumeConfirmedChallenge({ resumeTokenHash: tokenHash });
+  const user = await consumeConfirmedChallenge(
+    { resumeTokenHash: tokenHash },
+    "resumeConsumedAt"
+  );
   if (!user) {
     throw new ApiError(400, "invalid_telegram_token", "Telegram login has expired");
   }

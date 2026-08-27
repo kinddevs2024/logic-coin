@@ -10,7 +10,11 @@ import {
   doubleChallengeCoins,
   startChallengeAttempt
 } from "../services/challenge-attempt.service.js";
-import { getContestResultForUser } from "../services/contest.service.js";
+import {
+  claimContestReward,
+  getContestResultForUser,
+  getPendingContestReward
+} from "../services/contest.service.js";
 import { getTodayChallengeOverview } from "../services/daily-challenge.service.js";
 
 const router = Router();
@@ -26,6 +30,15 @@ router.get("/results/:dayKey", async (request, response) => {
   if (!dayKey.success) throw new ApiError(400, "invalid_day_key", "Day key is invalid");
   const result = await getContestResultForUser(dayKey.data, request.auth!.userId);
   response.json({ data: { result } });
+});
+
+router.get("/rewards/pending", async (request, response) => {
+  response.json({ data: { reward: await getPendingContestReward(request.auth!.userId) } });
+});
+
+router.post("/rewards/:resultId/claim", rewardLimiter, async (request, response) => {
+  const result = await claimContestReward(String(request.params.resultId), request.auth!.userId);
+  response.json({ data: result });
 });
 
 router.post("/:gameKey/start", async (request, response) => {
@@ -72,7 +85,7 @@ router.post(
         scope: z.enum(["game", "day"]),
         ad: z
           .object({
-            provider: z.enum(["demo", "applovin-max"]).optional(),
+            provider: z.enum(["demo", "appodeal"]).optional(),
             receiptId: z.string().trim().min(1).max(180).optional()
           })
           .strict()
@@ -83,7 +96,7 @@ router.post(
   async (request, response) => {
     const body = request.body as {
       scope: "game" | "day";
-      ad?: { provider?: "demo" | "applovin-max"; receiptId?: string };
+      ad?: { provider?: "demo" | "appodeal"; receiptId?: string };
     };
     const result = await doubleChallengeCoins({
       userId: request.auth!.userId,
