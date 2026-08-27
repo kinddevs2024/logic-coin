@@ -181,6 +181,15 @@ jobs:
           "${build_tools}/apksigner" verify --verbose --print-certs artifacts/signed/logic-coin.apk
 
           cp "${release_aab}" artifacts/signed/logic-coin.aab
+          # Expo's generated release project can leave the Android debug JAR
+          # signature in the bundle. Remove every existing top-level signer so
+          # the Play Store bundle is signed only by the configured upload key.
+          zip -d artifacts/signed/logic-coin.aab \
+            'META-INF/*.RSA' \
+            'META-INF/*.DSA' \
+            'META-INF/*.EC' \
+            'META-INF/*.SF' \
+            'META-INF/MANIFEST.MF' >/dev/null 2>&1 || true
           jarsigner \
             -keystore "${keystore}" \
             -storetype PKCS12 \
@@ -191,6 +200,13 @@ jobs:
             artifacts/signed/logic-coin.aab \
             "${ANDROID_KEY_ALIAS}"
           jarsigner -verify -verbose -certs artifacts/signed/logic-coin.aab
+
+          aab_signer_count="$(unzip -Z1 artifacts/signed/logic-coin.aab \
+            | grep -Ec '^META-INF/[^/]+\.(RSA|DSA|EC)$')"
+          if [ "${aab_signer_count}" -ne 1 ]; then
+            echo "Expected exactly one AAB signer, found ${aab_signer_count}" >&2
+            exit 1
+          fi
 
           cd artifacts/signed
           sha256sum logic-coin.apk > logic-coin.apk.sha256
