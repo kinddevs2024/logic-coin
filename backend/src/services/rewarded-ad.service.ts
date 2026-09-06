@@ -5,18 +5,18 @@ import { ApiError } from "../lib/api-error.js";
 import { consumeRewardedAdSession } from "./rewarded-ad-session.service.js";
 
 export type RewardedAdProof = {
-  provider?: "demo" | "appodeal";
+  provider?: "demo" | "yandex" | "appodeal";
   receiptId?: string;
 };
 
 /**
  * Integration boundary for rewarded video verification. Demo is deliberately
- * explicit in the response. AppLovin MAX server-to-server verification can be
- * added here without changing the challenge route contract.
+ * explicit in the response. Yandex and Appodeal sessions are consumed only
+ * after their native SDK callback has completed the rewarded flow.
  */
 export async function verifyRewardedAd(proof: RewardedAdProof | undefined, userId: Types.ObjectId) {
   const provider = proof?.provider ?? "demo";
-  if (provider === "appodeal") {
+  if (provider === "yandex" || provider === "appodeal") {
     if (!proof?.receiptId) {
       throw new ApiError(400, "rewarded_ad_receipt_required", "Rewarded ad receipt is required");
     }

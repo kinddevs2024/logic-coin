@@ -13,7 +13,7 @@ const rewardedAdSessionSchema = new Schema(
   {
     sessionId: { type: String, required: true, unique: true, maxlength: 80 },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    provider: { type: String, enum: ["appodeal"], default: "appodeal", required: true },
+    provider: { type: String, enum: ["yandex", "appodeal"], default: "yandex", required: true },
     placement: { type: String, enum: REWARDED_AD_PLACEMENTS, required: true },
     status: {
       type: String,

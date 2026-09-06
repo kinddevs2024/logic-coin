@@ -58,7 +58,8 @@ const rawEnvSchema = z.object({
     emptyToUndefined,
     z.string().min(8).max(256).optional()
   ),
-  APPODEAL_ALLOW_CLIENT_CALLBACK: booleanFromString.default("false")
+  APPODEAL_ALLOW_CLIENT_CALLBACK: booleanFromString.default("false"),
+  YANDEX_ALLOW_CLIENT_CALLBACK: booleanFromString.default("false")
 });
 
 const raw = rawEnvSchema.parse(process.env);

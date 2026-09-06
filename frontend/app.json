@@ -44,6 +44,7 @@
       ],
       "@react-native-google-signin/google-signin",
       "./plugins/with-appodeal",
+      "./plugins/with-yandex-mobile-ads",
       [
         "expo-notifications",
         {

@@ -9,10 +9,12 @@ async function json(path) {
 }
 
 test("Expo and web deployment config target Logic Coin", async () => {
-  const [app, vercel, pkg] = await Promise.all([
+  const [app, eas, vercel, pkg, appodealPlugin] = await Promise.all([
     json("app.json"),
+    json("eas.json"),
     json("vercel.json"),
     json("package.json"),
+    readFile(new URL("plugins/with-appodeal.js", root), "utf8"),
   ]);
   assert.equal(app.expo.name, "Logic Coin");
   assert.equal(app.expo.android.package, "com.kinddevs.logiccoin");
@@ -20,6 +22,11 @@ test("Expo and web deployment config target Logic Coin", async () => {
   assert.equal(vercel.outputDirectory, "dist");
   assert.equal(pkg.scripts["build:web"], "expo export --platform web");
   assert.equal(pkg.scripts.typecheck, "tsc --noEmit");
+  assert.match(eas.build.preview.android.gradleCommand, /arm64-v8a/);
+  assert.match(eas.build.production.android.gradleCommand, /armeabi-v7a,arm64-v8a/);
+  assert.match(appodealPlugin, /android\.enableMinifyInReleaseBuilds/);
+  assert.match(appodealPlugin, /android\.enableShrinkResourcesInReleaseBuilds/);
+  assert.match(appodealPlugin, /expo\.gif\.enabled/);
 });
 
 test("public config contains no secrets and uses v1 API", async () => {

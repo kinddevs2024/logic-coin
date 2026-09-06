@@ -137,7 +137,7 @@ export function useChallenges() {
       if (authenticated && accessToken) {
         if (!ad.sessionId) throw new Error("rewarded_ad_not_verified");
         return challengesApi.double(scope, accessToken, {
-          provider: "appodeal",
+          provider: "yandex",
           receiptId: ad.sessionId,
         });
       }

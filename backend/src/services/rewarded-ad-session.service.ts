@@ -19,6 +19,7 @@ import { creditCoins, getCoinBalance } from "./coin.service.js";
 import { challengeDayKey } from "./daily-challenge.service.js";
 
 export type RewardedAdPlacement = (typeof REWARDED_AD_PLACEMENTS)[number];
+export type RewardedAdProvider = "yandex" | "appodeal";
 
 const SESSION_TTL_MS = 20 * 60 * 1000;
 const CALLBACK_MAX_AGE_MS = 48 * 60 * 60 * 1000;
@@ -29,6 +30,7 @@ const COIN_REWARDS: Partial<Record<RewardedAdPlacement, number>> = {
 
 function serializeSession(session: {
   sessionId: string;
+  provider: string;
   placement: string;
   status: string;
   rewardCoins: number;
@@ -36,7 +38,7 @@ function serializeSession(session: {
 }) {
   return {
     sessionId: session.sessionId,
-    provider: "appodeal" as const,
+    provider: session.provider as RewardedAdProvider,
     placement: session.placement,
     status: session.status,
     rewardCoins: session.rewardCoins,
@@ -46,11 +48,11 @@ function serializeSession(session: {
 
 export async function startRewardedAdSession(
   userId: Types.ObjectId,
-  placement: RewardedAdPlacement
+  placement: RewardedAdPlacement,
+  provider: RewardedAdProvider = "yandex"
 ) {
-  // Appodeal's S2S payload identifies the viewer, but does not include our
-  // internal session id. Keep only one pending session per user so a delayed
-  // callback can never complete a different reward flow.
+  // Keep only one pending session per user so a delayed callback can never
+  // complete a different reward flow.
   await RewardedAdSession.updateMany(
     { userId, status: "started" },
     { $set: { status: "expired", expiresAt: new Date() } }
@@ -58,6 +60,7 @@ export async function startRewardedAdSession(
   const session = await RewardedAdSession.create({
     sessionId: randomUUID(),
     userId,
+    provider,
     placement,
     rewardCoins: COIN_REWARDS[placement] ?? 0,
     expiresAt: new Date(Date.now() + SESSION_TTL_MS)
@@ -87,7 +90,10 @@ export async function completeRewardedAdFromClient(input: {
   if (session.status !== "started") return serializeSession(session);
 
   const clientVerificationAllowed =
-    env.NODE_ENV !== "production" || env.APPODEAL_ALLOW_CLIENT_CALLBACK;
+    env.NODE_ENV !== "production" ||
+    (session.provider === "yandex"
+      ? env.YANDEX_ALLOW_CLIENT_CALLBACK
+      : env.APPODEAL_ALLOW_CLIENT_CALLBACK);
   session.clientReceiptId = input.clientReceiptId;
   if (clientVerificationAllowed) {
     session.status = "completed";
@@ -163,8 +169,8 @@ export async function claimRewardedAdCoins(input: {
           amount: adSession.rewardCoins,
           type: "rewarded_ad_reward",
           sourceId: `rewarded-ad:${adSession.sessionId}`,
-          description: "Appodeal rewarded video",
-          metadata: { placement: adSession.placement, provider: "appodeal" }
+          description: `${adSession.provider} rewarded video`,
+          metadata: { placement: adSession.placement, provider: adSession.provider }
         },
         databaseSession
       );
