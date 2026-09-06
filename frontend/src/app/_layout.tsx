@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppearanceTransition } from "@/components/appearance-transition";
 import { AdRuntime } from "@/components/ad-runtime";
@@ -125,22 +126,24 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <StatusBar style={theme.mode === "dark" ? "light" : "dark"} />
-        <Stack
-          screenOptions={{
-            title: "Logic Coin",
-            headerShown: false,
-            animation: Platform.OS === "web" ? "fade" : "slide_from_right",
-            contentStyle: { backgroundColor: theme.background },
-          }}
-        />
-        <AppearanceTransition />
-        <AdRuntime />
-        <RewardBurst />
-        <ContestRewardModal />
-        <WebAnalytics />
-      </QueryClientProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <StatusBar style={theme.mode === "dark" ? "light" : "dark"} />
+          <Stack
+            screenOptions={{
+              title: "Logic Coin",
+              headerShown: false,
+              animation: Platform.OS === "web" ? "fade" : "slide_from_right",
+              contentStyle: { backgroundColor: theme.background },
+            }}
+          />
+          <AppearanceTransition />
+          <AdRuntime />
+          <RewardBurst />
+          <ContestRewardModal />
+          <WebAnalytics />
+        </QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

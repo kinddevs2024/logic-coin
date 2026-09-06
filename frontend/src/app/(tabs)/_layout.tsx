@@ -96,7 +96,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
   const theme = useAppTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDesktop } = useResponsiveLayout();
+  const { isDesktop, isWeb } = useResponsiveLayout();
   const reduceMotion = useReducedMotion();
   const visibleRoutes = useMemo(
     () => state.routes.filter((route) => Boolean(tabMeta[route.name])),
@@ -373,7 +373,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         })}
         </GlassSurface>
       </GestureDetector>
-      {isDesktop ? (
+      {isDesktop && isWeb ? (
         <Link href={PLAY_STORE_URL} target="_blank" asChild>
           <Pressable
             accessibilityRole="link"

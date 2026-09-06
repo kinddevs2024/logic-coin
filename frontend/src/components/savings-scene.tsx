@@ -227,7 +227,7 @@ export function SavingsScene({
   const stateIndex = jarIndex(progress);
   const stageScale = Math.min(
     1,
-    Math.max(0.78, (windowWidth - 32) / 372),
+    Math.max(0.62, (windowWidth - 32) / 372),
   );
   const [jarOpacity] = useState(() => new Animated.Value(1));
   const [drift] = useState(() => new Animated.Value(0));

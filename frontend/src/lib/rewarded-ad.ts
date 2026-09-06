@@ -11,7 +11,7 @@ export type InterstitialAdPlacement =
   | "navigation-frequency";
 
 export type RewardedAdReceipt = {
-  provider: "appodeal" | "demo";
+  provider: "yandex" | "appodeal" | "demo";
   placement: RewardedAdPlacement;
   completed: boolean;
   proof: string;

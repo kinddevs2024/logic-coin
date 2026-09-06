@@ -33,10 +33,18 @@ router.use(requireAuth);
 router.post(
   "/rewarded/start",
   rewardLimiter,
-  validateBody(z.object({ placement: z.enum(REWARDED_AD_PLACEMENTS) }).strict()),
+  validateBody(
+    z.object({
+      placement: z.enum(REWARDED_AD_PLACEMENTS),
+      provider: z.enum(["yandex", "appodeal"]).default("yandex")
+    }).strict()
+  ),
   async (request, response) => {
-    const body = request.body as { placement: (typeof REWARDED_AD_PLACEMENTS)[number] };
-    const session = await startRewardedAdSession(request.auth!.userId, body.placement);
+    const body = request.body as {
+      placement: (typeof REWARDED_AD_PLACEMENTS)[number];
+      provider: "yandex" | "appodeal";
+    };
+    const session = await startRewardedAdSession(request.auth!.userId, body.placement, body.provider);
     response.status(201).json({ data: { session } });
   }
 );

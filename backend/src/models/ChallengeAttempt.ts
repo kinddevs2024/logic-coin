@@ -26,6 +26,9 @@ const challengeAttemptSchema = new Schema(
 );
 
 challengeAttemptSchema.index({ userId: 1, createdAt: -1 });
+challengeAttemptSchema.index({ userId: 1, dayKey: 1, mode: 1, status: 1 });
+challengeAttemptSchema.index({ userId: 1, mode: 1, status: 1, dayKey: 1 });
+challengeAttemptSchema.index({ userId: 1, status: 1, completedAt: 1 });
 challengeAttemptSchema.index({ dayKey: 1, gameId: 1, status: 1, score: -1 });
 challengeAttemptSchema.index(
   { userId: 1, dayKey: 1, gameId: 1, mode: 1, attemptNumber: 1 },

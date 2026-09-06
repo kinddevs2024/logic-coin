@@ -430,7 +430,7 @@ export const challengesApi = {
   double(
     scope: "game" | "day",
     token: string,
-    ad?: { provider: "appodeal" | "demo"; receiptId: string },
+    ad?: { provider: "yandex" | "appodeal" | "demo"; receiptId: string },
   ) {
     return request<{
       scope: "game" | "day";
@@ -466,7 +466,7 @@ export const challengesApi = {
 
 export type RewardedAdSessionDto = {
   sessionId: string;
-  provider: "appodeal";
+  provider: "yandex" | "appodeal";
   placement: string;
   status: "started" | "completed" | "claimed" | "expired";
   rewardCoins: number;
@@ -480,7 +480,7 @@ export const adsApi = {
       {
         method: "POST",
         token,
-        body: JSON.stringify({ placement }),
+        body: JSON.stringify({ placement, provider: "yandex" }),
       },
     );
     return payload.session;

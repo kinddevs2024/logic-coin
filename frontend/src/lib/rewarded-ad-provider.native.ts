@@ -2,7 +2,6 @@ import Appodeal, {
   AppodealAdType,
   AppodealInterstitialEvents,
   AppodealLogLevel,
-  AppodealRewardedEvents,
   AppodealSdkEvents,
 } from "react-native-appodeal";
 import { Platform } from "react-native";
@@ -14,12 +13,12 @@ import type {
   RewardedAdProvider,
   RewardedAdReceipt,
 } from "./rewarded-ad";
+import { yandexRewardedAds } from "./yandex-rewarded.native";
 
 const APP_KEY = process.env.EXPO_PUBLIC_APPODEAL_APP_KEY?.trim() ?? "";
 const TEST_MODE =
   __DEV__ || process.env.EXPO_PUBLIC_APPODEAL_TEST_MODE?.toLowerCase() === "true";
 const AD_TYPES =
-  AppodealAdType.REWARDED_VIDEO |
   AppodealAdType.INTERSTITIAL |
   AppodealAdType.BANNER;
 const LOAD_TIMEOUT_MS = 15_000;
@@ -58,7 +57,15 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
   private showingRewarded = false;
   private showingInterstitial = false;
 
-  initialize(userId?: string) {
+  async initialize(userId?: string) {
+    const [yandexReady, appodealReady] = await Promise.all([
+      yandexRewardedAds.initialize(),
+      this.initializeAppodeal(userId),
+    ]);
+    return yandexReady || appodealReady;
+  }
+
+  private initializeAppodeal(userId?: string) {
     if (userId) Appodeal.setUserId(userId);
     if (this.initialized) return Promise.resolve(true);
     if (this.initializing) return this.initializing;
@@ -98,75 +105,11 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
   }
 
   async show(placement: RewardedAdPlacement): Promise<RewardedAdReceipt> {
-    const fallback = (reason: RewardedAdReceipt["reason"]): RewardedAdReceipt => ({
-      provider: "appodeal",
-      placement,
-      completed: false,
-      proof: "",
-      reason,
-    });
-    if (this.showingRewarded || !(await this.initialize())) {
-      return fallback("unavailable");
-    }
-    const loaded = await waitForLoaded(
-      AppodealAdType.REWARDED_VIDEO,
-      AppodealRewardedEvents.LOADED,
-      AppodealRewardedEvents.FAILED_TO_LOAD,
-    );
-    if (!loaded) return fallback("unavailable");
-
-    this.showingRewarded = true;
-    return new Promise<RewardedAdReceipt>((resolve) => {
-      let rewarded: { amount?: number; currency?: string } | null = null;
-      let settled = false;
-      let timeout: ReturnType<typeof setTimeout>;
-      const subscriptions: Subscription[] = [];
-      const finish = (result: RewardedAdReceipt) => {
-        if (settled) return;
-        settled = true;
-        this.showingRewarded = false;
-        subscriptions.forEach((subscription) => subscription.remove());
-        clearTimeout(timeout);
-        resolve(result);
-      };
-      subscriptions.push(
-        Appodeal.addEventListener(
-          AppodealRewardedEvents.REWARD,
-          (value?: { amount?: number; name?: string; currency?: string }) => {
-            rewarded = {
-              amount: value?.amount,
-              currency: value?.currency ?? value?.name,
-            };
-          },
-        ),
-      );
-      subscriptions.push(
-        Appodeal.addEventListener(AppodealRewardedEvents.CLOSED, () => {
-          if (!rewarded) {
-            finish(fallback("dismissed"));
-            return;
-          }
-          finish({
-            provider: "appodeal",
-            placement,
-            completed: true,
-            proof: createReceiptId(placement),
-            ...rewarded,
-          });
-        }),
-      );
-      subscriptions.push(
-        Appodeal.addEventListener(AppodealRewardedEvents.FAILED_TO_SHOW, () =>
-          finish(fallback("failed")),
-        ),
-      );
-      timeout = setTimeout(() => finish(fallback("timeout")), SHOW_TIMEOUT_MS);
-      Appodeal.show(AppodealAdType.REWARDED_VIDEO, placement);
-    });
+    return yandexRewardedAds.show(placement);
   }
 
   async showInterstitial(placement: InterstitialAdPlacement) {
-    if (this.showingInterstitial || !(await this.initialize())) return false;
+    if (this.showingInterstitial || !(await this.initializeAppodeal())) return false;
     const loaded = await waitForLoaded(
       AppodealAdType.INTERSTITIAL,
       AppodealInterstitialEvents.LOADED,
@@ -209,13 +152,12 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
   diagnostics(): AdsDiagnostics {
     return {
       configured: Boolean(APP_KEY),
-      initialized: this.initialized,
-      testMode: TEST_MODE,
-      rewardedLoaded:
-        this.initialized && Appodeal.isLoaded(AppodealAdType.REWARDED_VIDEO),
+      initialized: yandexRewardedAds.diagnostics().initialized,
+      testMode: yandexRewardedAds.diagnostics().testMode,
+      rewardedLoaded: yandexRewardedAds.diagnostics().rewardedLoaded,
       interstitialLoaded:
         this.initialized && Appodeal.isLoaded(AppodealAdType.INTERSTITIAL),
-      sdkVersion: this.initialized ? Appodeal.getPlatformSdkVersion() : null,
+      sdkVersion: yandexRewardedAds.diagnostics().sdkVersion,
     };
   }
 }

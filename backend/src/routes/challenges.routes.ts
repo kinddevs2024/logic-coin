@@ -85,7 +85,7 @@ router.post(
         scope: z.enum(["game", "day"]),
         ad: z
           .object({
-            provider: z.enum(["demo", "appodeal"]).optional(),
+            provider: z.enum(["demo", "yandex", "appodeal"]).optional(),
             receiptId: z.string().trim().min(1).max(180).optional()
           })
           .strict()
@@ -96,7 +96,7 @@ router.post(
   async (request, response) => {
     const body = request.body as {
       scope: "game" | "day";
-      ad?: { provider?: "demo" | "appodeal"; receiptId?: string };
+      ad?: { provider?: "demo" | "yandex" | "appodeal"; receiptId?: string };
     };
     const result = await doubleChallengeCoins({
       userId: request.auth!.userId,

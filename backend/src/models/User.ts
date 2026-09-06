@@ -75,6 +75,10 @@ userSchema.index({ "providers.googleSub": 1 }, { unique: true, sparse: true });
 userSchema.index({ "providers.yandexSub": 1 }, { unique: true, sparse: true });
 userSchema.index({ "providers.telegramSub": 1 }, { unique: true, sparse: true });
 userSchema.index({ referredBy: 1, createdAt: -1 });
+userSchema.index({ "wallet.availableUnits": -1, "coins.balance": -1, _id: 1 });
+userSchema.index({ "wallet.availableUnits": -1, _id: 1 });
+userSchema.index({ "coins.balance": -1, _id: 1 });
+userSchema.index({ "wallet.lifetimeEarnedUnits": -1, _id: 1 });
 
 export type UserDocument = InferSchemaType<typeof userSchema>;
 export const User =
