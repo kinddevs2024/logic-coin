@@ -30,6 +30,7 @@ const COIN_REWARDS: Partial<Record<RewardedAdPlacement, number>> = {
 
 function serializeSession(session: {
   sessionId: string;
+  provider: string;
   placement: string;
   status: string;
   rewardCoins: number;
