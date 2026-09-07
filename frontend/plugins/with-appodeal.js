@@ -12,6 +12,8 @@ const APPODEAL_DEPENDENCIES = [
   'implementation("com.appodeal.ads.sdk.adapters:bidon:0.14.0.0")',
 ];
 const ANDROID_RELEASE_PROPERTIES = [
+  ["org.gradle.jvmargs", "-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"],
+  ["org.gradle.workers.max", "2"],
   ["reactNativeArchitectures", "armeabi-v7a,arm64-v8a"],
   ["android.enableMinifyInReleaseBuilds", "true"],
   ["android.enableShrinkResourcesInReleaseBuilds", "true"],
@@ -30,10 +32,12 @@ function addOnce(source, anchor, value) {
 module.exports = function withAppodeal(config) {
   config = withGradleProperties(config, (gradleConfig) => {
     for (const [key, value] of ANDROID_RELEASE_PROPERTIES) {
-      const exists = gradleConfig.modResults.some(
+      const existing = gradleConfig.modResults.find(
         (property) => property.type === "property" && property.key === key,
       );
-      if (!exists) {
+      if (existing) {
+        existing.value = value;
+      } else {
         gradleConfig.modResults.push({ type: "property", key, value });
       }
     }
