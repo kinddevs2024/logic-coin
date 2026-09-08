@@ -20,9 +20,9 @@ export default function AdsScreen() {
 
   useEffect(() => {
     mounted.current = true;
-    // Warm the SDK up while the user is still looking at the screen so the
-    // first tap does not pay for consent + initialization.
-    void admob.initialize().catch(() => false);
+    // Warm the SDK and an actual ad up while the user is still looking at the
+    // screen, so the first tap does not pay for consent + load.
+    void admob.preloadInterstitial().catch(() => undefined);
     return () => {
       mounted.current = false;
     };
@@ -51,6 +51,8 @@ export default function AdsScreen() {
     // The launch flow must never dead-end, so the button turns into a plain
     // "continue" instead of retrying forever.
     setFailed(true);
+    // Give the next attempt a head start in case the user taps again.
+    void admob.preloadInterstitial().catch(() => undefined);
   }, [busy, continueToApp, failed]);
 
   return (

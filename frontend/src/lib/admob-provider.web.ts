@@ -5,6 +5,10 @@ class WebAdmobController implements AdmobController {
     return false;
   }
 
+  async preloadInterstitial() {
+    // no-op
+  }
+
   async showInterstitial(): Promise<AdmobInterstitialResult> {
     return { shown: false, reason: "unsupported" };
   }
