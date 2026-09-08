@@ -11,6 +11,9 @@ const APPODEAL_DEPENDENCIES = [
   'implementation("com.appodeal.ads.sdk.adapters:bidmachine:3.7.1.0")',
   'implementation("com.appodeal.ads.sdk.adapters:bidon:0.14.0.0")',
 ];
+const GOOGLE_MOBILE_ADS_VERSION = "24.7.0";
+const GOOGLE_MOBILE_ADS_FORCE_LINE =
+  `resolutionStrategy.force("com.google.android.gms:play-services-ads:${GOOGLE_MOBILE_ADS_VERSION}")`;
 const ANDROID_RELEASE_PROPERTIES = [
   ["org.gradle.jvmargs", "-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"],
   ["org.gradle.workers.max", "2"],
@@ -29,7 +32,19 @@ function addOnce(source, anchor, value) {
   return source.replace(anchor, `${anchor}\n    ${value}`);
 }
 
-module.exports = function withAppodeal(config) {
+function addGoogleAdsResolution(source) {
+  if (source.includes(GOOGLE_MOBILE_ADS_FORCE_LINE)) return source;
+  const anchor = `${APPODEAL_REPOSITORY}\n  }\n}`;
+  if (!source.includes(anchor)) {
+    throw new Error("Appodeal config plugin could not find allprojects repository block");
+  }
+  return source.replace(
+    anchor,
+    `${APPODEAL_REPOSITORY}\n  }\n  configurations.configureEach {\n    ${GOOGLE_MOBILE_ADS_FORCE_LINE}\n  }\n}`,
+  );
+}
+
+function withAppodeal(config) {
   config = withGradleProperties(config, (gradleConfig) => {
     for (const [key, value] of ANDROID_RELEASE_PROPERTIES) {
       const existing = gradleConfig.modResults.find(
@@ -45,11 +60,13 @@ module.exports = function withAppodeal(config) {
   });
 
   config = withProjectBuildGradle(config, (gradleConfig) => {
-    gradleConfig.modResults.contents = addOnce(
+    let contents = addOnce(
       gradleConfig.modResults.contents,
       "maven { url 'https://www.jitpack.io' }",
       APPODEAL_REPOSITORY,
     );
+    contents = addGoogleAdsResolution(contents);
+    gradleConfig.modResults.contents = contents;
     return gradleConfig;
   });
 
@@ -67,4 +84,12 @@ module.exports = function withAppodeal(config) {
   });
 
   return config;
+}
+
+module.exports = withAppodeal;
+module.exports.__test__ = {
+  addGoogleAdsResolution,
+  addOnce,
+  APPODEAL_REPOSITORY,
+  GOOGLE_MOBILE_ADS_FORCE_LINE,
 };
