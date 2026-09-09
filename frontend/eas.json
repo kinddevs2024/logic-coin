@@ -8,6 +8,12 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
+      },
+      "env": {
+        "EXPO_PUBLIC_ADMOB_BANNER_ID_ANDROID": "ca-app-pub-8830993776186608/2821994016",
+        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_ANDROID": "ca-app-pub-8830993776186608/2489504876",
+        "EXPO_PUBLIC_ADMOB_BANNER_ID_IOS": "ca-app-pub-8830993776186608/2821994016",
+        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_IOS": "ca-app-pub-8830993776186608/2489504876"
       }
     },
     "production": {
@@ -15,6 +21,12 @@
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease -PreactNativeArchitectures=armeabi-v7a,arm64-v8a"
+      },
+      "env": {
+        "EXPO_PUBLIC_ADMOB_BANNER_ID_ANDROID": "ca-app-pub-8830993776186608/2821994016",
+        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_ANDROID": "ca-app-pub-8830993776186608/2489504876",
+        "EXPO_PUBLIC_ADMOB_BANNER_ID_IOS": "ca-app-pub-8830993776186608/2821994016",
+        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID_IOS": "ca-app-pub-8830993776186608/2489504876"
       }
     }
   }

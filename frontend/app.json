@@ -7,12 +7,10 @@
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kinddevs.logiccoin"
     },
-
     "android": {
       "package": "com.kinddevs.logiccoin",
       "versionCode": 3,
@@ -26,13 +24,11 @@
         "VIBRATE"
       ]
     },
-
     "web": {
       "output": "single",
       "favicon": "./assets/brand/favicon.png",
       "bundler": "metro"
     },
-
     "plugins": [
       "expo-router",
       "expo-secure-store",
@@ -43,6 +39,14 @@
         }
       ],
       "@react-native-google-signin/google-signin",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-8830993776186608~3415573733",
+          "iosAppId": "ca-app-pub-8830993776186608~3415573733",
+          "userTrackingUsageDescription": "Logic Coin использует идентификатор устройства, чтобы показывать более подходящую рекламу."
+        }
+      ],
       "./plugins/with-appodeal",
       "./plugins/with-yandex-mobile-ads",
       [
@@ -62,12 +66,10 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
-
     "extra": {
       "router": {
         "origin": false

@@ -9,6 +9,7 @@ const ru = {
   "common.close": "Закрыть",
   "common.coins": "$",
   "common.demo": "Демо-режим",
+  "ads.unavailable": "Реклама сейчас недоступна",
   "language.title": "Выберите язык",
   "language.subtitle": "Его всегда можно изменить в настройках",
   "language.ru": "Русский",
@@ -143,6 +144,7 @@ export type TranslationKey = keyof typeof ru;
 
 const en: Record<TranslationKey, string> = {
   "common.next": "Next", "common.skip": "Skip", "common.done": "Done", "common.back": "Back", "common.save": "Save", "common.close": "Close", "common.coins": "$", "common.demo": "Demo mode",
+  "ads.unavailable": "No ad available right now",
   "language.title": "Choose your language", "language.subtitle": "You can change it anytime in Settings", "language.ru": "Русский", "language.uz": "O‘zbekcha", "language.en": "English",
   "onboarding.one.title": "A savings jar that grows", "onboarding.one.body": "Logic Coin turns small actions into visible progress toward your goal.",
   "onboarding.two.title": "Six challenges every day", "onboarding.two.body": "Play the shared daily set, collect coins and climb the ranking.",
@@ -162,6 +164,7 @@ const en: Record<TranslationKey, string> = {
 const uz: Record<TranslationKey, string> = {
   ...en,
   "common.next": "Keyingi", "common.skip": "O‘tkazib yuborish", "common.done": "Tayyor", "common.back": "Orqaga", "common.save": "Saqlash", "common.close": "Yopish",
+  "ads.unavailable": "Hozircha reklama mavjud emas",
   "language.title": "Tilni tanlang", "language.subtitle": "Sozlamalarda istalgan payt o‘zgartirishingiz mumkin",
   "onboarding.one.title": "O‘sib boradigan jamg‘arma", "onboarding.one.body": "Logic Coin kichik harakatlarni maqsadingiz sari ko‘rinadigan natijaga aylantiradi.",
   "onboarding.two.title": "Har kuni oltita sinov", "onboarding.two.body": "Umumiy kunlik o‘yinlarda coin yig‘ing va reytingda ko‘tariling.",
