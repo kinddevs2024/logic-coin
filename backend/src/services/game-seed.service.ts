@@ -16,13 +16,7 @@ type SeedGame = {
 };
 
 const nativeGames: SeedGame[] = [
-  ["tetris", "grid", "#087CFF", "medium", "Tetris", "Тетрис", "Tetris"],
-  ["chess", "people", "#705CF6", "hard", "Chess", "Шахматы", "Shaxmat"],
   ["2048", "apps", "#F59E0B", "medium", "2048", "2048", "2048"],
-  ["longcat", "git-branch", "#F07D5A", "medium", "Trail Cat", "Хвостатый путь", "Uzun mushuk"],
-  ["gobble", "radio-button-on", "#8A5CF6", "medium", "Pocket Vortex", "Карманная воронка", "Cho‘ntak girdobi"],
-  ["loops", "infinite", "#B45C66", "medium", "Infinity Loop", "Живые линии", "Cheksiz halqa"],
-  ["brain-tricks", "bulb", "#27A66F", "medium", "Brain Tricks", "Хитрые мысли", "Aqlli topishmoqlar"]
 ].map(([key, icon, color, difficulty, en, ru, uz]) => ({
   key,
   icon,
@@ -42,15 +36,14 @@ const importedGames: SeedGame[] = [
   { key: "one-second", icon: "timer", color: "#0EA5E9", difficulty: "hard", title: { en: "One Second", ru: "Одна секунда", uz: "Bir soniya" } },
   { key: "tsvet", icon: "color-palette", color: "#EC4899", difficulty: "medium", title: { en: "Color", ru: "Цвет", uz: "Rang" } },
   { key: "udar", icon: "flash", color: "#F79009", difficulty: "easy", title: { en: "Strike", ru: "Удар", uz: "Zarba" } },
-  { key: "space-find-number", icon: "planet", color: "#5945E8", difficulty: "easy", title: { en: "Space Numbers", ru: "Космические числа", uz: "Kosmik raqamlar" } },
+  { key: "space-find-number", icon: "planet", color: "#5945E8", difficulty: "easy", title: { en: "Space", ru: "Космический", uz: "Kosmik" } },
   { key: "brain-training", icon: "fitness", color: "#12B76A", difficulty: "medium", title: { en: "Brain Training", ru: "Тренировка мозга", uz: "Miya mashg‘uloti" } },
   { key: "find-letter", icon: "text", color: "#0866FF", difficulty: "easy", title: { en: "Find the Letter", ru: "Найди букву", uz: "Harfni toping" } },
   { key: "volt-match", icon: "grid", color: "#7A5AF8", difficulty: "medium", title: { en: "VOLT Match", ru: "VOLT Матч", uz: "VOLT Match" } },
   { key: "geography-quiz", icon: "earth", color: "#0F9F6E", difficulty: "medium", title: { en: "Geography Quiz", ru: "География", uz: "Geografiya" } },
-  { key: "pulse", icon: "pulse", color: "#F43F5E", difficulty: "hard", title: { en: "Pulse", ru: "Пульс", uz: "Puls" } },
+  { key: "fact", icon: "pulse", color: "#F43F5E", difficulty: "hard", title: { en: "Fact", ru: "Факт", uz: "Fakt" } },
   { key: "volt-numbers", icon: "keypad", color: "#8B5CF6", difficulty: "medium", title: { en: "VOLT Numbers", ru: "VOLT Числа", uz: "VOLT Raqamlari" } },
   { key: "math-quiz", icon: "calculator", color: "#16A34A", difficulty: "medium", title: { en: "Math Quiz", ru: "Математическая викторина", uz: "Matematik viktorina" } },
-  { key: "math-duel", icon: "git-compare", color: "#DC2626", difficulty: "hard", title: { en: "Math Duel", ru: "Математическая дуэль", uz: "Matematik duel" } },
   { key: "shadow", icon: "shapes", color: "#64748B", difficulty: "medium", title: { en: "Shadows", ru: "Тени", uz: "Soyalar" } }
 ].map((game) => ({
   ...game,
@@ -64,6 +57,17 @@ const importedGames: SeedGame[] = [
 })) as SeedGame[];
 
 export const DEFAULT_GAMES = [...nativeGames, ...importedGames] as const;
+const REMOVED_GAME_KEYS = [
+  "gold-rush-2048",
+  "tetris",
+  "chess",
+  "longcat",
+  "gobble",
+  "loops",
+  "brain-tricks",
+  "pulse",
+  "math-duel"
+] as const;
 
 async function hasGameReferences(gameId: unknown): Promise<boolean> {
   const [challengeSet, attempt] = await Promise.all([
@@ -74,16 +78,18 @@ async function hasGameReferences(gameId: unknown): Promise<boolean> {
 }
 
 export async function retireRemovedGames(): Promise<void> {
-  const removed = await Game.findOne({ key: "gold-rush-2048" }).select("_id");
-  if (!removed) return;
-  if (await hasGameReferences(removed._id)) {
-    await Game.updateOne(
-      { _id: removed._id },
-      { $set: { enabled: false, challengeEnabled: false, practiceEnabled: false } }
-    );
-    return;
+  for (const key of REMOVED_GAME_KEYS) {
+    const game = await Game.findOne({ key }).select("_id");
+    if (!game) continue;
+    if (await hasGameReferences(game._id)) {
+      await Game.updateOne(
+        { _id: game._id },
+        { $set: { enabled: false, challengeEnabled: false, practiceEnabled: false } }
+      );
+    } else {
+      await Game.deleteOne({ _id: game._id });
+    }
   }
-  await Game.deleteOne({ _id: removed._id });
 }
 
 /**

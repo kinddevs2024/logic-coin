@@ -168,6 +168,7 @@ export async function settleDailyContest(dayKey: string) {
               rank: standing.rank,
               rewardType: standing.rewardType,
               ...(standing.rewardType === "cash" ? { cashUnits } : {}),
+              coinAmount: set.coinPrizeAmounts?.[standing.rank - 1] ?? 0,
               ...(standing.rewardType === "box"
                 ? {
                     caseKind: CONTEST_STANDARD_CASE_KIND,
@@ -455,6 +456,7 @@ export async function claimContestReward(resultId: string, userId: Types.ObjectI
           { winnerUserId: userId, winnerPrizeUnits: amount, dayKey: result.dayKey, sourceId },
           session
         );
+        await grantNextChallengeCoins(result.coinAmount ?? 0, "configured-coins");
       } else if (result.rewardType === "box") {
         await grantNextChallengeCoins(result.coinAmount ?? 0, "box-coins");
         await grantReplay(result.replayCount ?? 0, "box-replay");

@@ -643,6 +643,7 @@ export type AdminChallenge = {
   cashPrizeMinUnits: number;
   cashPrizeMaxUnits: number;
   prizePoolUnits: number;
+  coinPrizeAmounts: number[];
   maxAttemptsPerGame: number;
   oneSecondAttemptLimit: number;
   publishedAt: string | null;
@@ -767,7 +768,7 @@ export const adminApi = {
       { token },
     );
   },
-  saveChallenge(input: { dayKey: string; selectionMode: AdminChallengeSelectionMode; gameKeys?: string[]; cashPrizeMinUnits: number; cashPrizeMaxUnits: number; prizePoolUnits: number; maxAttemptsPerGame: number; oneSecondAttemptLimit: number; publish: boolean }, token: string) {
+  saveChallenge(input: { dayKey: string; selectionMode: AdminChallengeSelectionMode; gameKeys?: string[]; cashPrizeMinUnits: number; cashPrizeMaxUnits: number; prizePoolUnits: number; coinPrizeAmounts: number[]; maxAttemptsPerGame: number; oneSecondAttemptLimit: number; publish: boolean }, token: string) {
     const { dayKey, ...body } = input;
     return request<{ challenge: AdminChallenge; notificationEvent: null | { id: string; status: string; targetCount: number } }>(`/admin/daily-challenges/${encodeURIComponent(dayKey)}`, {
       method: "PUT",

@@ -134,6 +134,7 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
       cashMinUnits: set.cashPrizeMinUnits,
       cashMaxUnits: set.cashPrizeMaxUnits,
       poolUnits: set.prizePoolUnits
+      ,coinPrizeAmounts: set.coinPrizeAmounts ?? [0, 0, 0, 0, 0, 0]
     }
   };
 }

@@ -297,7 +297,6 @@ export function SavingsScene({
           accessibilityIgnoresInvertColors
           style={styles.island}
         />
-        <View style={styles.contactShadow} />
         <MoneyLayer eventId={rewardEventId} phase="inside" />
         <Animated.View
           style={[
@@ -370,18 +369,6 @@ const styles = StyleSheet.create({
     height: 272,
     top: 165,
     zIndex: 1,
-  },
-  contactShadow: {
-    position: "absolute",
-    width: 154,
-    height: 30,
-    borderRadius: 77,
-    top: 294,
-    backgroundColor: "rgba(18,38,28,0.24)",
-    zIndex: 2,
-    ...(Platform.OS === "web"
-      ? ({ filter: "blur(12px)" } as unknown as ViewStyle)
-      : {}),
   },
   jarGroup: {
     position: "absolute",

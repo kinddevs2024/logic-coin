@@ -6,12 +6,12 @@ import {
 import { DEFAULT_GAMES } from "../src/services/game-seed.service.js";
 
 describe("canonical game catalog keys", () => {
-  it("seeds all 20 active frontend game ids and no retired or legacy duplicates", () => {
+  it("seeds only the supported game ids and no retired or legacy duplicates", () => {
     const keys = DEFAULT_GAMES.map((game) => game.key);
-    expect(keys).toHaveLength(20);
-    expect(new Set(keys).size).toBe(20);
+    expect(keys).toHaveLength(13);
+    expect(new Set(keys).size).toBe(13);
     expect(keys).not.toContain("gold-rush-2048");
-    expect(keys).toEqual(expect.arrayContaining(["tsvet", "udar", "shadow"]));
+    expect(keys).toEqual(expect.arrayContaining(["2048", "tsvet", "udar", "fact", "shadow"]));
     expect(keys).not.toEqual(
       expect.arrayContaining(Object.keys(LEGACY_GAME_KEY_ALIASES))
     );

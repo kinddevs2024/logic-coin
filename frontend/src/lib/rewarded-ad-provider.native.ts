@@ -1,6 +1,7 @@
 import Appodeal, {
   AppodealAdType,
   AppodealInterstitialEvents,
+  AppodealRewardedEvents,
   AppodealLogLevel,
   AppodealSdkEvents,
 } from "react-native-appodeal";
@@ -20,7 +21,8 @@ const TEST_MODE =
   __DEV__ || process.env.EXPO_PUBLIC_APPODEAL_TEST_MODE?.toLowerCase() === "true";
 const AD_TYPES =
   AppodealAdType.INTERSTITIAL |
-  AppodealAdType.BANNER;
+  AppodealAdType.BANNER |
+  AppodealAdType.REWARDED_VIDEO;
 const LOAD_TIMEOUT_MS = 15_000;
 const SHOW_TIMEOUT_MS = 120_000;
 
@@ -105,7 +107,45 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
   }
 
   async show(placement: RewardedAdPlacement): Promise<RewardedAdReceipt> {
-    return yandexRewardedAds.show(placement);
+    const yandexReceipt = await yandexRewardedAds.show(placement);
+    if (yandexReceipt.completed) return yandexReceipt;
+    if (!(await this.initializeAppodeal())) {
+      console.warn("[Ads] No rewarded provider initialized", { placement, reason: yandexReceipt.reason });
+      return yandexReceipt;
+    }
+    const loaded = await waitForLoaded(
+      AppodealAdType.REWARDED_VIDEO,
+      AppodealRewardedEvents.LOADED,
+      AppodealRewardedEvents.FAILED_TO_LOAD,
+    );
+    if (!loaded) {
+      console.warn("[Ads] Rewarded ad failed to load", { placement });
+      return { ...yandexReceipt, reason: "unavailable" };
+    }
+    return new Promise<RewardedAdReceipt>((resolve) => {
+      let rewarded = false;
+      let settled = false;
+      let timeout: ReturnType<typeof setTimeout>;
+      const subscriptions: Subscription[] = [];
+      const finish = (completed: boolean, reason?: RewardedAdReceipt["reason"]) => {
+        if (settled) return;
+        settled = true;
+        subscriptions.forEach((subscription) => subscription.remove());
+        clearTimeout(timeout);
+        resolve({
+          provider: "appodeal",
+          placement,
+          completed,
+          proof: createReceiptId(placement),
+          reason,
+        });
+      };
+      subscriptions.push(Appodeal.addEventListener(AppodealRewardedEvents.REWARD, () => { rewarded = true; }));
+      subscriptions.push(Appodeal.addEventListener(AppodealRewardedEvents.CLOSED, () => finish(rewarded, rewarded ? undefined : "dismissed")));
+      subscriptions.push(Appodeal.addEventListener(AppodealRewardedEvents.FAILED_TO_SHOW, () => finish(false, "failed")));
+      timeout = setTimeout(() => finish(false, "timeout"), SHOW_TIMEOUT_MS);
+      Appodeal.show(AppodealAdType.REWARDED_VIDEO, placement);
+    });
   }
 
   async showInterstitial(placement: InterstitialAdPlacement) {

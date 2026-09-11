@@ -22,7 +22,7 @@ const ru = {
   "onboarding.three.title": "Возвращайтесь каждый день",
   "onboarding.three.body": "Серия активности, календарь и бонусы помогают не терять темп.",
   "onboarding.four.title": "Копите и выводите",
-  "onboarding.four.body": "Соберите минимум $10, выберите способ выплаты и отправьте заявку.",
+  "onboarding.four.body": "Соберите минимум $2, выберите способ выплаты и отправьте заявку.",
   "auth.welcome": "Добро пожаловать",
   "auth.subtitle": "Войдите, чтобы синхронизировать прогресс",
   "auth.email": "Электронная почта",
@@ -120,7 +120,7 @@ const ru = {
   "settings.permissionDenied": "Разрешите уведомления в настройках телефона.",
   "withdraw.title": "Вывод средств",
   "withdraw.available": "Доступно",
-  "withdraw.minimum": "Минимальная сумма вывода — $10",
+  "withdraw.minimum": "Минимальная сумма вывода — $2",
   "withdraw.locked": "Нужно накопить ещё",
   "withdraw.ready": "Можно вывести",
   "withdraw.method": "Способ выплаты",
@@ -149,7 +149,7 @@ const en: Record<TranslationKey, string> = {
   "onboarding.one.title": "A savings jar that grows", "onboarding.one.body": "Logic Coin turns small actions into visible progress toward your goal.",
   "onboarding.two.title": "Six challenges every day", "onboarding.two.body": "Play the shared daily set, collect coins and climb the ranking.",
   "onboarding.three.title": "Come back every day", "onboarding.three.body": "Streaks, a calendar and bonuses help you stay on track.",
-  "onboarding.four.title": "Save and withdraw", "onboarding.four.body": "Reach the $10 minimum, choose a payout method and submit your request.",
+  "onboarding.four.title": "Save and withdraw", "onboarding.four.body": "Reach the $2 minimum, choose a payout method and submit your request.",
   "auth.welcome": "Welcome", "auth.subtitle": "Sign in to sync your progress", "auth.email": "Email", "auth.password": "Password", "auth.passwordTitle": "Enter your password", "auth.createPasswordTitle": "Create a password", "auth.passwordHint": "At least 8 characters", "auth.invalidCredentials": "Incorrect email or password", "auth.name": "Your name", "auth.login": "Sign in", "auth.register": "Create account", "auth.noAccount": "New to Logic Coin?", "auth.hasAccount": "Already have an account?", "auth.or": "or continue with", "auth.google": "Google", "auth.yandex": "Yandex", "auth.guest": "Continue as guest", "auth.guestHint": "Progress stays on this device", "auth.verifyTitle": "Check your email", "auth.verifyBody": "Enter the 6-digit code sent to", "auth.code": "Verification code", "auth.verify": "Verify", "auth.resend": "Send code again", "auth.invalid": "Please check your details", "auth.socialReady": "The provider will open after redirect URLs are configured.",
   "tabs.home": "Home", "tabs.tasks": "Tasks", "tabs.challenges": "Challenges", "tabs.bonuses": "Bonuses", "tabs.games": "Games", "tabs.profile": "Profile",
   "home.hello": "Good day", "home.balance": "In your bank", "home.goal": "Goal", "home.goalProgress": "to goal", "home.earn": "Earn", "home.withdraw": "Withdraw", "home.today": "For today", "home.allTasks": "All tasks", "home.allChallenges": "All challenges", "home.drawer.activeDays": "active days", "home.drawer.streak": "day streak", "home.drawer.invite": "Add friends", "home.drawer.profile": "Open profile",
@@ -157,7 +157,7 @@ const en: Record<TranslationKey, string> = {
   "bonus.title": "Bonuses", "bonus.subtitle": "Consistency turns into rewards", "bonus.streak": "Current streak", "bonus.days": "days", "bonus.week": "Week", "bonus.month": "Month", "bonus.next": "Next reward", "bonus.nextIn": "in 2 days", "bonus.grace": "Streak protection day", "bonus.graceBody": "Once a week you may miss one day without losing your streak.", "bonus.calendar": "July 2026",
   "profile.title": "Profile", "profile.active": "Activity", "profile.balance": "Balance", "profile.friends": "Friends", "profile.earned": "From friends", "profile.invite": "Invite friends", "profile.settings": "Settings", "profile.logout": "Sign out", "profile.edit": "Edit profile", "profile.name": "Name", "profile.avatarUrl": "Photo URL",
   "settings.title": "Settings", "settings.notifications": "Daily reminders", "settings.notificationBody": "We’ll remind you to protect your streak", "settings.time": "Reminder time", "settings.theme": "Appearance", "settings.theme.light": "Light", "settings.theme.sky": "Sky", "settings.theme.dark": "Dark", "settings.language": "Language", "settings.permissionDenied": "Allow notifications in your phone settings.",
-  "withdraw.title": "Withdraw", "withdraw.available": "Available", "withdraw.minimum": "Minimum withdrawal is $10", "withdraw.locked": "Still needed", "withdraw.ready": "Ready to withdraw", "withdraw.method": "Payout method", "withdraw.card": "Bank card", "withdraw.wallet": "Digital wallet", "withdraw.amount": "Amount", "withdraw.submit": "Submit request", "withdraw.history": "Payout history", "withdraw.empty": "Your payouts will appear here",
+  "withdraw.title": "Withdraw", "withdraw.available": "Available", "withdraw.minimum": "Minimum withdrawal is $2", "withdraw.locked": "Still needed", "withdraw.ready": "Ready to withdraw", "withdraw.method": "Payout method", "withdraw.card": "Bank card", "withdraw.wallet": "Digital wallet", "withdraw.amount": "Amount", "withdraw.submit": "Submit request", "withdraw.history": "Payout history", "withdraw.empty": "Your payouts will appear here",
   "invite.title": "Invite friends", "invite.subtitle": "Earn 25% of your friends’ cash and coin prizes.", "invite.code": "Your code", "invite.copy": "Copy code", "invite.share": "Share invitation", "invite.invited": "Invited", "invite.reward": "Earned", "invite.people": "friends",
 };
 
@@ -169,7 +169,7 @@ const uz: Record<TranslationKey, string> = {
   "onboarding.one.title": "O‘sib boradigan jamg‘arma", "onboarding.one.body": "Logic Coin kichik harakatlarni maqsadingiz sari ko‘rinadigan natijaga aylantiradi.",
   "onboarding.two.title": "Har kuni oltita sinov", "onboarding.two.body": "Umumiy kunlik o‘yinlarda coin yig‘ing va reytingda ko‘tariling.",
   "onboarding.three.title": "Har kuni qayting", "onboarding.three.body": "Faollik seriyasi, taqvim va bonuslar ritmni saqlashga yordam beradi.",
-  "onboarding.four.title": "Jamg‘aring va yechib oling", "onboarding.four.body": "Kamida $10 yig‘ing, to‘lov usulini tanlang va so‘rov yuboring.",
+  "onboarding.four.title": "Jamg‘aring va yechib oling", "onboarding.four.body": "Kamida $2 yig‘ing, to‘lov usulini tanlang va so‘rov yuboring.",
   "auth.welcome": "Xush kelibsiz", "auth.subtitle": "Natijani sinxronlash uchun kiring", "auth.email": "Elektron pochta", "auth.password": "Parol", "auth.passwordTitle": "Parolni kiriting", "auth.createPasswordTitle": "Parol yarating", "auth.passwordHint": "Kamida 8 ta belgi", "auth.invalidCredentials": "Email yoki parol noto‘g‘ri", "auth.name": "Ismingiz", "auth.login": "Kirish", "auth.register": "Hisob yaratish", "auth.noAccount": "Hisobingiz yo‘qmi?", "auth.hasAccount": "Hisobingiz bormi?", "auth.or": "yoki davom eting", "auth.guest": "Ro‘yxatdan o‘tmasdan davom etish", "auth.guestHint": "Natija faqat shu qurilmada saqlanadi", "auth.verifyTitle": "Pochtani tekshiring", "auth.verifyBody": "Yuborilgan 6 xonali kodni kiriting:", "auth.code": "Tasdiqlash kodi", "auth.verify": "Tasdiqlash", "auth.resend": "Kodni qayta yuborish", "auth.invalid": "Ma’lumotlarni tekshiring",
   "tabs.home": "Asosiy", "tabs.tasks": "Vazifalar", "tabs.challenges": "Sinovlar", "tabs.bonuses": "Bonuslar", "tabs.games": "O‘yinlar", "tabs.profile": "Profil",
   "home.hello": "Xayrli kun", "home.balance": "Jamg‘armada", "home.goal": "Maqsad", "home.goalProgress": "maqsadgacha", "home.earn": "Ishlash", "home.withdraw": "Yechib olish", "home.today": "Bugun uchun", "home.allTasks": "Barcha vazifalar", "home.allChallenges": "Barcha sinovlar", "home.drawer.activeDays": "faol kun", "home.drawer.streak": "kun ketma-ket", "home.drawer.invite": "Do‘st qo‘shish", "home.drawer.profile": "Profilni ochish",
@@ -177,7 +177,7 @@ const uz: Record<TranslationKey, string> = {
   "bonus.title": "Bonuslar", "bonus.subtitle": "Barqarorlik mukofotga aylanadi", "bonus.streak": "Joriy seriya", "bonus.days": "kun", "bonus.week": "Hafta", "bonus.month": "Oy", "bonus.next": "Keyingi mukofot", "bonus.nextIn": "2 kundan so‘ng", "bonus.grace": "Seriyani himoya qilish kuni", "bonus.graceBody": "Haftasiga bir kunni seriyani yo‘qotmasdan o‘tkazib yuborish mumkin.", "bonus.calendar": "Iyul 2026",
   "profile.title": "Profil", "profile.active": "Faollik", "profile.balance": "Balans", "profile.friends": "Do‘stlar", "profile.earned": "Do‘stlardan", "profile.invite": "Do‘st taklif qilish", "profile.settings": "Sozlamalar", "profile.logout": "Chiqish", "profile.edit": "Profilni tahrirlash", "profile.name": "Ism", "profile.avatarUrl": "Rasm havolasi",
   "settings.title": "Sozlamalar", "settings.notifications": "Kunlik eslatmalar", "settings.notificationBody": "Faollik seriyasini saqlashni eslatamiz", "settings.time": "Eslatma vaqti", "settings.theme": "Ko‘rinish", "settings.theme.light": "Yorug‘", "settings.theme.sky": "Osmon", "settings.theme.dark": "Qorong‘i", "settings.language": "Til", "settings.permissionDenied": "Telefon sozlamalarida bildirishnomalarga ruxsat bering.",
-  "withdraw.title": "Mablag‘ yechish", "withdraw.available": "Mavjud", "withdraw.minimum": "Minimal yechish miqdori — $10", "withdraw.locked": "Yana yig‘ish kerak", "withdraw.ready": "Yechish mumkin", "withdraw.method": "To‘lov usuli", "withdraw.card": "Bank kartasi", "withdraw.wallet": "Elektron hamyon", "withdraw.amount": "Miqdor", "withdraw.submit": "So‘rov yuborish", "withdraw.history": "To‘lovlar tarixi", "withdraw.empty": "To‘lovlaringiz shu yerda ko‘rinadi",
+  "withdraw.title": "Mablag‘ yechish", "withdraw.available": "Mavjud", "withdraw.minimum": "Minimal yechish miqdori — $2", "withdraw.locked": "Yana yig‘ish kerak", "withdraw.ready": "Yechish mumkin", "withdraw.method": "To‘lov usuli", "withdraw.card": "Bank kartasi", "withdraw.wallet": "Elektron hamyon", "withdraw.amount": "Miqdor", "withdraw.submit": "So‘rov yuborish", "withdraw.history": "To‘lovlar tarixi", "withdraw.empty": "To‘lovlaringiz shu yerda ko‘rinadi",
   "invite.title": "Do‘stlarni taklif qiling", "invite.subtitle": "Do‘stlaringizning pul va coin sovrinlaridan 25% oling.", "invite.code": "Sizning kodingiz", "invite.copy": "Kodni nusxalash", "invite.share": "Taklifni ulashish", "invite.invited": "Taklif qilindi", "invite.reward": "Ishlandi", "invite.people": "do‘st",
 };
 

@@ -9,18 +9,11 @@ const covers: Record<string, ImageSourcePropType> = {
   "find-letter": require("../../assets/games/covers/find-letter.webp"),
   "volt-match": require("../../assets/games/covers/volt-match.webp"),
   "geography-quiz": require("../../assets/games/covers/geography-quiz.webp"),
-  pulse: require("../../assets/games/covers/pulse.webp"),
+  fact: require("../../assets/games/covers/pulse.webp"),
   "volt-numbers": require("../../assets/games/covers/volt-numbers.webp"),
   "math-quiz": require("../../assets/games/covers/math-quiz.webp"),
-  "math-duel": require("../../assets/games/covers/math-duel.webp"),
   shadow: require("../../assets/games/covers/shadow.webp"),
-  tetris: require("../../assets/games/covers/tetris.webp"),
-  chess: require("../../assets/games/covers/chess.webp"),
   "2048": require("../../assets/games/covers/2048.webp"),
-  longcat: require("../../assets/games/covers/longcat.webp"),
-  gobble: require("../../assets/games/covers/gobble.webp"),
-  loops: require("../../assets/games/covers/loops.webp"),
-  "brain-tricks": require("../../assets/games/covers/brain-tricks.webp"),
 };
 
 const aliases: Record<string, string> = {

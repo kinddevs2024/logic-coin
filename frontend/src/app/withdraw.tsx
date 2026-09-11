@@ -21,7 +21,7 @@ import { detectCardBrand, digitsOnly, isValidCardNumber, isValidExpiration } fro
 import { useAppStore } from "@/store/app-store";
 import type { Withdrawal } from "@/types";
 
-const MINIMUM = 1000;
+const MINIMUM = 200;
 
 function statusLabel(status: string) {
   if (status === "pending_review" || status === "sandbox_pending") return "На проверке";
@@ -122,12 +122,12 @@ export default function WithdrawScreen() {
           <View style={styles.formIntro}><View><AppText variant="heading">Карта для выплаты</AppText><AppText variant="caption" muted>Заполните данные прямо на карте</AppText></View><View style={[styles.timePill, { backgroundColor: theme.primarySoft }]}><Ionicons name="time-outline" size={16} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.primary)}>до {processingHours} ч</AppText></View></View>
           {rememberedCard ? <View style={[styles.savedRow, { borderColor: theme.border }]}><Pressable accessibilityRole="button" onPress={() => setUseSavedCard(true)} style={[styles.savedChoice, useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="card-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">•••• {rememberedCard.last4}</AppText></Pressable><Pressable accessibilityRole="button" onPress={() => { setUseSavedCard(false); setCardNumber(""); }} style={[styles.savedChoice, !useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="add-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">Другая карта</AppText></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Удалить сохранённую карту" onPress={() => { setRememberedCard(null); setUseSavedCard(false); setRememberCard(false); }} style={styles.forgetButton}><Ionicons name="trash-outline" size={18} color={String(theme.danger)} /></Pressable></View> : null}
           <PaymentCard cardNumber={cardNumber} holderName={useSavedCard && rememberedCard ? rememberedCard.holderName : holderName} expiration={useSavedCard && rememberedCard ? rememberedCard.expiration : expiration} savedLast4={useSavedCard ? rememberedCard?.last4 : undefined} savedBrand={useSavedCard ? rememberedCard?.brand : undefined} readOnly={useSavedCard && Boolean(rememberedCard)} onCardNumberChange={setCardNumber} onHolderNameChange={setHolderName} onExpirationChange={setExpiration} />
-          <FormField label={`${t("withdraw.amount")} · USD`} icon="cash-outline" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="10.00" />
+          <FormField label={`${t("withdraw.amount")} · USD`} icon="cash-outline" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="2.00" />
           <View style={styles.checks}>
             <CheckRow checked={rememberCard} onPress={() => setRememberCard((value) => !value)} label="Запомнить мою карту" detail="Сохраним только бренд, имя, срок и последние 4 цифры" />
             <View style={styles.agreementRow}><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: agreementAccepted }} onPress={() => setAgreementAccepted((value) => !value)} style={({ pressed }) => [styles.agreementCheck, pressed && styles.pressed]}><Ionicons name={agreementAccepted ? "checkbox" : "square-outline"} size={23} color={String(agreementAccepted ? theme.primary : theme.textMuted)} /></Pressable><AppText variant="caption" style={styles.agreementCopy}>Я подтверждаю, что карта принадлежит мне, и принимаю </AppText><Pressable accessibilityRole="link" onPress={() => router.push("/withdrawal-agreement" as never)}><AppText variant="caption" color={String(theme.primary)} style={styles.agreementLink}>условия выплаты</AppText></Pressable></View>
           </View>
-          <AppButton icon="send-outline" glow onPress={submit} loading={createWithdrawal.isPending} disabled={!validCard || !agreementAccepted}>{t("withdraw.submit")}</AppButton>
+          <AppButton icon="send-outline" glow onPress={submit} loading={createWithdrawal.isPending} disabled={!eligible || !validCard || !agreementAccepted}>{t("withdraw.submit")}</AppButton>
           <View style={[styles.securityNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={18} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.textMuted)} style={styles.flex}>Полный номер не сохраняется в Logic Coin. Заявка содержит только маскированные данные карты.</AppText></View>
         </GlassSurface>
       )}

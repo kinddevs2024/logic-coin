@@ -17,9 +17,9 @@ import { useAppStore } from "@/store/app-store";
 import { formatMoney } from "@/lib/format";
 
 const copy = {
-  ru: { title: "Челленджи", subtitle: "Шесть игр. Один общий рейтинг.", daily: "Сегодня", complete: "пройдено", earned: "Заработано", rule: "До 1 000 coin за игру", empty: "Готовим игры дня", refresh: "Обновить", pool: "Призовой фонд" },
-  en: { title: "Challenges", subtitle: "Six games. One global ranking.", daily: "Today", complete: "complete", earned: "Earned", rule: "Up to 1,000 coin per game", empty: "Preparing today’s games", refresh: "Refresh", pool: "Prize pool" },
-  uz: { title: "Sinovlar", subtitle: "Olti o‘yin. Bitta umumiy reyting.", daily: "Bugun", complete: "bajarildi", earned: "Yig‘ildi", rule: "Har o‘yinda 1 000 coingacha", empty: "Bugungi o‘yinlar tayyorlanmoqda", refresh: "Yangilash", pool: "Mukofot jamg‘armasi" },
+  ru: { title: "Челленджи", daily: "Сегодня", complete: "пройдено", earned: "Заработано", empty: "Готовим игры дня", refresh: "Обновить", pool: "Призовой фонд" },
+  en: { title: "Challenges", daily: "Today", complete: "complete", earned: "Earned", empty: "Preparing today’s games", refresh: "Refresh", pool: "Prize pool" },
+  uz: { title: "Sinovlar", daily: "Bugun", complete: "bajarildi", earned: "Yig‘ildi", empty: "Bugungi o‘yinlar tayyorlanmoqda", refresh: "Yangilash", pool: "Mukofot jamg‘armasi" },
 } as const;
 
 export default function ChallengesScreen() {
@@ -39,7 +39,6 @@ export default function ChallengesScreen() {
     <AppFrame wide desktopNavigationInset contentStyle={styles.page}>
       <ScreenHeader
         title={c.title}
-        subtitle={c.subtitle}
         action={
           <GlassSurface variant="strong" intensity={68} style={styles.coinPill}>
             <Ionicons name="diamond" size={16} color="#F5B800" />
@@ -54,7 +53,6 @@ export default function ChallengesScreen() {
             <View style={{ flex: 1 }}>
               <AppText style={[styles.eyebrow, { color: theme.primary }]}>{c.daily.toUpperCase()}</AppText>
               <AppText style={[styles.heroTitle, { color: theme.text }]}>{completed} / {total} {c.complete}</AppText>
-              <AppText variant="caption" muted>{c.rule}</AppText>
             </View>
             <View style={[styles.scoreOrb, { backgroundColor: theme.primarySoft, borderColor: theme.glassBorder }]}>
               <AppText style={[styles.scoreNumber, { color: theme.primary }]}>{today?.totalCoinsToday ?? 0}</AppText>

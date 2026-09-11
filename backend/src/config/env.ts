@@ -43,7 +43,7 @@ const rawEnvSchema = z.object({
   YANDEX_CLIENT_SECRET: z.string().optional(),
   YANDEX_REDIRECT_URIS: z.string().default(""),
   UNIT_VALUE_CENTS: z.coerce.number().int().min(1).max(100).default(1),
-  MIN_WITHDRAWAL_CENTS: z.coerce.number().int().min(100).default(1000),
+  MIN_WITHDRAWAL_CENTS: z.coerce.number().int().min(200).default(200),
   REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(50),
   ADMIN_EMAILS: z.string().default(""),
   EXPO_PUSH_API_URL: z.string().url().default("https://exp.host/--/api/v2/push/send"),

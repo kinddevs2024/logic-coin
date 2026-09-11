@@ -51,6 +51,15 @@ const dailyChallengeSetSchema = new Schema(
       default: DEFAULT_DAILY_PRIZE_POOL_UNITS,
       required: true
     },
+    coinPrizeAmounts: {
+      type: [Number],
+      default: () => [0, 0, 0, 0, 0, 0],
+      validate: {
+        validator: (value: number[]) => value.length === 6 && value.every((amount) => Number.isInteger(amount) && amount >= 0),
+        message: "Coin prizes must contain six non-negative integers"
+      },
+      required: true
+    },
     publishedAt: { type: Date },
     endsAt: { type: Date },
     publishedBy: { type: Schema.Types.ObjectId, ref: "User" },
