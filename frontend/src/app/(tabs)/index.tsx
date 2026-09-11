@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import Svg, { Circle } from "react-native-svg";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
@@ -19,6 +20,23 @@ import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
+
+function ProgressDonut({ value, progress, color, accessibilityLabel }: { value: string; progress: number; color: string; accessibilityLabel: string }) {
+  const size = 64;
+  const strokeWidth = 7;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dash = Math.max(0, Math.min(1, progress)) * circumference;
+  return (
+    <View accessible accessibilityLabel={accessibilityLabel} style={styles.donut}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(116,154,200,0.18)" strokeWidth={strokeWidth} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${circumference - dash}`} rotation="-90" origin={`${size / 2}, ${size / 2}`} />
+      </Svg>
+      <AppText style={[styles.donutValue, { color }]}>{value}</AppText>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const theme = useAppTheme();
@@ -115,13 +133,21 @@ export default function HomeScreen() {
           </View>
           <GlassSurface intensity={58} variant="soft" style={styles.activityStrip}>
             <View style={styles.activityItem}>
-              <Ionicons name="game-controller-outline" size={18} color={String(theme.primary)} />
-              <View><AppText variant="heading">{today?.gamesCompletedToday ?? today?.completedCount ?? 0}</AppText><AppText variant="caption" muted>игр сегодня</AppText></View>
+              <ProgressDonut
+                value={`${today?.gamesCompletedToday ?? today?.completedCount ?? 0} / ${today?.totalCount ?? 0}`}
+                progress={(today?.totalCount ?? 0) > 0 ? (today?.gamesCompletedToday ?? today?.completedCount ?? 0) / (today?.totalCount ?? 1) : 0}
+                color={String(theme.primary)}
+                accessibilityLabel="Прогресс игр сегодня"
+              />
             </View>
             <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
             <View style={styles.activityItem}>
-              <Ionicons name="calendar-outline" size={18} color="#7A5AF8" />
-              <View><AppText variant="heading">{today?.monthlyChallengeCount ?? 0}</AppText><AppText variant="caption" muted>челленджей за месяц</AppText></View>
+              <ProgressDonut
+                value={String(today?.monthlyChallengeCount ?? 0)}
+                progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
+                color="#7A5AF8"
+                accessibilityLabel="Челленджи за месяц"
+              />
             </View>
           </GlassSurface>
         </GlassSurface>
@@ -182,8 +208,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 64,
   },
-  activityStrip: { minHeight: 76, marginTop: 12, borderRadius: 26, paddingHorizontal: 16, flexDirection: "row", alignItems: "center" },
-  activityItem: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 9 },
+  activityStrip: { minHeight: 92, marginTop: 12, borderRadius: 26, paddingHorizontal: 16, flexDirection: "row", alignItems: "center" },
+  activityItem: { flex: 1, minWidth: 0, alignItems: "center" },
+  donut: { width: 64, height: 64, alignItems: "center", justifyContent: "center" },
+  donutValue: { position: "absolute", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   activityDivider: { width: 1, height: 36, marginHorizontal: 10 },
   tasksPanel: {
     borderRadius: 34,

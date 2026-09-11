@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     shadowRadius: 34,
     shadowOffset: { width: 0, height: 12 },
     elevation: 18,
-    overflow: "visible",
+    overflow: "hidden",
   },
   tabBarDesktop: {
     width: 110,
