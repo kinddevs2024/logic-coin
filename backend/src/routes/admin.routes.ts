@@ -136,6 +136,7 @@ const dailyChallengeSchema = z
     cashPrizeMinUnits: z.number().int().min(0).max(100_000_000),
     cashPrizeMaxUnits: z.number().int().min(0).max(100_000_000),
     prizePoolUnits: z.number().int().min(0).max(1_000_000_000),
+    coinPrizeAmounts: z.array(z.number().int().min(0).max(1_000_000)).length(6).default([0, 0, 0, 0, 0, 0]),
     maxAttemptsPerGame: z.number().int().min(1).max(100).optional(),
     oneSecondAttemptLimit: z.number().int().min(1).max(100).optional(),
     publish: z.boolean().default(false)
@@ -166,6 +167,7 @@ router.put(
       cashPrizeMinUnits: body.cashPrizeMinUnits,
       cashPrizeMaxUnits: body.cashPrizeMaxUnits,
       prizePoolUnits: body.prizePoolUnits,
+      coinPrizeAmounts: body.coinPrizeAmounts,
       maxAttemptsPerGame: body.maxAttemptsPerGame ?? 1,
       oneSecondAttemptLimit: body.oneSecondAttemptLimit ?? 20,
       publish: body.publish

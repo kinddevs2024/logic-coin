@@ -42,6 +42,7 @@ interface ChallengeSetLike {
   cashPrizeMinUnits: number;
   cashPrizeMaxUnits: number;
   prizePoolUnits: number;
+  coinPrizeAmounts?: number[];
   maxAttemptsPerGame?: number;
   oneSecondAttemptLimit?: number;
   publishedAt?: Date | null;
@@ -72,6 +73,7 @@ async function serializeChallengeSets(sets: readonly ChallengeSetLike[]) {
     cashPrizeMinUnits: set.cashPrizeMinUnits,
     cashPrizeMaxUnits: set.cashPrizeMaxUnits,
     prizePoolUnits: set.prizePoolUnits,
+    coinPrizeAmounts: set.coinPrizeAmounts ?? [0, 0, 0, 0, 0, 0],
     maxAttemptsPerGame: set.maxAttemptsPerGame ?? 1,
     oneSecondAttemptLimit: set.oneSecondAttemptLimit ?? 20,
     publishedAt: set.publishedAt?.toISOString() ?? null,
@@ -108,6 +110,7 @@ export async function configureDailyChallenge(input: {
   cashPrizeMinUnits: number;
   cashPrizeMaxUnits: number;
   prizePoolUnits: number;
+  coinPrizeAmounts?: number[];
   maxAttemptsPerGame?: number;
   oneSecondAttemptLimit?: number;
   publish: boolean;
@@ -200,6 +203,7 @@ export async function configureDailyChallenge(input: {
       cashPrizeMinUnits: input.cashPrizeMinUnits,
       cashPrizeMaxUnits: input.cashPrizeMaxUnits,
       prizePoolUnits: input.prizePoolUnits,
+      coinPrizeAmounts: input.coinPrizeAmounts ?? [0, 0, 0, 0, 0, 0],
       maxAttemptsPerGame,
       oneSecondAttemptLimit,
       ...(input.publish

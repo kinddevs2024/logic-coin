@@ -192,7 +192,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
   }, [activeIndex, lensMorph, lensPosition, reduceMotion]);
 
   const dragGesture = Gesture.Pan()
-        .minDistance(2)
+        .minDistance(12)
         .onBegin(() => {
           dragOrigin.value = lensPosition.value;
           lensMorph.value = reduceMotion ? 0 : withTiming(0.64, { duration: 110 });

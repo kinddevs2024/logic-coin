@@ -10,12 +10,6 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MergeScreen from "@/app/games/2048";
-import BrainTricksScreen from "@/app/games/brain-tricks";
-import ChessScreen from "@/app/games/chess";
-import GobbleScreen from "@/app/games/gobble";
-import LongcatScreen from "@/app/games/longcat";
-import LoopsScreen from "@/app/games/loops";
-import TetrisScreen from "@/app/games/tetris";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
 import { AppodealBannerSlot } from "@/components/appodeal-banner";
 import { GAME_BY_KEY } from "@/constants/games";
@@ -66,7 +60,7 @@ const GAME_A_ALIASES: Partial<Record<string, ArcadeGameAId>> = {
 const GAME_B_ALIASES: Partial<Record<string, GameBId>> = {
   "geography-quiz": "geo-master",
   "geo-master": "geo-master",
-  pulse: "pulse",
+  fact: "pulse",
   "volt-numbers": "volt-numbers",
   "math-quiz": "math-quiz",
   "math-duel": "math-duel",
@@ -90,13 +84,7 @@ const PROGRESS_KEY_ALIASES: Partial<Record<string, GameId>> = {
 };
 
 const CLASSIC_GAMES: Partial<Record<GameId, ComponentType>> = {
-  tetris: TetrisScreen,
-  chess: ChessScreen,
   "2048": MergeScreen,
-  longcat: LongcatScreen,
-  gobble: GobbleScreen,
-  loops: LoopsScreen,
-  "brain-tricks": BrainTricksScreen,
 };
 
 function firstParam(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
@@ -359,9 +347,7 @@ export default function DynamicGameRoute() {
     );
   } else if (classic) {
     const Classic = classic;
-    renderedGame = gameKey === "tetris"
-      ? <TetrisScreen key={sessionId} paused={giftOpen} />
-      : <Classic key={sessionId} />;
+    renderedGame = <Classic key={sessionId} />;
   }
 
   const challengeStartSettled = mode !== "challenge" || !authenticated || challenges.startedGameKey === gameKey || challenges.startFailedGameKey === gameKey;
