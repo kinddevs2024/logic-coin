@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 
 import { LogoMark } from "@/components/logo";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { launchAdShown } from "@/lib/launch-ad";
 import { useAppStore } from "@/store/app-store";
 
 export default function IndexScreen() {
@@ -28,6 +29,7 @@ export default function IndexScreen() {
       </View>
     );
   }
+  if (!launchAdShown()) return <Redirect href="/ads" />;
   if (!language) return <Redirect href="/language" />;
   if (!onboardingDone) return <Redirect href="/onboarding" />;
   if (!authMode) return <Redirect href="/login" />;
