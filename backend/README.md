@@ -69,7 +69,9 @@ Protected routes require `Authorization: Bearer <accessToken>`.
 - `DELETE /api/v1/devices/:deviceId`
 
 `PATCH /api/v1/me/profile` accepts `avatarDataUrl` only (JPEG, PNG, or WebP,
-maximum 1.5 MiB); arbitrary URLs and other data payloads are rejected.
+maximum 10 MiB); arbitrary URLs and other data payloads are rejected. The
+reverse proxy must allow at least 14 MiB request bodies for the base64 JSON
+payload.
 
 ### Administrator
 
