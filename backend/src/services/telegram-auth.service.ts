@@ -79,6 +79,36 @@ export function telegramWebhookUrl(
   return new URL("/api/v1/auth/telegram/webhook", base).toString();
 }
 
+async function configureTelegramBotUI() {
+  const token = requireBotToken();
+  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
+
+  await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      menu_button: {
+        type: "web_app",
+        text: "Logic Coin 🎮",
+        web_app: { url: appUrl }
+      }
+    }),
+    signal: AbortSignal.timeout(8_000)
+  }).catch(() => undefined);
+
+  await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      commands: [
+        { command: "start", description: "Запустить Logic Coin 🎮" },
+        { command: "play", description: "Открыть приложение и баланс 💰" }
+      ]
+    }),
+    signal: AbortSignal.timeout(8_000)
+  }).catch(() => undefined);
+}
+
 async function configureTelegramWebhook() {
   const webhookUrl = telegramWebhookUrl();
   if (!webhookUrl) return;
@@ -107,6 +137,8 @@ async function configureTelegramWebhook() {
       payload?.description || "Telegram webhook could not be configured"
     );
   }
+
+  await configureTelegramBotUI();
 }
 
 export async function ensureTelegramWebhook() {
@@ -221,13 +253,14 @@ function parseStartIdentity(update: TelegramMessageUpdate): {
 
 async function sendBotReturnLink(chatId: string, resumeToken: string) {
   const returnUrl = buildTelegramReturnUrl(resumeToken);
+  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
   await fetch(botUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: "Вход подтверждён. Возвращайтесь в Logic Coin.",
+      text: "✅ Вход подтверждён! Возвращайтесь в Logic Coin.",
       reply_markup: { remove_keyboard: true }
     }),
     signal: AbortSignal.timeout(5_000)
@@ -237,10 +270,11 @@ async function sendBotReturnLink(chatId: string, resumeToken: string) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: "Откройте Logic Coin для продолжения.",
+      text: "Откройте Logic Coin для продолжения:",
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Открыть Logic Coin", url: returnUrl }]
+          [{ text: "🎮 Открыть Logic Coin", web_app: { url: appUrl } }],
+          [{ text: "🔑 Авторизовать текущую сессию", url: returnUrl }]
         ]
       }
     }),
@@ -250,15 +284,17 @@ async function sendBotReturnLink(chatId: string, resumeToken: string) {
 
 async function sendBotWelcome(chatId: string) {
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
+  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
   await fetch(botUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: "Добро пожаловать в Logic Coin. Откройте приложение, чтобы войти или зарегистрироваться.",
+      text: "👋 **Добро пожаловать в Logic Coin!**\n\nИграйте в логические игры, участвуйте в челленджах, зарабатывайте монеты и проверяйте свой баланс прямо в Telegram.",
+      parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Открыть Logic Coin", url: env.APP_PUBLIC_URL }]
+          [{ text: "🎮 Открыть Logic Coin", web_app: { url: appUrl } }]
         ]
       }
     }),
@@ -279,7 +315,7 @@ export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
   const message = update.message;
   const text = message?.text?.trim() ?? "";
   if (
-    /^\/start(?:@[A-Za-z0-9_]+)?$/i.test(text) &&
+    /^\/(start|play|app|help)(?:@[A-Za-z0-9_]+)?$/i.test(text) &&
     message?.chat?.id !== undefined
   ) {
     await sendBotWelcome(String(message.chat.id));

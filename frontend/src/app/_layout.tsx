@@ -68,6 +68,11 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === "web") {
       document.title = "Logic Coin";
+      const tg = (window as unknown as { Telegram?: { WebApp?: { ready?: () => void; expand?: () => void } } }).Telegram?.WebApp;
+      if (tg) {
+        tg.ready?.();
+        tg.expand?.();
+      }
     }
   }, []);
 
