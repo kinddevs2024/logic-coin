@@ -85,6 +85,14 @@ export default function HomeScreen() {
 
           <View style={styles.actions}>
             <AppButton
+              variant="secondary"
+              icon="flash"
+              onPress={() => router.push("/challenges" as never)}
+              style={styles.action}
+            >
+              {t("home.earn")}
+            </AppButton>
+            <AppButton
               icon="wallet"
               onPress={() => router.push("/withdraw")}
               glow
