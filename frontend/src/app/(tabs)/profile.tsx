@@ -83,7 +83,7 @@ export default function ProfileScreen() {
             <Avatar name={user.name} avatarUrl={user.avatarUrl} size={84} />
             <View style={styles.identity}>
               <AppText variant="title">{user.name}</AppText>
-              <AppText muted>{user.email ?? t("common.demo")}</AppText>
+              <AppText muted>{user.email ?? "Telegram"}</AppText>
               <View style={styles.countryLine}>
                 <CountryFlagBadge countryCode={user.countryCode} size={18} />
                 <AppText variant="caption" muted>{countryName(user.countryCode, useAppStore.getState().language ?? "ru")}</AppText>

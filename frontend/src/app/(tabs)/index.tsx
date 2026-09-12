@@ -133,21 +133,27 @@ export default function HomeScreen() {
           </View>
           <GlassSurface intensity={58} variant="soft" style={styles.activityStrip}>
             <View style={styles.activityItem}>
-              <ProgressDonut
-                value={`${today?.gamesCompletedToday ?? today?.completedCount ?? 0} / ${today?.totalCount ?? 0}`}
-                progress={(today?.totalCount ?? 0) > 0 ? (today?.gamesCompletedToday ?? today?.completedCount ?? 0) / (today?.totalCount ?? 1) : 0}
-                color={String(theme.primary)}
-                accessibilityLabel="Прогресс игр сегодня"
-              />
+              <View style={styles.activityMetric}>
+                <ProgressDonut
+                  value={`${today?.gamesCompletedToday ?? today?.completedCount ?? 0} / ${today?.totalCount ?? 0}`}
+                  progress={(today?.totalCount ?? 0) > 0 ? (today?.gamesCompletedToday ?? today?.completedCount ?? 0) / (today?.totalCount ?? 1) : 0}
+                  color={String(theme.primary)}
+                  accessibilityLabel="Прогресс игр сегодня"
+                />
+                <AppText variant="caption" muted>Игр сегодня</AppText>
+              </View>
             </View>
             <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
             <View style={styles.activityItem}>
-              <ProgressDonut
-                value={String(today?.monthlyChallengeCount ?? 0)}
-                progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
-                color="#7A5AF8"
-                accessibilityLabel="Челленджи за месяц"
-              />
+              <View style={styles.activityMetric}>
+                <ProgressDonut
+                  value={String(today?.monthlyChallengeCount ?? 0)}
+                  progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
+                  color="#7A5AF8"
+                  accessibilityLabel="Челленджи за месяц"
+                />
+                <AppText variant="caption" muted>Челленджей за месяц</AppText>
+              </View>
             </View>
           </GlassSurface>
         </GlassSurface>
@@ -210,6 +216,7 @@ const styles = StyleSheet.create({
   },
   activityStrip: { minHeight: 92, marginTop: 12, borderRadius: 26, paddingHorizontal: 16, flexDirection: "row", alignItems: "center" },
   activityItem: { flex: 1, minWidth: 0, alignItems: "center" },
+  activityMetric: { alignItems: "center", gap: 4 },
   donut: { width: 64, height: 64, alignItems: "center", justifyContent: "center" },
   donutValue: { position: "absolute", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   activityDivider: { width: 1, height: 36, marginHorizontal: 10 },
