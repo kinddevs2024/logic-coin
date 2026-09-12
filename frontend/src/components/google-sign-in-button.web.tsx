@@ -12,7 +12,6 @@ type GoogleIdentity = {
     callback: (response: GoogleCredentialResponse) => void;
   }): void;
   renderButton(element: HTMLElement, options: Record<string, string | number>): void;
-  prompt(): void;
 };
 type GoogleWindow = Window & {
   google?: { accounts?: { id?: GoogleIdentity } };
@@ -53,7 +52,6 @@ export function GoogleSignInButton({
         locale: language,
         width: Math.max(260, Math.min(374, host.clientWidth || 360)),
       });
-      identity.prompt();
     };
     const existing = document.querySelector<HTMLScriptElement>(
       `script[data-logic-google="${language}"]`,
