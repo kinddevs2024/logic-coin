@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Tabs, useRouter } from "expo-router";
+import { Link, Redirect, Tabs, useRouter } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -411,6 +411,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
 
 export default function TabsLayout() {
   const router = useRouter();
+  const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
   const syncBootstrap = useAppStore((state) => state.syncBootstrap);
@@ -438,6 +439,17 @@ export default function TabsLayout() {
     }
   }, [bootstrap.error, logout, router]);
 
+  if (!hydrated) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+  if (authMode !== "authenticated" || !accessToken) {
+    return <Redirect href="/login" />;
+  }
+
   return (
     <Tabs
       tabBar={(props) => <LogicTabBar {...props} />}
@@ -459,6 +471,11 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   tabWrap: {
     position: "absolute",
     alignItems: "center",
