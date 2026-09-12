@@ -248,6 +248,24 @@ async function sendBotReturnLink(chatId: string, resumeToken: string) {
   }).catch(() => undefined);
 }
 
+async function sendBotWelcome(chatId: string) {
+  const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
+  await fetch(botUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: "Добро пожаловать в Logic Coin. Откройте приложение, чтобы войти или зарегистрироваться.",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "Открыть Logic Coin", url: env.APP_PUBLIC_URL }]
+        ]
+      }
+    }),
+    signal: AbortSignal.timeout(5_000)
+  }).catch(() => undefined);
+}
+
 export function buildTelegramReturnUrl(
   resumeToken: string,
   appPublicUrl = env.APP_PUBLIC_URL
@@ -258,6 +276,15 @@ export function buildTelegramReturnUrl(
 }
 
 export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
+  const message = update.message;
+  const text = message?.text?.trim() ?? "";
+  if (
+    /^\/start(?:@[A-Za-z0-9_]+)?$/i.test(text) &&
+    message?.chat?.id !== undefined
+  ) {
+    await sendBotWelcome(String(message.chat.id));
+    return { accepted: true, matched: false };
+  }
   const parsed = parseStartIdentity(update);
   if (!parsed) return { accepted: true, matched: false };
 
