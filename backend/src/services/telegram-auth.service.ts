@@ -221,12 +221,23 @@ function parseStartIdentity(update: TelegramMessageUpdate): {
 
 async function sendBotReturnLink(chatId: string, resumeToken: string) {
   const returnUrl = buildTelegramReturnUrl(resumeToken);
-  await fetch(`https://api.telegram.org/bot${requireBotToken()}/sendMessage`, {
+  const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
+  await fetch(botUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: "Вход подтверждён. Вернитесь в Logic Coin.",
+      text: "Вход подтверждён. Возвращайтесь в Logic Coin.",
+      reply_markup: { remove_keyboard: true }
+    }),
+    signal: AbortSignal.timeout(5_000)
+  }).catch(() => undefined);
+  await fetch(botUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: "Откройте Logic Coin для продолжения.",
       reply_markup: {
         inline_keyboard: [
           [{ text: "Открыть Logic Coin", url: returnUrl }]
