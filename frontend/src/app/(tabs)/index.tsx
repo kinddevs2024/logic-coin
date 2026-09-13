@@ -131,29 +131,43 @@ export default function HomeScreen() {
             ))}
             {!today?.games.length ? <ChallengeEmptyState compact /> : null}
           </View>
-          <GlassSurface intensity={58} variant="soft" style={styles.activityStrip}>
+          <GlassSurface
+            intensity={58}
+            variant="soft"
+            style={[styles.activityStrip, { borderColor: theme.glassBorder }]}
+          >
             <View style={styles.activityItem}>
-              <View style={styles.activityMetric}>
-                <ProgressDonut
-                  value={`${today?.gamesCompletedToday ?? today?.completedCount ?? 0} / ${today?.totalCount ?? 0}`}
-                  progress={(today?.totalCount ?? 0) > 0 ? (today?.gamesCompletedToday ?? today?.completedCount ?? 0) / (today?.totalCount ?? 1) : 0}
-                  color={String(theme.primary)}
-                  accessibilityLabel="Прогресс игр сегодня"
-                />
-                <AppText variant="caption" muted>Игр сегодня</AppText>
+              <View style={styles.activityInfo}>
+                <View style={[styles.activityIcon, { backgroundColor: theme.primarySoft }]}>
+                  <Ionicons name="game-controller-outline" size={21} color={String(theme.primary)} />
+                </View>
+                <View style={styles.activityCopy}>
+                  <AppText style={styles.activityTitle}>Игр сегодня</AppText>
+                </View>
               </View>
+              <ProgressDonut
+                value={`${today?.gamesCompletedToday ?? today?.completedCount ?? 0} / ${today?.totalCount ?? 0}`}
+                progress={(today?.totalCount ?? 0) > 0 ? (today?.gamesCompletedToday ?? today?.completedCount ?? 0) / (today?.totalCount ?? 1) : 0}
+                color={String(theme.primary)}
+                accessibilityLabel="Прогресс игр сегодня"
+              />
             </View>
             <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
             <View style={styles.activityItem}>
-              <View style={styles.activityMetric}>
-                <ProgressDonut
-                  value={String(today?.monthlyChallengeCount ?? 0)}
-                  progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
-                  color="#7A5AF8"
-                  accessibilityLabel="Челленджи за месяц"
-                />
-                <AppText variant="caption" muted>Челленджей за месяц</AppText>
+              <View style={styles.activityInfo}>
+                <View style={styles.activityIconMonthly}>
+                  <Ionicons name="calendar-outline" size={21} color="#7A5AF8" />
+                </View>
+                <View style={styles.activityCopy}>
+                  <AppText style={styles.activityTitle}>Челленджей за месяц</AppText>
+                </View>
               </View>
+              <ProgressDonut
+                value={String(today?.monthlyChallengeCount ?? 0)}
+                progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
+                color="#7A5AF8"
+                accessibilityLabel="Челленджи за месяц"
+              />
             </View>
           </GlassSurface>
         </GlassSurface>
@@ -214,9 +228,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 64,
   },
-  activityStrip: { minHeight: 92, marginTop: 12, borderRadius: 26, paddingHorizontal: 16, flexDirection: "row", alignItems: "center" },
-  activityItem: { flex: 1, minWidth: 0, alignItems: "center" },
-  activityMetric: { alignItems: "center", gap: 4 },
+  activityStrip: { minHeight: 92, marginTop: 12, borderRadius: 26, paddingHorizontal: 12, paddingVertical: 10, flexDirection: "row", alignItems: "center", borderWidth: 1 },
+  activityItem: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingHorizontal: 4 },
+  activityInfo: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 9 },
+  activityIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  activityIconMonthly: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#EFE6FF" },
+  activityCopy: { flex: 1, minWidth: 0, gap: 2 },
+  activityTitle: { fontSize: 13, lineHeight: 17, fontWeight: "800" },
   donut: { width: 64, height: 64, alignItems: "center", justifyContent: "center" },
   donutValue: { position: "absolute", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   activityDivider: { width: 1, height: 36, marginHorizontal: 10 },
