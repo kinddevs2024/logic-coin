@@ -19,6 +19,94 @@ interface AccessPayload extends JwtPayload {
   type: "access";
 }
 
+type RotationOutcome =
+  | {
+      kind: "rotated";
+      userId: Types.ObjectId;
+      sessionId: Types.ObjectId;
+      expiresAt: Date;
+    }
+  | { kind: "reuse" }
+  | { kind: "invalid" };
+
+function isTransactionUnsupported(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes("Transaction numbers are only allowed") ||
+      error.message.includes("TransactionNotSupported"))
+  );
+}
+
+async function rotateWithoutTransaction(
+  presentedHash: string,
+  replacementHash: string,
+  context: SessionContext,
+  now: Date
+): Promise<RotationOutcome> {
+  const existing = await RefreshSession.findOne({ tokenHash: presentedHash });
+  if (!existing) return { kind: "invalid" };
+
+  if (existing.revokedAt && existing.replacedByHash) {
+    const familyFilter = existing.familyId
+      ? { userId: existing.userId, familyId: existing.familyId }
+      : { userId: existing.userId };
+    await RefreshSession.updateMany(familyFilter, {
+      $set: {
+        revokedAt: now,
+        revokeReason: "reuse_detected",
+        reuseDetectedAt: now
+      }
+    });
+    return { kind: "reuse" };
+  }
+
+  if (existing.revokedAt || existing.expiresAt.getTime() <= now.getTime()) {
+    return { kind: "invalid" };
+  }
+
+  const familyId = existing.familyId ?? randomUUID();
+  const [replacementSession] = await RefreshSession.create([
+    {
+      userId: existing.userId,
+      tokenHash: replacementHash,
+      familyId,
+      expiresAt: existing.expiresAt,
+      deviceId: context.deviceId ?? existing.deviceId,
+      userAgent: context.userAgent ?? existing.userAgent,
+      ip: context.ip ?? existing.ip
+    }
+  ]);
+  if (!replacementSession) {
+    throw new ApiError(500, "refresh_rotation_failed", "Refresh token rotation failed");
+  }
+
+  const rotated = await RefreshSession.updateOne(
+    { _id: existing._id, revokedAt: { $exists: false } },
+    {
+      $set: {
+        familyId,
+        revokedAt: now,
+        revokeReason: "rotated",
+        replacedByHash: replacementHash
+      }
+    }
+  );
+  if (rotated.modifiedCount !== 1) {
+    await RefreshSession.updateOne(
+      { _id: replacementSession._id, revokedAt: { $exists: false } },
+      { $set: { revokedAt: now, revokeReason: "rotated" } }
+    );
+    throw new ApiError(401, "invalid_refresh_token", "Refresh token is invalid or expired");
+  }
+
+  return {
+    kind: "rotated",
+    userId: existing.userId,
+    sessionId: replacementSession._id,
+    expiresAt: existing.expiresAt
+  };
+}
+
 function signAccessToken(userId: Types.ObjectId, sessionId: Types.ObjectId): string {
   const options: SignOptions = {
     algorithm: "HS256",
@@ -97,16 +185,6 @@ export async function rotateRefreshToken(refreshToken: string, context: SessionC
   const replacementToken = generateRefreshToken();
   const replacementHash = hashOpaqueToken(replacementToken);
   const databaseSession = await mongoose.startSession();
-  type RotationOutcome =
-    | {
-        kind: "rotated";
-        userId: Types.ObjectId;
-        sessionId: Types.ObjectId;
-        expiresAt: Date;
-      }
-    | { kind: "reuse" }
-    | { kind: "invalid" };
-
   const outcome = await (async (): Promise<RotationOutcome> => {
     try {
       return await databaseSession.withTransaction(async (): Promise<RotationOutcome> => {
@@ -185,6 +263,9 @@ export async function rotateRefreshToken(refreshToken: string, context: SessionC
           expiresAt
         };
       });
+    } catch (error) {
+      if (!isTransactionUnsupported(error)) throw error;
+      return rotateWithoutTransaction(presentedHash, replacementHash, context, now);
     } finally {
       await databaseSession.endSession();
     }
