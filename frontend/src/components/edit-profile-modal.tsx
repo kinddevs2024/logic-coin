@@ -144,7 +144,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                     placeholderTextColor={String(theme.textMuted)}
                     style={[styles.countrySearch, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
                   />
-                  <ScrollView style={styles.countryScroll} contentContainerStyle={styles.countryOptions} nestedScrollEnabled>
+                  <ScrollView style={styles.countryScroll} contentContainerStyle={styles.countryOptions} nestedScrollEnabled showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
                     {countryOptions(language)
                       .filter(({ name, code }) => !countryQuery.trim() || `${name} ${code}`.toLocaleLowerCase().includes(countryQuery.trim().toLocaleLowerCase()))
                       .map(({ code }) => (

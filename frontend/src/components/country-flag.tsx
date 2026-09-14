@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import CountryFlag from "react-native-country-flag";
+import { StyleSheet, View } from "react-native";
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json";
 import ruLocale from "i18n-iso-countries/langs/ru.json";
@@ -27,13 +28,9 @@ export function countryName(countryCode: string | null | undefined, language: La
 
 export function CountryFlagBadge({ countryCode, size = 28 }: { countryCode?: string | null; size?: number }) {
   if (!countryCode) return null;
-  const code = countryCode.toUpperCase();
-  const flag = [...code]
-    .map((letter) => String.fromCodePoint(127397 + letter.charCodeAt(0)))
-    .join("");
   return (
     <View style={[styles.wrap, { height: size, width: Math.round(size * 1.48), borderRadius: Math.max(5, Math.round(size * 0.24)) }]}>
-      <Text accessibilityLabel={`${code} flag`} style={[styles.flag, { fontSize: Math.round(size * 0.82), lineHeight: size }]}>{flag}</Text>
+      <CountryFlag isoCode={countryCode.toLowerCase()} size={size} style={styles.flag} />
     </View>
   );
 }
@@ -47,5 +44,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  flag: { margin: 0, textAlign: "center" },
+  flag: { margin: 0 },
 });
