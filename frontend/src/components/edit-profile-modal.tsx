@@ -36,6 +36,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const [avatarDataUrl, setAvatarDataUrl] = useState(user.avatarUrl ?? "");
   const [countryCode, setCountryCode] = useState(user.countryCode ?? (language === "uz" ? "UZ" : language === "en" ? "US" : "RU"));
   const [countryQuery, setCountryQuery] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [picking, setPicking] = useState(false);
   const queryClient = useQueryClient();
@@ -123,23 +124,38 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
             </View>
             <View style={styles.field}>
               <AppText variant="caption" muted>Страна</AppText>
-              <TextInput
-                value={countryQuery}
-                onChangeText={setCountryQuery}
-                placeholder="Поиск страны"
-                placeholderTextColor={String(theme.textMuted)}
-                style={[styles.countrySearch, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
-              />
-              <ScrollView style={styles.countryScroll} contentContainerStyle={styles.countryOptions} nestedScrollEnabled>
-                {countryOptions(language)
-                  .filter(({ name, code }) => !countryQuery.trim() || `${name} ${code}`.toLocaleLowerCase().includes(countryQuery.trim().toLocaleLowerCase()))
-                  .map(({ code }) => (
-                    <Pressable key={code} accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => setCountryCode(code)} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
-                      <CountryFlagBadge countryCode={code} size={22} />
-                      <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
-                    </Pressable>
-                  ))}
-              </ScrollView>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: countryOpen }}
+                onPress={() => setCountryOpen((open) => !open)}
+                style={[styles.countryPicker, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
+              >
+                <CountryFlagBadge countryCode={countryCode} size={22} />
+                <AppText style={styles.countryPickerText} numberOfLines={1}>{countryName(countryCode, language)}</AppText>
+                <Ionicons name={countryOpen ? "chevron-up" : "chevron-down"} size={18} color={String(theme.textMuted)} />
+              </Pressable>
+              {countryOpen ? (
+                <>
+                  <TextInput
+                    value={countryQuery}
+                    onChangeText={setCountryQuery}
+                    autoFocus
+                    placeholder="Поиск страны"
+                    placeholderTextColor={String(theme.textMuted)}
+                    style={[styles.countrySearch, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
+                  />
+                  <ScrollView style={styles.countryScroll} contentContainerStyle={styles.countryOptions} nestedScrollEnabled>
+                    {countryOptions(language)
+                      .filter(({ name, code }) => !countryQuery.trim() || `${name} ${code}`.toLocaleLowerCase().includes(countryQuery.trim().toLocaleLowerCase()))
+                      .map(({ code }) => (
+                        <Pressable key={code} accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => { setCountryCode(code); setCountryOpen(false); setCountryQuery(""); }} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
+                          <CountryFlagBadge countryCode={code} size={22} />
+                          <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
+                        </Pressable>
+                      ))}
+                  </ScrollView>
+                </>
+              ) : null}
             </View>
             {message ? <AppText style={styles.error}>{message}</AppText> : null}
             <Pressable disabled={saveMutation.isPending} onPress={() => saveMutation.mutate()} style={[styles.save, { backgroundColor: theme.primary }, saveMutation.isPending && { opacity: 0.55 }]}>
@@ -168,8 +184,10 @@ const styles = StyleSheet.create({
   field: { gap: 6 },
   countrySearch: { minHeight: 44, borderRadius: 15, borderWidth: 1, paddingHorizontal: 13, fontSize: 14, fontWeight: "600" },
   countryScroll: { maxHeight: 260 },
-  countryOptions: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-  countryOption: { width: "48%", minHeight: 52, borderWidth: 1, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 8 },
+  countryPicker: { minHeight: 52, borderRadius: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 10 },
+  countryPickerText: { flex: 1, fontSize: 14, fontWeight: "700" },
+  countryOptions: { gap: 7, paddingVertical: 1 },
+  countryOption: { width: "100%", minHeight: 52, borderWidth: 1, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 10 },
   input: { minHeight: 52, borderRadius: 18, borderWidth: 1, paddingHorizontal: 15, fontSize: 15, fontWeight: "700" },
   save: { minHeight: 52, borderRadius: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   error: { color: "#DC2626", fontSize: 12, lineHeight: 16, fontWeight: "700" },
