@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { AuthScaffold } from "@/components/auth-scaffold";
@@ -24,6 +24,9 @@ export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ telegram_token?: string; next?: string; email?: string }>();
   const authenticate = useAppStore((state) => state.authenticate);
+  const hydrated = useAppStore((state) => state.hydrated);
+  const authMode = useAppStore((state) => state.authMode);
+  const accessToken = useAppStore((state) => state.accessToken);
   const selectedCountryCode = useAppStore((state) => state.user.countryCode);
   const updateUser = useAppStore((state) => state.updateUser);
   const setPendingRegistrationToken = useAppStore(
@@ -33,6 +36,24 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [step, setStep] = useState<"email" | "password">("email");
   const telegramStarted = useRef(false);
+  const redirectedAuthenticatedUser = useRef(false);
+
+  useEffect(() => {
+    if (
+      !hydrated ||
+      authMode !== "authenticated" ||
+      !accessToken ||
+      redirectedAuthenticatedUser.current
+    ) {
+      return;
+    }
+    redirectedAuthenticatedUser.current = true;
+    const next = params.next;
+    const destination = next && next.startsWith("/") && next !== "/login"
+      ? next
+      : "/(tabs)";
+    router.replace(destination as never);
+  }, [accessToken, authMode, hydrated, params.next, router]);
 
   const complete = useCallback((result: AuthResult) => {
     authenticate({
@@ -109,6 +130,14 @@ export default function LoginScreen() {
       ? error.message
       : t("auth.invalid");
 
+  if (!hydrated || (authMode === "authenticated" && accessToken)) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator color={String(theme.primary)} />
+      </View>
+    );
+  }
+
   return (
     <AuthScaffold
       title={step === "password" ? t("auth.passwordTitle") : undefined}
@@ -184,6 +213,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: { flex: 1, alignItems: "center", justifyContent: "center" },
   form: { gap: 10 },
   backButton: { padding: 8, marginLeft: -8 },
   error: { textAlign: "center", paddingHorizontal: 8 },
