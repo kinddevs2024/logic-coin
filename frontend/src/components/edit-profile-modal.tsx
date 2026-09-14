@@ -9,6 +9,7 @@ import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { CountryFlagBadge, countryName, countryOptions } from "@/components/country-flag";
 import { GlassSurface } from "@/components/glass-surface";
+import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
@@ -39,6 +40,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const [countryOpen, setCountryOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [picking, setPicking] = useState(false);
+  const [cropAsset, setCropAsset] = useState<{ uri: string; width: number; height: number; mimeType: string } | null>(null);
   const queryClient = useQueryClient();
 
   const pickAvatar = async () => {
@@ -52,9 +54,8 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.82,
+        allowsEditing: false,
+        quality: 1,
         base64: true,
       });
       if (result.canceled) return;
@@ -64,12 +65,11 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         setMessage("Выберите JPG, PNG или WebP");
         return;
       }
-      const nextAvatar = `data:${mimeType};base64,${asset.base64}`;
-      if ((asset.fileSize ?? 0) > 10 * 1024 * 1024 || nextAvatar.length > 14_000_000) {
+      if ((asset.fileSize ?? 0) > 10 * 1024 * 1024) {
         setMessage("Файл слишком большой. Выберите фото до 10 МБ");
         return;
       }
-      setAvatarDataUrl(nextAvatar);
+      setCropAsset({ uri: asset.uri, width: asset.width, height: asset.height, mimeType });
     } catch {
       setMessage("Не удалось загрузить фотографию");
     } finally {
@@ -95,6 +95,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   });
 
   return (
+    <>
     <Modal transparent visible animationType="none" onRequestClose={onClose}>
       <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.backdrop}>
         <Pressable onPress={onClose} style={StyleSheet.absoluteFill} />
@@ -166,6 +167,12 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         </Animated.View>
       </Animated.View>
     </Modal>
+    <PhotoCropEditor
+      asset={cropAsset}
+      onCancel={() => setCropAsset(null)}
+      onConfirm={(dataUrl) => { setAvatarDataUrl(dataUrl); setCropAsset(null); }}
+    />
+    </>
   );
 }
 
