@@ -43,7 +43,6 @@ export function ProfileDrawer({
   const { t, language } = useTranslation();
   const reduceMotion = useReducedMotion();
   const user = useAppStore((state) => state.user);
-  const authMode = useAppStore((state) => state.authMode);
   const balance = useAppStore((state) => state.balanceUnits);
   const coinBalance = useAppStore((state) => state.coinBalance);
   const streak = useAppStore((state) => state.streak);
@@ -168,9 +167,11 @@ export function ProfileDrawer({
                     <AppText variant="heading" color="#FFFFFF">
                       {user.name}
                     </AppText>
-                    <AppText variant="caption" color="rgba(255,255,255,0.72)">
-                      {user.email ?? (authMode === "authenticated" ? "Telegram" : "Гость")}
-                    </AppText>
+                    {user.email ? (
+                      <AppText variant="caption" color="rgba(255,255,255,0.72)">
+                        {user.email}
+                      </AppText>
+                    ) : null}
                     <View style={styles.drawerCountry}>
                       <CountryFlagBadge countryCode={user.countryCode} size={16} />
                       <AppText variant="caption" color="rgba(255,255,255,0.78)">{countryName(user.countryCode, language)}</AppText>
