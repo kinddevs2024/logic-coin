@@ -70,6 +70,31 @@ export function PhotoCropEditor({
     },
   }), [asset, baseScale, offset, zoom]);
 
+  const resizeResponders = useMemo(() => {
+    const createResizeResponder = (getChange: (dx: number, dy: number) => number) => PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        gesture.current = { ...gesture.current, x: zoom, y: 0 };
+      },
+      onPanResponderMove: (_, state) => {
+        const nextZoom = Math.max(1, Math.min(3, gesture.current.x + getChange(state.dx, state.dy) / 180));
+        setZoom(nextZoom);
+        setOffset((current) => clampOffset(current.x, current.y, nextZoom));
+      },
+    });
+    return {
+      topLeft: createResizeResponder((dx, dy) => -dx - dy),
+      topRight: createResizeResponder((dx, dy) => dx - dy),
+      bottomLeft: createResizeResponder((dx, dy) => -dx + dy),
+      bottomRight: createResizeResponder((dx, dy) => dx + dy),
+      top: createResizeResponder((_dx, dy) => -dy),
+      right: createResizeResponder((dx, _dy) => dx),
+      bottom: createResizeResponder((_dx, dy) => dy),
+      left: createResizeResponder((dx, _dy) => -dx),
+    };
+  }, [clampOffset, zoom]);
+
   const confirm = async () => {
     if (!asset) return;
     const left = (viewport - displayWidth) / 2 - offset.x;
@@ -100,6 +125,14 @@ export function PhotoCropEditor({
               <View style={styles.gridLineHorizontal} />
               <View style={styles.circle} />
             </View>
+            <View {...resizeResponders.topLeft.panHandlers} style={[styles.handle, styles.handleTopLeft]} />
+            <View {...resizeResponders.topRight.panHandlers} style={[styles.handle, styles.handleTopRight]} />
+            <View {...resizeResponders.bottomLeft.panHandlers} style={[styles.handle, styles.handleBottomLeft]} />
+            <View {...resizeResponders.bottomRight.panHandlers} style={[styles.handle, styles.handleBottomRight]} />
+            <View {...resizeResponders.top.panHandlers} style={[styles.handle, styles.handleTop]} />
+            <View {...resizeResponders.right.panHandlers} style={[styles.handle, styles.handleRight]} />
+            <View {...resizeResponders.bottom.panHandlers} style={[styles.handle, styles.handleBottom]} />
+            <View {...resizeResponders.left.panHandlers} style={[styles.handle, styles.handleLeft]} />
           </View>
           <View style={styles.zoomControls}>
             <Pressable accessibilityLabel="Уменьшить" onPress={() => { const nextZoom = Math.max(1, zoom - 0.15); setZoom(nextZoom); setOffset(clampOffset(offset.x, offset.y, nextZoom)); }} style={styles.zoomButton}><AppText color={String(theme.text)} style={styles.zoomText}>−</AppText></Pressable>
@@ -121,11 +154,20 @@ const styles = StyleSheet.create({
   card: { width: "100%", maxWidth: 380, borderRadius: 28, padding: 20, gap: 10 },
   title: { fontSize: 21, lineHeight: 27, fontWeight: "900", textAlign: "center" },
   subtitle: { textAlign: "center" },
-  cropArea: { width: 280, height: 280, alignSelf: "center", overflow: "hidden", borderRadius: 140, backgroundColor: "#101827" },
-  grid: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2, borderColor: "rgba(255,255,255,0.9)", borderRadius: 140 },
-  circle: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderWidth: 1, borderColor: "rgba(255,255,255,0.45)", borderRadius: 140 },
+  cropArea: { width: 280, height: 280, alignSelf: "center", overflow: "hidden", borderRadius: 2, backgroundColor: "#101827" },
+  grid: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2, borderColor: "rgba(255,255,255,0.9)" },
+  circle: { position: "absolute", top: 14, right: 14, bottom: 14, left: 14, borderWidth: 2, borderColor: "rgba(255,255,255,0.82)", borderRadius: 126 },
   gridLineVertical: { position: "absolute", top: 0, bottom: 0, left: "50%", width: 1, backgroundColor: "rgba(255,255,255,0.35)" },
   gridLineHorizontal: { position: "absolute", left: 0, right: 0, top: "50%", height: 1, backgroundColor: "rgba(255,255,255,0.35)" },
+  handle: { position: "absolute", width: 13, height: 13, borderRadius: 3, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#4C6FFF" },
+  handleTopLeft: { top: -1, left: -1 },
+  handleTopRight: { top: -1, right: -1 },
+  handleBottomLeft: { bottom: -1, left: -1 },
+  handleBottomRight: { bottom: -1, right: -1 },
+  handleTop: { top: -1, left: "50%", marginLeft: -6 },
+  handleRight: { right: -1, top: "50%", marginTop: -6 },
+  handleBottom: { bottom: -1, left: "50%", marginLeft: -6 },
+  handleLeft: { left: -1, top: "50%", marginTop: -6 },
   actions: { flexDirection: "row", gap: 10, marginTop: 6 },
   zoomControls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16 },
   zoomButton: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#E8EDF5" },

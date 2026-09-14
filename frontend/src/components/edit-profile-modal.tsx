@@ -65,10 +65,6 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         setMessage("Выберите JPG, PNG или WebP");
         return;
       }
-      if ((asset.fileSize ?? 0) > 10 * 1024 * 1024) {
-        setMessage("Файл слишком большой. Выберите фото до 10 МБ");
-        return;
-      }
       setCropAsset({ uri: asset.uri, width: asset.width, height: asset.height, mimeType });
     } catch {
       setMessage("Не удалось загрузить фотографию");
@@ -111,13 +107,6 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                 {picking ? <ActivityIndicator size="small" color={String(theme.primary)} /> : <Ionicons name="camera-outline" size={17} color={String(theme.primary)} />}
                 <AppText variant="caption" color={String(theme.primary)}>Выбрать и обрезать</AppText>
               </Pressable>
-              <AppText variant="caption" muted style={styles.cropHint}>До 10 МБ · переместите фото в круге перед подтверждением</AppText>
-              {avatarDataUrl ? (
-                <Pressable accessibilityRole="button" onPress={() => setAvatarDataUrl("")} style={styles.removePhoto}>
-                  <Ionicons name="trash-outline" size={14} color="#C33B4A" />
-                  <AppText style={styles.removePhotoText}>Удалить</AppText>
-                </Pressable>
-              ) : null}
             </View>
             <View style={styles.field}>
               <AppText variant="caption" muted>{t("profile.name")}</AppText>
@@ -184,10 +173,7 @@ const styles = StyleSheet.create({
   title: { flex: 1, fontSize: 22, lineHeight: 28, fontWeight: "900" },
   close: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   preview: { alignItems: "center", paddingVertical: 4, gap: 8 },
-  cropHint: { maxWidth: 300, textAlign: "center" },
   photoButton: { minHeight: 40, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  removePhoto: { minHeight: 30, flexDirection: "row", alignItems: "center", gap: 5 },
-  removePhotoText: { color: "#C33B4A", fontSize: 11, lineHeight: 14, fontWeight: "800" },
   field: { gap: 6 },
   countrySearch: { minHeight: 44, borderRadius: 15, borderWidth: 1, paddingHorizontal: 13, fontSize: 14, fontWeight: "600" },
   countryScroll: { maxHeight: 260 },
