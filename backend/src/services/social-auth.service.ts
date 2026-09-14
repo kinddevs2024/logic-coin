@@ -98,9 +98,8 @@ export async function authenticateGoogle(idToken: string, referralCode?: string)
       audience: validClientIds
     });
     payload = ticket.getPayload();
-  } catch {
-    // The provider error can contain the raw credential. Never log ID tokens.
-    console.error("Google token verification failed");
+  } catch (error) {
+    console.error("Google token verification failed:", error);
     throw new ApiError(401, "invalid_google_token", "Google ID token is invalid");
   }
 

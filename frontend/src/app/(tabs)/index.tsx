@@ -5,7 +5,6 @@ import Svg, { Circle } from "react-native-svg";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
-import { YandexBannerSlot } from "@/components/yandex-banner";
 import { AppButton, IconButton } from "@/components/buttons";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
@@ -181,7 +180,6 @@ export default function HomeScreen() {
         onInvite={() => router.push("/invite")}
       />
       <LeaderboardModal visible={leaderboardOpen} onClose={() => setLeaderboardOpen(false)} />
-      <YandexBannerSlot placement="home-summary" />
     </AppFrame>
   );
 }

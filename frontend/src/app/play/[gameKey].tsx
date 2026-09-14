@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MergeScreen from "@/app/games/2048";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
-import { YandexBannerSlot as AppodealBannerSlot } from "@/components/yandex-banner";
+import { AppodealBannerSlot } from "@/components/appodeal-banner";
 import { GAME_BY_KEY } from "@/constants/games";
 import { gamesAById, type ArcadeGameAId, type ArcadeGameResult } from "@/games/arcade/a";
 import { gamesBById, renderGameB, type ArcadeGameProps as ArcadeGameBProps, type ArcadeGameResult as ArcadeGameBResult, type GameBId } from "@/games/arcade/b";

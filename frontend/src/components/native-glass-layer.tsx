@@ -1,4 +1,7 @@
-import { StyleSheet, View } from "react-native";
+import { BlurView } from "expo-blur";
+import { Platform, StyleSheet } from "react-native";
+
+import { useGlassBlurTarget } from "@/components/glass-blur-target";
 
 export function NativeGlassLayer({
   intensity,
@@ -7,18 +10,20 @@ export function NativeGlassLayer({
   intensity: number;
   dark: boolean;
 }) {
-  // A translucent overlay is substantially cheaper than one BlurView per card.
+  const blurTarget = useGlassBlurTarget();
+
   return (
-    <View
+    <BlurView
       pointerEvents="none"
-      style={[
-        StyleSheet.absoluteFill,
-        {
-          backgroundColor: dark
-            ? `rgba(20,29,45,${Math.min(0.88, 0.52 + intensity / 250)})`
-            : `rgba(248,251,255,${Math.min(0.92, 0.58 + intensity / 250)})`,
-        },
-      ]}
+      intensity={intensity}
+      tint={dark ? "dark" : "systemUltraThinMaterialLight"}
+      {...(Platform.OS === "android" && blurTarget
+        ? {
+            blurMethod: "dimezisBlurViewSdk31Plus" as const,
+            blurTarget,
+          }
+        : {})}
+      style={StyleSheet.absoluteFill}
     />
   );
 }

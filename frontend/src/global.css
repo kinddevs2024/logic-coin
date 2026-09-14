@@ -55,12 +55,3 @@ input {
   outline-offset: 2px;
   box-shadow: 0 0 0 5px rgba(123, 193, 255, 0.14);
 }
-
-/* Keep mobile cards readable without repeatedly blurring the whole scene. */
-@media (max-width: 767px), (prefers-reduced-motion: reduce) {
-  [data-glass-surface="true"] {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    box-shadow: none !important;
-  }
-}

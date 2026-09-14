@@ -62,7 +62,6 @@ export function GlassSurface({
   return (
     <View
       {...viewProps}
-      {...(Platform.OS === "web" ? ({ dataSet: { glassSurface: "true" } } as unknown as ViewProps) : {})}
       style={[
         styles.surface,
         {

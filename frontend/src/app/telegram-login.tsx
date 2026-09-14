@@ -12,7 +12,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 const ANDROID_PACKAGE = "com.kinddevs.logiccoin";
 
 export default function TelegramLoginScreen() {
-  const params = useLocalSearchParams<{ telegram_token?: string; next?: string }>();
+  const params = useLocalSearchParams<{ telegram_token?: string }>();
   const router = useRouter();
   const theme = useAppTheme();
   const token = Array.isArray(params.telegram_token)
@@ -25,8 +25,8 @@ export default function TelegramLoginScreen() {
       router.replace("/login");
       return;
     }
-    router.replace({ pathname: "/login", params: { telegram_token: token, ...(params.next ? { next: params.next } : {}) } });
-  }, [params.next, router, token]);
+    router.replace({ pathname: "/login", params: { telegram_token: token } });
+  }, [router, token]);
 
   const openApplication = useCallback(() => {
     if (!token || Platform.OS !== "web") {
@@ -35,14 +35,12 @@ export default function TelegramLoginScreen() {
     }
 
     const encodedToken = encodeURIComponent(token);
-    const nextQuery = params.next ? `&next=${encodeURIComponent(params.next)}` : "";
-    const appUrl = `logiccoin://login?telegram_token=${encodedToken}${nextQuery}`;
+    const appUrl = `logiccoin://login?telegram_token=${encodedToken}`;
     const fallbackUrl = new URL("/login", window.location.origin);
     fallbackUrl.searchParams.set("telegram_token", token);
-    if (params.next) fallbackUrl.searchParams.set("next", params.next);
     const isAndroid = /Android/i.test(window.navigator.userAgent);
     const destination = isAndroid
-      ? `intent://login?telegram_token=${encodedToken}${nextQuery}#Intent;scheme=logiccoin;package=${ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(fallbackUrl.toString())};end`
+      ? `intent://login?telegram_token=${encodedToken}#Intent;scheme=logiccoin;package=${ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(fallbackUrl.toString())};end`
       : appUrl;
 
     let timer = window.setTimeout(() => {
@@ -58,7 +56,7 @@ export default function TelegramLoginScreen() {
     };
     document.addEventListener("visibilitychange", cancelFallback, { once: true });
     window.location.assign(destination);
-  }, [continueInBrowser, params.next, token]);
+  }, [continueInBrowser, token]);
 
   useEffect(() => {
     if (Platform.OS !== "web") {

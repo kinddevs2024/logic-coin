@@ -1,0 +1,95 @@
+const {
+  withAppBuildGradle,
+  withGradleProperties,
+  withProjectBuildGradle,
+} = require("expo/config-plugins");
+
+const APPODEAL_REPOSITORY =
+  'maven { url "https://artifactory.appodeal.com/appodeal" }';
+const APPODEAL_DEPENDENCIES = [
+  'implementation("com.appodeal.ads.sdk:core:4.3.0")',
+  'implementation("com.appodeal.ads.sdk.adapters:bidmachine:3.7.1.0")',
+  'implementation("com.appodeal.ads.sdk.adapters:bidon:0.14.0.0")',
+];
+const GOOGLE_MOBILE_ADS_VERSION = "24.7.0";
+const GOOGLE_MOBILE_ADS_FORCE_LINE =
+  `resolutionStrategy.force("com.google.android.gms:play-services-ads:${GOOGLE_MOBILE_ADS_VERSION}")`;
+const ANDROID_RELEASE_PROPERTIES = [
+  ["org.gradle.jvmargs", "-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"],
+  ["org.gradle.workers.max", "2"],
+  ["reactNativeArchitectures", "armeabi-v7a,arm64-v8a"],
+  ["android.enableMinifyInReleaseBuilds", "true"],
+  ["android.enableShrinkResourcesInReleaseBuilds", "true"],
+  ["expo.gif.enabled", "false"],
+  ["expo.useLegacyPackaging", "true"],
+];
+
+function addOnce(source, anchor, value) {
+  if (source.includes(value)) return source;
+  if (!source.includes(anchor)) {
+    throw new Error(`Appodeal config plugin could not find Gradle anchor: ${anchor}`);
+  }
+  return source.replace(anchor, `${anchor}\n    ${value}`);
+}
+
+function addGoogleAdsResolution(source) {
+  if (source.includes(GOOGLE_MOBILE_ADS_FORCE_LINE)) return source;
+  const anchor = `${APPODEAL_REPOSITORY}\n  }\n}`;
+  if (!source.includes(anchor)) {
+    throw new Error("Appodeal config plugin could not find allprojects repository block");
+  }
+  return source.replace(
+    anchor,
+    `${APPODEAL_REPOSITORY}\n  }\n  configurations.configureEach {\n    ${GOOGLE_MOBILE_ADS_FORCE_LINE}\n  }\n}`,
+  );
+}
+
+function withAppodeal(config) {
+  config = withGradleProperties(config, (gradleConfig) => {
+    for (const [key, value] of ANDROID_RELEASE_PROPERTIES) {
+      const existing = gradleConfig.modResults.find(
+        (property) => property.type === "property" && property.key === key,
+      );
+      if (existing) {
+        existing.value = value;
+      } else {
+        gradleConfig.modResults.push({ type: "property", key, value });
+      }
+    }
+    return gradleConfig;
+  });
+
+  config = withProjectBuildGradle(config, (gradleConfig) => {
+    let contents = addOnce(
+      gradleConfig.modResults.contents,
+      "maven { url 'https://www.jitpack.io' }",
+      APPODEAL_REPOSITORY,
+    );
+    contents = addGoogleAdsResolution(contents);
+    gradleConfig.modResults.contents = contents;
+    return gradleConfig;
+  });
+
+  config = withAppBuildGradle(config, (gradleConfig) => {
+    let contents = gradleConfig.modResults.contents;
+    for (const dependency of APPODEAL_DEPENDENCIES) {
+      contents = addOnce(
+        contents,
+        'implementation("com.facebook.react:react-android")',
+        dependency,
+      );
+    }
+    gradleConfig.modResults.contents = contents;
+    return gradleConfig;
+  });
+
+  return config;
+}
+
+module.exports = withAppodeal;
+module.exports.__test__ = {
+  addGoogleAdsResolution,
+  addOnce,
+  APPODEAL_REPOSITORY,
+  GOOGLE_MOBILE_ADS_FORCE_LINE,
+};

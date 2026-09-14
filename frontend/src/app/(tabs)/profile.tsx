@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
-import { YandexBannerSlot } from "@/components/yandex-banner";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { CountryFlagBadge, countryName } from "@/components/country-flag";
@@ -197,7 +196,6 @@ export default function ProfileScreen() {
         </AppButton>
       </View>
       <EditProfileModal visible={editing} onClose={() => setEditing(false)} />
-      <YandexBannerSlot placement="profile-summary" />
     </AppFrame>
   );
 }

@@ -9,11 +9,24 @@ import {
   claimRewardedAdCoins,
   completeRewardedAdFromClient,
   getRewardedAdSession,
-  startRewardedAdSession
+  startRewardedAdSession,
+  verifyAppodealServerCallback
 } from "../services/rewarded-ad-session.service.js";
 
 const router = Router();
 const sessionIdSchema = z.string().uuid();
+
+router.get("/appodeal/reward", async (request, response) => {
+  const query = z
+    .object({ data1: z.string().regex(/^[a-f0-9]+$/i), data2: z.string().regex(/^[a-f0-9]+$/i) })
+    .safeParse(request.query);
+  if (!query.success) {
+    response.status(400).json({ error: { code: "invalid_appodeal_callback" } });
+    return;
+  }
+  const result = await verifyAppodealServerCallback(query.data.data1, query.data.data2);
+  response.json({ data: result });
+});
 
 router.use(requireAuth);
 
@@ -23,13 +36,13 @@ router.post(
   validateBody(
     z.object({
       placement: z.enum(REWARDED_AD_PLACEMENTS),
-      provider: z.literal("yandex").default("yandex")
+      provider: z.enum(["yandex", "appodeal"]).default("yandex")
     }).strict()
   ),
   async (request, response) => {
     const body = request.body as {
       placement: (typeof REWARDED_AD_PLACEMENTS)[number];
-      provider: "yandex";
+      provider: "yandex" | "appodeal";
     };
     const session = await startRewardedAdSession(request.auth!.userId, body.placement, body.provider);
     response.status(201).json({ data: { session } });
