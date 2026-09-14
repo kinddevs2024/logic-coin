@@ -17,13 +17,15 @@ export type TelegramIdentity = {
 
 type TelegramMessageUpdate = {
   message?: {
+    message_id?: number;
     text?: string;
-    chat?: { id?: number | string };
+    chat?: { id?: number | string; type?: string };
     from?: {
       id?: number | string;
       first_name?: string;
       last_name?: string;
       username?: string;
+      is_bot?: boolean;
     };
   };
 };
@@ -31,6 +33,13 @@ type TelegramMessageUpdate = {
 const LOGIN_TTL_MS = 10 * 60_000;
 let cachedBotUsername: string | null = null;
 let webhookSetup: Promise<void> | null = null;
+
+export function telegramAppUrl(): string {
+  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
+  const url = new URL("/login", appUrl);
+  url.searchParams.set("v", env.TELEGRAM_WEB_APP_VERSION);
+  return url.toString();
+}
 
 function requireBotToken(): string {
   const token = env.TELEGRAM_BOT_TOKEN?.trim();
@@ -81,9 +90,9 @@ export function telegramWebhookUrl(
 
 async function configureTelegramBotUI() {
   const token = requireBotToken();
-  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
+  const appUrl = telegramAppUrl();
 
-  await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
+  const menuResponse = await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -94,19 +103,45 @@ async function configureTelegramBotUI() {
       }
     }),
     signal: AbortSignal.timeout(8_000)
-  }).catch(() => undefined);
+  });
+  const menuPayload = (await menuResponse.json().catch(() => null)) as
+    | { ok?: boolean; description?: string }
+    | null;
+  if (!menuResponse.ok || !menuPayload?.ok) {
+    throw new ApiError(
+      502,
+      "telegram_menu_unavailable",
+      menuPayload?.description || "Telegram menu could not be configured"
+    );
+  }
 
-  await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+  const commandsResponse = await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       commands: [
         { command: "start", description: "Запустить Logic Coin 🎮" },
-        { command: "play", description: "Открыть приложение и баланс 💰" }
+        { command: "play", description: "Открыть Mini App 🎮" },
+        { command: "account", description: "Аккаунт 👤" },
+        { command: "settings", description: "Настройки ⚙️" },
+        { command: "balance", description: "Баланс 💰" },
+        { command: "challenge", description: "Челлендж ⏱" },
+        { command: "help", description: "Помощь и меню" },
+        { command: "stop", description: "Отключить уведомления" }
       ]
     }),
     signal: AbortSignal.timeout(8_000)
-  }).catch(() => undefined);
+  });
+  const commandsPayload = (await commandsResponse.json().catch(() => null)) as
+    | { ok?: boolean; description?: string }
+    | null;
+  if (!commandsResponse.ok || !commandsPayload?.ok) {
+    throw new ApiError(
+      502,
+      "telegram_commands_unavailable",
+      commandsPayload?.description || "Telegram commands could not be configured"
+    );
+  }
 }
 
 async function configureTelegramWebhook() {
@@ -253,7 +288,7 @@ function parseStartIdentity(update: TelegramMessageUpdate): {
 
 async function sendBotReturnLink(chatId: string, resumeToken: string) {
   const returnUrl = buildTelegramReturnUrl(resumeToken);
-  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
+  const appUrl = telegramAppUrl();
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
   await fetch(botUrl, {
     method: "POST",
@@ -261,7 +296,7 @@ async function sendBotReturnLink(chatId: string, resumeToken: string) {
     body: JSON.stringify({
       chat_id: chatId,
       text: "✅ Вход подтверждён! Возвращайтесь в Logic Coin.",
-      reply_markup: { remove_keyboard: true }
+      protect_content: true
     }),
     signal: AbortSignal.timeout(5_000)
   }).catch(() => undefined);
@@ -284,7 +319,7 @@ async function sendBotReturnLink(chatId: string, resumeToken: string) {
 
 async function sendBotWelcome(chatId: string) {
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
-  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
+  const appUrl = telegramAppUrl();
   await fetch(botUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -304,25 +339,53 @@ async function sendBotWelcome(chatId: string) {
 
 export function buildTelegramReturnUrl(
   resumeToken: string,
-  appPublicUrl = env.APP_PUBLIC_URL
+  appPublicUrl = env.APP_PUBLIC_URL,
+  nextPath?: string
 ) {
   const returnUrl = new URL("/telegram-login", appPublicUrl);
+  returnUrl.searchParams.set("v", env.TELEGRAM_WEB_APP_VERSION);
   returnUrl.searchParams.set("telegram_token", resumeToken);
+  if (nextPath && ["/", "/profile", "/challenges", "/withdraw"].includes(nextPath)) {
+    returnUrl.searchParams.set("next", nextPath);
+  }
   return returnUrl.toString();
 }
 
+export async function createTelegramResumeUrlForLinkedUser(input: {
+  telegramId: string;
+  name: string;
+  nextPath?: string;
+}) {
+  const resumeToken = randomBytes(32).toString("base64url");
+  await TelegramLoginChallenge.create({
+    flowId: randomBytes(16).toString("base64url"),
+    pollTokenHash: hashOpaqueToken(randomBytes(32).toString("base64url")),
+    resumeTokenHash: hashOpaqueToken(resumeToken),
+    telegramUser: { id: input.telegramId, firstName: input.name.trim() || "Logic member" },
+    confirmedAt: new Date(),
+    expiresAt: new Date(Date.now() + LOGIN_TTL_MS)
+  });
+  return buildTelegramReturnUrl(resumeToken, env.APP_PUBLIC_URL, input.nextPath);
+}
+
 export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
+  const { handleTelegramMenu, privateSender } = await import("./telegram-menu.service.js");
+  if (!update.message || !privateSender(update.message)) return { accepted: true, matched: false };
   const message = update.message;
   const text = message?.text?.trim() ?? "";
   if (
-    /^\/(start|play|app|help)(?:@[A-Za-z0-9_]+)?$/i.test(text) &&
+    /^\/(play|app)(?:@[A-Za-z0-9_]+)?$/i.test(text) &&
     message?.chat?.id !== undefined
   ) {
     await sendBotWelcome(String(message.chat.id));
+    await handleTelegramMenu({ ...message, text: "/menu" });
     return { accepted: true, matched: false };
   }
   const parsed = parseStartIdentity(update);
-  if (!parsed) return { accepted: true, matched: false };
+  if (!parsed) {
+    await handleTelegramMenu(update.message);
+    return { accepted: true, matched: false };
+  }
 
   const resumeToken = randomBytes(32).toString("base64url");
   const challenge = await TelegramLoginChallenge.findOneAndUpdate(
@@ -342,6 +405,7 @@ export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
   );
   if (!challenge) return { accepted: true, matched: false };
   await sendBotReturnLink(parsed.chatId, resumeToken);
+  await handleTelegramMenu({ ...update.message, text: "/menu" });
   return { accepted: true, matched: true };
 }
 
@@ -366,8 +430,8 @@ export async function startTelegramLocalPolling() {
         const payload = (await response.json()) as { ok?: boolean; result?: (TelegramMessageUpdate & { update_id: number })[] };
         if (!payload.ok) throw new Error("Telegram polling failed");
         for (const update of payload.result ?? []) {
-          localPollingOffset = Math.max(localPollingOffset, update.update_id + 1);
           await confirmTelegramBotUpdate(update);
+          localPollingOffset = Math.max(localPollingOffset, update.update_id + 1);
         }
       } catch {
         if (localPollingActive) await new Promise((resolve) => setTimeout(resolve, 1_500));

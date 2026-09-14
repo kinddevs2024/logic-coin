@@ -13,10 +13,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { ApiError, authApi, meApi, type AuthResult } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
-
-type TelegramWindow = Window & {
-  Telegram?: { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } };
-};
+import { loadTelegramWebApp } from "@/lib/telegram-web";
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -46,8 +43,9 @@ export default function LoginScreen() {
         .then((user) => updateUser(user))
         .catch(() => {});
     }
-    router.replace(result.user.role === "admin" ? "/admin" : "/(tabs)");
-  }, [authenticate, router, selectedCountryCode, updateUser]);
+    const destination = params.next && ["/profile", "/challenges", "/withdraw"].includes(params.next) ? params.next : "/(tabs)";
+    router.replace((result.user.role === "admin" ? "/admin" : destination) as never);
+  }, [authenticate, params.next, router, selectedCountryCode, updateUser]);
 
   const emailFlow = useMutation({
     mutationFn: () => authApi.startEmail(email.trim()),
@@ -86,19 +84,18 @@ export default function LoginScreen() {
   useEffect(() => {
     if (telegramStarted.current) return;
     const resumeToken = params.telegram_token;
-    const webApp =
-      Platform.OS === "web"
-        ? (window as TelegramWindow).Telegram?.WebApp
-        : undefined;
-    const initData = webApp?.initData;
-    if (!resumeToken && !initData) return;
-    telegramStarted.current = true;
-    webApp?.ready?.();
-    webApp?.expand?.();
-    telegramFlow.mutate({
-      ...(resumeToken ? { resumeToken } : {}),
-      ...(!resumeToken && initData ? { initData } : {}),
-    });
+    let cancelled = false;
+    void (async () => {
+      const webApp = Platform.OS === "web" ? await loadTelegramWebApp() : undefined;
+      if (cancelled || telegramStarted.current) return;
+      const initData = webApp?.initData;
+      if (!resumeToken && !initData) return;
+      telegramStarted.current = true;
+      webApp?.ready?.();
+      webApp?.expand?.();
+      telegramFlow.mutate(resumeToken ? { resumeToken } : { initData });
+    })();
+    return () => { cancelled = true; };
   }, [params.telegram_token, telegramFlow]);
 
   const error = emailFlow.error ?? passwordFlow.error ?? telegramFlow.error;

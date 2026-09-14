@@ -1,10 +1,4 @@
-import {
-  createDecipheriv,
-  createHash,
-  randomUUID,
-  timingSafeEqual
-} from "node:crypto";
-import { parse as parseQueryString } from "node:querystring";
+import { randomUUID } from "node:crypto";
 import mongoose, { Types } from "mongoose";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
@@ -22,7 +16,6 @@ export type RewardedAdPlacement = (typeof REWARDED_AD_PLACEMENTS)[number];
 export type RewardedAdProvider = "yandex" | "appodeal";
 
 const SESSION_TTL_MS = 20 * 60 * 1000;
-const CALLBACK_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 const COIN_REWARDS: Partial<Record<RewardedAdPlacement, number>> = {
   "challenge-third-game": 75,
   "navigation-frequency": 25
@@ -91,9 +84,7 @@ export async function completeRewardedAdFromClient(input: {
 
   const clientVerificationAllowed =
     env.NODE_ENV !== "production" ||
-    (session.provider === "yandex"
-      ? env.YANDEX_ALLOW_CLIENT_CALLBACK
-      : env.APPODEAL_ALLOW_CLIENT_CALLBACK);
+    (session.provider === "yandex" && env.YANDEX_ALLOW_CLIENT_CALLBACK);
   session.clientReceiptId = input.clientReceiptId;
   if (clientVerificationAllowed) {
     session.status = "completed";
@@ -234,65 +225,4 @@ export async function claimFirstChallengeReplay(input: {
     throw new ApiError(409, "completed_attempt_required", "The challenge is no longer replayable");
   }
   return { gameKey: game.key, replayCount: 1 };
-}
-
-function safeHashEqual(left: string, right: string) {
-  const leftBytes = Buffer.from(left.toLowerCase(), "utf8");
-  const rightBytes = Buffer.from(right.toLowerCase(), "utf8");
-  return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes);
-}
-
-export async function verifyAppodealServerCallback(data1: string, data2: string) {
-  if (!env.APPODEAL_REWARD_CALLBACK_SECRET) {
-    throw new ApiError(503, "appodeal_callback_not_configured", "Appodeal callback is not configured");
-  }
-  try {
-    const key = createHash("sha256")
-      .update(env.APPODEAL_REWARD_CALLBACK_SECRET, "utf8")
-      .digest();
-    const decipher = createDecipheriv("aes-256-cbc", key, Buffer.from(data1, "hex"));
-    const decrypted = decipher.update(data2, "hex", "utf8") + decipher.final("utf8");
-    const values = parseQueryString(decrypted);
-    const userId = String(values.user_id ?? "");
-    const amount = String(values.amount ?? "");
-    const currency = String(values.currency ?? "");
-    const impressionId = String(values.impression_id ?? "");
-    const timestamp = String(values.timestamp ?? "");
-    const suppliedHash = String(values.hash ?? "");
-    const expectedHash = createHash("sha1")
-      .update(
-        `user_id=${userId}&amount=${amount}&currency=${currency}&impression_id=${impressionId}&timestamp=${timestamp}`
-      )
-      .digest("hex");
-    if (!safeHashEqual(suppliedHash, expectedHash)) throw new Error("hash mismatch");
-    if (!Types.ObjectId.isValid(userId) || !impressionId) throw new Error("invalid callback data");
-    const numericTimestamp = Number(timestamp);
-    const timestampMs = numericTimestamp < 10_000_000_000 ? numericTimestamp * 1000 : numericTimestamp;
-    if (!Number.isFinite(timestampMs) || Math.abs(Date.now() - timestampMs) > CALLBACK_MAX_AGE_MS) {
-      throw new Error("stale callback");
-    }
-
-    const duplicate = await RewardedAdSession.findOne({ impressionId });
-    if (duplicate) return { accepted: true, duplicate: true };
-    const session = await RewardedAdSession.findOneAndUpdate(
-      {
-        userId: new Types.ObjectId(userId),
-        status: "started",
-        expiresAt: { $gt: new Date() }
-      },
-      {
-        $set: {
-          status: "completed",
-          completedAt: new Date(),
-          impressionId
-        }
-      },
-      { new: true, sort: { createdAt: -1 } }
-    );
-    if (!session) throw new ApiError(404, "rewarded_ad_session_not_found", "No pending ad session");
-    return { accepted: true, duplicate: false };
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(400, "invalid_appodeal_callback", "Invalid Appodeal callback");
-  }
 }

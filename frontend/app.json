@@ -3,7 +3,7 @@
     "name": "Logic Coin",
     "slug": "logic-coin",
     "scheme": "logiccoin",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "userInterfaceStyle": "automatic",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.kinddevs.logiccoin",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#F7FAFF",
         "foregroundImage": "./assets/brand/adaptive-icon.png"
@@ -39,15 +39,6 @@
         }
       ],
       "@react-native-google-signin/google-signin",
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-8830993776186608~3415573733",
-          "iosAppId": "ca-app-pub-8830993776186608~3415573733",
-          "userTrackingUsageDescription": "Logic Coin использует идентификатор устройства, чтобы показывать более подходящую рекламу."
-        }
-      ],
-      "./plugins/with-appodeal",
       "./plugins/with-yandex-mobile-ads",
       [
         "expo-notifications",

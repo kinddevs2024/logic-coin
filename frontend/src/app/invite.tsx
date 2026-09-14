@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { Share, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
+import { YandexBannerSlot } from "@/components/yandex-banner";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { AppButton } from "@/components/buttons";
@@ -186,6 +187,7 @@ export default function InviteScreen() {
           Баланс друга не уменьшается.
         </AppText>
       </GlassSurface>
+      <YandexBannerSlot placement="invite-summary" />
     </AppFrame>
   );
 }

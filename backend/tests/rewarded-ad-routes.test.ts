@@ -9,8 +9,7 @@ const mocks = vi.hoisted(() => ({
   status: vi.fn(),
   complete: vi.fn(),
   claim: vi.fn(),
-  replay: vi.fn(),
-  callback: vi.fn()
+  replay: vi.fn()
 }));
 
 vi.mock("../src/middleware/auth.js", () => ({
@@ -27,8 +26,7 @@ vi.mock("../src/services/rewarded-ad-session.service.js", () => ({
   getRewardedAdSession: mocks.status,
   completeRewardedAdFromClient: mocks.complete,
   claimRewardedAdCoins: mocks.claim,
-  claimFirstChallengeReplay: mocks.replay,
-  verifyAppodealServerCallback: mocks.callback
+  claimFirstChallengeReplay: mocks.replay
 }));
 
 import adRoutes from "../src/routes/ads.routes.js";
@@ -48,10 +46,15 @@ describe("rewarded ad routes", () => {
     mocks.callback.mockResolvedValue({ accepted: true, duplicate: false });
   });
 
-  it("accepts only declared Appodeal placements", async () => {
+  it("starts only declared Yandex rewarded placements", async () => {
     await request(app).post("/rewarded/start").send({ placement: "challenge-third-game" }).expect(201);
     await request(app).post("/rewarded/start").send({ placement: "unknown" }).expect(400);
     expect(mocks.start).toHaveBeenCalledTimes(1);
+    expect(mocks.start).toHaveBeenCalledWith(
+      expect.any(Types.ObjectId),
+      "challenge-third-game",
+      "yandex"
+    );
   });
 
   it("activates a first-game replay only through a verified session", async () => {
@@ -60,9 +63,4 @@ describe("rewarded ad routes", () => {
     expect(mocks.replay).toHaveBeenCalledWith(expect.objectContaining({ sessionId, gameKey: "tetris" }));
   });
 
-  it("keeps the encrypted Appodeal callback public and validates its shape", async () => {
-    await request(app).get("/appodeal/reward?data1=00aa&data2=11bb").expect(200);
-    await request(app).get("/appodeal/reward?data1=bad-value&data2=11bb").expect(400);
-    expect(mocks.callback).toHaveBeenCalledTimes(1);
-  });
 });

@@ -1,0 +1,1 @@
+{"data":{"service":"logic-coin-api","status":"ok","database":"connected","timestamp":"2026-09-13T16:13:06.824Z"}}

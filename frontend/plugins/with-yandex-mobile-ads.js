@@ -9,7 +9,7 @@ const {
 const YANDEX_DEPENDENCY = 'implementation("com.yandex.android:mobileads:8.4.0")';
 const AUTO_INIT_META = "com.yandex.mobile.ads.AUTOMATIC_SDK_INITIALIZATION";
 const PACKAGE_NAME = "com.kinddevs.logiccoin";
-const NATIVE_SOURCE_FILES = ["YandexAdsModule.java", "YandexAdsPackage.java"];
+const NATIVE_SOURCE_FILES = ["YandexAdsModule.java", "YandexAdsPackage.java", "YandexBannerManager.java"];
 
 function addOnce(source, anchor, value) {
   if (source.includes(value)) return source;

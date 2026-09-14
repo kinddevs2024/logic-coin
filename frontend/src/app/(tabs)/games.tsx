@@ -2,10 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import { FlatList, Image, Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
+import { YandexBannerSlot } from "@/components/yandex-banner";
 import { AppText } from "@/components/app-text";
 import { GameEconomyModal } from "@/components/game-economy";
 import { GlassSurface } from "@/components/glass-surface";
@@ -90,7 +90,7 @@ export default function GamesScreen() {
     : GAME_CATALOG;
 
   return (
-    <AppFrame wide desktopNavigationInset contentStyle={styles.page}>
+    <AppFrame scroll={false} wide desktopNavigationInset contentStyle={{ ...styles.page, flex: 1, paddingBottom: 100 }}>
       <ScreenHeader
         title={c.title}
         action={
@@ -100,14 +100,25 @@ export default function GamesScreen() {
           </GlassSurface>
         }
       />
-      <View style={[styles.grid, wide && styles.gridWide]}>
-        {games.map((entry, index) => {
+      <FlatList
+        key={wide ? "wide" : "phone"}
+        data={games}
+        keyExtractor={(entry) => entry.key}
+        numColumns={wide ? 2 : 1}
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ gap: 11, paddingBottom: 16 }}
+        columnWrapperStyle={wide ? { gap: 12 } : undefined}
+        ListHeaderComponent={<YandexBannerSlot placement="games-catalog" />}
+        renderItem={({ item: entry }) => {
           const game = localizeGame(entry, language);
           const progressKey = PROGRESS_KEY_BY_SERVER_KEY[game.key] ?? (game.key as GameId);
           const saved = ready ? progress[progressKey] ?? EMPTY_GAME_PROGRESS : EMPTY_GAME_PROGRESS;
           const cover = gameCoverFor(game.key);
           return (
-            <Animated.View key={game.key} entering={FadeInDown.delay(Math.min(index, 12) * 35).duration(380)} style={[styles.cell, wide && styles.cellWide]}>
+            <View style={[styles.cell, wide && styles.cellWide]}>
               <GlassSurface intensity={68} variant="strong" style={styles.card}>
                 <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never)} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
                   <View style={[styles.icon, { backgroundColor: `${game.color}18`, borderColor: `${game.color}38` }]}>
@@ -132,10 +143,10 @@ export default function GamesScreen() {
                   </Pressable>
                 </View>
               </GlassSurface>
-            </Animated.View>
+            </View>
           );
-        })}
-      </View>
+        }}
+      />
       {economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
     </AppFrame>
   );

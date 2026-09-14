@@ -20,6 +20,7 @@ import Reanimated, {
 
 import { GlassBlurTargetContext } from "@/components/glass-blur-target";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useAppActive } from "@/hooks/use-app-active";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 function AmbientOrbs() {
@@ -28,9 +29,10 @@ function AmbientOrbs() {
   const [drift] = useState(() => new Animated.Value(0));
   const reduceMotion = useReducedMotion();
   const isFocused = useIsFocused();
+  const active = useAppActive();
 
   useEffect(() => {
-    if (reduceMotion || !isFocused) {
+    if (reduceMotion || !isFocused || !active || !isDesktop) {
       drift.stopAnimation();
       drift.setValue(0);
       return;
@@ -51,7 +53,7 @@ function AmbientOrbs() {
     );
     animation.start();
     return () => animation.stop();
-  }, [drift, isFocused, reduceMotion]);
+  }, [active, drift, isDesktop, isFocused, reduceMotion]);
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>

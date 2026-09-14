@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { AppFrame } from "@/components/app-frame";
+import { YandexBannerSlot } from "@/components/yandex-banner";
 import { AppText } from "@/components/app-text";
 import { ChallengeCard } from "@/components/challenge-card";
 import { ChallengeEmptyState } from "@/components/challenge-empty-state";
@@ -99,6 +100,7 @@ export default function ChallengesScreen() {
           </Pressable>
         </View>
       ) : null}
+      <YandexBannerSlot placement="challenge-list" />
     </AppFrame>
   );
 }

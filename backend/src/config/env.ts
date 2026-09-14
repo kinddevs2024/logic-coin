@@ -51,14 +51,10 @@ const rawEnvSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().optional(),
+  TELEGRAM_WEB_APP_VERSION: z.string().trim().min(1).max(64).default("20260913"),
   TELEGRAM_WEBHOOK_SECRET: z.string().min(16).max(256).optional(),
   TELEGRAM_LOCAL_POLLING: booleanFromString.default("false"),
   TELEGRAM_ADMIN_CHAT_ID: z.string().optional(),
-  APPODEAL_REWARD_CALLBACK_SECRET: z.preprocess(
-    emptyToUndefined,
-    z.string().min(8).max(256).optional()
-  ),
-  APPODEAL_ALLOW_CLIENT_CALLBACK: booleanFromString.default("false"),
   YANDEX_ALLOW_CLIENT_CALLBACK: booleanFromString.default("false")
 });
 

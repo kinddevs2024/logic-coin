@@ -23,6 +23,6 @@ public final class YandexAdsPackage implements ReactPackage {
   @NonNull
   @Override
   public List<ViewManager> createViewManagers(@NonNull ReactApplicationContext reactContext) {
-    return Collections.emptyList();
+    return Collections.singletonList(new YandexBannerManager());
   }
 }

@@ -44,19 +44,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
-    let timeout = 0;
-    const rehydrate = () => {
-      timeout = window.setTimeout(() => {
-        void useAppStore.persist.rehydrate();
-        void useGameProgressStore.persist.rehydrate();
-      }, 1500);
-    };
-    if (document.readyState === "complete") rehydrate();
-    else window.addEventListener("load", rehydrate, { once: true });
-    return () => {
-      window.removeEventListener("load", rehydrate);
-      window.clearTimeout(timeout);
-    };
+    // Hydrate after React mounts, without waiting for external scripts/images.
+    void useAppStore.persist.rehydrate();
+    void useGameProgressStore.persist.rehydrate();
   }, []);
 
   useEffect(() => {

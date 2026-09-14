@@ -474,13 +474,17 @@ export type RewardedAdSessionDto = {
 };
 
 export const adsApi = {
-  async startRewarded(placement: string, token: string) {
+  async startRewarded(
+    placement: string,
+    token: string,
+    provider: "yandex" = "yandex",
+  ) {
     const payload = await request<{ session: RewardedAdSessionDto }>(
       "/ads/rewarded/start",
       {
         method: "POST",
         token,
-        body: JSON.stringify({ placement, provider: "yandex" }),
+        body: JSON.stringify({ placement, provider }),
       },
     );
     return payload.session;

@@ -13,6 +13,7 @@ import {
 import { useReducedMotion } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
+import { useAppActive } from "@/hooks/use-app-active";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
 import { useAppStore } from "@/store/app-store";
@@ -220,6 +221,7 @@ export function SavingsScene({
 }) {
   const theme = useAppTheme();
   const isFocused = useIsFocused();
+  const active = useAppActive();
   const { width: windowWidth } = useWindowDimensions();
   const rewardEventId = useAppStore((state) => state.rewardEventId);
   const reduceMotion = useReducedMotion();
@@ -249,7 +251,7 @@ export function SavingsScene({
   }, [jarOpacity, reduceMotion, stateIndex]);
 
   useEffect(() => {
-    if (reduceMotion || !isFocused) {
+    if (reduceMotion || !isFocused || !active || Platform.OS !== "ios") {
       drift.stopAnimation();
       drift.setValue(0);
       return;
@@ -259,18 +261,18 @@ export function SavingsScene({
         Animated.timing(drift, {
           toValue: 1,
           duration: 3200,
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
         Animated.timing(drift, {
           toValue: 0,
           duration: 3200,
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
       ]),
     );
     animation.start();
     return () => animation.stop();
-  }, [drift, isFocused, reduceMotion]);
+  }, [active, drift, isFocused, reduceMotion]);
 
   return (
     <View
