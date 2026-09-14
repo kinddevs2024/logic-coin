@@ -34,11 +34,11 @@ export function GoogleSignInButton({
   const callbackRef = useRef(onCredential);
   const disabledRef = useRef(disabled);
   const promptedRef = useRef(false);
+  const credentialRef = useRef<string | null>(null);
 
   useEffect(() => {
     callbackRef.current = onCredential;
     disabledRef.current = disabled;
-    if (disabled) (window as GoogleWindow).google?.accounts?.id?.cancel();
   }, [onCredential, disabled]);
 
   useEffect(() => {
@@ -53,7 +53,13 @@ export function GoogleSignInButton({
       identity.initialize({
         client_id: clientId,
         callback: (response) => {
-          if (!cancelled && !disabledRef.current && response.credential) {
+          if (
+            !cancelled &&
+            !disabledRef.current &&
+            response.credential &&
+            response.credential !== credentialRef.current
+          ) {
+            credentialRef.current = response.credential;
             callbackRef.current(response.credential);
           }
         },
