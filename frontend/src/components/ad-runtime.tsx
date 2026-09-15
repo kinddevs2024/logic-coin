@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import { rewardedAds } from "@/lib/rewarded-ad";
 import { useAppStore } from "@/store/app-store";
@@ -11,8 +12,23 @@ export function AdRuntime() {
   useEffect(() => {
     if (!hydrated || !authMode) return;
     if (authMode === "authenticated" && !userId) return;
-    void rewardedAds.initialize(userId).catch(() => false);
+    void rewardedAds
+      .initialize(userId)
+      .then(() => rewardedAds.showAppOpen())
+      .catch(() => false);
   }, [authMode, hydrated, userId]);
+
+  useEffect(() => {
+    if (!hydrated || !authMode || authMode === "guest") return;
+    let previousState: AppStateStatus = AppState.currentState;
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (previousState.match(/inactive|background/) && nextState === "active") {
+        void rewardedAds.showAppOpen();
+      }
+      previousState = nextState;
+    });
+    return () => subscription.remove();
+  }, [authMode, hydrated]);
 
   return null;
 }

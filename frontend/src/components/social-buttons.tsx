@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
@@ -60,6 +60,8 @@ export function SocialButtons({
   const router = useRouter();
   const authenticate = useAppStore((state) => state.authenticate);
   const [busy, setBusy] = useState<"google" | "telegram" | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const googleInFlightRef = useRef(false);
   const [telegramFlow, setTelegramFlow] = useState<{
     flowId: string;
     pollToken: string;
@@ -108,13 +110,18 @@ export function SocialButtons({
   }, [completeAuth, telegramFlow, t]);
 
   const google = async (credential: string) => {
+    if (googleInFlightRef.current) return;
+    googleInFlightRef.current = true;
+    setGoogleError(null);
     setBusy("google");
     try {
       completeAuth(await authApi.google(credential));
     } catch (error) {
+      setGoogleError(error instanceof Error ? error.message : t("auth.invalid"));
       Alert.alert("Google", error instanceof Error ? error.message : t("auth.invalid"));
     } finally {
       setBusy(null);
+      googleInFlightRef.current = false;
     }
   };
 
@@ -137,6 +144,11 @@ export function SocialButtons({
         onCredential={(credential: string) => void google(credential)}
         disabled={busy !== null}
       />
+      {googleError ? (
+        <AppText variant="caption" color="#C0392B" style={styles.error}>
+          {googleError}
+        </AppText>
+      ) : null}
       <ProviderButton
         label="Telegram"
         icon={<Ionicons name="paper-plane" size={21} color="#229ED9" />}
@@ -150,6 +162,7 @@ export function SocialButtons({
 
 const styles = StyleSheet.create({
   list: { gap: 8 },
+  error: { textAlign: "center", paddingHorizontal: 8 },
   pressable: { minHeight: 54, borderRadius: 999 },
   button: {
     minHeight: 54,

@@ -2,13 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { ActivityIndicator, Modal, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeInUp, FadeOut } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
-import { CountryFlagBadge, countryName } from "@/components/country-flag";
+import { CountryFlagBadge, countryName, countryOptions } from "@/components/country-flag";
 import { GlassSurface } from "@/components/glass-surface";
+import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
@@ -35,8 +36,11 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState(user.name);
   const [avatarDataUrl, setAvatarDataUrl] = useState(user.avatarUrl ?? "");
   const [countryCode, setCountryCode] = useState(user.countryCode ?? (language === "uz" ? "UZ" : language === "en" ? "US" : "RU"));
+  const [countryQuery, setCountryQuery] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [picking, setPicking] = useState(false);
+  const [cropAsset, setCropAsset] = useState<{ uri: string; width: number; height: number; mimeType: string } | null>(null);
   const queryClient = useQueryClient();
 
   const pickAvatar = async () => {
@@ -50,9 +54,8 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.82,
+        allowsEditing: false,
+        quality: 1,
         base64: true,
       });
       if (result.canceled) return;
@@ -62,12 +65,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         setMessage("Выберите JPG, PNG или WebP");
         return;
       }
-      const nextAvatar = `data:${mimeType};base64,${asset.base64}`;
-      if ((asset.fileSize ?? 0) > 10 * 1024 * 1024 || nextAvatar.length > 14_000_000) {
-        setMessage("Файл слишком большой. Выберите фото до 10 МБ");
-        return;
-      }
-      setAvatarDataUrl(nextAvatar);
+      setCropAsset({ uri: asset.uri, width: asset.width, height: asset.height, mimeType });
     } catch {
       setMessage("Не удалось загрузить фотографию");
     } finally {
@@ -93,6 +91,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   });
 
   return (
+    <>
     <Modal transparent visible animationType="none" onRequestClose={onClose}>
       <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.backdrop}>
         <Pressable onPress={onClose} style={StyleSheet.absoluteFill} />
@@ -108,13 +107,6 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                 {picking ? <ActivityIndicator size="small" color={String(theme.primary)} /> : <Ionicons name="camera-outline" size={17} color={String(theme.primary)} />}
                 <AppText variant="caption" color={String(theme.primary)}>Выбрать и обрезать</AppText>
               </Pressable>
-              <AppText variant="caption" muted style={styles.cropHint}>До 10 МБ · переместите фото в круге перед подтверждением</AppText>
-              {avatarDataUrl ? (
-                <Pressable accessibilityRole="button" onPress={() => setAvatarDataUrl("")} style={styles.removePhoto}>
-                  <Ionicons name="trash-outline" size={14} color="#C33B4A" />
-                  <AppText style={styles.removePhotoText}>Удалить</AppText>
-                </Pressable>
-              ) : null}
             </View>
             <View style={styles.field}>
               <AppText variant="caption" muted>{t("profile.name")}</AppText>
@@ -122,14 +114,38 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
             </View>
             <View style={styles.field}>
               <AppText variant="caption" muted>Страна</AppText>
-              <View style={styles.countryOptions}>
-                {(["RU", "UZ", "US"] as const).map((code) => (
-                  <Pressable key={code} accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => setCountryCode(code)} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
-                    <CountryFlagBadge countryCode={code} size={22} />
-                    <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
-                  </Pressable>
-                ))}
-              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: countryOpen }}
+                onPress={() => setCountryOpen((open) => !open)}
+                style={[styles.countryPicker, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
+              >
+                <CountryFlagBadge countryCode={countryCode} size={22} />
+                <AppText style={styles.countryPickerText} numberOfLines={1}>{countryName(countryCode, language)}</AppText>
+                <Ionicons name={countryOpen ? "chevron-up" : "chevron-down"} size={18} color={String(theme.textMuted)} />
+              </Pressable>
+              {countryOpen ? (
+                <>
+                  <TextInput
+                    value={countryQuery}
+                    onChangeText={setCountryQuery}
+                    autoFocus
+                    placeholder="Поиск страны"
+                    placeholderTextColor={String(theme.textMuted)}
+                    style={[styles.countrySearch, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
+                  />
+                  <ScrollView style={styles.countryScroll} contentContainerStyle={styles.countryOptions} nestedScrollEnabled showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
+                    {countryOptions(language)
+                      .filter(({ name, code }) => !countryQuery.trim() || `${name} ${code}`.toLocaleLowerCase().includes(countryQuery.trim().toLocaleLowerCase()))
+                      .map(({ code }) => (
+                        <Pressable key={code} accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => { setCountryCode(code); setCountryOpen(false); setCountryQuery(""); }} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
+                          <CountryFlagBadge countryCode={code} size={22} />
+                          <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
+                        </Pressable>
+                      ))}
+                  </ScrollView>
+                </>
+              ) : null}
             </View>
             {message ? <AppText style={styles.error}>{message}</AppText> : null}
             <Pressable disabled={saveMutation.isPending} onPress={() => saveMutation.mutate()} style={[styles.save, { backgroundColor: theme.primary }, saveMutation.isPending && { opacity: 0.55 }]}>
@@ -140,6 +156,12 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         </Animated.View>
       </Animated.View>
     </Modal>
+    <PhotoCropEditor
+      asset={cropAsset}
+      onCancel={() => setCropAsset(null)}
+      onConfirm={(dataUrl) => { setAvatarDataUrl(dataUrl); setCropAsset(null); }}
+    />
+    </>
   );
 }
 
@@ -151,13 +173,14 @@ const styles = StyleSheet.create({
   title: { flex: 1, fontSize: 22, lineHeight: 28, fontWeight: "900" },
   close: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   preview: { alignItems: "center", paddingVertical: 4, gap: 8 },
-  cropHint: { maxWidth: 300, textAlign: "center" },
   photoButton: { minHeight: 40, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  removePhoto: { minHeight: 30, flexDirection: "row", alignItems: "center", gap: 5 },
-  removePhotoText: { color: "#C33B4A", fontSize: 11, lineHeight: 14, fontWeight: "800" },
   field: { gap: 6 },
-  countryOptions: { flexDirection: "row", gap: 7 },
-  countryOption: { flex: 1, minWidth: 0, minHeight: 56, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 5 },
+  countrySearch: { minHeight: 44, borderRadius: 15, borderWidth: 1, paddingHorizontal: 13, fontSize: 14, fontWeight: "600" },
+  countryScroll: { maxHeight: 260 },
+  countryPicker: { minHeight: 52, borderRadius: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 10 },
+  countryPickerText: { flex: 1, fontSize: 14, fontWeight: "700" },
+  countryOptions: { gap: 7, paddingVertical: 1 },
+  countryOption: { width: "100%", minHeight: 52, borderWidth: 1, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 10 },
   input: { minHeight: 52, borderRadius: 18, borderWidth: 1, paddingHorizontal: 15, fontSize: 15, fontWeight: "700" },
   save: { minHeight: 52, borderRadius: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   error: { color: "#DC2626", fontSize: 12, lineHeight: 16, fontWeight: "700" },

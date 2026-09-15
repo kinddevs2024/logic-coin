@@ -149,6 +149,7 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
   }
 
   async showInterstitial(placement: InterstitialAdPlacement) {
+    if (await yandexRewardedAds.showInterstitial()) return true;
     if (this.showingInterstitial || !(await this.initializeAppodeal())) return false;
     const loaded = await waitForLoaded(
       AppodealAdType.INTERSTITIAL,
@@ -187,6 +188,10 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
       timeout = setTimeout(() => finish(false), SHOW_TIMEOUT_MS);
       Appodeal.show(AppodealAdType.INTERSTITIAL, placement);
     });
+  }
+
+  async showAppOpen() {
+    return yandexRewardedAds.showAppOpen();
   }
 
   diagnostics(): AdsDiagnostics {

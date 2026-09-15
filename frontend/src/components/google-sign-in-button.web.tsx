@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { useTranslation } from "@/hooks/use-translation";
@@ -10,8 +10,11 @@ type GoogleIdentity = {
   initialize(options: {
     client_id: string;
     callback: (response: GoogleCredentialResponse) => void;
+    auto_select: boolean;
   }): void;
   renderButton(element: HTMLElement, options: Record<string, string | number>): void;
+  prompt(): void;
+  cancel(): void;
 };
 type GoogleWindow = Window & {
   google?: { accounts?: { id?: GoogleIdentity } };
@@ -28,6 +31,17 @@ export function GoogleSignInButton({
   const { language } = useTranslation();
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
   const [failed, setFailed] = useState(!clientId);
+  const [retry, setRetry] = useState(0);
+  const callbackRef = useRef(onCredential);
+  const disabledRef = useRef(disabled);
+  const promptedRef = useRef(false);
+  const credentialRef = useRef<string | null>(null);
+  const credentialTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    callbackRef.current = onCredential;
+    disabledRef.current = disabled;
+  }, [onCredential, disabled]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -40,7 +54,25 @@ export function GoogleSignInButton({
       if (!identity) return setFailed(true);
       identity.initialize({
         client_id: clientId,
-        callback: (response) => response.credential && onCredential(response.credential),
+        callback: (response) => {
+          if (
+            !cancelled &&
+            !disabledRef.current &&
+            response.credential &&
+            response.credential !== credentialRef.current
+          ) {
+            credentialRef.current = response.credential;
+            callbackRef.current(response.credential);
+            if (credentialTimerRef.current !== null) {
+              window.clearTimeout(credentialTimerRef.current);
+            }
+            credentialTimerRef.current = window.setTimeout(() => {
+              credentialRef.current = null;
+              credentialTimerRef.current = null;
+            }, 5000);
+          }
+        },
+        auto_select: false,
       });
       host.replaceChildren();
       identity.renderButton(host, {
@@ -52,6 +84,11 @@ export function GoogleSignInButton({
         locale: language,
         width: Math.max(260, Math.min(374, host.clientWidth || 360)),
       });
+      // Let Google/browser decide eligibility, dismissal cooldown and account UI.
+      if (!promptedRef.current && !disabledRef.current) {
+        promptedRef.current = true;
+        identity.prompt();
+      }
     };
     const existing = document.querySelector<HTMLScriptElement>(
       `script[data-logic-google="${language}"]`,
@@ -65,25 +102,46 @@ export function GoogleSignInButton({
       script.defer = true;
       script.dataset.logicGoogle = language;
       script.addEventListener("load", render, { once: true });
-      script.addEventListener("error", () => setFailed(true), { once: true });
+      script.addEventListener("error", () => {
+        script.remove();
+        setFailed(true);
+      }, { once: true });
       document.head.appendChild(script);
     }
     return () => {
       cancelled = true;
       existing?.removeEventListener("load", render);
+      (window as GoogleWindow).google?.accounts?.id?.cancel();
+      if (credentialTimerRef.current !== null) {
+        window.clearTimeout(credentialTimerRef.current);
+        credentialTimerRef.current = null;
+      }
     };
-  }, [clientId, language, onCredential]);
+  }, [clientId, language, retry]);
 
   return (
     <View pointerEvents={disabled ? "none" : "auto"} style={[styles.shell, disabled && styles.disabled]}>
       {failed ? (
-        <View style={styles.fallback}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={language === "ru" ? "Войти через Google" : "Sign in with Google"}
+          disabled={!clientId || disabled}
+          onPress={() => {
+            credentialRef.current = null;
+            promptedRef.current = false;
+            setFailed(false);
+            setRetry((value) => value + 1);
+          }}
+          style={styles.fallback}
+        >
           <View style={styles.fallbackIcon}>
             <Ionicons name="logo-google" color="#4285F4" size={20} />
           </View>
-          <AppText variant="label" style={styles.fallbackLabel}>Google</AppText>
+          <AppText variant="label" style={styles.fallbackLabel}>
+            {language === "ru" ? "Войти через Google" : "Sign in with Google"}
+          </AppText>
           <Ionicons name="arrow-forward" color="#69737D" size={18} />
-        </View>
+        </Pressable>
       ) : (
         <View ref={hostRef} style={styles.host} />
       )}

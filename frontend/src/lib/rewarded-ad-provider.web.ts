@@ -25,6 +25,10 @@ class WebRewardedAdProvider implements RewardedAdProvider {
     return false;
   }
 
+  async showAppOpen() {
+    return false;
+  }
+
   diagnostics(): AdsDiagnostics {
     return {
       configured: false,

@@ -62,6 +62,11 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # `tools` was removed from current Android SDK repositories. The hosted
+          # runner already supplies the command-line tools; only platform-tools
+          # needs to be requested explicitly.
+          packages: platform-tools
 
       - name: Install frontend workspace
         run: npm ci --workspace frontend
@@ -136,6 +141,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Download unsigned Android artifacts
         uses: actions/download-artifact@v4

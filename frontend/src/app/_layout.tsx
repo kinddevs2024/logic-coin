@@ -66,14 +66,35 @@ export default function RootLayout() {
   }, [hydrated]);
 
   useEffect(() => {
-    if (Platform.OS === "web") {
-      document.title = "Logic Coin";
-      const tg = (window as unknown as { Telegram?: { WebApp?: { ready?: () => void; expand?: () => void } } }).Telegram?.WebApp;
-      if (tg) {
-        tg.ready?.();
-        tg.expand?.();
-      }
+    if (Platform.OS !== "web") return;
+    document.title = "Logic Coin";
+    const tg = (window as unknown as { Telegram?: { WebApp?: { ready?: () => void; expand?: () => void } } }).Telegram?.WebApp;
+    if (tg) {
+      tg.ready?.();
+      tg.expand?.();
     }
+    const visualViewport = window.visualViewport;
+    let lastViewportSize = "";
+    const syncViewportSize = () => {
+      const width = Math.round(visualViewport?.width ?? window.innerWidth);
+      const height = Math.round(visualViewport?.height ?? window.innerHeight);
+      const nextViewportSize = `${width}x${height}`;
+      if (nextViewportSize === lastViewportSize) return;
+      lastViewportSize = nextViewportSize;
+      // Telegram can resize only visualViewport when its chrome collapses.
+      // Notify React Native Web so games recalculate height-based layouts.
+      window.dispatchEvent(new Event("resize"));
+    };
+    visualViewport?.addEventListener("resize", syncViewportSize);
+    window.addEventListener("orientationchange", syncViewportSize);
+    const firstSync = window.setTimeout(syncViewportSize, 120);
+    const secondSync = window.setTimeout(syncViewportSize, 650);
+    return () => {
+      visualViewport?.removeEventListener("resize", syncViewportSize);
+      window.removeEventListener("orientationchange", syncViewportSize);
+      window.clearTimeout(firstSync);
+      window.clearTimeout(secondSync);
+    };
   }, []);
 
   useEffect(() => {

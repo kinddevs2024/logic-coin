@@ -33,6 +33,7 @@ export interface RewardedAdProvider {
   initialize(userId?: string): Promise<boolean>;
   show(placement: RewardedAdPlacement): Promise<RewardedAdReceipt>;
   showInterstitial(placement: InterstitialAdPlacement): Promise<boolean>;
+  showAppOpen(): Promise<boolean>;
   diagnostics(): AdsDiagnostics;
 }
 

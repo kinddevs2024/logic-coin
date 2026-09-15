@@ -32,6 +32,13 @@ const LOGIN_TTL_MS = 10 * 60_000;
 let cachedBotUsername: string | null = null;
 let webhookSetup: Promise<void> | null = null;
 
+function telegramAppUrl(): string {
+  const appUrl = env.APP_PUBLIC_URL || "https://logic-coin.online";
+  const url = new URL(appUrl);
+  url.searchParams.set("v", env.TELEGRAM_WEB_APP_VERSION);
+  return url.toString();
+}
+
 function requireBotToken(): string {
   const token = env.TELEGRAM_BOT_TOKEN?.trim();
   if (!token || token === "replace-me" || !/^\d+:[A-Za-z0-9_-]{20,}$/.test(token)) {
@@ -81,7 +88,7 @@ export function telegramWebhookUrl(
 
 async function configureTelegramBotUI() {
   const token = requireBotToken();
-  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
+  const appUrl = telegramAppUrl();
 
   await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
     method: "POST",
@@ -253,7 +260,7 @@ function parseStartIdentity(update: TelegramMessageUpdate): {
 
 async function sendBotReturnLink(chatId: string, resumeToken: string) {
   const returnUrl = buildTelegramReturnUrl(resumeToken);
-  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
+  const appUrl = telegramAppUrl();
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
   await fetch(botUrl, {
     method: "POST",
@@ -284,7 +291,7 @@ async function sendBotReturnLink(chatId: string, resumeToken: string) {
 
 async function sendBotWelcome(chatId: string) {
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
-  const appUrl = env.APP_PUBLIC_URL || "https://www.logic-coin.online";
+  const appUrl = telegramAppUrl();
   await fetch(botUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
