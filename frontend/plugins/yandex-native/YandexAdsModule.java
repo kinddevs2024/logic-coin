@@ -25,12 +25,17 @@ import com.yandex.mobile.ads.rewarded.RewardedAd;
 import com.yandex.mobile.ads.rewarded.RewardedAdEventListener;
 import com.yandex.mobile.ads.rewarded.RewardedAdLoadListener;
 import com.yandex.mobile.ads.rewarded.RewardedAdLoader;
+import com.yandex.mobile.ads.interstitial.InterstitialAd;
+import com.yandex.mobile.ads.interstitial.InterstitialAdEventListener;
+import com.yandex.mobile.ads.interstitial.InterstitialAdLoadListener;
+import com.yandex.mobile.ads.interstitial.InterstitialAdLoader;
 
 import java.util.UUID;
 
 public final class YandexAdsModule extends ReactContextBaseJavaModule {
   private static final String TAG = "YandexAds";
   private static final String EVENT = "YandexAdsRewardedEvent";
+  private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-19993046-4";
 
   private final Handler mainHandler = new Handler(Looper.getMainLooper());
   private boolean initialized = false;
@@ -44,6 +49,9 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
   private RewardedAd rewardedAd;
   private Promise showPromise;
   private String showProof = "";
+  private InterstitialAdLoader interstitialAdLoader;
+  private InterstitialAd interstitialAd;
+  private boolean interstitialLoading = false;
 
   public YandexAdsModule(ReactApplicationContext reactContext) {
     super(reactContext);
@@ -78,6 +86,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
               Log.d(TAG, "Yandex Ads SDK initialized");
               emit("initialized", null);
               loadRewardedInternal();
+              loadInterstitialInternal();
               promise.resolve(true);
             }
           });
@@ -96,7 +105,55 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
         return;
       }
       loadRewardedInternal();
+      loadInterstitialInternal();
       promise.resolve(true);
+    });
+  }
+
+  @ReactMethod
+  public void showInterstitial(Promise promise) {
+    mainHandler.post(() -> {
+      if (interstitialAd == null) {
+        loadInterstitialInternal();
+        promise.resolve(false);
+        return;
+      }
+      Activity activity = getCurrentActivity();
+      if (activity == null) {
+        promise.resolve(false);
+        return;
+      }
+      InterstitialAd ad = interstitialAd;
+      interstitialAd = null;
+      ad.setAdEventListener(new InterstitialAdEventListener() {
+        @Override
+        public void onAdShown() {
+          promise.resolve(true);
+        }
+
+        @Override
+        public void onAdFailedToShow(@NonNull AdError adError) {
+          promise.resolve(false);
+        }
+
+        @Override
+        public void onAdDismissed() {
+          loadInterstitialInternal();
+        }
+
+        @Override
+        public void onAdClicked() {}
+
+        @Override
+        public void onAdImpression(@Nullable com.yandex.mobile.ads.common.ImpressionData impressionData) {}
+      });
+      try {
+        ad.show(activity);
+      } catch (Exception error) {
+        Log.e(TAG, "Interstitial ad failed to show", error);
+        promise.resolve(false);
+        loadInterstitialInternal();
+      }
     });
   }
 
@@ -178,6 +235,37 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
     if (!initialized || loading || rewardedAd != null || adUnitId.isEmpty()) return;
     if (rewardedAdLoader == null) {
       rewardedAdLoader = new RewardedAdLoader(getReactApplicationContext().getApplicationContext());
+    }
+
+    private void loadInterstitialInternal() {
+      if (!initialized || interstitialLoading || interstitialAd != null) return;
+      if (interstitialAdLoader == null) {
+        interstitialAdLoader = new InterstitialAdLoader(
+          getReactApplicationContext().getApplicationContext()
+        );
+      }
+      interstitialLoading = true;
+      try {
+        interstitialAdLoader.loadAd(
+          new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
+          new InterstitialAdLoadListener() {
+            @Override
+            public void onAdLoaded(@NonNull InterstitialAd ad) {
+              interstitialLoading = false;
+              interstitialAd = ad;
+            }
+
+            @Override
+            public void onAdFailedToLoad(@NonNull AdRequestError error) {
+              interstitialLoading = false;
+              Log.e(TAG, "Interstitial ad failed to load: " + error.getDescription());
+            }
+          }
+        );
+      } catch (Exception error) {
+        interstitialLoading = false;
+        Log.e(TAG, "Interstitial ad load failed", error);
+      }
     }
     loading = true;
     Log.d(TAG, "Rewarded ad loading");

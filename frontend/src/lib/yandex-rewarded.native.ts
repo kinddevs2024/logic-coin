@@ -9,6 +9,7 @@ const TEST_MODE =
   __DEV__ || process.env.EXPO_PUBLIC_YANDEX_TEST_MODE?.toLowerCase() === "true";
 const AD_UNIT_ID = process.env.EXPO_PUBLIC_YANDEX_AD_UNIT_ID?.trim() || PRODUCTION_AD_UNIT_ID;
 const LOAD_TIMEOUT_MS = 15_000;
+const INTERSTITIAL_COOLDOWN_MS = 120_000;
 
 type NativeRewardedResult = {
   completed: boolean;
@@ -24,6 +25,7 @@ type NativeYandexAds = {
   loadRewarded(): Promise<boolean>;
   isRewardedLoaded(): Promise<boolean>;
   showRewarded(): Promise<NativeRewardedResult>;
+  showInterstitial(): Promise<boolean>;
 };
 
 type YandexEvent = {
@@ -44,6 +46,7 @@ class YandexRewardedAds {
   private loaded = false;
   private initializing: Promise<boolean> | null = null;
   private loading: Promise<boolean> | null = null;
+  private lastInterstitialShownAt = 0;
 
   constructor() {
     if (Platform.OS !== "android" || !nativeAds) return;
@@ -131,6 +134,21 @@ class YandexRewardedAds {
     if (!(await this.initialize()) || !(await this.prepare()) || !nativeAds) {
       console.log("[Yandex Ads] Rewarded ad failed: not ready");
       return fallback(placement, "unavailable");
+    }
+
+    async showInterstitial(): Promise<boolean> {
+      if (Date.now() - this.lastInterstitialShownAt < INTERSTITIAL_COOLDOWN_MS) {
+        return false;
+      }
+      if (!(await this.initialize())) return false;
+      try {
+        const shown = await nativeAds?.showInterstitial() ?? false;
+        if (shown) this.lastInterstitialShownAt = Date.now();
+        return shown;
+      } catch (error) {
+        console.log(`[Yandex Ads] Interstitial failed: ${String(error)}`);
+        return false;
+      }
     }
     this.loaded = false;
     try {
