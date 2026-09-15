@@ -137,30 +137,6 @@ class YandexRewardedAds {
       return fallback(placement, "unavailable");
     }
 
-    async showInterstitial(): Promise<boolean> {
-      if (Date.now() - this.lastInterstitialShownAt < INTERSTITIAL_COOLDOWN_MS) {
-        return false;
-      }
-
-      async showAppOpen(): Promise<boolean> {
-        if (!(await this.initialize())) return false;
-        try {
-          return await nativeAds?.showAppOpen() ?? false;
-        } catch (error) {
-          console.log(`[Yandex Ads] App open ad failed: ${String(error)}`);
-          return false;
-        }
-      }
-      if (!(await this.initialize())) return false;
-      try {
-        const shown = await nativeAds?.showInterstitial() ?? false;
-        if (shown) this.lastInterstitialShownAt = Date.now();
-        return shown;
-      } catch (error) {
-        console.log(`[Yandex Ads] Interstitial failed: ${String(error)}`);
-        return false;
-      }
-    }
     this.loaded = false;
     try {
       const result = await nativeAds.showRewarded();
@@ -176,6 +152,31 @@ class YandexRewardedAds {
     } catch (error) {
       console.log(`[Yandex Ads] Rewarded ad failed: ${String(error)}`);
       return fallback(placement, "failed");
+    }
+  }
+
+  async showInterstitial(): Promise<boolean> {
+    if (Date.now() - this.lastInterstitialShownAt < INTERSTITIAL_COOLDOWN_MS) {
+      return false;
+    }
+    if (!(await this.initialize())) return false;
+    try {
+      const shown = await nativeAds?.showInterstitial() ?? false;
+      if (shown) this.lastInterstitialShownAt = Date.now();
+      return shown;
+    } catch (error) {
+      console.log(`[Yandex Ads] Interstitial failed: ${String(error)}`);
+      return false;
+    }
+  }
+
+  async showAppOpen(): Promise<boolean> {
+    if (!(await this.initialize())) return false;
+    try {
+      return await nativeAds?.showAppOpen() ?? false;
+    } catch (error) {
+      console.log(`[Yandex Ads] App open ad failed: ${String(error)}`);
+      return false;
     }
   }
 

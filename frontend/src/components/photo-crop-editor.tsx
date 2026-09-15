@@ -1,5 +1,5 @@
 import * as ImageManipulator from "expo-image-manipulator";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Image, Modal, PanResponder, Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
@@ -31,7 +31,7 @@ export function PhotoCropEditor({
   const displayWidth = (asset?.width ?? viewport) * baseScale * zoom;
   const displayHeight = (asset?.height ?? viewport) * baseScale * zoom;
 
-  const clampOffset = (x: number, y: number, nextZoom = zoom) => {
+  const clampOffset = useCallback((x: number, y: number, nextZoom = zoom) => {
     if (!asset) return { x: 0, y: 0 };
     const width = asset.width * baseScale * nextZoom;
     const height = asset.height * baseScale * nextZoom;
@@ -39,8 +39,10 @@ export function PhotoCropEditor({
       x: Math.max((viewport - width) / 2, Math.min((width - viewport) / 2, x)),
       y: Math.max((viewport - height) / 2, Math.min((height - viewport) / 2, y)),
     };
-  };
+  }, [asset, baseScale, zoom]);
 
+  // PanResponder invokes these callbacks after rendering; the ref records gesture state between touch events.
+  // eslint-disable-next-line react-hooks/refs
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
@@ -70,6 +72,7 @@ export function PhotoCropEditor({
     },
   }), [asset, baseScale, offset, zoom]);
 
+  // eslint-disable-next-line react-hooks/refs
   const resizeResponders = useMemo(() => {
     const createResizeResponder = (getChange: (dx: number, dy: number) => number) => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
