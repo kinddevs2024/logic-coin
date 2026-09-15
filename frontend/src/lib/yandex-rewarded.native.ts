@@ -26,6 +26,7 @@ type NativeYandexAds = {
   isRewardedLoaded(): Promise<boolean>;
   showRewarded(): Promise<NativeRewardedResult>;
   showInterstitial(): Promise<boolean>;
+  showAppOpen(): Promise<boolean>;
 };
 
 type YandexEvent = {
@@ -139,6 +140,16 @@ class YandexRewardedAds {
     async showInterstitial(): Promise<boolean> {
       if (Date.now() - this.lastInterstitialShownAt < INTERSTITIAL_COOLDOWN_MS) {
         return false;
+      }
+
+      async showAppOpen(): Promise<boolean> {
+        if (!(await this.initialize())) return false;
+        try {
+          return await nativeAds?.showAppOpen() ?? false;
+        } catch (error) {
+          console.log(`[Yandex Ads] App open ad failed: ${String(error)}`);
+          return false;
+        }
       }
       if (!(await this.initialize())) return false;
       try {

@@ -190,6 +190,10 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
     });
   }
 
+  async showAppOpen() {
+    return yandexRewardedAds.showAppOpen();
+  }
+
   diagnostics(): AdsDiagnostics {
     return {
       configured: Boolean(APP_KEY),
