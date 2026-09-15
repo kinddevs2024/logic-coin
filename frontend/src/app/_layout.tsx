@@ -74,7 +74,13 @@ export default function RootLayout() {
       tg.expand?.();
     }
     const visualViewport = window.visualViewport;
+    let lastViewportSize = "";
     const syncViewportSize = () => {
+      const width = Math.round(visualViewport?.width ?? window.innerWidth);
+      const height = Math.round(visualViewport?.height ?? window.innerHeight);
+      const nextViewportSize = `${width}x${height}`;
+      if (nextViewportSize === lastViewportSize) return;
+      lastViewportSize = nextViewportSize;
       // Telegram can resize only visualViewport when its chrome collapses.
       // Notify React Native Web so games recalculate height-based layouts.
       window.dispatchEvent(new Event("resize"));
