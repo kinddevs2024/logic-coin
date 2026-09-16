@@ -18,8 +18,12 @@ const ANDROID_RELEASE_PROPERTIES = [
   ["org.gradle.jvmargs", "-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"],
   ["org.gradle.workers.max", "2"],
   ["reactNativeArchitectures", "armeabi-v7a,arm64-v8a"],
-  ["android.enableMinifyInReleaseBuilds", "true"],
-  ["android.enableShrinkResourcesInReleaseBuilds", "true"],
+  // NOTE: R8 minify/shrink must stay OFF. Enabling them breaks the release
+  // build with `Missing class expo.modules.kotlin.*` referenced from
+  // expo-image-manipulator (R8 CompilationFailedException in
+  // :app:minifyReleaseWithR8). This is Expo's default as well.
+  ["android.enableMinifyInReleaseBuilds", "false"],
+  ["android.enableShrinkResourcesInReleaseBuilds", "false"],
   ["expo.gif.enabled", "false"],
   ["expo.useLegacyPackaging", "true"],
 ];
