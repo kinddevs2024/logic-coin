@@ -1,6 +1,14 @@
 import * as ImageManipulator from "expo-image-manipulator";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Image, Modal, PanResponder, Pressable, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Image,
+  Modal,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  View,
+  type PanResponderInstance,
+} from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -41,61 +49,81 @@ export function PhotoCropEditor({
     };
   }, [asset, baseScale, zoom]);
 
-  // PanResponder invokes these callbacks after rendering; the ref records gesture state between touch events.
-  // eslint-disable-next-line react-hooks/refs
-  const panResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (event) => {
-      const touches = event.nativeEvent.touches;
-      const first = touches[0];
-      const second = touches[1];
-      gesture.current = {
-        x: offset.x,
-        y: offset.y,
-        distance: first && second ? Math.hypot(first.pageX - second.pageX, first.pageY - second.pageY) : 0,
-        zoom,
-      };
-    },
-    onPanResponderMove: (event, state) => {
-      const touches = event.nativeEvent.touches;
-      const first = touches[0];
-      const second = touches[1];
-      if (first && second && gesture.current.distance > 0) {
-        const distance = Math.hypot(first.pageX - second.pageX, first.pageY - second.pageY);
-        const nextZoom = Math.max(1, Math.min(3, gesture.current.zoom * (distance / gesture.current.distance)));
-        setZoom(nextZoom);
-        setOffset(clampOffset(gesture.current.x, gesture.current.y, nextZoom));
-        return;
-      }
-      setOffset(clampOffset(gesture.current.x + state.dx, gesture.current.y + state.dy));
-    },
-  }), [asset, baseScale, offset, zoom]);
+  type ResizeHandles = {
+    topLeft: PanResponderInstance;
+    topRight: PanResponderInstance;
+    bottomLeft: PanResponderInstance;
+    bottomRight: PanResponderInstance;
+    top: PanResponderInstance;
+    right: PanResponderInstance;
+    bottom: PanResponderInstance;
+    left: PanResponderInstance;
+  };
 
-  // eslint-disable-next-line react-hooks/refs
-  const resizeResponders = useMemo(() => {
-    const createResizeResponder = (getChange: (dx: number, dy: number) => number) => PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        gesture.current = { ...gesture.current, x: zoom, y: 0 };
-      },
-      onPanResponderMove: (_, state) => {
-        const nextZoom = Math.max(1, Math.min(3, gesture.current.x + getChange(state.dx, state.dy) / 180));
-        setZoom(nextZoom);
-        setOffset((current) => clampOffset(current.x, current.y, nextZoom));
-      },
-    });
-    return {
+  const [panResponder, setPanResponder] = useState<PanResponderInstance | null>(null);
+  const [resizeResponders, setResizeResponders] = useState<ResizeHandles | null>(null);
+
+  // PanResponder instances are created in effects so gesture refs are only
+  // touched inside event handlers/effects, never during render.
+  useEffect(() => {
+    setPanResponder(
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (event) => {
+          const touches = event.nativeEvent.touches;
+          const first = touches[0];
+          const second = touches[1];
+          gesture.current = {
+            x: offset.x,
+            y: offset.y,
+            distance: first && second ? Math.hypot(first.pageX - second.pageX, first.pageY - second.pageY) : 0,
+            zoom,
+          };
+        },
+        onPanResponderMove: (event, state) => {
+          const touches = event.nativeEvent.touches;
+          const first = touches[0];
+          const second = touches[1];
+          if (first && second && gesture.current.distance > 0) {
+            const distance = Math.hypot(first.pageX - second.pageX, first.pageY - second.pageY);
+            const nextZoom = Math.max(1, Math.min(3, gesture.current.zoom * (distance / gesture.current.distance)));
+            setZoom(nextZoom);
+            setOffset(clampOffset(gesture.current.x, gesture.current.y, nextZoom));
+            return;
+          }
+          setOffset(clampOffset(gesture.current.x + state.dx, gesture.current.y + state.dy));
+        },
+      }),
+    );
+  }, [clampOffset, offset, zoom]);
+
+  useEffect(() => {
+    const onResizeGrant = () => {
+      gesture.current = { ...gesture.current, x: zoom, y: 0 };
+    };
+    const onResizeMove = (delta: number) => {
+      const nextZoom = Math.max(1, Math.min(3, gesture.current.x + delta / 180));
+      setZoom(nextZoom);
+      setOffset((current) => clampOffset(current.x, current.y, nextZoom));
+    };
+    const createResizeResponder = (getDelta: (dx: number, dy: number) => number) =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: onResizeGrant,
+        onPanResponderMove: (_, state) => onResizeMove(getDelta(state.dx, state.dy)),
+      });
+    setResizeResponders({
       topLeft: createResizeResponder((dx, dy) => -dx - dy),
       topRight: createResizeResponder((dx, dy) => dx - dy),
       bottomLeft: createResizeResponder((dx, dy) => -dx + dy),
       bottomRight: createResizeResponder((dx, dy) => dx + dy),
       top: createResizeResponder((_dx, dy) => -dy),
-      right: createResizeResponder((dx, _dy) => dx),
+      right: createResizeResponder((dx) => dx),
       bottom: createResizeResponder((_dx, dy) => dy),
-      left: createResizeResponder((dx, _dy) => -dx),
-    };
+      left: createResizeResponder((dx) => -dx),
+    });
   }, [clampOffset, zoom]);
 
   const confirm = async () => {
@@ -121,21 +149,21 @@ export function PhotoCropEditor({
         <View style={[styles.card, { backgroundColor: theme.surface }]}>
           <AppText style={[styles.title, { color: theme.text }]}>Настройте фото</AppText>
           <AppText variant="caption" muted style={styles.subtitle}>Переместите фото и увеличьте двумя пальцами</AppText>
-          <View style={styles.cropArea} {...panResponder.panHandlers}>
+          <View style={styles.cropArea} {...panResponder?.panHandlers}>
             <Image source={{ uri: source }} style={{ position: "absolute", width: displayWidth, height: displayHeight, left: (viewport - displayWidth) / 2 + offset.x, top: (viewport - displayHeight) / 2 + offset.y }} />
             <View pointerEvents="none" style={styles.grid}>
               <View style={styles.gridLineVertical} />
               <View style={styles.gridLineHorizontal} />
               <View style={styles.circle} />
             </View>
-            <View {...resizeResponders.topLeft.panHandlers} style={[styles.handle, styles.handleTopLeft]} />
-            <View {...resizeResponders.topRight.panHandlers} style={[styles.handle, styles.handleTopRight]} />
-            <View {...resizeResponders.bottomLeft.panHandlers} style={[styles.handle, styles.handleBottomLeft]} />
-            <View {...resizeResponders.bottomRight.panHandlers} style={[styles.handle, styles.handleBottomRight]} />
-            <View {...resizeResponders.top.panHandlers} style={[styles.handle, styles.handleTop]} />
-            <View {...resizeResponders.right.panHandlers} style={[styles.handle, styles.handleRight]} />
-            <View {...resizeResponders.bottom.panHandlers} style={[styles.handle, styles.handleBottom]} />
-            <View {...resizeResponders.left.panHandlers} style={[styles.handle, styles.handleLeft]} />
+            <View {...resizeResponders?.topLeft?.panHandlers} style={[styles.handle, styles.handleTopLeft]} />
+            <View {...resizeResponders?.topRight?.panHandlers} style={[styles.handle, styles.handleTopRight]} />
+            <View {...resizeResponders?.bottomLeft?.panHandlers} style={[styles.handle, styles.handleBottomLeft]} />
+            <View {...resizeResponders?.bottomRight?.panHandlers} style={[styles.handle, styles.handleBottomRight]} />
+            <View {...resizeResponders?.top?.panHandlers} style={[styles.handle, styles.handleTop]} />
+            <View {...resizeResponders?.right?.panHandlers} style={[styles.handle, styles.handleRight]} />
+            <View {...resizeResponders?.bottom?.panHandlers} style={[styles.handle, styles.handleBottom]} />
+            <View {...resizeResponders?.left?.panHandlers} style={[styles.handle, styles.handleLeft]} />
           </View>
           <View style={styles.zoomControls}>
             <Pressable accessibilityLabel="Уменьшить" onPress={() => { const nextZoom = Math.max(1, zoom - 0.15); setZoom(nextZoom); setOffset(clampOffset(offset.x, offset.y, nextZoom)); }} style={styles.zoomButton}><AppText color={String(theme.text)} style={styles.zoomText}>−</AppText></Pressable>
