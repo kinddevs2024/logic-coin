@@ -30,8 +30,9 @@ describe("challenge coin rules", () => {
     expect(challengeCoinsForScore(50_000)).toBe(1_000);
   });
 
-  it("calculates a 25 percent referral prize share in integer units", () => {
-    expect(calculateReferralPrizeShare(10_000)).toBe(2_500);
+  it("calculates the direct 15 percent referral prize share in integer units", () => {
+    expect(calculateReferralPrizeShare(10_000)).toBe(1_500);
+    expect(calculateReferralPrizeShare(10_000, 5)).toBe(500);
     expect(calculateReferralPrizeShare(3)).toBe(0);
   });
 });

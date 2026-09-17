@@ -25,4 +25,7 @@ export const DEFAULT_DAILY_PRIZE_POOL_UNITS = 100_000;
 export const GIFT_TIME_EXTENSION_SECONDS = 15;
 export const GIFT_REPLAY_COUNT = 1;
 export const GIFT_COIN_AMOUNT = 500;
-export const REFERRAL_PRIZE_SHARE_PERCENT = 25;
+// Referral rewards are additional platform-funded credits: they never reduce
+// the prize received by the player who won it.
+export const REFERRAL_DIRECT_PRIZE_SHARE_PERCENT = 15;
+export const REFERRAL_SECOND_LEVEL_PRIZE_SHARE_PERCENT = 5;

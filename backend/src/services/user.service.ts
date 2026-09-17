@@ -3,6 +3,8 @@ import { User } from "../models/User.js";
 import { generateReferralCode, normalizeEmail } from "../lib/crypto.js";
 import { ApiError } from "../lib/api-error.js";
 import { env } from "../config/env.js";
+import { NotificationEvent } from "../models/NotificationEvent.js";
+import { dispatchNotificationEvent } from "./notification.service.js";
 
 interface CreateUserInput {
   email: string;
@@ -75,7 +77,7 @@ export async function processReferralSignupReward(
     },
     { $set: { referralRewardProcessedAt: new Date() } },
     { new: true, session }
-  ).select("referredBy");
+  ).select("referredBy name");
 
   if (!user?.referredBy) {
     return;
@@ -97,4 +99,19 @@ export async function processReferralSignupReward(
     },
     session
   );
+  const notification = await NotificationEvent.create([{
+    eventKey: `referral-signup:${userId.toString()}`,
+    type: "referral_signup",
+    audience: "specific_users",
+    status: "queued",
+    payload: {
+      userIds: [user.referredBy.toString()],
+      title: "Новый друг по вашей ссылке",
+      body: `${user.name} присоединился к Logic Coin. +5 LS уже на вашем счёте.`
+    }
+  }], { session });
+  // Run after the transaction yields back to the event loop, so the push
+  // worker sees the committed event and the newly created account.
+  const notificationId = notification[0]?._id;
+  if (notificationId) setTimeout(() => { void dispatchNotificationEvent(notificationId); }, 0);
 }

@@ -35,7 +35,7 @@ export default function InviteScreen() {
   const friends = referral?.friends ?? [];
   const code = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";
   const inviteUrl = authenticated
-    ? referral?.link ?? (code !== "—" ? `https://logic-coin.app/invite/${code}` : "")
+    ? referral?.link ?? (code !== "—" ? `https://logic-coin.vercel.app/invite/${code}` : "")
     : "";
 
   const share = () => {
@@ -182,8 +182,8 @@ export default function InviteScreen() {
           />
         </View>
         <AppText variant="caption" muted style={{ flex: 1 }}>
-          25% от денежных и coin-призов приглашённых друзей начисляются вам.
-          Баланс друга не уменьшается.
+          15% денежного приза друга начисляются вам; от приза друга второго
+          уровня — ещё 5%. Баланс победителя не уменьшается.
         </AppText>
       </GlassSurface>
     </AppFrame>

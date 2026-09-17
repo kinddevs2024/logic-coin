@@ -15,6 +15,8 @@ export interface CreditCoinsInput {
   type: CoinLedgerType;
   sourceId: string;
   description: string;
+  /** Practice-game coins belong to that game's local progress, not the shared challenge wallet. */
+  countTowardsChallengeBalance?: boolean;
   referralReward?: boolean;
   metadata?: Record<string, unknown>;
 }
@@ -29,18 +31,14 @@ async function creditCoinsInSession(input: CreditCoinsInput, session: ClientSess
     return { balanceAfter: existing.balanceAfter, idempotentReplay: true };
   }
 
-  const increments: Record<string, number> = {
-    "coins.balance": input.amount,
-    "coins.lifetimeEarned": input.amount
-  };
-  if (input.referralReward) {
-    increments["coins.referralEarned"] = input.amount;
-  }
-  const user = await User.findOneAndUpdate(
-    { _id: input.userId },
-    { $inc: increments },
-    { new: true, session }
-  ).select("coins");
+  const countTowardsChallengeBalance = input.countTowardsChallengeBalance !== false;
+  const increments: Record<string, number> = countTowardsChallengeBalance
+    ? { "coins.balance": input.amount, "coins.lifetimeEarned": input.amount }
+    : {};
+  if (input.referralReward && countTowardsChallengeBalance) increments["coins.referralEarned"] = input.amount;
+  const user = countTowardsChallengeBalance
+    ? await User.findOneAndUpdate({ _id: input.userId }, { $inc: increments }, { new: true, session }).select("coins")
+    : await User.findById(input.userId).select("coins").session(session);
   if (!user) {
     throw new ApiError(404, "user_not_found", "User not found");
   }
@@ -51,6 +49,8 @@ async function creditCoinsInSession(input: CreditCoinsInput, session: ClientSess
         userId: input.userId,
         type: input.type,
         amount: input.amount,
+        // The ledger remains auditable for practice rewards, while the shared
+        // challenge balance deliberately remains unchanged.
         balanceAfter: user.coins.balance,
         sourceId: input.sourceId,
         description: input.description,

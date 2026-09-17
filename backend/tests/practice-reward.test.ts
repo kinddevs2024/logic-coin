@@ -58,7 +58,8 @@ describe("authoritative practice rewards", () => {
       expect.objectContaining({
         userId,
         amount: 1_000,
-        type: "practice_coin_reward"
+        type: "practice_coin_reward",
+        countTowardsChallengeBalance: false
       }),
       expect.anything()
     );

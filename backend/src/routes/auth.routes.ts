@@ -165,6 +165,16 @@ router.post(
         ...(referralCode ? { referralCode } : {}),
         ...(countryCode ? { countryCode } : {})
       });
+      // A newly created account is the referral conversion.  The credit is
+      // idempotent, so the later email-verification safeguard remains safe.
+      const referralSession = await mongoose.startSession();
+      try {
+        await referralSession.withTransaction(async () => {
+          await processReferralSignupReward(user!._id, referralSession);
+        });
+      } finally {
+        await referralSession.endSession();
+      }
     } else {
       await User.updateOne(
         { _id: user._id },

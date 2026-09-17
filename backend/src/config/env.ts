@@ -44,7 +44,8 @@ const rawEnvSchema = z.object({
   YANDEX_REDIRECT_URIS: z.string().default(""),
   UNIT_VALUE_CENTS: z.coerce.number().int().min(1).max(100).default(1),
   MIN_WITHDRAWAL_CENTS: z.coerce.number().int().min(200).default(200),
-  REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(50),
+  // Five LS = $0.05 when one unit represents one cent.
+  REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(5),
   ADMIN_EMAILS: z.string().default(""),
   EXPO_PUSH_API_URL: z.string().url().default("https://exp.host/--/api/v2/push/send"),
   EXPO_PUSH_ACCESS_TOKEN: z.preprocess(emptyToUndefined, z.string().min(16).optional()),

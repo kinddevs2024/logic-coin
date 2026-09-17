@@ -12,7 +12,6 @@ import { creditCoins } from "./coin.service.js";
 import { challengeDayKey, getDailyChallengeSet } from "./daily-challenge.service.js";
 import { findActiveGameByKey } from "./game.service.js";
 import { activateNextChallengeCoinGifts } from "./gift.service.js";
-import { creditReferralCoinPrizeShare } from "./referral.service.js";
 import { verifyRewardedAd, type RewardedAdProof } from "./rewarded-ad.service.js";
 import { serializeCoins } from "./serialization.service.js";
 
@@ -227,15 +226,6 @@ export async function completeChallengeAttempt(input: {
           },
           session
         );
-        await creditReferralCoinPrizeShare(
-          {
-            winnerUserId: input.userId,
-            winnerPrizeCoins: coinsAwarded,
-            dayKey,
-            sourceId: rewardSourceId
-          },
-          session
-        );
       }
       attemptResult = {
         id: attempt._id.toString(),
@@ -313,6 +303,7 @@ export async function completePracticeAttempt(input: {
             type: "practice_coin_reward",
             sourceId: created._id.toString(),
             description: `Practice reward: ${game.key}`,
+            countTowardsChallengeBalance: false,
             metadata: { gameKey: game.key, kind: "practice" }
           },
           session
@@ -403,15 +394,6 @@ export async function doubleChallengeCoins(input: {
           },
           session
         );
-        await creditReferralCoinPrizeShare(
-          {
-            winnerUserId: input.userId,
-            winnerPrizeCoins: doubleCredit,
-            dayKey,
-            sourceId: `double-game:${attempt._id.toString()}`
-          },
-          session
-        );
         credited = reward.idempotentReplay ? 0 : doubleCredit;
         idempotentReplay = reward.idempotentReplay;
         return;
@@ -445,15 +427,6 @@ export async function doubleChallengeCoins(input: {
           sourceId: `double-day:${dayKey}`,
           description: `Double daily coins (${dayKey})`,
           metadata: { dayKey, kind: "double-day", adReceiptId: adVerification.receiptId }
-        },
-        session
-      );
-      await creditReferralCoinPrizeShare(
-        {
-          winnerUserId: input.userId,
-          winnerPrizeCoins: baseTotal,
-          dayKey,
-          sourceId: `double-day:${dayKey}`
         },
         session
       );

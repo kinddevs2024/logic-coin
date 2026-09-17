@@ -30,15 +30,19 @@ export async function dispatchNotificationEvent(
   if (!event) return { status: "skipped" as const, targetCount: 0, sentCount: 0, failedCount: 0 };
 
   try {
-    const payload = (event.payload ?? {}) as { dayKey?: string; title?: string; body?: string };
+    const payload = (event.payload ?? {}) as { dayKey?: string; title?: string; body?: string; userIds?: string[] };
     const participantUserIds =
       event.audience === "contest_participants" && payload.dayKey
         ? await DailyContestResult.distinct("userId", { dayKey: payload.dayKey })
         : null;
+    const directUserIds = event.audience === "specific_users" && Array.isArray(payload.userIds)
+      ? payload.userIds.filter((id) => /^[a-f\d]{24}$/i.test(id))
+      : null;
     const devices = await Device.find({
       notificationsEnabled: true,
       pushToken: { $exists: true, $ne: "" },
-      ...(participantUserIds ? { userId: { $in: participantUserIds } } : {})
+      ...(participantUserIds ? { userId: { $in: participantUserIds } } : {}),
+      ...(directUserIds ? { userId: { $in: directUserIds } } : {})
     })
       .select("pushToken")
       .lean();

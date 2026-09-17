@@ -182,7 +182,7 @@ async function refreshAccessToken(expiredToken: string): Promise<string> {
 }
 
 export const authApi = {
-  async startEmail(email: string) {
+  async startEmail(email: string, referralCode?: string) {
     const deviceId = await getDeviceId();
     const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<
@@ -195,7 +195,7 @@ export const authApi = {
         }
     >("/auth/email/start", {
       method: "POST",
-      body: JSON.stringify({ email, deviceId, countryCode }),
+      body: JSON.stringify({ email, deviceId, countryCode, ...(referralCode ? { referralCode } : {}) }),
     });
   },
   async verifyEmailCode(input: { email: string; code: string; flowToken: string }) {
@@ -257,12 +257,12 @@ export const authApi = {
       body: JSON.stringify({ email, deviceId }),
     });
   },
-  async google(idToken: string) {
+  async google(idToken: string, referralCode?: string) {
     const deviceId = await getDeviceId();
     const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<AuthResult>("/auth/google", {
       method: "POST",
-      body: JSON.stringify({ idToken, deviceId, countryCode }),
+      body: JSON.stringify({ idToken, deviceId, countryCode, ...(referralCode ? { referralCode } : {}) }),
     });
   },
   async telegramStart() {

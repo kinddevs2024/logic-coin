@@ -24,8 +24,7 @@ import { NotificationEvent } from "../models/NotificationEvent.js";
 import { User } from "../models/User.js";
 import { grantGift } from "./gift.service.js";
 import {
-  creditReferralCashPrizeShare,
-  creditReferralCoinPrizeShare
+  creditReferralCashPrizeShare
 } from "./referral.service.js";
 import { creditReward } from "./wallet.service.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
@@ -398,15 +397,6 @@ export async function claimContestReward(resultId: string, userId: Types.ObjectI
             sourceDayKey: result.dayKey,
             sourceId: `${sourceId}:${suffix}`,
             description: `${amount} coin на следующий челлендж`
-          },
-          session
-        );
-        await creditReferralCoinPrizeShare(
-          {
-            winnerUserId: userId,
-            winnerPrizeCoins: amount,
-            dayKey: result.dayKey,
-            sourceId: `${sourceId}:${suffix}`
           },
           session
         );
