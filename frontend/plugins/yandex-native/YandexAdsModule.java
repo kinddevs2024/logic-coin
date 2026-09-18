@@ -130,52 +130,6 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
         return;
       }
 
-      @ReactMethod
-      public void showAppOpen(Promise promise) {
-        mainHandler.post(() -> {
-          if (appOpenAd == null || System.currentTimeMillis() - lastAppOpenShownAt < 120_000L) {
-            promise.resolve(false);
-            return;
-          }
-          Activity activity = getCurrentActivity();
-          if (activity == null) {
-            promise.resolve(false);
-            return;
-          }
-          AppOpenAd ad = appOpenAd;
-          appOpenAd = null;
-          ad.setAdEventListener(new AppOpenAdEventListener() {
-            @Override
-            public void onAdShown() {
-              lastAppOpenShownAt = System.currentTimeMillis();
-              promise.resolve(true);
-            }
-
-            @Override
-            public void onAdFailedToShow(@NonNull AdError adError) {
-              promise.resolve(false);
-            }
-
-            @Override
-            public void onAdDismissed() {
-              loadAppOpenInternal();
-            }
-
-            @Override
-            public void onAdClicked() {}
-
-            @Override
-            public void onAdImpression(@Nullable com.yandex.mobile.ads.common.ImpressionData impressionData) {}
-          });
-          try {
-            ad.show(activity);
-          } catch (Exception error) {
-            Log.e(TAG, "App open ad failed to show", error);
-            promise.resolve(false);
-            loadAppOpenInternal();
-          }
-        });
-      }
       Activity activity = getCurrentActivity();
       if (activity == null) {
         promise.resolve(false);
@@ -211,6 +165,53 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
         Log.e(TAG, "Interstitial ad failed to show", error);
         promise.resolve(false);
         loadInterstitialInternal();
+      }
+    });
+  }
+
+  @ReactMethod
+  public void showAppOpen(Promise promise) {
+    mainHandler.post(() -> {
+      if (appOpenAd == null || System.currentTimeMillis() - lastAppOpenShownAt < 120_000L) {
+        promise.resolve(false);
+        return;
+      }
+      Activity activity = getCurrentActivity();
+      if (activity == null) {
+        promise.resolve(false);
+        return;
+      }
+      AppOpenAd ad = appOpenAd;
+      appOpenAd = null;
+      ad.setAdEventListener(new AppOpenAdEventListener() {
+        @Override
+        public void onAdShown() {
+          lastAppOpenShownAt = System.currentTimeMillis();
+          promise.resolve(true);
+        }
+
+        @Override
+        public void onAdFailedToShow(@NonNull AdError adError) {
+          promise.resolve(false);
+        }
+
+        @Override
+        public void onAdDismissed() {
+          loadAppOpenInternal();
+        }
+
+        @Override
+        public void onAdClicked() {}
+
+        @Override
+        public void onAdImpression(@Nullable com.yandex.mobile.ads.common.ImpressionData impressionData) {}
+      });
+      try {
+        ad.show(activity);
+      } catch (Exception error) {
+        Log.e(TAG, "App open ad failed to show", error);
+        promise.resolve(false);
+        loadAppOpenInternal();
       }
     });
   }
@@ -295,67 +296,6 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
       rewardedAdLoader = new RewardedAdLoader(getReactApplicationContext().getApplicationContext());
     }
 
-    private void loadInterstitialInternal() {
-      if (!initialized || interstitialLoading || interstitialAd != null) return;
-      if (interstitialAdLoader == null) {
-        interstitialAdLoader = new InterstitialAdLoader(
-          getReactApplicationContext().getApplicationContext()
-        );
-      }
-
-      private void loadAppOpenInternal() {
-        if (!initialized || appOpenLoading || appOpenAd != null) return;
-        if (appOpenAdLoader == null) {
-          appOpenAdLoader = new AppOpenAdLoader(
-            getReactApplicationContext().getApplicationContext()
-          );
-        }
-        appOpenLoading = true;
-        try {
-          appOpenAdLoader.loadAd(
-            new AdRequest.Builder(APP_OPEN_AD_UNIT_ID).build(),
-            new AppOpenAdLoadListener() {
-              @Override
-              public void onAdLoaded(@NonNull AppOpenAd ad) {
-                appOpenLoading = false;
-                appOpenAd = ad;
-              }
-
-              @Override
-              public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                appOpenLoading = false;
-                Log.e(TAG, "App open ad failed to load: " + error.getDescription());
-              }
-            }
-          );
-        } catch (Exception error) {
-          appOpenLoading = false;
-          Log.e(TAG, "App open ad load failed", error);
-        }
-      }
-      interstitialLoading = true;
-      try {
-        interstitialAdLoader.loadAd(
-          new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
-          new InterstitialAdLoadListener() {
-            @Override
-            public void onAdLoaded(@NonNull InterstitialAd ad) {
-              interstitialLoading = false;
-              interstitialAd = ad;
-            }
-
-            @Override
-            public void onAdFailedToLoad(@NonNull AdRequestError error) {
-              interstitialLoading = false;
-              Log.e(TAG, "Interstitial ad failed to load: " + error.getDescription());
-            }
-          }
-        );
-      } catch (Exception error) {
-        interstitialLoading = false;
-        Log.e(TAG, "Interstitial ad load failed", error);
-      }
-    }
     loading = true;
     Log.d(TAG, "Rewarded ad loading");
     emit("loading", null);
@@ -381,6 +321,68 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
       loading = false;
       Log.e(TAG, "Rewarded ad failed", error);
       emitError("failed", error.getMessage());
+    }
+  }
+
+  private void loadInterstitialInternal() {
+    if (!initialized || interstitialLoading || interstitialAd != null) return;
+    if (interstitialAdLoader == null) {
+      interstitialAdLoader = new InterstitialAdLoader(
+        getReactApplicationContext().getApplicationContext()
+      );
+    }
+    interstitialLoading = true;
+    try {
+      interstitialAdLoader.loadAd(
+        new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
+        new InterstitialAdLoadListener() {
+          @Override
+          public void onAdLoaded(@NonNull InterstitialAd ad) {
+            interstitialLoading = false;
+            interstitialAd = ad;
+          }
+
+          @Override
+          public void onAdFailedToLoad(@NonNull AdRequestError error) {
+            interstitialLoading = false;
+            Log.e(TAG, "Interstitial ad failed to load: " + error.getDescription());
+          }
+        }
+      );
+    } catch (Exception error) {
+      interstitialLoading = false;
+      Log.e(TAG, "Interstitial ad load failed", error);
+    }
+  }
+
+  private void loadAppOpenInternal() {
+    if (!initialized || appOpenLoading || appOpenAd != null) return;
+    if (appOpenAdLoader == null) {
+      appOpenAdLoader = new AppOpenAdLoader(
+        getReactApplicationContext().getApplicationContext()
+      );
+    }
+    appOpenLoading = true;
+    try {
+      appOpenAdLoader.loadAd(
+        new AdRequest.Builder(APP_OPEN_AD_UNIT_ID).build(),
+        new AppOpenAdLoadListener() {
+          @Override
+          public void onAdLoaded(@NonNull AppOpenAd ad) {
+            appOpenLoading = false;
+            appOpenAd = ad;
+          }
+
+          @Override
+          public void onAdFailedToLoad(@NonNull AdRequestError error) {
+            appOpenLoading = false;
+            Log.e(TAG, "App open ad failed to load: " + error.getDescription());
+          }
+        }
+      );
+    } catch (Exception error) {
+      appOpenLoading = false;
+      Log.e(TAG, "App open ad load failed", error);
     }
   }
 
