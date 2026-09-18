@@ -36,7 +36,14 @@ const defaultApiUrl =
       ? "http://10.0.2.2:4000/api/v1"
       : "http://localhost:4000/api/v1";
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || defaultApiUrl).replace(
+// Web production must always use the same origin. A developer's local Expo
+// environment is inlined at export time, so using EXPO_PUBLIC_API_URL here
+// would otherwise publish localhost as the API host for every site visitor.
+const configuredApiUrl = Platform.OS === "web" && process.env.NODE_ENV !== "development"
+  ? defaultApiUrl
+  : process.env.EXPO_PUBLIC_API_URL || defaultApiUrl;
+
+const API_URL = configuredApiUrl.replace(
   /\/+$/,
   "",
 );
