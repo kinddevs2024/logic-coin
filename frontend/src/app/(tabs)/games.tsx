@@ -119,7 +119,6 @@ export default function GamesScreen() {
                   </View>
                   <View style={styles.copy}>
                     <AppText style={[styles.title, { color: theme.text }]} numberOfLines={1}>{game.title}</AppText>
-                    <AppText style={[styles.caption, { color: theme.textMuted }]} numberOfLines={1}>{game.description}</AppText>
                     <View style={styles.bestRow}>
                       <Ionicons name="diamond-outline" size={13} color={game.color} />
                       <AppText style={[styles.best, { color: game.color }]}>{c.best} {Math.min(1000, saved.coins)}</AppText>
@@ -160,7 +159,6 @@ const styles = StyleSheet.create({
   cover: { width: "100%", height: "100%", borderRadius: 31 },
   copy: { flex: 1, gap: 2, minWidth: 0 },
   title: { fontSize: 17, lineHeight: 22, fontWeight: "900" },
-  caption: { fontSize: 11, lineHeight: 15, fontWeight: "600" },
   bestRow: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 4 },
   best: { fontSize: 10, lineHeight: 13, fontWeight: "900" },
   cardActions: { alignItems: "center", gap: 7 },
