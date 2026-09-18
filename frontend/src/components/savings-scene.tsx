@@ -13,6 +13,7 @@ import {
 import { useReducedMotion } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
+import { AndroidSoftGlow } from "@/components/android-soft-glow";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
 import { useAppStore } from "@/store/app-store";
@@ -289,8 +290,10 @@ export function SavingsScene({
       >
         <View
           pointerEvents="none"
-          style={[styles.halo, { backgroundColor: theme.orbOne }]}
-        />
+          style={[styles.halo, { backgroundColor: Platform.OS === "android" ? "transparent" : theme.orbOne }]}
+        >
+          {Platform.OS === "android" ? <AndroidSoftGlow color={theme.orbOne} diameter={310} blurRadius={44} /> : null}
+        </View>
         <Image
           source={islandSource}
           resizeMode="contain"

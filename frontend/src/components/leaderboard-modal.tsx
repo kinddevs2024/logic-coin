@@ -18,7 +18,7 @@ import { useReducedMotion } from "react-native-reanimated";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { CountryFlagBadge } from "@/components/country-flag";
-import { useGlassBlurTarget } from "@/components/glass-blur-target";
+import { GlassBlurTargetContext, useModalBlurTarget } from "@/components/glass-blur-target";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -67,7 +67,7 @@ function EntryValue({ entry, metric }: { entry: LeaderboardEntry; metric: Leader
 
 export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useAppTheme();
-  const blurTarget = useGlassBlurTarget();
+  const blurTarget = useModalBlurTarget();
   const router = useRouter();
   const { language } = useTranslation();
   const c = copy[language];
@@ -185,7 +185,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   });
 
   return (
-    <Modal transparent visible={visible} statusBarTranslucent animationType="none" onRequestClose={close}>
+    <Modal transparent visible={visible} statusBarTranslucent hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close}>
+      <GlassBlurTargetContext.Provider value={blurTarget}>
       <View style={styles.modalRoot}>
         <Animated.View
           style={[
@@ -199,7 +200,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
             tint={theme.mode === "dark" ? "dark" : "light"}
             {...(Platform.OS === "android" && blurTarget
               ? {
-                  blurMethod: "dimezisBlurViewSdk31Plus" as const,
+                  blurMethod: "dimezisBlurView" as const,
                   blurTarget,
                 }
               : {})}
@@ -323,6 +324,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
           </GlassSurface>
         </Animated.View>
       </View>
+      </GlassBlurTargetContext.Provider>
     </Modal>
   );
 }

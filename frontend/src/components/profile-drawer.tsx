@@ -18,7 +18,7 @@ import { Avatar } from "@/components/avatar";
 import { CountryFlagBadge, countryName } from "@/components/country-flag";
 import { AppButton } from "@/components/buttons";
 import { EditProfileModal } from "@/components/edit-profile-modal";
-import { useGlassBlurTarget } from "@/components/glass-blur-target";
+import { GlassBlurTargetContext, useModalBlurTarget } from "@/components/glass-blur-target";
 import { GlassSurface } from "@/components/glass-surface";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -39,7 +39,7 @@ export function ProfileDrawer({
   onInvite: () => void;
 }) {
   const theme = useAppTheme();
-  const blurTarget = useGlassBlurTarget();
+  const blurTarget = useModalBlurTarget();
   const { t, language } = useTranslation();
   const reduceMotion = useReducedMotion();
   const user = useAppStore((state) => state.user);
@@ -108,9 +108,11 @@ export function ProfileDrawer({
       visible={visible}
       transparent
       statusBarTranslucent
+      hardwareAccelerated={Platform.OS === "android"}
       animationType="none"
       onRequestClose={close}
     >
+      <GlassBlurTargetContext.Provider value={blurTarget}>
       <View style={styles.modal}>
         <Animated.View
           style={[
@@ -124,7 +126,7 @@ export function ProfileDrawer({
             tint={theme.mode === "dark" ? "dark" : "light"}
             {...(Platform.OS === "android" && blurTarget
               ? {
-                  blurMethod: "dimezisBlurViewSdk31Plus" as const,
+                  blurMethod: "dimezisBlurView" as const,
                   blurTarget,
                 }
               : {})}
@@ -252,6 +254,7 @@ export function ProfileDrawer({
         </Animated.View>
         <EditProfileModal visible={editing} onClose={() => setEditing(false)} />
       </View>
+      </GlassBlurTargetContext.Provider>
     </Modal>
   );
 }

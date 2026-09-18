@@ -19,6 +19,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 
 import { GlassBlurTargetContext } from "@/components/glass-blur-target";
+import { AndroidSoftGlow } from "@/components/android-soft-glow";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
@@ -70,7 +71,7 @@ function AmbientOrbs() {
           styles.orbTop,
           isDesktop && styles.orbTopDesktop,
           {
-            backgroundColor: theme.orbOne,
+            backgroundColor: Platform.OS === "android" ? "transparent" : theme.orbOne,
             transform: [
               {
                 translateY: drift.interpolate({
@@ -87,14 +88,16 @@ function AmbientOrbs() {
             ],
           },
         ]}
-      />
+      >
+        {Platform.OS === "android" ? <AndroidSoftGlow color={theme.orbOne} diameter={isDesktop ? 440 : 270} blurRadius={46} /> : null}
+      </Animated.View>
       <Animated.View
         style={[
           styles.orb,
           styles.orbBottom,
           isDesktop && styles.orbBottomDesktop,
           {
-            backgroundColor: theme.orbTwo,
+            backgroundColor: Platform.OS === "android" ? "transparent" : theme.orbTwo,
             transform: [
               {
                 translateY: drift.interpolate({
@@ -111,14 +114,16 @@ function AmbientOrbs() {
             ],
           },
         ]}
-      />
+      >
+        {Platform.OS === "android" ? <AndroidSoftGlow color={theme.orbTwo} diameter={isDesktop ? 520 : 320} blurRadius={46} /> : null}
+      </Animated.View>
       <Animated.View
         style={[
           styles.orb,
           styles.orbMiddle,
           isDesktop && styles.orbMiddleDesktop,
           {
-            backgroundColor: theme.glassHighlight,
+            backgroundColor: Platform.OS === "android" ? "transparent" : theme.glassHighlight,
             transform: [
               {
                 translateY: drift.interpolate({
@@ -135,7 +140,9 @@ function AmbientOrbs() {
             ],
           },
         ]}
-      />
+      >
+        {Platform.OS === "android" ? <AndroidSoftGlow color={theme.glassHighlight} diameter={isDesktop ? 320 : 190} blurRadius={46} /> : null}
+      </Animated.View>
       <LinearGradient
         colors={[
           "rgba(255,255,255,0.5)",

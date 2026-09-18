@@ -5,6 +5,7 @@ import Animated, { cancelAnimation, Easing, useAnimatedStyle, useReducedMotion, 
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/app-text";
+import { AndroidSoftGlow } from "@/components/android-soft-glow";
 import { IconButton } from "@/components/buttons";
 import { GlassSurface } from "@/components/glass-surface";
 import { GameEconomyHud, GameEconomyModal } from "@/components/game-economy";
@@ -70,7 +71,9 @@ export function GameShell({
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: background }]} edges={["top", "left", "right"]}>
-      <Animated.View pointerEvents="none" style={[styles.ambient, variant === "app" ? { backgroundColor: String(theme.orbOne) } : styles.ambientGame, ambientMotion]} />
+      <Animated.View pointerEvents="none" style={[styles.ambient, variant === "app" ? { backgroundColor: String(theme.orbOne) } : styles.ambientGame, Platform.OS === "android" && { backgroundColor: "transparent" }, ambientMotion]}>
+        {Platform.OS === "android" ? <AndroidSoftGlow color={variant === "app" ? theme.orbOne : "#FFFFFF"} diameter={360} blurRadius={36} /> : null}
+      </Animated.View>
       <ScrollView ref={scrollRef} role="main" style={styles.scroll} contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         {variant === "app" ? <GlassSurface intensity={58} style={styles.headerGlass}>{header}</GlassSurface> : <View style={styles.headerPlain}>{header}</View>}
         {children}
