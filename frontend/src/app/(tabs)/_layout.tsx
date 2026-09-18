@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable inside gesture worklets. */
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Redirect, Tabs, useRouter } from "expo-router";
 import {
@@ -10,6 +9,7 @@ import {
   useMemo,
   useState,
   type ComponentProps,
+  type KeyboardEvent,
 } from "react";
 import {
   Platform,
@@ -38,6 +38,8 @@ import Animated, {
 
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
+import { NavigationGlass } from "@/components/navigation-glass";
+import { NavigationBlurProvider, NavigationBlurScene } from "@/components/navigation-blur-target";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -115,7 +117,11 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
   const lensPosition = useSharedValue(activeIndex);
   const lensMorph = useSharedValue(0);
   const dragOrigin = useSharedValue(activeIndex);
-  const mobileSlotWidth = Math.max(1, (barSize.width - 12) / visibleRoutes.length);
+  const dragInProgress = useSharedValue(false);
+  const lastDragEnd = useSharedValue(0);
+  const mobileSlotWidth = Math.max(1, (barSize.width - 14) / visibleRoutes.length);
+  const lensWidth = isDesktop ? Math.max(0, barSize.width - 18) : mobileSlotWidth;
+  const lensHeight = isDesktop ? 70 : 60;
 
   const selectVisibleRoute = useCallback(
     (index: number) => {
@@ -193,7 +199,8 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
 
   const dragGesture = Gesture.Pan()
         .minDistance(12)
-        .onBegin(() => {
+        .onStart(() => {
+          dragInProgress.value = true;
           dragOrigin.value = lensPosition.value;
           lensMorph.value = reduceMotion ? 0 : withTiming(0.64, { duration: 110 });
         })
@@ -225,7 +232,13 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
           runOnJS(selectVisibleRoute)(target);
           runOnJS(clearPointerFocus)();
         })
-        .onFinalize(() => {
+        .onFinalize((_event, success) => {
+          // eslint-disable-next-line react-hooks/purity -- Gesture callback runs on pointer release, not during render.
+          if (dragInProgress.value) lastDragEnd.value = Date.now();
+          dragInProgress.value = false;
+          if (!success) {
+            lensPosition.value = reduceMotion ? activeIndex : withSpring(activeIndex, { damping: 22, stiffness: 240 });
+          }
           lensMorph.value = reduceMotion ? 0 : withTiming(0, { duration: 260 });
         });
 
@@ -236,45 +249,27 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
       [0, 1],
       Extrapolation.CLAMP,
     );
-    const lensWidth = isDesktop ? 98 : Math.max(0, mobileSlotWidth * 1.23);
-    const baseOffset = isDesktop
-      ? 0
-      : 6 + (mobileSlotWidth - lensWidth) / 2;
     return {
       width: lensWidth,
-      height: isDesktop ? 76 : 78,
+      height: lensHeight,
       transform: [
         {
           translateX: isDesktop
             ? 0
-            : baseOffset + lensPosition.value * mobileSlotWidth,
+            : lensPosition.value * mobileSlotWidth,
         },
         {
           translateY: isDesktop ? lensPosition.value * 76 : 0,
         },
         {
-          scaleX: isDesktop ? 1 + stretch * 0.07 : 1 + stretch * 0.16,
+          scaleX: isDesktop ? 1 + stretch * 0.025 : 1 + stretch * 0.08,
         },
         {
-          scaleY: isDesktop ? 1 + stretch * 0.16 : 1 + stretch * 0.07,
+          scaleY: isDesktop ? 1 + stretch * 0.08 : 1 + stretch * 0.025,
         },
       ],
     };
-  }, [isDesktop, mobileSlotWidth]);
-
-  const refractionStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      lensMorph.value,
-      [0, 1],
-      [0.58, 0.9],
-      Extrapolation.CLAMP,
-    ),
-    transform: [
-      {
-        scale: interpolate(lensMorph.value, [0, 1], [1, 1.045]),
-      },
-    ],
-  }));
+  }, [isDesktop, lensWidth, lensHeight, mobileSlotWidth]);
 
   return (
     <View
@@ -290,21 +285,22 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
       ]}
     >
       <GestureDetector gesture={dragGesture}>
-        <GlassSurface
+        <View
+          collapsable={false}
           accessibilityRole="tablist"
-          intensity={74}
-          variant="strong"
-          onLayout={(event) => setBarSize(event.nativeEvent.layout)}
+          aria-orientation={isDesktop ? "vertical" : "horizontal"}
+          onLayout={({ nativeEvent: { layout } }) => setBarSize((current) =>
+            current.width === layout.width && current.height === layout.height
+              ? current : { width: layout.width, height: layout.height })}
           style={[
             styles.tabBar,
             isDesktop && styles.tabBarDesktop,
             {
-              borderColor: theme.glassBorder,
               shadowColor: theme.shadow,
             },
           ]}
         >
-        <View pointerEvents="none" style={styles.glassHighlight} />
+        <NavigationGlass width={barSize.width} height={barSize.height} />
         {barSize.width > 0 ? (
           <Animated.View
             pointerEvents="none"
@@ -314,26 +310,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
               lensStyle,
             ]}
           >
-            <GlassSurface intensity={32} variant="soft" style={styles.lensSurface}>
-              <LinearGradient
-                pointerEvents="none"
-                colors={[
-                  "rgba(255,255,255,0.82)",
-                  "rgba(255,255,255,0.12)",
-                  "rgba(255,255,255,0.08)",
-                ]}
-                locations={[0, 0.44, 1]}
-                start={{ x: 0.08, y: 0 }}
-                end={{ x: 0.92, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.refractionLayer, refractionStyle]}
-              />
-              <View pointerEvents="none" style={styles.edgeRefraction} />
-              <View pointerEvents="none" style={styles.lensGlint} />
-            </GlassSurface>
+            <NavigationGlass variant="lens" width={lensWidth} height={lensHeight} />
           </Animated.View>
         ) : null}
         {visibleRoutes.map((route, index) => {
@@ -343,8 +320,32 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
             <Pressable
               key={route.key}
               accessibilityRole="tab"
+              accessibilityLabel={t(meta.label)}
               accessibilityState={{ selected: focused }}
-              onPress={() => selectVisibleRoute(index)}
+              aria-selected={focused}
+              {...(isWeb ? {
+                tabIndex: focused ? 0 : -1,
+                onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+                  const previous = isDesktop ? "ArrowUp" : "ArrowLeft";
+                  const next = isDesktop ? "ArrowDown" : "ArrowRight";
+                  let target: number;
+                  if (event.key === previous) target = (index - 1 + visibleRoutes.length) % visibleRoutes.length;
+                  else if (event.key === next) target = (index + 1) % visibleRoutes.length;
+                  else if (event.key === "Home") target = 0;
+                  else if (event.key === "End") target = visibleRoutes.length - 1;
+                  else return;
+                  event.preventDefault();
+                  selectVisibleRoute(target);
+                  event.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[role="tab"]')[target]?.focus();
+                },
+              } : {})}
+              onPress={() => {
+                // RN Web can dispatch a synthetic click on the original tab
+                // after its pointer was released at the end of a pan gesture.
+                if (dragInProgress.value || Date.now() - lastDragEnd.value < 250) return;
+                selectVisibleRoute(index);
+              }}
+              onLongPress={() => navigation.emit({ type: "tabLongPress", target: route.key })}
               style={({ pressed }) => [
                 styles.tab,
                 isDesktop && styles.tabDesktop,
@@ -363,7 +364,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
                   variant="caption"
                   color={String(focused ? theme.primary : theme.textMuted)}
                   numberOfLines={1}
-                  style={focused ? styles.activeLabel : undefined}
+                  style={[styles.tabLabel, focused && styles.activeLabel]}
                 >
                   {t(meta.label)}
                 </AppText>
@@ -371,7 +372,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
             </Pressable>
           );
         })}
-        </GlassSurface>
+        </View>
       </GestureDetector>
       {isDesktop && isWeb ? (
         <Link href={PLAY_STORE_URL} target="_blank" asChild>
@@ -451,8 +452,10 @@ export default function TabsLayout() {
   }
 
   return (
+    <NavigationBlurProvider>
     <Tabs
       tabBar={(props) => <LogicTabBar {...props} />}
+      screenLayout={({ children }) => <NavigationBlurScene>{children}</NavigationBlurScene>}
       screenOptions={{
         headerShown: false,
         animation: Platform.OS === "web" ? "fade" : "shift",
@@ -467,6 +470,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="tasks" options={{ href: null }} />
       <Tabs.Screen name="bonuses" options={{ href: null }} />
     </Tabs>
+    </NavigationBlurProvider>
   );
 }
 
@@ -487,105 +491,54 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     width: "100%",
-    maxWidth: 620,
+    maxWidth: 520,
     minHeight: 74,
     borderRadius: radii.pill,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    borderColor: "transparent",
     padding: 6,
     flexDirection: "row",
     alignItems: "center",
-    shadowOpacity: Platform.OS === "web" ? 0.18 : 0.24,
-    shadowRadius: 34,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 18,
-    overflow: "hidden",
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+    overflow: "visible",
+    ...(Platform.OS === "web" ? ({ boxShadow: "0 8px 32px rgba(23,62,104,0.14), 0 2px 6px rgba(23,62,104,0.05)", touchAction: "none" } as unknown as ViewStyle) : null),
   },
   tabBarDesktop: {
     width: 110,
     maxWidth: 110,
     minHeight: 0,
-    borderRadius: 40,
+    borderRadius: 38,
     padding: 8,
     flexDirection: "column",
     gap: 6,
   },
   liquidLens: {
     position: "absolute",
-    left: 0,
-    top: -2,
+    left: 6,
+    top: 6,
     zIndex: 0,
     borderRadius: radii.pill,
-    shadowColor: "#8FCBFF",
+    shadowColor: "#5185AE",
     shadowOpacity: 0.14,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 2 },
     ...(Platform.OS === "web"
       ? ({
-          boxShadow: "0 0 24px 5px rgba(126,194,255,0.11)",
+          boxShadow: "0 2px 10px rgba(40,92,140,0.13)",
         } as ViewStyle)
       : null),
   },
   liquidLensDesktop: {
-    left: 6,
-    top: 5,
-  },
-  lensSurface: {
-    flex: 1,
-    borderRadius: radii.pill,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.76)",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 9 },
-    overflow: "hidden",
-    ...(Platform.OS === "web"
-      ? ({
-          boxShadow:
-            "inset 0 0 18px rgba(255,255,255,0.28), inset 0 0 16px rgba(116,190,255,0.07)",
-        } as ViewStyle)
-      : null),
-  },
-  refractionLayer: {
-    position: "absolute",
-    inset: 0,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(255,255,255,0.055)",
-    ...(Platform.OS === "web"
-      ? ({
-          backdropFilter: "blur(7px) saturate(148%)",
-          WebkitBackdropFilter: "blur(7px) saturate(148%)",
-        } as unknown as ViewStyle)
-      : null),
-  },
-  edgeRefraction: {
-    position: "absolute",
-    inset: 2,
-    borderRadius: radii.pill,
-    borderWidth: 0,
-    backgroundColor: "rgba(137,201,255,0.025)",
-    ...(Platform.OS === "web"
-      ? ({
-          boxShadow:
-            "inset 0 0 15px 4px rgba(133,199,255,0.09)",
-          filter: "blur(4px)",
-        } as unknown as ViewStyle)
-      : null),
-  },
-  lensGlint: {
-    position: "absolute",
-    left: 10,
-    top: 7,
-    width: "42%",
-    height: 5,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(255,255,255,0.76)",
-    transform: [{ rotate: "-6deg" }],
+    left: 8,
+    top: 8,
   },
   tab: {
     flex: 1,
-    minHeight: 54,
+    height: 60,
+    minHeight: 60,
     borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center",
@@ -600,6 +553,7 @@ const styles = StyleSheet.create({
   tabDesktop: {
     flex: 0,
     width: "100%",
+    height: 70,
     minHeight: 70,
     borderRadius: 30,
     paddingHorizontal: 6,
@@ -609,20 +563,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
   },
-  tabContentActive: { transform: [{ scale: 1.12 }] },
+  tabContentActive: { transform: [{ scale: 1.04 }] },
+  tabLabel: { fontSize: 11, lineHeight: 15, fontWeight: "600" },
   activeLabel: {
     textShadowColor: "rgba(77,151,255,0.2)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 5,
-  },
-  glassHighlight: {
-    position: "absolute",
-    left: 18,
-    right: 18,
-    top: 2,
-    height: 1,
-    borderRadius: 1,
-    backgroundColor: "rgba(255,255,255,0.76)",
   },
   tabWrapDesktop: {
     left: 18,

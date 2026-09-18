@@ -56,3 +56,77 @@ input {
   outline-offset: 2px;
   box-shadow: 0 0 0 5px rgba(123, 193, 255, 0.14);
 }
+
+/* Scoped to navigation: liquid-glass-react does not require Tailwind here. */
+.logic-nav-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 38px;
+  pointer-events: none;
+  --nav-tint: rgba(243, 250, 255, 0.38);
+  --nav-edge: rgba(255, 255, 255, 0.86);
+  --nav-shade: rgba(49, 98, 139, 0.1);
+}
+
+.logic-nav-glass[data-theme="dark"] {
+  --nav-tint: rgba(16, 26, 41, 0.64);
+  --nav-edge: rgba(210, 233, 255, 0.28);
+  --nav-shade: rgba(0, 0, 0, 0.22);
+}
+
+.logic-nav-glass[data-variant="lens"] {
+  --nav-tint: rgba(223, 241, 255, 0.32);
+}
+
+.logic-nav-glass[data-variant="lens"][data-theme="dark"] {
+  --nav-tint: rgba(120, 180, 244, 0.14);
+}
+
+/* The upstream decorative layers use utility classes. Our own rim supplies
+   those highlights without a global utility stylesheet or extra hit targets. */
+.logic-nav-glass > div:not(.logic-nav-refraction):not(.logic-nav-glass-rim),
+.logic-nav-glass > span {
+  display: none;
+}
+
+.logic-nav-refraction,
+.logic-nav-refraction > .glass {
+  transition: none !important;
+  pointer-events: none;
+}
+
+.logic-nav-refraction > .glass {
+  display: flex !important;
+  width: 100%;
+  height: 100%;
+  box-shadow: inset 0 1px 1px var(--nav-edge), inset 0 -1px 1px var(--nav-shade) !important;
+}
+
+.logic-nav-refraction .glass__warp {
+  -webkit-backdrop-filter: blur(10px) saturate(145%);
+}
+
+.logic-nav-glass[data-refraction="false"] .glass__warp {
+  filter: none !important;
+}
+
+.logic-nav-glass-rim {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--nav-edge);
+  border-radius: inherit;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.22), transparent 38%, transparent 64%, rgba(187, 221, 255, 0.13)), var(--nav-tint);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .logic-nav-glass { --nav-tint: #eef5fc; }
+  .logic-nav-glass[data-theme="dark"] { --nav-tint: #172232; }
+  .logic-nav-glass[data-variant="lens"] { --nav-tint: #d9eaff; }
+  .logic-nav-glass[data-variant="lens"][data-theme="dark"] { --nav-tint: #26435f; }
+  .logic-nav-refraction .glass__warp {
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
