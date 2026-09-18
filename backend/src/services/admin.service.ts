@@ -20,6 +20,10 @@ import { User } from "../models/User.js";
 import { challengeDayKey } from "./daily-challenge.service.js";
 import { serializeGame } from "./serialization.service.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
+
+// This game is always seven attempts in a daily challenge. Do not take this
+// value from an older DailyChallengeSet or an administration request.
+const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 7;
 import { settleExpiredDailyContests } from "./contest.service.js";
 
 type ChallengeStatus = "draft" | "published" | "settled";
@@ -145,7 +149,7 @@ async function serializeChallengeSets(sets: readonly ChallengeSetLike[]) {
     prizePoolUnits: set.prizePoolUnits,
     coinPrizeAmounts: set.coinPrizeAmounts ?? [0, 0, 0, 0, 0, 0],
     maxAttemptsPerGame: set.maxAttemptsPerGame ?? 1,
-    oneSecondAttemptLimit: set.oneSecondAttemptLimit ?? 20,
+    oneSecondAttemptLimit: ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT,
     publishedAt: set.publishedAt?.toISOString() ?? null,
     endsAt:
       set.endsAt?.toISOString() ??
@@ -192,14 +196,10 @@ export async function configureDailyChallenge(input: {
     throw new ApiError(400, "invalid_prize_pool", "Prize pool must cover at least the first prize");
   }
   const maxAttemptsPerGame = input.maxAttemptsPerGame ?? 1;
-  const oneSecondAttemptLimit = input.oneSecondAttemptLimit ?? 20;
+  const oneSecondAttemptLimit = ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT;
   if (!Number.isInteger(maxAttemptsPerGame) || maxAttemptsPerGame < 1 || maxAttemptsPerGame > 100) {
     throw new ApiError(400, "invalid_attempt_limit", "Challenge attempts per game must be between 1 and 100");
   }
-  if (!Number.isInteger(oneSecondAttemptLimit) || oneSecondAttemptLimit < 1 || oneSecondAttemptLimit > 100) {
-    throw new ApiError(400, "invalid_one_second_attempt_limit", "One Second attempts must be between 1 and 100");
-  }
-
   const eligibleGames = await Game.find({ enabled: true, challengeEnabled: true })
     .sort({ sortOrder: 1, _id: 1 })
     .lean();

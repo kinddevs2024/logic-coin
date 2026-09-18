@@ -191,7 +191,9 @@ router.put(
       prizePoolUnits: body.prizePoolUnits,
       coinPrizeAmounts: body.coinPrizeAmounts,
       maxAttemptsPerGame: body.maxAttemptsPerGame ?? 1,
-      oneSecondAttemptLimit: body.oneSecondAttemptLimit ?? 20,
+      // One Second is a fixed seven-attempt challenge. The API field remains
+      // accepted for backwards-compatible clients, but cannot override it.
+      oneSecondAttemptLimit: 7,
       publish: body.publish
     });
     response.json({ data: result });

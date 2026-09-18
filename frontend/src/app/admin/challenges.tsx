@@ -27,7 +27,7 @@ type Draft = {
 // Defaults for a new challenge day. Money values mirror the backend
 // DEFAULT_DAILY_PRIZE_* constants so a fresh day is publishable in one tap.
 function emptyDraft(): Draft {
-  return { selectionMode: "random", selected: [], minimum: "500", maximum: "10000", pool: "100000", coins: "0,0,0,0,0,0", maxAttempts: "1", oneSecondAttempts: "20" };
+  return { selectionMode: "random", selected: [], minimum: "500", maximum: "10000", pool: "100000", coins: "0,0,0,0,0,0", maxAttempts: "1", oneSecondAttempts: "7" };
 }
 
 function offsetDayKey(offset: number) {
@@ -75,7 +75,7 @@ export default function AdminChallengesScreen() {
     pool: String(challenge.prizePoolUnits),
     coins: (challenge.coinPrizeAmounts ?? [0, 0, 0, 0, 0, 0]).join(","),
     maxAttempts: String(challenge.maxAttemptsPerGame ?? 1),
-    oneSecondAttempts: String(challenge.oneSecondAttemptLimit ?? 20),
+    oneSecondAttempts: "7",
   } satisfies Draft : emptyDraft();
   const draft = drafts[dayKey] ?? serverDraft;
   const setDraft = (next: SetStateAction<Draft>) => {
@@ -102,7 +102,7 @@ export default function AdminChallengesScreen() {
       prizePoolUnits: Number(draft.pool),
       coinPrizeAmounts: draft.coins.split(",").map((value) => Number(value.trim())),
       maxAttemptsPerGame: Number(draft.maxAttempts),
-      oneSecondAttemptLimit: Number(draft.oneSecondAttempts),
+      oneSecondAttemptLimit: 7,
       publish,
     }, adminToken),
     onSuccess: (result, publish) => {
@@ -129,12 +129,11 @@ export default function AdminChallengesScreen() {
 
   const numericValues = [draft.minimum, draft.maximum, draft.pool].map(Number);
   const validAttempts = /^\d+$/.test(draft.maxAttempts) && Number(draft.maxAttempts) >= 1 && Number(draft.maxAttempts) <= 100;
-  const validOneSecondAttempts = /^\d+$/.test(draft.oneSecondAttempts) && Number(draft.oneSecondAttempts) >= 1 && Number(draft.oneSecondAttempts) <= 100;
   const coinPrizes = draft.coins.split(",").map((value) => Number(value.trim()));
   const validCoinPrizes = coinPrizes.length === 6 && coinPrizes.every((value) => Number.isInteger(value) && value >= 0);
   const validMoney = draft.minimum !== "" && draft.maximum !== "" && draft.pool !== "" && numericValues.every((value) => Number.isFinite(value) && value >= 0) && numericValues[1] >= numericValues[0] && numericValues[2] >= numericValues[1];
   const validGames = draft.selectionMode === "random" || draft.selected.length === 6;
-  const canSave = /^\d{4}-\d{2}-\d{2}$/.test(dayKey) && validMoney && validGames && validAttempts && validOneSecondAttempts && validCoinPrizes && !save.isPending;
+  const canSave = /^\d{4}-\d{2}-\d{2}$/.test(dayKey) && validMoney && validGames && validAttempts && validCoinPrizes && !save.isPending;
 
   const updateNumber = (key: "minimum" | "maximum" | "pool", value: string) => {
     setDraft((current) => ({ ...current, [key]: value.replace(/[^0-9]/g, "") }));
@@ -226,7 +225,7 @@ export default function AdminChallengesScreen() {
               <View style={styles.moneyFields}>
                 <View style={styles.moneyField}><AppText variant="caption" muted>Coin по местам (1–6, через запятую)</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="numbers-and-punctuation" value={draft.coins} onChangeText={(value) => setDraft((current) => ({ ...current, coins: value }))} placeholder="100,50,25,10,5,1" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>coin</AppText></View></View>
                 <View style={styles.moneyField}><AppText variant="caption" muted>Повторных прохождений игры</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={draft.maxAttempts} onChangeText={(value) => setDraft((current) => ({ ...current, maxAttempts: value.replace(/[^0-9]/g, "") }))} placeholder="1" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>раз</AppText></View></View>
-                <View style={styles.moneyField}><AppText variant="caption" muted>Попыток внутри «1 Секунды»</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={draft.oneSecondAttempts} onChangeText={(value) => setDraft((current) => ({ ...current, oneSecondAttempts: value.replace(/[^0-9]/g, "") }))} placeholder="20" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>раз</AppText></View></View>
+                <View style={styles.moneyField}><AppText variant="caption" muted>Попыток внутри «1 Секунды»</AppText><View accessibilityLabel="В челлендже всегда семь попыток" style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><AppText style={[styles.numberInput, { color: theme.text }]}>7</AppText><AppText variant="caption" muted>раз</AppText></View></View>
               </View>
               {!validMoney && (draft.minimum || draft.maximum || draft.pool) ? <AppText variant="caption" color={String(theme.danger)}>Фонд должен покрывать максимальный приз, а максимум — минимальный.</AppText> : null}
               {notice ? <View style={[styles.notice, { backgroundColor: notice.includes("не удалось") || notice.includes("cannot") ? `${String(theme.danger)}12` : `${String(theme.success)}12` }]}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /><AppText variant="caption" style={styles.noticeCopy}>{notice}</AppText></View> : null}

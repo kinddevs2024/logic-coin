@@ -11,7 +11,7 @@ import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "one-second" as const;
 const TARGET_MS = 1000;
-const DEFAULT_CHALLENGE_ATTEMPTS = 20;
+const DEFAULT_CHALLENGE_ATTEMPTS = 7;
 const RADIUS = 72;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -63,7 +63,9 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
   usePauseClock(paused, [pressStartedAt, gameStartedAt]);
   const scale = useSharedValue(1);
   const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const challengeAttempts = Math.max(1, Math.min(100, Math.round(attemptLimit)));
+  // A daily challenge for this game always has seven attempts. This local
+  // guard also keeps the UX correct if an old cached API response has 20/30.
+  const challengeAttempts = challengeMode ? DEFAULT_CHALLENGE_ATTEMPTS : Math.max(1, Math.min(100, Math.round(attemptLimit)));
 
   const score = useMemo(() => attempts.reduce((sum, item) => sum + item.points, 0), [attempts]);
 

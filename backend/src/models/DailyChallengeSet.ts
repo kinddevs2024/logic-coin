@@ -23,7 +23,7 @@ const dailyChallengeSetSchema = new Schema(
     },
     selectionSeed: { type: String, required: true, maxlength: 160 },
     maxAttemptsPerGame: { type: Number, min: 1, max: 100, default: 1, required: true },
-    oneSecondAttemptLimit: { type: Number, min: 1, max: 100, default: 20, required: true },
+    oneSecondAttemptLimit: { type: Number, min: 1, max: 100, default: 7, required: true },
     gameIds: {
       type: [Schema.Types.ObjectId],
       ref: "Game",

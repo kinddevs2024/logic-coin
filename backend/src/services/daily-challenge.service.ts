@@ -20,6 +20,11 @@ import { serializeCoins, serializeGame } from "./serialization.service.js";
 import { settleExpiredDailyContests } from "./contest.service.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
 
+// One Second is deliberately a fixed seven-attempt challenge. Keeping the
+// rule server-side makes every published day consistent, including days that
+// were configured before this rule existed.
+const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 7;
+
 export function challengeDayKey(date: Date = new Date()): string {
   return localDayKey(date, env.DEFAULT_TIMEZONE);
 }
@@ -73,7 +78,7 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
         coinPrizeAmounts: [0, 0, 0, 0, 0, 0],
         maxAttemptsPerGame: 1,
-        oneSecondAttemptLimit: 20,
+        oneSecondAttemptLimit: ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT,
         publishedAt,
         endsAt: new Date(publishedAt.getTime() + 24 * 60 * 60 * 1_000),
         publishedBySubject: "auto-daily"
@@ -180,9 +185,7 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
       const metadata = (attempt?.metadata ?? {}) as { doubled?: boolean };
       return {
         ...serializeGame(game, language),
-        ...(game.key === "one-second"
-          ? { attemptLimit: Math.max(1, Math.min(100, set.oneSecondAttemptLimit ?? 20)) }
-          : {}),
+        ...(game.key === "one-second" ? { attemptLimit: ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT } : {}),
         state: {
           status: attempt?.status ?? "not_started",
           score: attempt?.score ?? null,
