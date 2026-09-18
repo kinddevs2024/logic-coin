@@ -235,6 +235,17 @@ export default function DynamicGameRoute() {
     setSessionRevision((value) => value + 1);
   };
 
+  const exitGame = useCallback(() => {
+    // A challenge can be opened from a notification or a direct link. In that
+    // case Expo Router has no in-app history, so `back()` silently does
+    // nothing. Always provide a deterministic destination for the header.
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace(mode === "challenge" ? "/challenges" as never : "/games" as never);
+  }, [mode, router]);
+
   const continueChallenge = async () => {
     setResult(null);
     if (currentChallengeIndex === 1 || currentChallengeIndex === 3) {
@@ -341,11 +352,11 @@ export default function DynamicGameRoute() {
 
   let renderedGame = null;
   if (ArcadeAComponent) {
-    renderedGame = <ArcadeAComponent key={sessionId} initialBestScore={progress?.bestScore ?? 0} extraTimeSeconds={extraTimeSeconds} challengeMode={mode === "challenge"} attemptLimit={currentChallengeGame?.attemptLimit} sessionKey={sessionId} paused={giftOpen} skin={selectedSkin} onExit={() => router.back()} onComplete={onArcadeComplete} />;
+    renderedGame = <ArcadeAComponent key={sessionId} initialBestScore={progress?.bestScore ?? 0} extraTimeSeconds={extraTimeSeconds} challengeMode={mode === "challenge"} attemptLimit={currentChallengeGame?.attemptLimit} sessionKey={sessionId} paused={giftOpen} skin={selectedSkin} onExit={exitGame} onComplete={onArcadeComplete} />;
   } else if (arcadeBId) {
     renderedGame = (
       <View key={sessionId} style={styles.embeddedGame}>
-        <ArcadeBRenderer gameId={arcadeBId} gameProps={{ initialBest: progress?.bestScore ?? 0, initialCoins: progress?.coins ?? 0, extraTimeSeconds, paused: giftOpen, skin: selectedSkin, onExit: () => router.back(), onFinish: onArcadeBComplete }} />
+        <ArcadeBRenderer gameId={arcadeBId} gameProps={{ initialBest: progress?.bestScore ?? 0, initialCoins: progress?.coins ?? 0, extraTimeSeconds, paused: giftOpen, skin: selectedSkin, onExit: exitGame, onFinish: onArcadeBComplete }} />
       </View>
     );
   } else if (classic) {
@@ -363,7 +374,7 @@ export default function DynamicGameRoute() {
   }
 
   if (!renderedGame) {
-    return <LinearGradient colors={["#14192E", "#070A14"]} style={styles.fallback}><Ionicons name="game-controller-outline" size={48} color="#8E7CFF" /><Text style={styles.fallbackTitle}>Игра не подключена</Text><Text style={styles.fallbackText}>{gameKey || "Неизвестный ключ"}</Text><Pressable onPress={() => router.back()} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Назад</Text></Pressable></LinearGradient>;
+    return <LinearGradient colors={["#14192E", "#070A14"]} style={styles.fallback}><Ionicons name="game-controller-outline" size={48} color="#8E7CFF" /><Text style={styles.fallbackTitle}>Игра не подключена</Text><Text style={styles.fallbackText}>{gameKey || "Неизвестный ключ"}</Text><Pressable onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Назад</Text></Pressable></LinearGradient>;
   }
 
   return (
