@@ -79,6 +79,7 @@ jobs:
 
       - name: Check types and regression tests before Gradle
         run: |
+          cd frontend && npx expo install --check && cd ..
           npm run lint --workspace frontend
           npm run typecheck --workspace frontend
           npm test --workspace frontend

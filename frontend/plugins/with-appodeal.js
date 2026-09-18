@@ -20,7 +20,7 @@ const ANDROID_RELEASE_PROPERTIES = [
   ["reactNativeArchitectures", "armeabi-v7a,arm64-v8a"],
   // Keep the known-working release packaging while validating the aligned Expo
   // native dependencies. Re-enable R8 only after a separate device-tested pass;
-  // older image-manipulator versions lost required Kotlin classes under R8.
+  // image-manipulator 14 referenced Kotlin APIs absent from Expo 57 at startup.
   ["android.enableMinifyInReleaseBuilds", "false"],
   ["android.enableShrinkResourcesInReleaseBuilds", "false"],
   ["expo.gif.enabled", "false"],
