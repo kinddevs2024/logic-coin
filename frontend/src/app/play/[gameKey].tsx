@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -439,7 +439,19 @@ const styles = StyleSheet.create({
   fallbackText: { color: "rgba(255,255,255,0.42)", fontSize: 13 },
   fallbackButton: { marginTop: 12, minWidth: 180, padding: 15, borderRadius: 16, alignItems: "center", backgroundColor: "#8E7CFF" },
   fallbackButtonText: { color: "#080A12", fontSize: 13, fontWeight: "900" },
-  resultBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 18, backgroundColor: "rgba(1,3,10,0.72)" },
+  // On React Native Web, Modal can inherit the narrow game route width. Pin
+  // the result layer to the browser viewport so it covers the entire screen.
+  resultBackdrop: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 18,
+    backgroundColor: "rgba(1,3,10,0.72)",
+    zIndex: 1_000,
+    ...(Platform.OS === "web"
+      ? ({ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh" } as unknown as ViewStyle)
+      : {}),
+  },
   resultOuter: { width: "100%", maxWidth: 430 },
   resultCard: { overflow: "hidden", alignItems: "center", borderRadius: 32, padding: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(10,13,27,0.94)" },
   resultBadge: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 13, transform: [{ rotate: "-4deg" }] },
