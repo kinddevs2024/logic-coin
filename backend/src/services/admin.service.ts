@@ -31,6 +31,76 @@ type BudgetEntryType =
   | "manual_credit"
   | "manual_debit";
 
+function exactText(value: string) {
+  return new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+}
+
+export async function sendAdminNotification(input: {
+  title: string;
+  body: string;
+  recipientName?: string;
+  adminSubject: string;
+}) {
+  let userIds: string[] | undefined;
+  let recipientName: string | undefined;
+  if (input.recipientName) {
+    const recipients = await User.find({
+      $or: [{ name: exactText(input.recipientName) }, { email: exactText(input.recipientName) }]
+    }).select("_id name").limit(2).lean();
+    if (recipients.length === 0) {
+      throw new ApiError(404, "notification_recipient_not_found", "User name or email was not found");
+    }
+    if (recipients.length > 1) {
+      throw new ApiError(409, "notification_recipient_ambiguous", "More than one user matches this name; use email");
+    }
+    userIds = [recipients[0]!._id.toString()];
+    recipientName = recipients[0]!.name;
+  }
+  const event = await NotificationEvent.create({
+    eventKey: `admin-notification:${randomUUID()}`,
+    type: "admin_broadcast",
+    audience: userIds ? "specific_users" : "all_users",
+    status: "queued",
+    targetCount: 0,
+    payload: {
+      title: input.title,
+      body: input.body,
+      ...(userIds ? { userIds } : {}),
+      adminSubject: input.adminSubject
+    }
+  });
+  const delivery = await dispatchNotificationEvent(event._id);
+  return {
+    id: event._id.toString(),
+    audience: userIds ? "user_name" as const : "all_users" as const,
+    recipientName: recipientName ?? null,
+    ...delivery
+  };
+}
+
+export async function notifyNewGameAvailable(game: { _id: Types.ObjectId; key: string; title: { ru: string } }) {
+  const event = await NotificationEvent.findOneAndUpdate(
+    { eventKey: `new-game:${game._id.toString()}` },
+    {
+      $setOnInsert: {
+        type: "new_game_available",
+        audience: "all_users",
+        status: "queued",
+        targetCount: 0,
+        payload: {
+          gameKey: game.key,
+          title: "Новая игра доступна",
+          body: `${game.title.ru} уже ждёт вас в Logic Coin.`
+        }
+      }
+    },
+    { upsert: true, new: true, runValidators: true }
+  );
+  return event.status === "queued"
+    ? dispatchNotificationEvent(event._id)
+    : { status: event.status, targetCount: event.targetCount, sentCount: event.sentCount, failedCount: event.failedCount };
+}
+
 interface ChallengeSetLike {
   _id: Types.ObjectId;
   dayKey: string;

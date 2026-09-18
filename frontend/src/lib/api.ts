@@ -776,6 +776,23 @@ export const adminApi = {
       body: JSON.stringify(body),
     });
   },
+  sendNotification(input: { title: string; body: string; userName?: string }, token: string) {
+    return request<{
+      notification: {
+        id: string;
+        audience: "all_users" | "user_name";
+        recipientName: string | null;
+        status: string;
+        targetCount: number;
+        sentCount: number;
+        failedCount: number;
+      };
+    }>("/admin/notifications", {
+      method: "POST",
+      token,
+      body: JSON.stringify(input),
+    });
+  },
   settle(dayKey: string, token: string) {
     return request<{ settlement: AdminSettlement; alreadySettled: boolean }>(`/admin/daily-challenges/${encodeURIComponent(dayKey)}/settle`, { method: "POST", token });
   },

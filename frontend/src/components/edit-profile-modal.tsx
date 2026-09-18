@@ -34,7 +34,9 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const [name, setName] = useState(user.name);
-  const [avatarDataUrl, setAvatarDataUrl] = useState(user.avatarUrl ?? "");
+  // Undefined means that the picture was not touched. Previously every name
+  // edit re-uploaded the whole base64 image, which made profile saves slow.
+  const [avatarDraft, setAvatarDraft] = useState<string | null | undefined>(undefined);
   const [countryCode, setCountryCode] = useState(user.countryCode ?? (language === "uz" ? "UZ" : language === "en" ? "US" : "RU"));
   const [countryQuery, setCountryQuery] = useState("");
   const [countryOpen, setCountryOpen] = useState(false);
@@ -42,6 +44,10 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const [picking, setPicking] = useState(false);
   const [cropAsset, setCropAsset] = useState<{ uri: string; width: number; height: number; mimeType: string } | null>(null);
   const queryClient = useQueryClient();
+  const avatarUrl = avatarDraft === undefined ? user.avatarUrl ?? null : avatarDraft;
+  const avatarChanged = avatarDraft !== undefined;
+  const maxAvatarDataUrlChars = 2_100_000;
+  const canSave = name.trim().length > 0 && (name.trim() !== user.name || countryCode !== user.countryCode || avatarChanged);
 
   const pickAvatar = async () => {
     setMessage("");
@@ -56,12 +62,12 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         mediaTypes: ["images"],
         allowsEditing: false,
         quality: 1,
-        base64: true,
+        exif: false,
       });
       if (result.canceled) return;
       const asset = result.assets[0];
       const mimeType = asset?.mimeType?.toLowerCase() ?? "image/jpeg";
-      if (!asset?.base64 || !["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
+      if (!asset?.uri || !["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
         setMessage("Выберите JPG, PNG или WebP");
         return;
       }
@@ -78,9 +84,13 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       const cleanName = name.trim().slice(0, 80);
       if (!cleanName) throw new Error("name_required");
       if (authMode === "authenticated" && accessToken) {
-        return meApi.updateProfile({ name: cleanName, avatarDataUrl: avatarDataUrl || null, countryCode }, accessToken);
+        return meApi.updateProfile({
+          ...(cleanName !== user.name ? { name: cleanName } : {}),
+          ...(countryCode !== user.countryCode ? { countryCode } : {}),
+          ...(avatarChanged ? { avatarDataUrl: avatarDraft } : {})
+        }, accessToken);
       }
-      return { ...user, name: cleanName, avatarUrl: avatarDataUrl || null, countryCode };
+      return { ...user, name: cleanName, avatarUrl, countryCode };
     },
     onSuccess: (nextUser) => {
       updateUser(nextUser);
@@ -102,11 +112,18 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
               <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} style={[styles.close, { backgroundColor: theme.primarySoft }]}><Ionicons name="close" size={19} color={String(theme.text)} /></Pressable>
             </View>
             <View style={styles.preview}>
-              <Avatar name={name || user.name} avatarUrl={avatarDataUrl || null} size={92} />
+              <Avatar name={name || user.name} avatarUrl={avatarUrl} size={92} />
               <Pressable accessibilityRole="button" disabled={picking} onPress={() => void pickAvatar()} style={[styles.photoButton, { backgroundColor: theme.primarySoft }]}>
                 {picking ? <ActivityIndicator size="small" color={String(theme.primary)} /> : <Ionicons name="camera-outline" size={17} color={String(theme.primary)} />}
                 <AppText variant="caption" color={String(theme.primary)}>Выбрать и обрезать</AppText>
               </Pressable>
+              <AppText variant="caption" muted style={styles.cropHint}>Квадратная обрезка · компактное фото для быстрой загрузки</AppText>
+              {avatarUrl ? (
+                <Pressable accessibilityRole="button" onPress={() => setAvatarDraft(null)} style={styles.removePhoto}>
+                  <Ionicons name="trash-outline" size={14} color="#C33B4A" />
+                  <AppText style={styles.removePhotoText}>Удалить</AppText>
+                </Pressable>
+              ) : null}
             </View>
             <View style={styles.field}>
               <AppText variant="caption" muted>{t("profile.name")}</AppText>
@@ -148,7 +165,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
               ) : null}
             </View>
             {message ? <AppText style={styles.error}>{message}</AppText> : null}
-            <Pressable disabled={saveMutation.isPending} onPress={() => saveMutation.mutate()} style={[styles.save, { backgroundColor: theme.primary }, saveMutation.isPending && { opacity: 0.55 }]}>
+            <Pressable disabled={saveMutation.isPending || !canSave} onPress={() => saveMutation.mutate()} style={[styles.save, { backgroundColor: theme.primary }, (saveMutation.isPending || !canSave) && { opacity: 0.55 }]}>
               {saveMutation.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="checkmark" size={19} color="#FFFFFF" />}
               <AppText color="#FFFFFF" variant="label">{t("common.save")}</AppText>
             </Pressable>
@@ -159,7 +176,15 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
     <PhotoCropEditor
       asset={cropAsset}
       onCancel={() => setCropAsset(null)}
-      onConfirm={(dataUrl) => { setAvatarDataUrl(dataUrl); setCropAsset(null); }}
+      onConfirm={(dataUrl) => {
+        if (dataUrl.length > maxAvatarDataUrlChars) {
+          setMessage("Фото получилось слишком большим. Выберите другое изображение.");
+          setCropAsset(null);
+          return;
+        }
+        setAvatarDraft(dataUrl);
+        setCropAsset(null);
+      }}
     />
     </>
   );
@@ -174,6 +199,9 @@ const styles = StyleSheet.create({
   close: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   preview: { alignItems: "center", paddingVertical: 4, gap: 8 },
   photoButton: { minHeight: 40, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  cropHint: { textAlign: "center" },
+  removePhoto: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4 },
+  removePhotoText: { color: "#C33B4A", fontSize: 12, lineHeight: 16, fontWeight: "700" },
   field: { gap: 6 },
   countrySearch: { minHeight: 44, borderRadius: 15, borderWidth: 1, paddingHorizontal: 13, fontSize: 14, fontWeight: "600" },
   countryScroll: { maxHeight: 260 },

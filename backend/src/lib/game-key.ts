@@ -1,7 +1,10 @@
 export const LEGACY_GAME_KEY_ALIASES = {
   "color-focus": "tsvet",
   "reflex-hit": "udar",
-  "shadow-match": "shadow"
+  "shadow-match": "shadow",
+  // Older clients and one catalog import used the plural spelling. Keep it
+  // routable so the game opens instead of falling into the unconnected view.
+  facts: "fact"
 } as const;
 
 export type LegacyGameKey = keyof typeof LEGACY_GAME_KEY_ALIASES;

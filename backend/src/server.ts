@@ -1,6 +1,7 @@
 import app from "./app.js";
 import { env } from "./config/env.js";
 import { startTelegramLocalPolling, stopTelegramLocalPolling } from "./services/telegram-auth.service.js";
+import { settleExpiredDailyContests } from "./services/contest.service.js";
 
 const server = app.listen(env.PORT, () => {
   console.log(`Logic Coin API listening on http://localhost:${env.PORT}`);
@@ -9,9 +10,19 @@ const server = app.listen(env.PORT, () => {
   });
 });
 
+// Expired contests must settle even while nobody opens the challenges screen;
+// settlement emits the player-facing "challenge ended / prize ready" push.
+const contestSweep = setInterval(() => {
+  void settleExpiredDailyContests().catch((error) => {
+    console.error("Expired contest sweep failed:", error instanceof Error ? error.message : "unknown error");
+  });
+}, 5 * 60_000);
+void settleExpiredDailyContests().catch(() => undefined);
+
 function shutdown(signal: string): void {
   console.log(`${signal} received; shutting down`);
   stopTelegramLocalPolling();
+  clearInterval(contestSweep);
   server.close((error) => {
     if (error) {
       console.error(error);

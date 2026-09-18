@@ -21,6 +21,7 @@ describe("canonical game catalog keys", () => {
     expect(canonicalGameKey("color-focus")).toBe("tsvet");
     expect(canonicalGameKey("reflex-hit")).toBe("udar");
     expect(canonicalGameKey("shadow-match")).toBe("shadow");
+    expect(canonicalGameKey("facts")).toBe("fact");
     expect(canonicalGameKey("  Tsvet  ")).toBe("tsvet");
   });
 });

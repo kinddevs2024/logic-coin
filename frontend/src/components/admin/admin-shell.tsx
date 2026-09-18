@@ -12,9 +12,10 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
-const NAV_ITEMS: { href: "/admin" | "/admin/challenges" | "/admin/budget" | "/admin/blocked"; label: string; icon: IconName }[] = [
+const NAV_ITEMS: { href: "/admin" | "/admin/challenges" | "/admin/budget" | "/admin/blocked" | "/admin/notifications"; label: string; icon: IconName }[] = [
   { href: "/admin", label: "Главная", icon: "grid-outline" },
   { href: "/admin/challenges", label: "Челленджи", icon: "game-controller-outline" },
+  { href: "/admin/notifications", label: "Уведомления", icon: "notifications-outline" },
   { href: "/admin/budget", label: "Бюджет", icon: "wallet-outline" },
   { href: "/admin/blocked", label: "Блокировки", icon: "ban-outline" },
 ];

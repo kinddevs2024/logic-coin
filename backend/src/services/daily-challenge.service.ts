@@ -1,15 +1,24 @@
+import { randomUUID } from "node:crypto";
 import type { Types } from "mongoose";
-import { DAILY_CHALLENGE_GAME_COUNT } from "../config/constants.js";
+import {
+  DAILY_CHALLENGE_GAME_COUNT,
+  DEFAULT_DAILY_PRIZE_MAX_UNITS,
+  DEFAULT_DAILY_PRIZE_MIN_UNITS,
+  DEFAULT_DAILY_PRIZE_POOL_UNITS
+} from "../config/constants.js";
 import { env } from "../config/env.js";
 import { currentMonthBounds, dayBoundsInTimeZone, localDayKey } from "../lib/date.js";
 import { ApiError } from "../lib/api-error.js";
+import { pickSeededSubset } from "../lib/seeded-random.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { Game } from "../models/Game.js";
+import { NotificationEvent } from "../models/NotificationEvent.js";
 import { User } from "../models/User.js";
 import { serializeCoins, serializeGame } from "./serialization.service.js";
 import { settleExpiredDailyContests } from "./contest.service.js";
+import { dispatchNotificationEvent } from "./notification.service.js";
 
 export function challengeDayKey(date: Date = new Date()): string {
   return localDayKey(date, env.DEFAULT_TIMEZONE);
@@ -17,7 +26,81 @@ export function challengeDayKey(date: Date = new Date()): string {
 
 export async function getDailyChallengeSet(dayKey: string = challengeDayKey()) {
   await settleExpiredDailyContests(dayKey);
-  return DailyChallengeSet.findOne({ dayKey });
+  return ensureDailyChallengeSet(dayKey);
+}
+
+/**
+ * Guarantees that a challenge exists for the requested day so a new one
+ * appears every 24 hours without manual publishing.
+ *
+ * A missing set is auto-created (published, six random eligible games,
+ * default prizes) only for today or past days. Future days are left alone
+ * so admins can configure them manually. Returns null when there is
+ * nothing to create (future day, or fewer than six eligible games).
+ */
+export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()) {
+  const existing = await DailyChallengeSet.findOne({ dayKey });
+  if (existing) return existing;
+  if (dayKey > challengeDayKey()) return null;
+
+  const eligibleGames = await Game.find({ enabled: true, challengeEnabled: true })
+    .sort({ sortOrder: 1, _id: 1 })
+    .lean();
+  if (eligibleGames.length < DAILY_CHALLENGE_GAME_COUNT) return null;
+
+  const selectionSeed = `auto-daily:${dayKey}:${randomUUID()}`;
+  const pickedKeys = pickSeededSubset(
+    eligibleGames.map((game) => game.key),
+    DAILY_CHALLENGE_GAME_COUNT,
+    selectionSeed
+  );
+  const gamesByKey = new Map(eligibleGames.map((game) => [game.key, game]));
+  const gameIds = pickedKeys.map((key) => gamesByKey.get(key)!._id);
+  const publishedAt = new Date();
+
+  const set = await DailyChallengeSet.findOneAndUpdate(
+    { dayKey },
+    {
+      $setOnInsert: {
+        dayKey,
+        timezone: env.DEFAULT_TIMEZONE,
+        status: "published",
+        selectionMode: "random",
+        selectionSeed,
+        gameIds,
+        cashPrizeMinUnits: DEFAULT_DAILY_PRIZE_MIN_UNITS,
+        cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
+        prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
+        coinPrizeAmounts: [0, 0, 0, 0, 0, 0],
+        maxAttemptsPerGame: 1,
+        oneSecondAttemptLimit: 20,
+        publishedAt,
+        endsAt: new Date(publishedAt.getTime() + 24 * 60 * 60 * 1_000),
+        publishedBySubject: "auto-daily"
+      }
+    },
+    { upsert: true, new: true, runValidators: true }
+  );
+  const notification = await NotificationEvent.findOneAndUpdate(
+    { eventKey: `daily-challenge-published:${dayKey}` },
+    {
+      $setOnInsert: {
+        type: "daily_challenge_published",
+        audience: "all_users",
+        status: "queued",
+        targetCount: 0,
+        payload: {
+          dayKey,
+          gameKeys: pickedKeys,
+          title: "Новый челлендж доступен",
+          body: "Шесть новых игр уже ждут вас в Logic Coin."
+        }
+      }
+    },
+    { upsert: true, new: true, runValidators: true }
+  );
+  if (notification.status === "queued") await dispatchNotificationEvent(notification._id);
+  return set;
 }
 
 export async function getTodayChallengeOverview(userId: Types.ObjectId) {

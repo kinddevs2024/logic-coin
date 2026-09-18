@@ -15,7 +15,9 @@ import {
   getBudgetAnalytics,
   listAdminDailyChallenges,
   listAdminGames,
-  recordBudgetEntry
+  recordBudgetEntry,
+  notifyNewGameAvailable,
+  sendAdminNotification
 } from "../services/admin.service.js";
 import { settleDailyContest } from "../services/contest.service.js";
 import { challengeDayKey } from "../services/daily-challenge.service.js";
@@ -79,7 +81,27 @@ router.get("/games", async (_request, response) => {
 
 router.post("/games", validateBody(gameCreateSchema), async (request, response) => {
   const game = await Game.create(request.body as z.infer<typeof gameCreateSchema>);
-  response.status(201).json({ data: { game: serializeGame(game, "ru") } });
+  const notification = game.enabled ? await notifyNewGameAvailable(game) : null;
+  response.status(201).json({ data: { game: serializeGame(game, "ru"), notification } });
+});
+
+const notificationSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(500),
+  // In this product the public username is the account name. Email is also
+  // accepted to disambiguate users who chose the same display name.
+  userName: z.string().trim().min(1).max(254).optional()
+}).strict();
+
+router.post("/notifications", validateBody(notificationSchema), async (request, response) => {
+  const body = request.body as z.infer<typeof notificationSchema>;
+  const notification = await sendAdminNotification({
+    title: body.title,
+    body: body.body,
+    ...(body.userName ? { recipientName: body.userName } : {}),
+    adminSubject: request.auth!.userId.toString()
+  });
+  response.status(201).json({ data: { notification } });
 });
 
 const gamePatchSchema = gameCreateSchema

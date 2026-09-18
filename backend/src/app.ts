@@ -53,7 +53,7 @@ app.use(
     exposedHeaders: ["x-request-id", "ratelimit", "ratelimit-policy"]
   })
 );
-// Avatar uploads are accepted as validated image data URLs capped at 10 MiB.
+// Avatar uploads are compact validated image data URLs; profile payloads remain responsive.
 app.use(express.json({ limit: "14mb" }));
 app.use(globalLimiter);
 

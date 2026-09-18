@@ -249,7 +249,7 @@ export async function settleDailyContest(dayKey: string) {
         payload: {
           dayKey,
           title: "Итоги челленджа готовы",
-          body: "Откройте Logic Coin и заберите свой приз."
+          body: "Челлендж завершён. Откройте Logic Coin: ваш результат и приз уже готовы."
         }
       }
     },

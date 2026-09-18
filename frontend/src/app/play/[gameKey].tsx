@@ -61,6 +61,7 @@ const GAME_B_ALIASES: Partial<Record<string, GameBId>> = {
   "geography-quiz": "geo-master",
   "geo-master": "geo-master",
   fact: "pulse",
+  facts: "pulse",
   "volt-numbers": "volt-numbers",
   "math-quiz": "math-quiz",
   "math-duel": "math-duel",
@@ -81,6 +82,8 @@ const PROGRESS_KEY_ALIASES: Partial<Record<string, GameId>> = {
   "geography-quiz": "geography-quiz",
   "shadow-match": "shadow",
   shadow: "shadow",
+  fact: "pulse",
+  facts: "pulse",
 };
 
 const CLASSIC_GAMES: Partial<Record<GameId, ComponentType>> = {

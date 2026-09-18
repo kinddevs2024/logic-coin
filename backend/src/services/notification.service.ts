@@ -30,7 +30,7 @@ export async function dispatchNotificationEvent(
   if (!event) return { status: "skipped" as const, targetCount: 0, sentCount: 0, failedCount: 0 };
 
   try {
-    const payload = (event.payload ?? {}) as { dayKey?: string; title?: string; body?: string; userIds?: string[] };
+    const payload = (event.payload ?? {}) as { dayKey?: string; gameKey?: string; title?: string; body?: string; userIds?: string[] };
     const participantUserIds =
       event.audience === "contest_participants" && payload.dayKey
         ? await DailyContestResult.distinct("userId", { dayKey: payload.dayKey })
@@ -66,7 +66,7 @@ export async function dispatchNotificationEvent(
             sound: "default",
             title: payload.title ?? "Новый челлендж доступен",
             body: payload.body ?? "Шесть новых игр уже ждут вас.",
-            data: { type: event.type, dayKey: payload.dayKey ?? null }
+            data: { type: event.type, dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null }
           }))
         ),
         signal: AbortSignal.timeout(8_000)

@@ -17,7 +17,9 @@ router.get("/", async (request, response) => {
   response.json({ data: { user: serializeUser(user) } });
 });
 
-const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
+// The avatar is stored in the user document, so a compact cap avoids a large
+// base64 payload slowing every profile read and keeps Mongo documents healthy.
+const MAX_AVATAR_BYTES = 1_500 * 1024;
 const MAX_AVATAR_DATA_URL_CHARS = Math.ceil((MAX_AVATAR_BYTES * 4) / 3) + 64;
 
 function validAvatarDataUrl(value: string): boolean {
@@ -50,7 +52,7 @@ const profileSchema = z
     avatarDataUrl: z
       .string()
       .max(MAX_AVATAR_DATA_URL_CHARS)
-      .refine(validAvatarDataUrl, "Avatar must be a valid JPEG, PNG, or WebP image up to 10 MiB")
+      .refine(validAvatarDataUrl, "Avatar must be a valid JPEG, PNG, or WebP image up to 1.5 MiB")
       .nullable()
       .optional(),
     savingsGoalCents: z.number().int().min(0).max(1_000_000_000).optional(),

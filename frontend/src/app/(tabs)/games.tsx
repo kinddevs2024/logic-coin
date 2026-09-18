@@ -35,6 +35,8 @@ const CATALOG_KEY_BY_SERVER_KEY: Readonly<Record<string, string>> = {
   strike: "udar",
   "find-number": "space-find-number",
   "geo-master": "geography-quiz",
+  fact: "fact",
+  facts: "fact",
   "shadow-match": "shadow",
 };
 
@@ -45,6 +47,8 @@ const PROGRESS_KEY_BY_SERVER_KEY: Partial<Record<string, GameId>> = {
   strike: "udar",
   "find-number": "space-find-number",
   "geo-master": "geography-quiz",
+  fact: "pulse",
+  facts: "pulse",
   "shadow-match": "shadow",
 };
 
