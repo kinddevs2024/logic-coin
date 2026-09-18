@@ -28,6 +28,7 @@ jobs:
     env:
       BUILD_RUN_ID: ${{ inputs.build_run_id || github.event.workflow_run.id }}
       PREVIOUS_RUN_ID: ${{ inputs.previous_run_id }}
+      ANDROID_AVD_HOME: ${{ runner.temp }}/logiccoin-avd
     steps:
       - uses: actions/checkout@v4
       - name: Download verified release artifacts
@@ -61,9 +62,14 @@ jobs:
           set -euo pipefail
           sudo chmod a+rw /dev/kvm
           sdkmanager 'emulator' 'system-images;android-35;google_apis;x86_64'
-          echo no | avdmanager create avd --name logiccoin-release-qa --package 'system-images;android-35;google_apis;x86_64' --device pixel_7_pro
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd --name logiccoin-release-qa --path "$ANDROID_AVD_HOME/logiccoin-release-qa.avd" --package 'system-images;android-35;google_apis;x86_64' --device pixel_7_pro
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx logiccoin-release-qa
           mkdir -p artifacts/startup
           "$ANDROID_HOME/emulator/emulator" -avd logiccoin-release-qa -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect -memory 2048 -cores 2 > artifacts/startup/emulator.log 2>&1 &
+          emulator_pid=$!
+          sleep 5
+          kill -0 "$emulator_pid" || { cat artifacts/startup/emulator.log; exit 1; }
           timeout 300 adb wait-for-device
           for attempt in $(seq 1 90); do
             if [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]; then break; fi
