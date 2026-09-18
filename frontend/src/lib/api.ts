@@ -33,9 +33,11 @@ const defaultApiUrl =
     ? process.env.NODE_ENV === "development"
       ? "http://localhost:4000/api/v1"
       : "/api/v1"
-    : Platform.OS === "android"
-      ? "http://10.0.2.2:4000/api/v1"
-      : "http://localhost:4000/api/v1";
+    : process.env.NODE_ENV === "production"
+      ? "https://logic-coin.online/api/v1"
+      : Platform.OS === "android"
+        ? "http://10.0.2.2:4000/api/v1"
+        : "http://localhost:4000/api/v1";
 
 // Web production must always use the same origin. A developer's local Expo
 // environment is inlined at export time, so using EXPO_PUBLIC_API_URL here

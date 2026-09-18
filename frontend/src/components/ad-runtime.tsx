@@ -23,7 +23,7 @@ export function AdRuntime() {
     let previousState: AppStateStatus = AppState.currentState;
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (previousState.match(/inactive|background/) && nextState === "active") {
-        void rewardedAds.showAppOpen();
+        void rewardedAds.showAppOpen().catch(() => false);
       }
       previousState = nextState;
     });

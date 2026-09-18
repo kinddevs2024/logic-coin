@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build-android:
-    name: Build unsigned APK and AAB
+    name: Check and build APK and AAB
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -53,12 +53,18 @@ jobs:
             echo "Set the repository secret EXPO_PUBLIC_APPODEAL_APP_KEY before building the Android release." >&2
             exit 1
           fi
+          node -e 'const u=new URL(process.env.EXPO_PUBLIC_API_URL); if (!["logic-coin.online","www.logic-coin.online"].includes(u.hostname) || u.pathname.replace(/\/$/, "") !== "/api/v1") throw Error("APK must use the production /api/v1 endpoint"); if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.endsWith(".apps.googleusercontent.com")) throw Error("Missing Google web OAuth client ID");'
 
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            package-lock.json
+            frontend/app.json
+            frontend/plugins/**
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -69,7 +75,17 @@ jobs:
           packages: platform-tools
 
       - name: Install frontend workspace
-        run: npm ci --workspace frontend
+        run: npm ci --workspace frontend --include=dev
+
+      - name: Check types and regression tests before Gradle
+        run: |
+          npm run lint --workspace frontend
+          npm run typecheck --workspace frontend
+          npm test --workspace frontend
+
+      - name: Verify Android JavaScript bundle
+        working-directory: frontend
+        run: npx expo export --platform android --output-dir ../artifacts/android-js-check
 
       - name: Generate native Android project
         working-directory: frontend
@@ -79,7 +95,7 @@ jobs:
         working-directory: frontend/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease bundleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --stacktrace
+          ./gradlew assembleRelease bundleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --build-cache --no-daemon --stacktrace
 
       - name: Prepare unsigned Android artifacts
         shell: bash
@@ -176,7 +192,7 @@ jobs:
           keystore="${RUNNER_TEMP}/logic-coin-upload.p12"
           printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore}"
 
-          "${build_tools}/zipalign" -p -f 4 "${release_apk}" "${RUNNER_TEMP}/logic-coin-aligned.apk"
+          "${build_tools}/zipalign" -P 16 -f 4 "${release_apk}" "${RUNNER_TEMP}/logic-coin-aligned.apk"
           "${build_tools}/apksigner" sign \
             --ks "${keystore}" \
             --ks-type PKCS12 \
@@ -186,6 +202,7 @@ jobs:
             --out artifacts/signed/logic-coin.apk \
             "${RUNNER_TEMP}/logic-coin-aligned.apk"
           "${build_tools}/apksigner" verify --verbose --print-certs artifacts/signed/logic-coin.apk
+          "${build_tools}/zipalign" -c -P 16 4 artifacts/signed/logic-coin.apk
 
           cp "${release_aab}" artifacts/signed/logic-coin.aab
           # Expo's generated release project can leave the Android debug JAR

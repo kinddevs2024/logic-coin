@@ -70,7 +70,7 @@ export function PhotoCropEditor({
       }
       setOffset(clampOffset(gesture.current.x + state.dx, gesture.current.y + state.dy));
     },
-  }), [asset, baseScale, offset, zoom]);
+  }), [clampOffset, offset, zoom]);
 
   const confirm = async () => {
     if (!asset) return;

@@ -8,7 +8,7 @@ export function usePauseClock(paused: boolean, clocks: MutableRefObject<number>[
   // Game screens pass their clocks as an inline array. Keep the latest list in a
   // ref so opening a host overlay does not restart this effect on every render.
   const clocksRef = useRef(clocks);
-  clocksRef.current = clocks;
+  useEffect(() => { clocksRef.current = clocks; });
 
   useEffect(() => {
     if (paused) {

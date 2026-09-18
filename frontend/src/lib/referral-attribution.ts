@@ -27,7 +27,7 @@ const storage = {
 const track = createFirstVisitTracker(storage);
 // Capture before redirects, store hydration, or an OAuth round trip can lose the URL.
 const firstVisit = web ? track(window.location.href) : Platform.OS !== "web"
-  ? Linking.getInitialURL().then(url => track(url ?? "/")) : undefined;
+  ? Linking.getInitialURL().then(url => track(url ?? "/")).catch(() => track("/")) : undefined;
 
 export async function registrationReferralCode() {
   const visit = await firstVisit;
