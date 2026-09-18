@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { Share, StyleSheet, View } from "react-native";
+import QRCode from "react-native-qrcode-svg";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -35,7 +35,7 @@ export default function InviteScreen() {
   const friends = referral?.friends ?? [];
   const code = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";
   const inviteUrl = authenticated
-    ? referral?.link ?? (code !== "—" ? `https://logic-coin.vercel.app/invite/${code}` : "")
+    ? referral?.link || (code !== "—" ? `https://logic-coin.online/invite/${encodeURIComponent(code)}` : "")
     : "";
 
   const share = () => {
@@ -45,7 +45,7 @@ export default function InviteScreen() {
     }
     void Share.share({
       title: "Logic Coin",
-      message: `Logic Coin · ${code}\n${inviteUrl}`,
+      message: `Logic Coin\n${inviteUrl}`,
       url: inviteUrl,
     });
   };
@@ -95,34 +95,11 @@ export default function InviteScreen() {
       </GlassSurface>
 
       <GlassSurface intensity={68} style={styles.codeCard}>
-        <AppText variant="caption" muted>
-          {t("invite.code")}
-        </AppText>
-        <View style={styles.codeRow}>
-          <AppText
-            variant="title"
-            color={String(theme.primary)}
-            style={{ letterSpacing: 2 }}
-          >
-            {code}
-          </AppText>
-          <View
-            style={[styles.qrHint, { backgroundColor: theme.primarySoft }]}
-          >
-            <Ionicons
-              name="qr-code-outline"
-              size={25}
-              color={String(theme.primary)}
-            />
+        {inviteUrl ? (
+          <View testID="invite-qr" accessible accessibilityRole="image" accessibilityLabel={t("invite.share")} style={styles.qr}>
+            <QRCode value={inviteUrl} size={200} quietZone={20} color="#000000" backgroundColor="#FFFFFF" />
           </View>
-        </View>
-        <AppButton
-          variant="secondary"
-          icon="copy-outline"
-          onPress={() => authenticated && code !== "—" ? void Clipboard.setStringAsync(code) : router.push("/login")}
-        >
-          {t("invite.copy")}
-        </AppButton>
+        ) : null}
         <AppButton icon="share-social-outline" glow onPress={share}>
           {t("invite.share")}
         </AppButton>
@@ -221,16 +198,11 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 12,
   },
-  codeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  qrHint: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+  qr: {
+    alignSelf: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
