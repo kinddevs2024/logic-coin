@@ -1,0 +1,86 @@
+name: Android signed APK startup check
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Android APK and AAB run ID
+        required: true
+        type: string
+      previous_run_id:
+        description: Optional previous release run ID for an in-place update test
+        required: false
+        type: string
+  workflow_run:
+    workflows: [Android APK and AAB]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  startup:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BUILD_RUN_ID: ${{ inputs.build_run_id || github.event.workflow_run.id }}
+      PREVIOUS_RUN_ID: ${{ inputs.previous_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_release() {
+            local run_id="$1" destination="$2"
+            [[ "$run_id" =~ ^[0-9]+$ ]] || { echo 'Invalid release run ID'; exit 1; }
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > /tmp/release-run.json
+            jq -e --arg repo "$GITHUB_REPOSITORY" '.conclusion == "success" and .path == ".github/workflows/android-apk.yml" and .head_repository.full_name == $repo' /tmp/release-run.json >/dev/null
+            gh run download "$run_id" --name logic-coin-android-release --dir "$destination"
+            (cd "$destination" && sha256sum --check logic-coin.apk.sha256)
+          }
+          download_release "$BUILD_RUN_ID" artifacts/release
+          if [[ -n "$PREVIOUS_RUN_ID" ]]; then
+            download_release "$PREVIOUS_RUN_ID" artifacts/previous
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Prepare accelerated Android 15 emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo chmod a+rw /dev/kvm
+          sdkmanager 'emulator' 'system-images;android-35;google_apis;x86_64'
+          echo no | avdmanager create avd --name logiccoin-release-qa --package 'system-images;android-35;google_apis;x86_64' --device pixel_7_pro
+          mkdir -p artifacts/startup
+          "$ANDROID_HOME/emulator/emulator" -avd logiccoin-release-qa -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect -memory 2048 -cores 2 > artifacts/startup/emulator.log 2>&1 &
+          timeout 300 adb wait-for-device
+          for attempt in $(seq 1 90); do
+            if [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]; then break; fi
+            sleep 2
+          done
+          [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]
+          adb shell input keyevent 82
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+      - name: Check installation, UI startup, resume and update
+        run: python3 scripts/android-startup-check.py
+      - name: Upload startup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-startup-evidence-${{ env.BUILD_RUN_ID }}
+          path: artifacts/startup/
+          if-no-files-found: warn
+          retention-days: 14
