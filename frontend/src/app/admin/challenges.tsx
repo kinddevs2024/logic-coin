@@ -24,8 +24,10 @@ type Draft = {
   oneSecondAttempts: string;
 };
 
+// Defaults for a new challenge day. Money values mirror the backend
+// DEFAULT_DAILY_PRIZE_* constants so a fresh day is publishable in one tap.
 function emptyDraft(): Draft {
-  return { selectionMode: "manual", selected: [], minimum: "", maximum: "", pool: "", coins: "0,0,0,0,0,0", maxAttempts: "1", oneSecondAttempts: "20" };
+  return { selectionMode: "random", selected: [], minimum: "500", maximum: "10000", pool: "100000", coins: "0,0,0,0,0,0", maxAttempts: "1", oneSecondAttempts: "20" };
 }
 
 function offsetDayKey(offset: number) {
