@@ -28,7 +28,6 @@ jobs:
     env:
       BUILD_RUN_ID: ${{ inputs.build_run_id || github.event.workflow_run.id }}
       PREVIOUS_RUN_ID: ${{ inputs.previous_run_id }}
-      ANDROID_AVD_HOME: ${{ runner.temp }}/logiccoin-avd
     steps:
       - uses: actions/checkout@v4
       - name: Download verified release artifacts
@@ -61,6 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo chmod a+rw /dev/kvm
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/logiccoin-avd"
           sdkmanager 'emulator' 'system-images;android-35;google_apis;x86_64'
           mkdir -p "$ANDROID_AVD_HOME"
           echo no | avdmanager create avd --name logiccoin-release-qa --path "$ANDROID_AVD_HOME/logiccoin-release-qa.avd" --package 'system-images;android-35;google_apis;x86_64' --device pixel_7_pro
