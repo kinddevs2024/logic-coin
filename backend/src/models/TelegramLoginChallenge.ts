@@ -14,6 +14,7 @@ const telegramUserSchema = new Schema(
 const telegramLoginChallengeSchema = new Schema(
   {
     flowId: { type: String, required: true, maxlength: 64 },
+    referralCode: { type: String, maxlength: 32 },
     pollTokenHash: { type: String, required: true, select: false },
     resumeTokenHash: { type: String, select: false },
     telegramUser: { type: telegramUserSchema },

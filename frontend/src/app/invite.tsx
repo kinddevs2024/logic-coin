@@ -30,6 +30,9 @@ export default function InviteScreen() {
     queryFn: () => referralsApi.overview(accessToken!),
     enabled: authenticated,
     staleTime: 30_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 15_000,
   });
   const referral = referralQuery.data;
   const friends = referral?.friends ?? [];

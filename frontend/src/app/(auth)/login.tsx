@@ -23,9 +23,6 @@ export default function LoginScreen() {
   const theme = useAppTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ telegram_token?: string; next?: string; email?: string; ref?: string }>();
-  const referralCode = typeof params.ref === "string" && /^[A-Za-z0-9-]{4,32}$/.test(params.ref)
-    ? params.ref.trim().toUpperCase()
-    : undefined;
   const authenticate = useAppStore((state) => state.authenticate);
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
@@ -74,7 +71,7 @@ export default function LoginScreen() {
   }, [authenticate, router, selectedCountryCode, updateUser]);
 
   const emailFlow = useMutation({
-    mutationFn: () => authApi.startEmail(email.trim(), referralCode),
+    mutationFn: () => authApi.startEmail(email.trim()),
     onSuccess: (result) => {
       if (result.mode === "password") {
         setStep("password");
@@ -201,7 +198,7 @@ export default function LoginScreen() {
           </>
         )}
       </View>
-      {step === "email" ? <SocialButtons onAuthenticated={complete} referralCode={referralCode} /> : null}
+      {step === "email" ? <SocialButtons onAuthenticated={complete} /> : null}
       {error ? (
         <AppText
           variant="caption"

@@ -22,6 +22,7 @@ import type {
   WithdrawalOverview,
 } from "@/types";
 import type { ThemeMode } from "@/constants/theme";
+import { registrationReferralCode } from "./referral-attribution";
 import type { GameId, GamesProgress } from "@/games/progress-store";
 import { useAppStore } from "@/store/app-store";
 import { Platform } from "react-native";
@@ -189,7 +190,8 @@ async function refreshAccessToken(expiredToken: string): Promise<string> {
 }
 
 export const authApi = {
-  async startEmail(email: string, referralCode?: string) {
+  async startEmail(email: string) {
+    const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
     const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<
@@ -220,6 +222,7 @@ export const authApi = {
     });
   },
   async register(input: { name: string; email: string; password: string }) {
+    const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
     const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<{
@@ -229,7 +232,7 @@ export const authApi = {
       verification?: { expiresAt?: string };
     }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ ...input, deviceId, countryCode }),
+      body: JSON.stringify({ ...input, deviceId, countryCode, ...(referralCode ? { referralCode } : {}) }),
     });
   },
   async login(input: { email: string; password: string }) {
@@ -264,7 +267,8 @@ export const authApi = {
       body: JSON.stringify({ email, deviceId }),
     });
   },
-  async google(idToken: string, referralCode?: string) {
+  async google(idToken: string) {
+    const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
     const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<AuthResult>("/auth/google", {
@@ -273,13 +277,14 @@ export const authApi = {
     });
   },
   async telegramStart() {
+    const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
     return request<{
       flowId: string;
       pollToken: string;
       botUrl: string;
       expiresInSeconds: number;
-    }>("/auth/telegram/start", { method: "POST", body: JSON.stringify({ deviceId }) });
+    }>("/auth/telegram/start", { method: "POST", body: JSON.stringify({ deviceId, ...(referralCode ? { referralCode } : {}) }) });
   },
   async telegramStatus(input: { flowId: string; pollToken: string }) {
     const deviceId = await getDeviceId();
@@ -299,10 +304,11 @@ export const authApi = {
     });
   },
   async telegramMiniApp(initData: string) {
+    const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
     return request<AuthResult>("/auth/telegram/mini-app", {
       method: "POST",
-      body: JSON.stringify({ initData, deviceId }),
+      body: JSON.stringify({ initData, deviceId, ...(referralCode ? { referralCode } : {}) }),
     });
   },
   logout(token: string, refreshToken?: string | null) {

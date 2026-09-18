@@ -53,10 +53,8 @@ function ProviderButton({
 
 export function SocialButtons({
   onAuthenticated,
-  referralCode,
 }: {
   onAuthenticated?: (result: AuthResult) => void;
-  referralCode?: string;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -117,7 +115,7 @@ export function SocialButtons({
     setGoogleError(null);
     setBusy("google");
     try {
-      completeAuth(await authApi.google(credential, referralCode));
+      completeAuth(await authApi.google(credential));
     } catch (error) {
       setGoogleError(error instanceof Error ? error.message : t("auth.invalid"));
       Alert.alert("Google", error instanceof Error ? error.message : t("auth.invalid"));

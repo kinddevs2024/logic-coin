@@ -313,10 +313,10 @@ router.post("/email/complete", (_request, _response) => {
 });
 
 router.post("/telegram/start", authLimiter, async (request, response) => {
-  const parsed = z.object({ deviceId: deviceIdSchema }).strict().safeParse(request.body ?? {});
+  const parsed = z.object({ deviceId: deviceIdSchema, referralCode: z.string().trim().regex(/^[A-Za-z0-9-]{4,32}$/).optional() }).strict().safeParse(request.body ?? {});
   if (!parsed.success) throw new ApiError(400, "validation_error", "Telegram login data is invalid");
   await assertDeviceNotBanned(parsed.data.deviceId);
-  response.status(201).json({ data: await createTelegramLogin() });
+  response.status(201).json({ data: await createTelegramLogin(parsed.data.referralCode) });
 });
 
 router.post("/telegram/status", authLimiter, async (request, response) => {
@@ -364,14 +364,14 @@ router.post("/telegram/complete", authLimiter, async (request, response) => {
 
 router.post("/telegram/mini-app", authLimiter, async (request, response) => {
   const parsed = z
-    .object({ initData: z.string().min(20).max(20_000), deviceId: deviceIdSchema })
+    .object({ initData: z.string().min(20).max(20_000), deviceId: deviceIdSchema, referralCode: z.string().trim().regex(/^[A-Za-z0-9-]{4,32}$/).optional() })
     .strict()
     .safeParse(request.body);
   if (!parsed.success) {
     throw new ApiError(400, "validation_error", "Telegram data is invalid");
   }
   const user = await authenticateTelegram(
-    verifyTelegramMiniApp(parsed.data.initData)
+    verifyTelegramMiniApp(parsed.data.initData), parsed.data.referralCode
   );
   const tokens = await issueTokenPair(
     user._id,

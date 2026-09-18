@@ -1,11 +1,11 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import type { Types } from "mongoose";
+import mongoose, { type Types } from "mongoose";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
 import { hashOpaqueToken, opaqueTokenMatches } from "../lib/crypto.js";
 import { TelegramLoginChallenge } from "../models/TelegramLoginChallenge.js";
 import { User } from "../models/User.js";
-import { createUser } from "./user.service.js";
+import { createUser, processReferralSignupReward } from "./user.service.js";
 
 export type TelegramIdentity = {
   id: string;
@@ -163,7 +163,7 @@ function telegramName(identity: TelegramIdentity): string {
   return [identity.firstName, identity.lastName].filter(Boolean).join(" ").trim();
 }
 
-export async function authenticateTelegram(identity: TelegramIdentity) {
+export async function authenticateTelegram(identity: TelegramIdentity, referralCode?: string) {
   let user = await User.findOne({ "providers.telegramSub": identity.id });
   const now = new Date();
   if (!user) {
@@ -171,11 +171,20 @@ export async function authenticateTelegram(identity: TelegramIdentity) {
       email: `telegram-${identity.id}@telegram.logiccoin.local`,
       name: telegramName(identity) || identity.username || "Logic member",
       emailVerifiedAt: now,
-      telegramSub: identity.id
+      telegramSub: identity.id,
+      ...(referralCode ? { referralCode } : {})
     });
     if (identity.photoUrl) {
       user.avatarUrl = identity.photoUrl;
       await user.save();
+    }
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await processReferralSignupReward(user!._id, session);
+      });
+    } finally {
+      await session.endSession();
     }
     return user;
   }
@@ -213,7 +222,7 @@ async function resolveBotUsername(): Promise<string> {
   return cachedBotUsername;
 }
 
-export async function createTelegramLogin() {
+export async function createTelegramLogin(referralCode?: string) {
   requireBotToken();
   await ensureTelegramWebhook();
   const flowId = randomBytes(16).toString("base64url");
@@ -222,6 +231,7 @@ export async function createTelegramLogin() {
   await TelegramLoginChallenge.create({
     flowId,
     pollTokenHash: hashOpaqueToken(pollToken),
+    ...(referralCode ? { referralCode: referralCode.trim().toUpperCase() } : {}),
     expiresAt
   });
 
@@ -260,7 +270,6 @@ function parseStartIdentity(update: TelegramMessageUpdate): {
 
 async function sendBotReturnLink(chatId: string, resumeToken: string) {
   const returnUrl = buildTelegramReturnUrl(resumeToken);
-  const appUrl = telegramAppUrl();
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
   await fetch(botUrl, {
     method: "POST",
@@ -280,7 +289,7 @@ async function sendBotReturnLink(chatId: string, resumeToken: string) {
       text: "Откройте Logic Coin для продолжения:",
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🎮 Открыть Logic Coin", web_app: { url: appUrl } }],
+          [{ text: "🎮 Открыть Logic Coin", web_app: { url: returnUrl } }],
           [{ text: "🔑 Авторизовать текущую сессию", url: returnUrl }]
         ]
       }
@@ -414,7 +423,7 @@ async function consumeConfirmedChallenge(
     ...(challenge.telegramUser.photoUrl
       ? { photoUrl: challenge.telegramUser.photoUrl }
       : {})
-  });
+  }, challenge.referralCode ?? undefined);
 }
 
 export async function pollTelegramLogin(flowId: string, pollToken: string) {
