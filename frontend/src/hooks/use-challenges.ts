@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { demoTodayGames } from "@/constants/games";
 import { gameCoinReward } from "@/games/rewards";
@@ -67,6 +67,7 @@ export function useChallenges() {
   const setTodayChallengeProgress = useAppStore((state) => state.setTodayChallengeProgress);
   const queryClient = useQueryClient();
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
+  const lastSyncedToday = useRef<{ completed: number; total: number; balance?: number } | null>(null);
 
   useEffect(() => {
     resetGuestChallengeDay(localDayKey());
@@ -88,8 +89,22 @@ export function useChallenges() {
 
   useEffect(() => {
     if (!today) return;
-    setTodayChallengeProgress(today.completedCount, today.totalCount);
-    if (authenticated) setCoinBalance(today.coins.balance);
+    const next = {
+      completed: today.completedCount,
+      total: today.totalCount,
+      balance: authenticated ? today.coins.balance : undefined,
+    };
+    const previous = lastSyncedToday.current;
+    // React Query can supply an equivalent `today` object after a mutation. Do
+    // not dispatch the same Zustand updates again: on web that created a render
+    // loop while a challenge game was mounting (React error #185).
+    if (!previous || previous.completed !== next.completed || previous.total !== next.total) {
+      setTodayChallengeProgress(next.completed, next.total);
+    }
+    if (authenticated && (!previous || previous.balance !== next.balance)) {
+      setCoinBalance(next.balance ?? 0);
+    }
+    lastSyncedToday.current = next;
   }, [authenticated, setCoinBalance, setTodayChallengeProgress, today]);
 
   const startMutation = useMutation({
