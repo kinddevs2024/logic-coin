@@ -54,7 +54,7 @@ export default function AdminOverviewScreen() {
         title="Сегодня"
         description={`Данные из базы · ${dayKey} · ${overview.timezone}`}
         action={
-          <Pressable accessibilityRole="button" accessibilityLabel="Обновить аналитику" onPress={() => { void overviewQuery.refetch(); void challengeQuery.refetch(); }} style={({ pressed }) => [styles.refresh, { borderColor: theme.border }, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Обновить аналитику" onPress={() => { void overviewQuery.refetch(); void challengeQuery.refetch(); }} style={({ pressed }) => [styles.refresh, { borderColor: theme.border }, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
             <Ionicons name="refresh" size={18} color={String(theme.primary)} />
           </Pressable>
         }

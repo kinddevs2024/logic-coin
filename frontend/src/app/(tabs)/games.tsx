@@ -19,6 +19,7 @@ import { useGameProgressSync } from "@/hooks/use-game-progress-sync";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { gamesApi } from "@/lib/api";
+import { accentForeground, readableAccent } from "@/lib/theme-colors";
 import { useAppStore } from "@/store/app-store";
 import type { GameCatalogItem } from "@/types";
 
@@ -110,28 +111,30 @@ export default function GamesScreen() {
           const progressKey = PROGRESS_KEY_BY_SERVER_KEY[game.key] ?? (game.key as GameId);
           const saved = ready ? progress[progressKey] ?? EMPTY_GAME_PROGRESS : EMPTY_GAME_PROGRESS;
           const cover = gameCoverFor(game.key);
+          const accent = readableAccent(game.color, theme.mode);
+          const playForeground = accentForeground(game.color, theme.mode);
           return (
             <Animated.View key={game.key} entering={FadeInDown.delay(Math.min(index, 12) * 35).duration(380)} style={[styles.cell, wide && styles.cellWide]}>
               <GlassSurface intensity={68} variant="strong" style={styles.card}>
                 <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never)} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
-                  <View style={[styles.icon, { backgroundColor: `${game.color}18`, borderColor: `${game.color}38` }]}>
-                    {cover ? <Image source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} color={game.color} size={28} />}
+                  <View style={[styles.icon, { backgroundColor: `${accent}18`, borderColor: `${accent}38` }]}>
+                    {cover ? <Image source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} color={accent} size={28} />}
                   </View>
                   <View style={styles.copy}>
                     <AppText style={[styles.title, { color: theme.text }]} numberOfLines={1}>{game.title}</AppText>
                     <View style={styles.bestRow}>
-                      <Ionicons name="diamond-outline" size={13} color={game.color} />
-                      <AppText style={[styles.best, { color: game.color }]}>{c.best} {Math.min(1000, saved.coins)}</AppText>
+                      <Ionicons name="diamond-outline" size={13} color={accent} />
+                      <AppText style={[styles.best, { color: accent }]}>{c.best} {Math.min(1000, saved.coins)}</AppText>
                     </View>
                   </View>
                 </Pressable>
                 <View style={styles.cardActions}>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Скины: ${game.title}`} onPress={() => setEconomyGameId(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${game.color}42`, backgroundColor: `${game.color}13` }, pressed && styles.pressed]}>
-                    <Ionicons name="shirt-outline" color={game.color} size={17} />
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Скины: ${game.title}`} onPress={() => setEconomyGameId(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
+                    <Ionicons name="shirt-outline" color={accent} size={17} />
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never)} style={({ pressed }) => [styles.playButton, { backgroundColor: game.color }, pressed && styles.pressed]}>
-                    <Ionicons name="play" color="#FFFFFF" size={15} />
-                    <AppText style={styles.playText}>{c.play}</AppText>
+                    <Ionicons name="play" color={playForeground} size={15} />
+                    <AppText style={[styles.playText, { color: playForeground }]}>{c.play}</AppText>
                   </Pressable>
                 </View>
               </GlassSurface>

@@ -27,10 +27,10 @@ export default function AdminBudgetScreen() {
         title="Бюджет"
         description="Фактические доходы, расходы и рост"
         action={
-          <View style={[styles.range, { borderColor: theme.border }]}>
+          <View style={[styles.range, { borderColor: theme.border }, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }]}>
             {RANGE_OPTIONS.map((option) => (
               <Pressable key={option} accessibilityRole="button" accessibilityState={{ selected: days === option }} onPress={() => setDays(option)} style={[styles.rangeItem, days === option && { backgroundColor: theme.primary }]}>
-                <AppText variant="caption" color={days === option ? "#FFFFFF" : String(theme.textMuted)}>{option}д</AppText>
+                <AppText variant="caption" color={String(days === option ? theme.onPrimary : theme.textMuted)}>{option}д</AppText>
               </Pressable>
             ))}
           </View>
@@ -140,12 +140,12 @@ function BudgetContent({ budget }: { budget: Awaited<ReturnType<typeof adminApi.
               <View style={[styles.direction, { borderColor: theme.border }]}>
                 {(["credit", "debit"] as const).map((item) => {
                   const active = direction === item;
-                  return <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDirection(item)} style={[styles.directionItem, active && { backgroundColor: item === "credit" ? theme.success : theme.danger }]}><Ionicons name={item === "credit" ? "add-circle-outline" : "remove-circle-outline"} size={18} color={active ? "#FFFFFF" : String(theme.textMuted)} /><AppText variant="caption" color={active ? "#FFFFFF" : String(theme.textMuted)}>{item === "credit" ? "Добавить" : "Убавить"}</AppText></Pressable>;
+                  return <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDirection(item)} style={[styles.directionItem, active && { backgroundColor: item === "credit" ? theme.success : theme.danger }]}><Ionicons name={item === "credit" ? "add-circle-outline" : "remove-circle-outline"} size={18} color={String(active ? theme.onPrimary : theme.textMuted)} /><AppText variant="caption" color={String(active ? theme.onPrimary : theme.textMuted)}>{item === "credit" ? "Добавить" : "Убавить"}</AppText></Pressable>;
                 })}
               </View>
               <View style={styles.adjustmentField}><AppText variant="caption" muted>Сумма, LC</AppText><TextInput value={amount} onChangeText={(value) => setAmount(value.replace(/[^0-9]/g, ""))} keyboardType="number-pad" placeholder="0" placeholderTextColor={String(theme.textMuted)} style={[styles.adjustmentInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} /></View>
               <View style={styles.adjustmentField}><AppText variant="caption" muted>Комментарий</AppText><TextInput value={note} onChangeText={setNote} placeholder="Например, пополнение учредителя" placeholderTextColor={String(theme.textMuted)} maxLength={240} style={[styles.adjustmentInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} /></View>
-              <Pressable accessibilityRole="button" disabled={!validAdjustment || adjust.isPending} onPress={() => adjust.mutate()} style={({ pressed }) => [styles.submitAdjustment, { backgroundColor: direction === "credit" ? theme.success : theme.danger }, (!validAdjustment || adjust.isPending) && styles.disabled, pressed && styles.pressed]}><Ionicons name={direction === "credit" ? "add" : "remove"} size={20} color="#FFFFFF" /><AppText variant="label" color="#FFFFFF">{adjust.isPending ? "Сохраняем…" : direction === "credit" ? "Добавить к бюджету" : "Вычесть из бюджета"}</AppText></Pressable>
+              <Pressable accessibilityRole="button" disabled={!validAdjustment || adjust.isPending} onPress={() => adjust.mutate()} style={({ pressed }) => [styles.submitAdjustment, { backgroundColor: direction === "credit" ? theme.success : theme.danger }, (!validAdjustment || adjust.isPending) && styles.disabled, pressed && styles.pressed]}><Ionicons name={direction === "credit" ? "add" : "remove"} size={20} color={String(theme.onPrimary)} /><AppText variant="label" color={String(theme.onPrimary)}>{adjust.isPending ? "Сохраняем…" : direction === "credit" ? "Добавить к бюджету" : "Вычесть из бюджета"}</AppText></Pressable>
             </GlassSurface>
           </Pressable>
         </Pressable>

@@ -57,6 +57,22 @@ input {
   box-shadow: 0 0 0 5px rgba(123, 193, 255, 0.14);
 }
 
+html[data-theme="dark"] :is(button, [role="button"], [role="tab"], [role="radio"], a):focus-visible {
+  outline: 2px solid #83bbff;
+  outline-offset: 3px;
+}
+
+html[data-theme="dark"] input:-webkit-autofill {
+  -webkit-text-fill-color: #edf3fc;
+  -webkit-box-shadow: 0 0 0 1000px #1c2a42 inset;
+  caret-color: #83bbff;
+}
+
+html[data-theme="dark"] ::selection {
+  background: #345888;
+  color: #edf3fc;
+}
+
 /* Scoped to navigation: liquid-glass-react does not require Tailwind here. */
 .logic-nav-glass {
   position: absolute;
@@ -69,8 +85,8 @@ input {
 }
 
 .logic-nav-glass[data-theme="dark"] {
-  --nav-tint: rgba(16, 26, 41, 0.64);
-  --nav-edge: rgba(210, 233, 255, 0.28);
+  --nav-tint: rgba(17, 30, 50, 0.88);
+  --nav-edge: rgba(158, 188, 231, 0.22);
   --nav-shade: rgba(0, 0, 0, 0.22);
 }
 
@@ -79,7 +95,8 @@ input {
 }
 
 .logic-nav-glass[data-variant="lens"][data-theme="dark"] {
-  --nav-tint: rgba(120, 180, 244, 0.14);
+  --nav-tint: rgba(93, 158, 244, 0.20);
+  --nav-edge: rgba(147, 193, 255, 0.36);
 }
 
 /* The upstream decorative layers use utility classes. Our own rim supplies
@@ -117,6 +134,11 @@ input {
   border-radius: inherit;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.22), transparent 38%, transparent 64%, rgba(187, 221, 255, 0.13)), var(--nav-tint);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.logic-nav-glass[data-theme="dark"] .logic-nav-glass-rim {
+  background: linear-gradient(145deg, rgba(182, 210, 250, 0.06), transparent 45%, rgba(83, 134, 211, 0.025)), var(--nav-tint);
+  box-shadow: inset 0 1px 0 rgba(188, 217, 255, 0.04);
 }
 
 @media (prefers-reduced-transparency: reduce) {

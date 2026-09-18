@@ -120,8 +120,8 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
               <AppText variant="caption" muted style={styles.cropHint}>Квадратная обрезка · компактное фото для быстрой загрузки</AppText>
               {avatarUrl ? (
                 <Pressable accessibilityRole="button" onPress={() => setAvatarDraft(null)} style={styles.removePhoto}>
-                  <Ionicons name="trash-outline" size={14} color="#C33B4A" />
-                  <AppText style={styles.removePhotoText}>Удалить</AppText>
+                  <Ionicons name="trash-outline" size={14} color={theme.mode === "dark" ? String(theme.danger) : "#C33B4A"} />
+                  <AppText style={[styles.removePhotoText, theme.mode === "dark" && { color: theme.danger }]}>Удалить</AppText>
                 </Pressable>
               ) : null}
             </View>
@@ -164,10 +164,10 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                 </>
               ) : null}
             </View>
-            {message ? <AppText style={styles.error}>{message}</AppText> : null}
+            {message ? <AppText style={[styles.error, theme.mode === "dark" && { color: theme.danger }]}>{message}</AppText> : null}
             <Pressable disabled={saveMutation.isPending || !canSave} onPress={() => saveMutation.mutate()} style={[styles.save, { backgroundColor: theme.primary }, (saveMutation.isPending || !canSave) && { opacity: 0.55 }]}>
-              {saveMutation.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="checkmark" size={19} color="#FFFFFF" />}
-              <AppText color="#FFFFFF" variant="label">{t("common.save")}</AppText>
+              {saveMutation.isPending ? <ActivityIndicator color={String(theme.onPrimary)} /> : <Ionicons name="checkmark" size={19} color={String(theme.onPrimary)} />}
+              <AppText color={String(theme.onPrimary)} variant="label">{t("common.save")}</AppText>
             </Pressable>
           </GlassSurface>
         </Animated.View>

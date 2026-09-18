@@ -153,14 +153,14 @@ export function ProfileDrawer({
               showsVerticalScrollIndicator={false}
             >
               <LinearGradient
-                colors={["rgba(33,139,255,0.92)", "#155DD8", "#5745E9"]}
+                colors={theme.mode === "dark" ? ["#21416C", "#25385B", "#34365D"] : ["rgba(33,139,255,0.92)", "#155DD8", "#5745E9"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.profileCard}
               >
                 <LinearGradient
                   pointerEvents="none"
-                  colors={["rgba(255,255,255,0.5)", "rgba(255,255,255,0)"]}
+                  colors={[theme.mode === "dark" ? "rgba(181,209,250,0.07)" : "rgba(255,255,255,0.5)", "rgba(255,255,255,0)"]}
                   style={StyleSheet.absoluteFill}
                 />
                 <View style={styles.profileTop}>

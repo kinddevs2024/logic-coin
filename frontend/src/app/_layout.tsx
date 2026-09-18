@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -41,6 +42,17 @@ export default function RootLayout() {
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
   const language = useAppStore((state) => state.language) ?? "ru";
+
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      document.documentElement.dataset.theme = theme.mode;
+      document.documentElement.style.colorScheme = theme.mode === "dark" ? "dark" : "light";
+      document.body.style.backgroundColor = String(theme.background);
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", String(theme.background));
+    } else {
+      void SystemUI.setBackgroundColorAsync(theme.background).catch(() => {});
+    }
+  }, [theme.background, theme.mode]);
 
   useEffect(() => {
     if (Platform.OS !== "web") return;

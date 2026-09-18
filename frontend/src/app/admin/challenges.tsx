@@ -195,7 +195,7 @@ export default function AdminChallengesScreen() {
                 <View style={[styles.segment, { borderColor: theme.border }]}>
                   {(["manual", "random"] as const).map((mode) => {
                     const active = draft.selectionMode === mode;
-                    return <Pressable key={mode} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDraft((current) => ({ ...current, selectionMode: mode }))} style={[styles.segmentItem, active && { backgroundColor: theme.primary }]}><Ionicons name={mode === "manual" ? "options-outline" : "shuffle-outline"} size={17} color={active ? "#FFFFFF" : String(theme.textMuted)} /><AppText variant="caption" color={active ? "#FFFFFF" : String(theme.textMuted)}>{mode === "manual" ? "Вручную" : "Случайно"}</AppText></Pressable>;
+                    return <Pressable key={mode} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDraft((current) => ({ ...current, selectionMode: mode }))} style={[styles.segmentItem, active && { backgroundColor: theme.primary }]}><Ionicons name={mode === "manual" ? "options-outline" : "shuffle-outline"} size={17} color={String(active ? theme.onPrimary : theme.textMuted)} /><AppText variant="caption" color={String(active ? theme.onPrimary : theme.textMuted)}>{mode === "manual" ? "Вручную" : "Случайно"}</AppText></Pressable>;
                   })}
                 </View>
               </View>

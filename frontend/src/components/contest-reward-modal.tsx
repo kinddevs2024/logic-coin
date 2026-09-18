@@ -317,7 +317,7 @@ export function ContestRewardModal() {
               onPress={() => claim.mutate()}
               style={({ pressed }) => [styles.claimButton, { backgroundColor: theme.primary }, pressed && styles.pressed, (claim.isPending || showResult) && styles.disabled]}
             >
-              {claim.isPending ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="gift" size={20} color="#FFFFFF" /><AppText color="#FFFFFF" variant="label">Забрать</AppText></>}
+              {claim.isPending ? <ActivityIndicator color={String(theme.onPrimary)} /> : <><Ionicons name="gift" size={20} color={String(theme.onPrimary)} /><AppText color={String(theme.onPrimary)} variant="label">Забрать</AppText></>}
             </Pressable>
             {claim.isError ? <AppText style={styles.error}>Не удалось забрать приз. Попробуйте ещё раз.</AppText> : null}
           </GlassSurface>

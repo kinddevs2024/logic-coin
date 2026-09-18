@@ -9,6 +9,7 @@ import { GlassSurface } from "@/components/glass-surface";
 import { gameCoverFor } from "@/constants/game-covers";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { accentForeground } from "@/lib/theme-colors";
 import type { ChallengeGameState, GameCatalogItem } from "@/types";
 
 function iconName(icon: string): ComponentProps<typeof Ionicons>["name"] {
@@ -33,6 +34,7 @@ export function ChallengeCard({
   const theme = useAppTheme();
   const completed = state?.status === "completed";
   const cover = gameCoverFor(game.key);
+  const actionForeground = accentForeground(game.color, theme.mode);
 
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(420)}>
@@ -78,9 +80,9 @@ export function ChallengeCard({
           ) : null}
           <View style={[styles.action, { backgroundColor: completed ? `${String(theme.success)}18` : game.color }]}>
             {loading ? (
-              <ActivityIndicator color={completed ? String(theme.success) : "#FFFFFF"} size="small" />
+              <ActivityIndicator color={completed ? String(theme.success) : actionForeground} size="small" />
             ) : (
-              <Ionicons name={completed ? "checkmark" : "arrow-forward"} color={completed ? String(theme.success) : "#FFFFFF"} size={18} />
+              <Ionicons name={completed ? "checkmark" : "arrow-forward"} color={completed ? String(theme.success) : actionForeground} size={18} />
             )}
           </View>
         </GlassSurface>

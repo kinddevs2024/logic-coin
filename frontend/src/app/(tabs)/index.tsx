@@ -64,8 +64,8 @@ export default function HomeScreen() {
           <GlassSurface intensity={66} variant="strong" style={styles.rankingPill}>
             <View style={styles.rankingFaces}>
               <Avatar name={user.name} avatarUrl={user.avatarUrl} size={28} />
-              <View style={[styles.rankingFace, { backgroundColor: "#DDEBFF" }]}><Ionicons name="person" size={13} color="#3978D4" /></View>
-              <View style={[styles.rankingFace, { backgroundColor: "#EFE6FF" }]}><Ionicons name="person" size={13} color="#7A5AF8" /></View>
+              <View style={[styles.rankingFace, { backgroundColor: theme.mode === "dark" ? theme.primarySoft : "#DDEBFF" }]}><Ionicons name="person" size={13} color={theme.mode === "dark" ? String(theme.primary) : "#3978D4"} /></View>
+              <View style={[styles.rankingFace, { backgroundColor: theme.mode === "dark" ? "#2D294A" : "#EFE6FF" }]}><Ionicons name="person" size={13} color={theme.mode === "dark" ? "#B9A5FF" : "#7A5AF8"} /></View>
             </View>
             <Ionicons name="trophy" size={19} color={String(theme.primary)} />
           </GlassSurface>
@@ -155,8 +155,8 @@ export default function HomeScreen() {
             <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
             <View style={styles.activityItem}>
               <View style={styles.activityInfo}>
-                <View style={styles.activityIconMonthly}>
-                  <Ionicons name="calendar-outline" size={21} color="#7A5AF8" />
+                <View style={[styles.activityIconMonthly, theme.mode === "dark" && { backgroundColor: "#2D294A" }]}>
+                  <Ionicons name="calendar-outline" size={21} color={theme.mode === "dark" ? "#B9A5FF" : "#7A5AF8"} />
                 </View>
                 <View style={styles.activityCopy}>
                   <AppText style={styles.activityTitle}>Челленджей за месяц</AppText>
@@ -165,7 +165,7 @@ export default function HomeScreen() {
               <ProgressDonut
                 value={String(today?.monthlyChallengeCount ?? 0)}
                 progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
-                color="#7A5AF8"
+                color={theme.mode === "dark" ? "#B9A5FF" : "#7A5AF8"}
                 accessibilityLabel="Челленджи за месяц"
               />
             </View>

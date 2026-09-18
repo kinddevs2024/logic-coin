@@ -45,7 +45,7 @@ export function AppButton({
   const theme = useAppTheme();
   const isPrimary = variant === "primary";
   const foreground =
-    isPrimary || variant === "danger" ? "#FFFFFF" : String(theme.text);
+    isPrimary || variant === "danger" ? String(theme.onPrimary) : String(theme.text);
   const background =
     variant === "secondary"
       ? String(theme.surfaceMuted)
@@ -92,7 +92,7 @@ export function AppButton({
         styles.pressable,
         glow && {
           shadowColor: theme.primary,
-          shadowOpacity: 0.44,
+          shadowOpacity: theme.mode === "dark" ? 0.18 : 0.44,
           shadowRadius: 18,
           shadowOffset: { width: 0, height: 9 },
           elevation: 10,
@@ -108,11 +108,11 @@ export function AppButton({
           locations={[0, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.gradient}
+          style={[styles.gradient, theme.mode === "dark" && { borderColor: "rgba(183,216,255,0.18)" }]}
         >
           <LinearGradient
             pointerEvents="none"
-            colors={["rgba(255,255,255,0.22)", "rgba(255,255,255,0)"]}
+            colors={[theme.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.22)", "rgba(255,255,255,0)"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0.8, y: 0.8 }}
             style={StyleSheet.absoluteFill}
@@ -170,7 +170,7 @@ export function IconButton({
         <Ionicons
           name={name}
           size={21}
-          color={filled ? "#FFFFFF" : String(theme.text)}
+          color={filled ? String(theme.onPrimary) : String(theme.text)}
         />
       </GlassSurface>
     </Pressable>

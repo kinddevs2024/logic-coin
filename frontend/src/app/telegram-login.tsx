@@ -88,7 +88,7 @@ export default function TelegramLoginScreen() {
             { backgroundColor: theme.primary, opacity: pressed ? 0.78 : 1 },
           ]}
         >
-          <AppText variant="label" color="#FFFFFF">Открыть приложение</AppText>
+          <AppText variant="label" color={String(theme.onPrimary)}>Открыть приложение</AppText>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={continueInBrowser} hitSlop={8}>
           <AppText variant="caption" muted style={styles.center}>

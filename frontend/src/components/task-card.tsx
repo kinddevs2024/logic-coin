@@ -13,6 +13,7 @@ import { radii } from "@/constants/theme";
 import type { TranslationKey } from "@/constants/translations";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
+import { readableAccent } from "@/lib/theme-colors";
 import { useTranslation } from "@/hooks/use-translation";
 import type { LogicTask } from "@/types";
 
@@ -49,6 +50,7 @@ export function TaskCard({
 }) {
   const theme = useAppTheme();
   const { t } = useTranslation();
+  const accent = readableAccent(task.color, theme.mode);
 
   const handlePress = () => {
     void Haptics.selectionAsync().catch(() => {});
@@ -78,7 +80,7 @@ export function TaskCard({
         <Ionicons
           name={iconNames[task.icon]}
           size={compact ? 20 : 23}
-          color={task.color}
+          color={accent}
         />
       </View>
       <View style={styles.copy}>
@@ -103,7 +105,7 @@ export function TaskCard({
         )}
       </View>
       <View style={styles.reward}>
-        <AppText variant="label" color={task.color}>
+        <AppText variant="label" color={accent}>
           +{formatMoney(task.rewardUnits)}
         </AppText>
       </View>
@@ -127,11 +129,11 @@ export function TaskCard({
         ]}
       >
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
+          <ActivityIndicator color={String(theme.onPrimary)} size="small" />
         ) : task.available === false ? (
-          <Ionicons name="time-outline" color="#FFFFFF" size={18} />
+          <Ionicons name="time-outline" color={String(theme.onPrimary)} size={18} />
         ) : (
-          <Ionicons name="arrow-forward" color="#FFFFFF" size={18} />
+          <Ionicons name="arrow-forward" color={String(theme.onPrimary)} size={18} />
         )}
       </Pressable>
     </GlassSurface>

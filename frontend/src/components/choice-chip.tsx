@@ -63,7 +63,7 @@ export function ChoiceChip({
                 justifyContent: "center",
               }}
             >
-              <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={12} color={String(theme.onPrimary)} />
             </View>
           </Animated.View>
         ) : null}

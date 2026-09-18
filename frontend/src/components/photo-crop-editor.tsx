@@ -111,7 +111,7 @@ export function PhotoCropEditor({
           </View>
           <View style={styles.actions}>
             <Pressable onPress={onCancel} style={[styles.button, { backgroundColor: theme.surfaceRaised }]}><AppText color={String(theme.text)}>Отмена</AppText></Pressable>
-            <Pressable onPress={() => void confirm()} style={[styles.button, { backgroundColor: theme.primary }]}><AppText color="#FFFFFF">Готово</AppText></Pressable>
+            <Pressable onPress={() => void confirm()} style={[styles.button, { backgroundColor: theme.primary }]}><AppText color={String(theme.onPrimary)}>Готово</AppText></Pressable>
           </View>
         </View>
       </View>

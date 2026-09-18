@@ -8,6 +8,8 @@ import { AppText } from "@/components/app-text";
 import { cosmeticFor, cosmeticsFor } from "@/games/cosmetics";
 import { gameProgressFor, type GameId, useGameProgressStore } from "@/games/progress-store";
 import { useClientReady } from "@/hooks/use-client-ready";
+import { useAppTheme } from "@/hooks/use-app-theme";
+import { accentForeground, readableAccent } from "@/lib/theme-colors";
 
 export function GameEconomyHud({
   gameId,
@@ -47,6 +49,12 @@ export function GameEconomyModal({
   visible: boolean;
   onClose: () => void;
 }) {
+  const theme = useAppTheme();
+  const dark = theme.mode === "dark";
+  const textStyle = dark ? { color: theme.text } : undefined;
+  const mutedStyle = dark ? { color: theme.textMuted } : undefined;
+  const panelStyle = dark ? { backgroundColor: theme.surfaceRaised, borderColor: theme.border } : undefined;
+  const insetStyle = dark ? { backgroundColor: theme.surfaceMuted } : undefined;
   const insets = useSafeAreaInsets();
   const saved = useGameProgressStore((state) => gameProgressFor(state.games, gameId));
   const ready = useClientReady();
@@ -86,14 +94,14 @@ export function GameEconomyModal({
     <Modal transparent visible={visible} animationType="none" onRequestClose={close}>
       <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.backdrop}>
         <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={StyleSheet.absoluteFill} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(18, insets.bottom + 10) }]}>
+        <View style={[styles.sheet, dark && { backgroundColor: theme.surface, borderColor: theme.glassBorder, borderWidth: 1 }, { paddingBottom: Math.max(18, insets.bottom + 10) }]}>
           <View style={styles.sheetTop}>
             <View style={styles.walletTitle}>
               <MaterialCommunityIcons name="hexagon-multiple" size={23} color="#F5B800" />
-              <AppText style={styles.sheetTitle}>{progress.coins} coin</AppText>
+              <AppText style={[styles.sheetTitle, textStyle]}>{progress.coins} coin</AppText>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={styles.closeButton}>
-              <Ionicons name="close" size={22} color="#282936" />
+            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={[styles.closeButton, insetStyle]}>
+              <Ionicons name="close" size={22} color={dark ? String(theme.text) : "#282936"} />
             </Pressable>
           </View>
 
@@ -101,15 +109,16 @@ export function GameEconomyModal({
             {skins.map((skin) => {
               const unlocked = progress.unlockedCosmetics.includes(skin.id);
               const selected = progress.selectedCosmetic === skin.id;
+              const accent = readableAccent(skin.primary, theme.mode);
               return (
-                <Pressable key={skin.id} accessibilityRole="button" accessibilityLabel={`${skin.name}${unlocked ? "" : `, ${skin.price} coin`}`} onPress={() => chooseSkin(skin.id, skin.price)} style={({ pressed }) => [styles.skinCard, selected && { borderColor: skin.primary, borderWidth: 3 }, pressed && styles.pressed]}>
-                  <View style={[styles.skinPreview, { backgroundColor: skin.secondary }]}>
-                    <MaterialCommunityIcons name={skin.icon} size={34} color={skin.primary} />
+                <Pressable key={skin.id} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={`${skin.name}${unlocked ? "" : `, ${skin.price} coin`}`} onPress={() => chooseSkin(skin.id, skin.price)} style={({ pressed }) => [styles.skinCard, panelStyle, selected && { borderColor: accent, borderWidth: 3 }, pressed && styles.pressed]}>
+                  <View style={[styles.skinPreview, { backgroundColor: dark ? `${accent}18` : skin.secondary }]}>
+                    <MaterialCommunityIcons name={skin.icon} size={34} color={accent} />
                   </View>
-                  <AppText numberOfLines={1} style={styles.skinName}>{skin.name}</AppText>
-                  <View style={styles.skinPrice}>
-                    {unlocked ? <Ionicons name={selected ? "checkmark-circle" : "checkmark"} size={14} color="#16A34A" /> : <MaterialCommunityIcons name="hexagon-multiple" size={13} color="#E5A900" />}
-                    <AppText style={styles.skinPriceText}>{unlocked ? (selected ? "Выбран" : "Открыт") : skin.price}</AppText>
+                  <AppText numberOfLines={1} style={[styles.skinName, textStyle]}>{skin.name}</AppText>
+                  <View style={[styles.skinPrice, insetStyle]}>
+                    {unlocked ? <Ionicons name={selected ? "checkmark-circle" : "checkmark"} size={14} color={dark ? String(theme.success) : "#16A34A"} /> : <MaterialCommunityIcons name="hexagon-multiple" size={13} color={dark ? String(theme.warning) : "#E5A900"} />}
+                    <AppText style={[styles.skinPriceText, mutedStyle]}>{unlocked ? (selected ? "Выбран" : "Открыт") : skin.price}</AppText>
                   </View>
                 </Pressable>
               );
@@ -117,34 +126,34 @@ export function GameEconomyModal({
           </ScrollView>
 
           {pendingSkin ? (
-            <Animated.View entering={FadeIn.duration(140)} style={styles.confirmCard}>
-              <View style={[styles.confirmPreview, { backgroundColor: pendingSkin.secondary }]}>
-                <MaterialCommunityIcons name={pendingSkin.icon} size={32} color={pendingSkin.primary} />
+            <Animated.View entering={FadeIn.duration(140)} style={[styles.confirmCard, panelStyle]}>
+              <View style={[styles.confirmPreview, { backgroundColor: dark ? theme.primarySoft : pendingSkin.secondary }]}>
+                <MaterialCommunityIcons name={pendingSkin.icon} size={32} color={readableAccent(pendingSkin.primary, theme.mode)} />
               </View>
               <View style={styles.confirmCopy}>
-                <AppText style={styles.confirmTitle}>Купить «{pendingSkin.name}»?</AppText>
-                <AppText style={styles.confirmMeta}>{pendingSkin.price} coin · останется {Math.max(0, progress.coins - pendingSkin.price)}</AppText>
+                <AppText style={[styles.confirmTitle, textStyle]}>Купить «{pendingSkin.name}»?</AppText>
+                <AppText style={[styles.confirmMeta, mutedStyle]}>{pendingSkin.price} coin · останется {Math.max(0, progress.coins - pendingSkin.price)}</AppText>
               </View>
               <View style={styles.confirmActions}>
-                <Pressable accessibilityRole="button" accessibilityLabel="Отменить покупку" onPress={() => setPendingSkinId(null)} style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
-                  <AppText style={styles.cancelText}>Отмена</AppText>
+                <Pressable accessibilityRole="button" accessibilityLabel="Отменить покупку" onPress={() => setPendingSkinId(null)} style={({ pressed }) => [styles.cancelButton, insetStyle, pressed && styles.pressed]}>
+                  <AppText style={[styles.cancelText, textStyle]}>Отмена</AppText>
                 </Pressable>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Купить ${pendingSkin.name} за ${pendingSkin.price} coin`} disabled={progress.coins < pendingSkin.price} onPress={confirmPurchase} style={({ pressed }) => [styles.buyButton, { backgroundColor: pendingSkin.primary }, progress.coins < pendingSkin.price && styles.disabled, pressed && styles.pressed]}>
-                  <Ionicons name="bag-check-outline" size={17} color="#FFFFFF" />
-                  <AppText style={styles.buyText}>Купить</AppText>
+                  <Ionicons name="bag-check-outline" size={17} color={accentForeground(pendingSkin.primary, theme.mode)} />
+                  <AppText style={[styles.buyText, { color: accentForeground(pendingSkin.primary, theme.mode) }]}>Купить</AppText>
                 </Pressable>
               </View>
             </Animated.View>
           ) : null}
 
-          <View style={styles.cosmeticNote}>
-            <MaterialCommunityIcons name="shield-check-outline" size={20} color="#705CF6" />
+          <View style={[styles.cosmeticNote, dark && { backgroundColor: theme.primarySoft }]}>
+            <MaterialCommunityIcons name="shield-check-outline" size={20} color={dark ? String(theme.primary) : "#705CF6"} />
             <View style={styles.cosmeticNoteCopy}>
-              <AppText style={styles.cosmeticNoteTitle}>Игровые coin</AppText>
-              <AppText style={styles.cosmeticNoteText}>Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.</AppText>
+              <AppText style={[styles.cosmeticNoteTitle, textStyle]}>Игровые coin</AppText>
+              <AppText style={[styles.cosmeticNoteText, mutedStyle]}>Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.</AppText>
             </View>
           </View>
-          {notice ? <AppText style={styles.notice}>{notice}</AppText> : null}
+          {notice ? <AppText style={[styles.notice, dark && { color: theme.text }]}>{notice}</AppText> : null}
         </View>
       </Animated.View>
     </Modal>

@@ -50,17 +50,17 @@ export function AdminShell({ children }: PropsWithChildren) {
   return (
     <AppFrame wide contentStyle={styles.frame}>
       <View style={styles.topbar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Вернуться в приложение" onPress={() => router.replace("/(tabs)" as never)} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Вернуться в приложение" onPress={() => router.replace("/(tabs)" as never)} style={({ pressed }) => [styles.backButton, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
           <Ionicons name="chevron-back" size={22} color={String(theme.text)} />
         </Pressable>
         <View style={styles.brand}>
-          <View style={[styles.brandIcon, { backgroundColor: theme.primary }]}><Ionicons name="shield-checkmark" size={19} color="#FFFFFF" /></View>
+          <View style={[styles.brandIcon, { backgroundColor: theme.primary }]}><Ionicons name="shield-checkmark" size={19} color={String(theme.onPrimary)} /></View>
           <View>
             <AppText variant="heading">Logic Coin Admin</AppText>
             <AppText variant="caption" muted>Управление продуктом</AppText>
           </View>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Заблокировать админку" onPress={lock} style={({ pressed }) => [styles.lockButton, { borderColor: theme.border }, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Заблокировать админку" onPress={lock} style={({ pressed }) => [styles.lockButton, { borderColor: theme.border }, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
           <Ionicons name="lock-closed-outline" size={18} color={String(theme.textMuted)} />
           {isDesktop ? <AppText variant="caption" muted>Выйти</AppText> : null}
         </Pressable>

@@ -3,6 +3,7 @@ import { Image, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { initials } from "@/lib/format";
+import { useAppTheme } from "@/hooks/use-app-theme";
 
 export function Avatar({
   name,
@@ -13,6 +14,7 @@ export function Avatar({
   avatarUrl?: string | null;
   size?: number;
 }) {
+  const theme = useAppTheme();
   return (
     <View
       style={{
@@ -20,7 +22,7 @@ export function Avatar({
         height: size,
         borderRadius: size / 2,
         overflow: "hidden",
-        backgroundColor: "#E9EDF4",
+        backgroundColor: theme.mode === "dark" ? theme.surfaceMuted : "#E9EDF4",
       }}
     >
       <AvatarContent key={avatarUrl || "initials"} name={name} avatarUrl={avatarUrl} size={size} />
@@ -29,6 +31,7 @@ export function Avatar({
 }
 
 function AvatarContent({ name, avatarUrl, size }: { name?: string; avatarUrl?: string | null; size: number }) {
+  const theme = useAppTheme();
   const [failed, setFailed] = useState(false);
   if (avatarUrl && !failed) {
     return (
@@ -46,12 +49,12 @@ function AvatarContent({ name, avatarUrl, size }: { name?: string; avatarUrl?: s
       style={{
         flex: 1,
         borderRadius: size / 2,
-        backgroundColor: "#E9EDF4",
+        backgroundColor: theme.mode === "dark" ? theme.primarySoft : "#E9EDF4",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <AppText variant={size > 64 ? "heading" : "label"} color="#34415A" style={{ fontSize: size * 0.32 }}>
+      <AppText variant={size > 64 ? "heading" : "label"} color={theme.mode === "dark" ? String(theme.primary) : "#34415A"} style={{ fontSize: size * 0.32 }}>
         {initials(name)}
       </AppText>
     </View>

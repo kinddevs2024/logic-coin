@@ -94,8 +94,8 @@ export default function ChallengesScreen() {
         <View style={styles.emptyBlock}>
           <ChallengeEmptyState />
           <Pressable onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: theme.primary }]}>
-            <Ionicons name="refresh" size={18} color="#FFFFFF" />
-            <AppText color="#FFFFFF" variant="label">{c.refresh}</AppText>
+            <Ionicons name="refresh" size={18} color={String(theme.onPrimary)} />
+            <AppText color={String(theme.onPrimary)} variant="label">{c.refresh}</AppText>
           </Pressable>
         </View>
       ) : null}

@@ -25,7 +25,7 @@ export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
         styles.surface,
         {
           backgroundColor: dark
-            ? `rgba(18,28,43,${lens ? 0.22 : 0.64})`
+            ? lens ? "rgba(93,158,244,0.20)" : "rgba(17,30,50,0.88)"
             : `rgba(245,251,255,${lens ? 0.18 : 0.48})`,
         },
       ]}
@@ -34,7 +34,7 @@ export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
       {!lens ? <NativeGlassLayer intensity={42} dark={dark} /> : null}
       <LinearGradient
         colors={dark
-          ? ["rgba(224,241,255,0.18)", "rgba(144,190,239,0.03)", "rgba(120,186,255,0.12)"]
+          ? ["rgba(182,210,250,0.06)", "rgba(144,190,239,0.01)", "rgba(83,134,211,0.025)"]
           : ["rgba(255,255,255,0.68)", "rgba(255,255,255,0.04)", "rgba(187,221,255,0.2)"]}
         locations={[0, 0.45, 1]}
         start={{ x: 0.08, y: 0 }}
@@ -44,9 +44,9 @@ export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
       <View style={[
         StyleSheet.absoluteFill,
         styles.rim,
-        { borderColor: dark ? "rgba(213,235,255,0.24)" : "rgba(255,255,255,0.82)" },
+        { borderColor: dark ? lens ? "rgba(147,193,255,0.36)" : "rgba(158,188,231,0.22)" : "rgba(255,255,255,0.82)" },
       ]} />
-      {lens ? <View style={[styles.glint, { backgroundColor: dark ? "rgba(235,247,255,0.35)" : "rgba(255,255,255,0.9)" }]} /> : null}
+      {lens ? <View style={[styles.glint, { backgroundColor: dark ? "rgba(188,217,255,0.18)" : "rgba(255,255,255,0.9)" }]} /> : null}
     </View>
   );
 }

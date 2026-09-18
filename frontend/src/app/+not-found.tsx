@@ -31,8 +31,8 @@ export default function NotFoundScreen() {
             { backgroundColor: theme.primary, opacity: pressed ? 0.78 : 1 },
           ]}
         >
-          <Ionicons name="home-outline" size={20} color="#FFFFFF" />
-          <AppText variant="label" color="#FFFFFF">{t("notFound.home")}</AppText>
+          <Ionicons name="home-outline" size={20} color={String(theme.onPrimary)} />
+          <AppText variant="label" color={String(theme.onPrimary)}>{t("notFound.home")}</AppText>
         </Pressable>
       </GlassSurface>
     </AppFrame>

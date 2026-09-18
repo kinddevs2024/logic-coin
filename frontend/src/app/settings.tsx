@@ -207,7 +207,7 @@ export default function SettingsScreen() {
                 style={({ pressed }) => [
                   styles.themeCard,
                   {
-                    backgroundColor: palette.glassFillStrong,
+                    backgroundColor: mode === "dark" ? palette.surface : palette.glassFillStrong,
                     borderColor: selected ? theme.primary : theme.border,
                     opacity: pressed ? 0.76 : 1,
                   },

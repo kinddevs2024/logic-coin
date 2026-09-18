@@ -20,6 +20,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { authApi, referralsApi } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { sharePublicProfile } from "@/lib/profile-link";
+import { readableAccent } from "@/lib/theme-colors";
 import { useAppStore } from "@/store/app-store";
 
 export default function ProfileScreen() {
@@ -106,13 +107,13 @@ export default function ProfileScreen() {
                 icon: "diamond-outline" as const,
                 label: "coin",
                 value: String(coinBalance),
-                color: "#7A5AF8",
+                color: readableAccent("#7A5AF8", theme.mode),
               },
               {
                 icon: "people-outline" as const,
                 label: t("profile.friends"),
                 value: String(friendCount),
-                color: "#7A5AF8",
+                color: readableAccent("#7A5AF8", theme.mode),
               },
               {
                 icon: "game-controller-outline" as const,
@@ -159,8 +160,8 @@ export default function ProfileScreen() {
             { opacity: pressed ? 0.78 : 1 },
           ]}
         >
-          <View style={[styles.refIcon, { backgroundColor: "#F2EFFF" }]}>
-            <Ionicons name="gift" size={24} color="#7A5AF8" />
+          <View style={[styles.refIcon, { backgroundColor: theme.mode === "dark" ? "#2D294A" : "#F2EFFF" }]}>
+            <Ionicons name="gift" size={24} color={readableAccent("#7A5AF8", theme.mode)} />
           </View>
           <View style={{ flex: 1 }}>
             <AppText variant="label">{t("profile.invite")}</AppText>

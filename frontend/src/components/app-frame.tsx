@@ -145,9 +145,9 @@ function AmbientOrbs() {
       </Animated.View>
       <LinearGradient
         colors={[
-          "rgba(255,255,255,0.5)",
-          "rgba(255,255,255,0.02)",
-          "rgba(73,164,255,0.08)",
+          theme.mode === "dark" ? "rgba(113,165,238,0.07)" : "rgba(255,255,255,0.5)",
+          theme.mode === "dark" ? "rgba(113,165,238,0.02)" : "rgba(255,255,255,0.02)",
+          theme.mode === "dark" ? "rgba(113,165,238,0)" : "rgba(73,164,255,0.08)",
         ]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

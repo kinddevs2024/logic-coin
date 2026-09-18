@@ -29,6 +29,7 @@ export function GlassSurface({
   ...viewProps
 }: GlassSurfaceProps) {
   const theme = useAppTheme();
+  const dark = theme.mode === "dark";
   const flattenedStyle = StyleSheet.flatten(style) ?? {};
   const defaultRadius =
     typeof flattenedStyle.borderRadius === "number"
@@ -68,6 +69,7 @@ export function GlassSurface({
           backgroundColor: fill,
           borderColor: theme.glassBorder,
           shadowColor: theme.glassShadow,
+          ...(dark ? { shadowOpacity: 0.18, elevation: 3 } : {}),
         },
         Platform.OS === "web"
           ? ({
@@ -86,8 +88,8 @@ export function GlassSurface({
         pointerEvents="none"
         colors={[
           String(theme.glassHighlight),
-          "rgba(255,255,255,0.03)",
-          "rgba(76,164,255,0.015)",
+          dark ? "rgba(190,215,250,0.01)" : "rgba(255,255,255,0.03)",
+          dark ? "rgba(58,101,163,0.025)" : "rgba(76,164,255,0.015)",
         ]}
         locations={[0, 0.42, 1]}
         start={{ x: 0.08, y: 0 }}
@@ -101,8 +103,8 @@ export function GlassSurface({
           {
             borderTopColor: theme.glassHighlight,
             borderLeftColor: theme.glassHighlight,
-            borderRightColor: "rgba(255,255,255,0.18)",
-            borderBottomColor: "rgba(83,139,190,0.12)",
+            borderRightColor: dark ? "rgba(156,185,225,0.06)" : "rgba(255,255,255,0.18)",
+            borderBottomColor: dark ? "rgba(156,185,225,0.04)" : "rgba(83,139,190,0.12)",
           },
           corners,
         ]}

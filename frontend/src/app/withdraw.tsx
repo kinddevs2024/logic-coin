@@ -105,7 +105,7 @@ export default function WithdrawScreen() {
     <AppFrame>
       <ScreenHeader title={t("withdraw.title")} onBack={() => router.back()} />
       <GlassSurface intensity={84} variant="strong" style={styles.balanceCard}>
-        <View style={[styles.walletIcon, { backgroundColor: eligible ? theme.success : theme.primary }]}><Ionicons name="wallet" size={27} color="#FFFFFF" /></View>
+        <View style={[styles.walletIcon, { backgroundColor: eligible ? theme.success : theme.primary }]}><Ionicons name="wallet" size={27} color={String(theme.onPrimary)} /></View>
         <AppText variant="caption" muted>{t("withdraw.available")}</AppText>
         <AppText variant="display" color={String(eligible ? theme.success : theme.primary)} style={styles.balanceValue}>{formatMoney(balance)}</AppText>
         <View style={[styles.status, { backgroundColor: theme.glassFillStrong, borderColor: theme.glassBorder }]}><Ionicons name={eligible ? "checkmark-circle" : "lock-closed"} size={16} color={String(eligible ? theme.success : theme.primary)} /><AppText variant="caption" color={String(eligible ? theme.success : theme.primary)}>{eligible ? t("withdraw.ready") : t("withdraw.minimum")}</AppText></View>

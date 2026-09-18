@@ -64,7 +64,7 @@ export function GameShell({
       <AppText style={[styles.title, { color: variant === "app" ? theme.text : "#25212A" }]}>{title}</AppText>
       <View style={[styles.meta, variant !== "app" && styles.metaGame]}>
         {meta}
-        {gameId ? <GameEconomyHud gameId={gameId} onOpen={() => setEconomyOpen(true)} /> : null}
+        {gameId ? <GameEconomyHud gameId={gameId} tone={variant === "app" && theme.mode === "dark" ? "light" : "dark"} onOpen={() => setEconomyOpen(true)} /> : null}
       </View>
     </View>
   );

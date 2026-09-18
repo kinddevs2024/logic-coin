@@ -270,7 +270,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                   <Ionicons name="person-circle-outline" size={38} color={String(theme.primary)} />
                   <AppText muted style={styles.stateText}>{c.loginHint}</AppText>
                   <Pressable onPress={signIn} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color="#FFFFFF" variant="label">{c.login}</AppText>
+                    <AppText color={String(theme.onPrimary)} variant="label">{c.login}</AppText>
                   </Pressable>
                 </View>
               ) : query.isLoading ? (
@@ -280,7 +280,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                   <Ionicons name="cloud-offline-outline" size={36} color={String(theme.textMuted)} />
                   <AppText muted style={styles.stateText}>{c.error}</AppText>
                   <Pressable onPress={() => void query.refetch()} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color="#FFFFFF" variant="label">{c.retry}</AppText>
+                    <AppText color={String(theme.onPrimary)} variant="label">{c.retry}</AppText>
                   </Pressable>
                 </View>
               ) : entries.length ? (
@@ -316,8 +316,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
 
               {authenticated && hasMe ? (
                 <Pressable onPress={showMe} style={[styles.meButton, { backgroundColor: theme.primary }]}>
-                  <Ionicons name="locate" size={18} color="#FFFFFF" />
-                  <AppText color="#FFFFFF" variant="label">{c.me}</AppText>
+                  <Ionicons name="locate" size={18} color={String(theme.onPrimary)} />
+                  <AppText color={String(theme.onPrimary)} variant="label">{c.me}</AppText>
                 </Pressable>
               ) : null}
             </Animated.View>

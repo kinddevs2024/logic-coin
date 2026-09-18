@@ -79,7 +79,7 @@ export default function InviteScreen() {
               { backgroundColor: theme.primary },
             ]}
           >
-            <Ionicons name="add" color="#FFFFFF" size={20} />
+            <Ionicons name="add" color={String(theme.onPrimary)} size={20} />
           </View>
         </View>
         <AppText
@@ -145,7 +145,7 @@ export default function InviteScreen() {
           </AppText>
         </GlassSurface>
         <GlassSurface variant="soft" intensity={56} style={styles.stat}>
-          <View style={[styles.statIcon, { backgroundColor: "#ECFDF3" }]}>
+          <View style={[styles.statIcon, { backgroundColor: theme.mode === "dark" ? `${String(theme.success)}18` : "#ECFDF3" }]}>
             <Ionicons
               name="trending-up"
               size={22}

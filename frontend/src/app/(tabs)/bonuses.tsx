@@ -123,7 +123,7 @@ export function PreservedBonusesScreen() {
 
       <GlassSurface intensity={82} variant="strong" style={styles.hero}>
         <View style={[styles.heroIcon, { backgroundColor: theme.primary }]}>
-          <Ionicons name="flame" size={27} color="#FFFFFF" />
+          <Ionicons name="flame" size={27} color={String(theme.onPrimary)} />
         </View>
         <View style={{ flex: 1 }}>
           <AppText variant="caption" muted>
@@ -238,7 +238,7 @@ export function PreservedBonusesScreen() {
                   ) : null}
                   <AppText
                     variant="caption"
-                    color={today ? "#FFFFFF" : undefined}
+                    color={today ? String(theme.onPrimary) : undefined}
                   >
                     {day}
                   </AppText>
