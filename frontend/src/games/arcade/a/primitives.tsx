@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { ArcadeGameSkin } from "./types";
 import { gameCoinReward } from "../../rewards";
+import { useGameSession } from "../../session-context";
 
 type GradientColors = readonly [string, string, ...string[]];
 
@@ -153,13 +154,14 @@ export function ArcadeButton({ children, onPress, accent = "#FFFFFF", textColor 
 }
 
 export function IntroScreen({ eyebrow, title, subtitle, accent, children, onStart }: { eyebrow?: string; title: string; subtitle: string; accent: string; children?: ReactNode; onStart: () => void }) {
+  const session = useGameSession();
   return (
     <Animated.View entering={FadeIn.duration(260)} exiting={FadeOut.duration(180)} style={styles.centerScreen}>
       {eyebrow ? <Text style={[styles.eyebrow, { color: accent }]}>{eyebrow}</Text> : null}
       <Text style={styles.heroTitle}>{title}</Text>
       <Text style={styles.heroSubtitle}>{subtitle}</Text>
       {children}
-      <ArcadeButton accent={accent} onPress={onStart} style={styles.wideButton}>НАЧАТЬ</ArcadeButton>
+      <ArcadeButton accent={accent} onPress={() => { session?.onStart(); onStart(); }} style={styles.wideButton}>НАЧАТЬ</ArcadeButton>
     </Animated.View>
   );
 }

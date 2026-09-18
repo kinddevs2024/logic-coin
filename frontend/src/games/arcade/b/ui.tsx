@@ -8,6 +8,7 @@ import Animated, { cancelAnimation, Easing, FadeIn, FadeInDown, FadeOut, useAnim
 import { ArcadeIcon, type ArcadeIconName } from "./icons";
 import type { ArcadeGameSkin } from "./types";
 import { gameCoinReward } from "../../rewards";
+import { useGameSession } from "../../session-context";
 
 export const B_COLORS = {
   ink: "#F8FAFF",
@@ -189,6 +190,7 @@ export function StartCard({ icon, title, subtitle, accent, details, options, onS
   options?: ReactNode;
   onStart: () => void;
 }) {
+  const session = useGameSession();
   return (
     <Animated.View entering={FadeInDown.springify().damping(17)} style={styles.startWrap}>
       <View style={[styles.startIcon, { borderColor: `${accent}55`, backgroundColor: `${accent}14` }]}>
@@ -205,7 +207,7 @@ export function StartCard({ icon, title, subtitle, accent, details, options, onS
         ))}
       </Panel>
       {options}
-      <GameButton label="ИГРАТЬ" onPress={onStart} accent={accent} />
+      <GameButton label="ИГРАТЬ" onPress={() => { session?.onStart(); onStart(); }} accent={accent} />
     </Animated.View>
   );
 }

@@ -8,6 +8,7 @@ import { ArcadeButton, GameHeader, GameRoot, GlassPanel, HudStat, ProgressBar, R
 import type { ArcadeGameProps, ArcadeGameResult } from "./types";
 import { suggestedCoins } from "./utils";
 import { usePauseClock } from "@/games/pause-clock";
+import { useGameSession } from "@/games/session-context";
 
 const GAME_ID = "one-second" as const;
 const TARGET_MS = 1000;
@@ -49,6 +50,7 @@ function IntroRule({ icon, color, children }: { icon: React.ComponentProps<typeo
 }
 
 export function OneSecondGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, attemptLimit = DEFAULT_CHALLENGE_ATTEMPTS, onExit, onComplete }: ArcadeGameProps) {
+  const markStarted = useGameSession()?.onStart;
   const theme = resolveArcadeSkin(skin, "#7C6FFF", "#C9B8FF");
   const resultAccent = skin && skin.id !== "classic" ? theme.primary : "#34D399";
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
@@ -76,6 +78,7 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
   }, [holding, paused]);
 
   const start = useCallback(() => {
+    markStarted?.();
     finishing.current = false;
     setAttempts([]);
     setFeedback(null);
@@ -83,7 +86,7 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
     setHoldMs(0);
     gameStartedAt.current = Date.now();
     setPhase("playing");
-  }, []);
+  }, [markStarted]);
 
   const finish = useCallback((finalAttempts: Attempt[]) => {
     if (finishing.current) return;

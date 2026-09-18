@@ -16,6 +16,7 @@ import {
 } from "@/components/pixel-game-ui";
 import { EMPTY_GAME_PROGRESS, useGameProgressStore } from "@/games/progress-store";
 import { gameCoinReward } from "@/games/rewards";
+import { useGameSession } from "@/games/session-context";
 
 type Direction = "left" | "right" | "up" | "down";
 type Grid = number[][];
@@ -98,6 +99,9 @@ function GameControl({
 }
 
 export default function MergeScreen() {
+  const session = useGameSession();
+  const markStarted = session?.onStart;
+  const paused = session?.paused ?? false;
   const progress = useGameProgressStore((state) => state.games["2048"]) ?? EMPTY_GAME_PROGRESS;
   const recordScore = useGameProgressStore((state) => state.recordScore);
   const { width } = useWindowDimensions();
@@ -115,14 +119,16 @@ export default function MergeScreen() {
   const nextGoal = 2 ** (level + 7);
 
   const move = useCallback((direction: Direction) => {
+    if (paused) return;
     const result = moveGrid(grid, direction);
     if (!result.changed) return;
+    markStarted?.();
     setHistory((items) => [...items.slice(-9), { grid: grid.map((row) => [...row]), score }]);
     const next = spawn(result.next);
     setGrid(next);
     setScore(score + result.gained);
     setOver(!canContinue(next));
-  }, [grid, score]);
+  }, [grid, markStarted, paused, score]);
 
   useEffect(() => {
     if (!over || recorded.current) return;

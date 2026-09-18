@@ -10,6 +10,7 @@ import { IconButton } from "@/components/buttons";
 import { GlassSurface } from "@/components/glass-surface";
 import { GameEconomyHud, GameEconomyModal } from "@/components/game-economy";
 import type { GameId } from "@/games/progress-store";
+import { useGameSession } from "@/games/session-context";
 import { useAppTheme } from "@/hooks/use-app-theme";
 
 export type GameShellVariant = "app" | "longcat" | "gobble" | "loops" | "brain";
@@ -36,6 +37,7 @@ export function GameShell({
   gameId?: GameId;
 }>) {
   const router = useRouter();
+  const session = useGameSession();
   const theme = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
   const [economyOpen, setEconomyOpen] = useState(false);
@@ -60,7 +62,7 @@ export function GameShell({
 
   const header = (
     <View style={styles.headerContent}>
-      <IconButton name="chevron-back" label="Назад" onPress={() => router.back()} />
+      <IconButton name="chevron-back" label="Назад" onPress={session?.onExit ?? (() => router.canGoBack() ? router.back() : router.replace("/games"))} />
       <AppText style={[styles.title, { color: variant === "app" ? theme.text : "#25212A" }]}>{title}</AppText>
       <View style={[styles.meta, variant !== "app" && styles.metaGame]}>
         {meta}

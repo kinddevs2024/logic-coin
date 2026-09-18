@@ -2,15 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import type { ComponentType } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MergeScreen from "@/app/games/2048";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
+import { GameExitModal } from "@/components/game-exit-modal";
 import { AppodealBannerSlot } from "@/components/appodeal-banner";
 import { GAME_BY_KEY } from "@/constants/games";
 import { gamesAById, type ArcadeGameAId, type ArcadeGameResult } from "@/games/arcade/a";
@@ -18,6 +19,8 @@ import { gamesBById, renderGameB, type ArcadeGameProps as ArcadeGameBProps, type
 import { cosmeticFor } from "@/games/cosmetics";
 import { gameProgressFor, type GameId, type GameProgress, useGameProgressStore } from "@/games/progress-store";
 import { gameCoinReward } from "@/games/rewards";
+import { createGameExitSession } from "@/games/exit-session";
+import { GameSessionContext } from "@/games/session-context";
 import { useChallenges } from "@/hooks/use-challenges";
 import { adsApi, challengesApi } from "@/lib/api";
 import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
@@ -99,6 +102,7 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 export default function DynamicGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const gameKey = firstParam(params.gameKey) ?? "";
   const mode: PlayMode = firstParam(params.mode) === "challenge" ? "challenge" : "practice";
@@ -120,6 +124,7 @@ export default function DynamicGameRoute() {
   const setCoinBalance = useAppStore((state) => state.setCoinBalance);
   const [result, setResult] = useState<ResultView | null>(null);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [exitOpen, setExitOpen] = useState(false);
   const [extraTimeSeconds, setExtraTimeSeconds] = useState(0);
   const [sessionRevision, setSessionRevision] = useState(0);
   const [giftNotice, setGiftNotice] = useState("");
@@ -129,7 +134,9 @@ export default function DynamicGameRoute() {
   const challengeStartGuard = useRef("");
   const sessionStartedAt = useRef(0);
   const classicBaseline = useRef<{ key: string; progress: Readonly<GameProgress> } | null>(null);
-  const sessionId = `${gameKey}:${sessionRevision}`;
+  const sessionId = `${mode}:${gameKey}:${sessionRevision}`;
+  const exitSession = useMemo(() => createGameExitSession(sessionId), [sessionId]);
+  const gamePaused = giftOpen || exitOpen;
   const activeResult = result?.sessionId === sessionId ? result : null;
   const gameTitle = GAME_BY_KEY[gameKey]?.title ?? arcadeA?.title ?? arcadeB?.title ?? "Игра";
   const accent = GAME_BY_KEY[gameKey]?.color ?? arcadeA?.accent ?? arcadeB?.accent ?? "#7C5CFF";
@@ -147,7 +154,29 @@ export default function DynamicGameRoute() {
   useEffect(() => {
     completionGuard.current = false;
     sessionStartedAt.current = Date.now();
-  }, [gameKey, sessionRevision]);
+  }, [gameKey, mode, sessionRevision]);
+
+  useEffect(() => {
+    exitSession.activate();
+    return () => exitSession.discard();
+  }, [exitSession]);
+
+  useEffect(() => navigation.addListener("beforeRemove", (event) => {
+    if (mode !== "challenge" || !exitSession.requestExit()) return;
+    event.preventDefault();
+    setExitOpen(true);
+  }), [exitSession, mode, navigation]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || mode !== "challenge") return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!exitSession.needsConfirmation()) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [exitSession, mode]);
 
   useEffect(() => {
     if (mode !== "challenge" || !authenticated || !gameKey) return;
@@ -160,7 +189,7 @@ export default function DynamicGameRoute() {
     gameResult: HostedGameResult,
     options: { persist: boolean; before?: Readonly<GameProgress> } = { persist: true },
   ) => {
-    if (completionGuard.current) return;
+    if (completionGuard.current || exitSession.isDiscarded()) return;
     completionGuard.current = true;
     const before = options.before ?? gameProgressFor(useGameProgressStore.getState().games, progressId);
     if (options.persist) recordScore(progressId, gameResult.score, gameResult.label, gameResult.won);
@@ -202,49 +231,62 @@ export default function DynamicGameRoute() {
       completionGuard.current = false;
       setResult((current) => current?.sessionId === sessionId ? { ...current, saving: false, message: "Результат сохранён локально. Синхронизацию можно повторить." } : current);
     }
-  }, [accessToken, authenticated, challenges, currentChallengeIndex, gameKey, mode, progressId, recordScore, sessionId, setCoinBalance]);
+  }, [accessToken, authenticated, challenges, currentChallengeIndex, exitSession, gameKey, mode, progressId, recordScore, sessionId, setCoinBalance]);
 
   const onArcadeComplete = useCallback((gameResult: ArcadeGameResult) => {
-    void processResult({ score: gameResult.score, won: gameResult.won, durationMs: gameResult.durationMs, label: String(gameResult.stats.label ?? gameResult.gameId) }, { persist: true });
-  }, [processResult]);
+    exitSession.complete(() => { void processResult({ score: gameResult.score, won: gameResult.won, durationMs: gameResult.durationMs, label: String(gameResult.stats.label ?? gameResult.gameId) }, { persist: true }); });
+  }, [exitSession, processResult]);
 
   const onArcadeBComplete = useCallback((gameResult: ArcadeGameBResult) => {
-    void processResult({ score: gameResult.score, won: gameResult.won, durationMs: gameResult.durationMs, label: gameResult.gameId }, { persist: true });
-  }, [processResult]);
+    exitSession.complete(() => { void processResult({ score: gameResult.score, won: gameResult.won, durationMs: gameResult.durationMs, label: gameResult.gameId }, { persist: true }); });
+  }, [exitSession, processResult]);
 
   useEffect(() => {
     if (!classic || !hydrated || !progress) return;
-    if (!classicBaseline.current || classicBaseline.current.key !== `${gameKey}:${sessionRevision}`) {
-      classicBaseline.current = { key: `${gameKey}:${sessionRevision}`, progress };
+    if (!classicBaseline.current || classicBaseline.current.key !== sessionId) {
+      classicBaseline.current = { key: sessionId, progress };
       return;
     }
     const baseline = classicBaseline.current.progress;
     if (progress.plays > baseline.plays && !completionGuard.current) {
-      classicBaseline.current = { key: `${gameKey}:${sessionRevision}`, progress };
+      classicBaseline.current = { key: sessionId, progress };
       const won = progress.wins > baseline.wins;
-      void processResult({ score: progress.previousScore, won, durationMs: Date.now() - sessionStartedAt.current, label: progress.lastResult || gameKey }, { persist: false, before: baseline });
+      exitSession.complete(() => { void processResult({ score: progress.previousScore, won, durationMs: Date.now() - sessionStartedAt.current, label: progress.lastResult || gameKey }, { persist: false, before: baseline }); });
       return;
     }
-    classicBaseline.current = { key: `${gameKey}:${sessionRevision}`, progress };
-  }, [classic, gameKey, hydrated, processResult, progress, sessionRevision]);
+    classicBaseline.current = { key: sessionId, progress };
+  }, [classic, exitSession, gameKey, hydrated, processResult, progress, sessionId]);
 
   const retry = () => {
     completionGuard.current = false;
     setResult(null);
     setGiftNotice("");
+    setExitOpen(false);
     setSessionRevision((value) => value + 1);
   };
 
   const exitGame = useCallback(() => {
-    // A challenge can be opened from a notification or a direct link. In that
-    // case Expo Router has no in-app history, so `back()` silently does
-    // nothing. Always provide a deterministic destination for the header.
-    if (router.canGoBack()) {
-      router.back();
+    if (mode === "challenge" && exitSession.requestExit()) {
+      setExitOpen(true);
       return;
     }
+    exitSession.discard();
     router.replace(mode === "challenge" ? "/challenges" as never : "/games" as never);
-  }, [mode, router]);
+  }, [exitSession, mode, router]);
+
+  const confirmExit = () => {
+    // Discard before navigation: late feedback timers must not submit a result.
+    exitSession.discard();
+    setExitOpen(false);
+    setGiftOpen(false);
+    router.replace("/challenges" as never);
+  };
+  const stayInGame = () => {
+    setExitOpen(false);
+    exitSession.stay();
+  };
+  const markGameStarted = useCallback(() => exitSession.start(), [exitSession]);
+  const sessionControls = useMemo(() => ({ onStart: markGameStarted, onExit: exitGame, paused: gamePaused }), [exitGame, gamePaused, markGameStarted]);
 
   const continueChallenge = async () => {
     setResult(null);
@@ -352,11 +394,11 @@ export default function DynamicGameRoute() {
 
   let renderedGame = null;
   if (ArcadeAComponent) {
-    renderedGame = <ArcadeAComponent key={sessionId} initialBestScore={progress?.bestScore ?? 0} extraTimeSeconds={extraTimeSeconds} challengeMode={mode === "challenge"} attemptLimit={currentChallengeGame?.attemptLimit} sessionKey={sessionId} paused={giftOpen} skin={selectedSkin} onExit={exitGame} onComplete={onArcadeComplete} />;
+    renderedGame = <ArcadeAComponent key={sessionId} initialBestScore={progress?.bestScore ?? 0} extraTimeSeconds={extraTimeSeconds} challengeMode={mode === "challenge"} attemptLimit={currentChallengeGame?.attemptLimit} sessionKey={sessionId} paused={gamePaused} skin={selectedSkin} onExit={exitGame} onComplete={onArcadeComplete} />;
   } else if (arcadeBId) {
     renderedGame = (
       <View key={sessionId} style={styles.embeddedGame}>
-        <ArcadeBRenderer gameId={arcadeBId} gameProps={{ initialBest: progress?.bestScore ?? 0, initialCoins: progress?.coins ?? 0, extraTimeSeconds, paused: giftOpen, skin: selectedSkin, onExit: exitGame, onFinish: onArcadeBComplete }} />
+        <ArcadeBRenderer gameId={arcadeBId} gameProps={{ initialBest: progress?.bestScore ?? 0, initialCoins: progress?.coins ?? 0, extraTimeSeconds, paused: gamePaused, skin: selectedSkin, onExit: exitGame, onFinish: onArcadeBComplete }} />
       </View>
     );
   } else if (classic) {
@@ -369,8 +411,8 @@ export default function DynamicGameRoute() {
     !authenticated || challenges.startedGameKey === gameKey
   );
 
-  if (!challengeStartSettled) {
-    return <LinearGradient colors={["#14192E", "#070A14"]} style={styles.fallback}><ActivityIndicator size="large" color={accent} /><Text style={styles.fallbackTitle}>Запускаем челлендж</Text><Text style={styles.fallbackText}>Подготавливаем игровую сессию</Text></LinearGradient>;
+  if (!challenges.hydrated || !hydrated || !challengeStartSettled) {
+    return <LinearGradient colors={["#14192E", "#070A14"]} style={styles.fallback}><ActivityIndicator size="large" color={accent} /><Text style={styles.fallbackTitle}>Запускаем челлендж</Text><Text style={styles.fallbackText}>Подготавливаем игровую сессию</Text><Pressable accessibilityRole="button" onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Назад</Text></Pressable></LinearGradient>;
   }
 
   if (!renderedGame) {
@@ -378,11 +420,12 @@ export default function DynamicGameRoute() {
   }
 
   return (
+    <GameSessionContext.Provider value={sessionControls}>
     <View style={styles.host}>
-      {renderedGame}
+      <View style={styles.embeddedGame} pointerEvents={gamePaused ? "none" : "auto"}>{renderedGame}</View>
       <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        <View style={[styles.hostActions, { top: Math.max(insets.top + 8, 14) }]}>
-          {mode === "challenge" ? <View style={styles.modePill}><View style={styles.liveDot} /><Text style={styles.modeText}>ЧЕЛЛЕНДЖ</Text></View> : null}
+        <View pointerEvents="box-none" style={[styles.hostActions, { top: Math.max(insets.top + 8, 14) }]}>
+          {mode === "challenge" ? <View pointerEvents="none" style={styles.modePill}><View style={styles.liveDot} /><Text style={styles.modeText}>ЧЕЛЛЕНДЖ</Text></View> : null}
           {giftsAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Открыть подарки" onPress={() => setGiftOpen(true)} style={({ pressed }) => [styles.giftButton, pressed && styles.pressed]}><Ionicons name="gift" color="#FFFFFF" size={20} /></Pressable> : null}
         </View>
         {giftNotice ? <Animated.View entering={FadeInDown.springify()} style={[styles.notice, { top: Math.max(insets.top + 60, 68) }]}><Text style={styles.noticeText}>{giftNotice}</Text></Animated.View> : null}
@@ -404,7 +447,9 @@ export default function DynamicGameRoute() {
         onExit={() => router.replace(mode === "challenge" ? "/challenges" as never : "/games" as never)}
       />
       <GiftInventoryModal visible={giftOpen && mode === "challenge"} sessionReady={giftsAvailable && !activeResult} completed={Boolean(activeResult && !activeResult.saving)} supportsTimeExtension={supportsTimeExtension} gameKey={gameKey} onClose={() => setGiftOpen(false)} onUse={applyGift} />
+      <GameExitModal visible={exitOpen} title={gameTitle} onStay={stayInGame} onExit={confirmExit} />
     </View>
+    </GameSessionContext.Provider>
   );
 }
 

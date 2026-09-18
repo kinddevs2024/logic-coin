@@ -54,6 +54,85 @@ import {
 import { rewardCoins } from "../src/games/arcade/b/utils";
 import { shuffledIndexes } from "../src/games/random";
 import { strikeRules } from "../src/games/arcade/a/strike-rules";
+import { createGameExitSession } from "../src/games/exit-session";
+
+describe("challenge exit confirmation", () => {
+  it("does not warn or save before the player starts", () => {
+    const session = createGameExitSession("intro");
+    let saves = 0;
+    expect(session.requestExit()).toBe(false);
+    session.complete(() => { saves += 1; });
+    expect(saves).toBe(0);
+  });
+
+  it("warns after start and keeps the session when staying", () => {
+    const session = createGameExitSession("started");
+    session.start();
+    expect(session.requestExit()).toBe(true);
+    session.stay();
+    expect(session.needsConfirmation()).toBe(true);
+    expect(session.isDiscarded()).toBe(false);
+    expect(session.requestExit()).toBe(true);
+  });
+
+  it("does not save a delayed result after confirmed exit", () => {
+    const session = createGameExitSession("discarded");
+    let saves = 0;
+    session.start();
+    session.requestExit();
+    session.discard();
+    session.complete(() => { saves += 1; });
+    expect(saves).toBe(0);
+    expect(session.requestExit()).toBe(false);
+  });
+
+  it("defers a finishing feedback timer until the player stays", () => {
+    const session = createGameExitSession("feedback");
+    let saves = 0;
+    session.start();
+    session.requestExit();
+    session.complete(() => { saves += 1; });
+    expect(saves).toBe(0);
+    session.stay();
+    session.complete(() => { saves += 1; });
+    expect(saves).toBe(1);
+    expect(session.requestExit()).toBe(false);
+  });
+
+  it("drops deferred results on exit and preserves other completed games", () => {
+    const scores = { fact: 420, udar: 120 };
+    const session = createGameExitSession("current-udar");
+    session.start();
+    session.requestExit();
+    session.complete(() => { scores.udar = 900; });
+    session.discard();
+    session.stay();
+    expect(scores).toEqual({ fact: 420, udar: 120 });
+  });
+
+  it("starts a fresh session without accepting old game's late callbacks", () => {
+    const old = createGameExitSession("old");
+    old.start();
+    old.discard();
+    const fresh = createGameExitSession("fresh");
+    let saves = 0;
+    expect(fresh.requestExit()).toBe(false);
+    fresh.start();
+    old.complete(() => { saves += 100; });
+    fresh.complete(() => { saves += 1; });
+    expect(saves).toBe(1);
+    expect(fresh.requestExit()).toBe(false);
+  });
+
+  it("supports the initial Strict Mode effect replay", () => {
+    const session = createGameExitSession("strict");
+    session.activate();
+    session.discard();
+    session.activate();
+    session.start();
+    expect(session.requestExit()).toBe(true);
+  });
+});
 
 describe("Strike challenge rules", () => {
   it("always finishes challenge rounds after seven hits", () => {

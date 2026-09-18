@@ -54,6 +54,7 @@ function buildGuestToday(
 
 export function useChallenges() {
   const { language } = useTranslation();
+  const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
   const coinBalance = useAppStore((state) => state.coinBalance);
@@ -70,8 +71,11 @@ export function useChallenges() {
   const lastSyncedToday = useRef<{ completed: number; total: number; balance?: number } | null>(null);
 
   useEffect(() => {
+    // Direct /play links mount before web storage hydration. Writing defaults
+    // here would overwrite the saved account and other challenge progress.
+    if (!hydrated) return;
     resetGuestChallengeDay(localDayKey());
-  }, [resetGuestChallengeDay]);
+  }, [hydrated, resetGuestChallengeDay]);
 
   const query = useQuery({
     queryKey: ["challenges", "today", accessToken],
@@ -88,7 +92,7 @@ export function useChallenges() {
   const today = authenticated ? query.data : guestToday;
 
   useEffect(() => {
-    if (!today) return;
+    if (!hydrated || !today) return;
     const next = {
       completed: today.completedCount,
       total: today.totalCount,
@@ -105,7 +109,7 @@ export function useChallenges() {
       setCoinBalance(next.balance ?? 0);
     }
     lastSyncedToday.current = next;
-  }, [authenticated, setCoinBalance, setTodayChallengeProgress, today]);
+  }, [authenticated, hydrated, setCoinBalance, setTodayChallengeProgress, today]);
 
   const startMutation = useMutation({
     mutationFn: async (gameKey: string) => {
@@ -167,6 +171,7 @@ export function useChallenges() {
   });
 
   return {
+    hydrated,
     today,
     isLoading: authenticated && query.isLoading,
     isRefreshing: query.isFetching,
