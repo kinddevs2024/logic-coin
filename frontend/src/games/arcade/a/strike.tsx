@@ -6,10 +6,10 @@ import Animated, { ZoomIn, useAnimatedStyle, useSharedValue, withSequence, withT
 import { GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps } from "./types";
 import { suggestedCoins } from "./utils";
+import { strikeRules } from "./strike-rules";
 import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "strike" as const;
-const TOTAL = 38;
 type Hit = "perfect" | "good" | "ok" | "miss";
 const COLORS: Record<Hit, string> = { perfect: "#20E67A", good: "#FFD43B", ok: "#FF8A31", miss: "#FF2D2D" };
 const LABELS: Record<Hit, string> = { perfect: "PERFECT", good: "GOOD", ok: "OK", miss: "MISS" };
@@ -32,7 +32,8 @@ function classify(position: number): Hit {
   return "miss";
 }
 
-export function StrikeGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
+export function StrikeGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const { attemptLimit, winningHits, perfectGradeHits, excellentGradeHits } = strikeRules(challengeMode);
   const theme = resolveArcadeSkin(skin, "#FF2D2D", "#F0C040");
   const resultAccent = skin && skin.id !== "classic" ? theme.primary : "#F0C040";
   const tapAccent = skin && skin.id !== "classic" ? theme.secondary : "#F5F5F0";
@@ -80,11 +81,11 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, onExit,
     if (finishing.current) return;
     finishing.current = true; canTap.current = false;
     const perfect = finalHits.filter((hit) => hit === "perfect").length;
-    const won = finalHits.filter((hit) => hit !== "miss").length >= 28;
+    const won = finalHits.filter((hit) => hit !== "miss").length >= winningHits;
     setBest((value) => Math.max(value, finalScore));
     setPhase("result");
     onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: Date.now() - gameStartedAt.current, suggestedCoins: suggestedCoins(finalScore, won), stats: { perfect, maxCombo: finalMaxCombo, attempts: finalHits.length } });
-  }, [onComplete]);
+  }, [onComplete, winningHits]);
 
   const tap = () => {
     if (!canTap.current || feedback) return;
@@ -101,7 +102,7 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, onExit,
     impact(hit === "perfect" ? "success" : hit === "miss" ? "error" : "medium");
     setTimeout(() => {
       setFeedback(null);
-      if (nextHits.length >= TOTAL) finish(nextHits, nextScore, nextMax);
+      if (nextHits.length >= attemptLimit) finish(nextHits, nextScore, nextMax);
       else canTap.current = true;
     }, 520);
   };
@@ -110,7 +111,7 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, onExit,
 
   const perfect = hits.filter((hit) => hit === "perfect").length;
   if (phase === "result") {
-    const grade = perfect >= 30 ? "ИДЕАЛЬНО" : perfect >= 22 ? "ОТЛИЧНО" : hits.filter((hit) => hit !== "miss").length >= 28 ? "ХОРОШО" : "ПРОМАХ";
+    const grade = perfect >= perfectGradeHits ? "ИДЕАЛЬНО" : perfect >= excellentGradeHits ? "ОТЛИЧНО" : hits.filter((hit) => hit !== "miss").length >= winningHits ? "ХОРОШО" : "ПРОМАХ";
     return <GameRoot colors={["#160D0D", "#080808", "#0B0B0B"]} skin={skin}><GameHeader title="УДАР" accent={resultAccent} onExit={onExit} /><ResultScreen title={grade} score={score} accent={resultAccent} onRestart={start} onExit={onExit} stats={[{ label: "Perfect", value: perfect }, { label: "Комбо", value: maxCombo }, { label: "Рекорд", value: Math.max(best, score) }]} /></GameRoot>;
   }
 
@@ -118,8 +119,8 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, onExit,
   return (
     <GameRoot colors={["#160D0D", "#080808", "#0B0B0B"]} skin={skin}>
       <GameHeader title="УДАР" accent={theme.primary} onExit={onExit} right={<Text style={[styles.speed, { color: theme.secondary }]}>×{currentSpeed.toFixed(1)}</Text>} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.secondary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label="Попытка" value={`${hits.length + 1}/${TOTAL}`} /></View>
-      <View style={styles.attempts}>{Array.from({ length: TOTAL }, (_, index) => <View key={index} style={[styles.attempt, hits[index] && { backgroundColor: COLORS[hits[index]!] }]} />)}</View>
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.secondary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label="Попытка" value={`${Math.min(attemptLimit, hits.length + (feedback ? 0 : 1))}/${attemptLimit}`} /></View>
+      <View style={styles.attempts}>{Array.from({ length: attemptLimit }, (_, index) => <View key={index} style={[styles.attempt, hits[index] && { backgroundColor: COLORS[hits[index]!] }]} />)}</View>
       <View style={styles.stage}>
         <Text style={[styles.status, feedback && { color: COLORS[feedback.hit] }]}>{feedback ? LABELS[feedback.hit] : "НАЖМИ В НУЖНЫЙ МОМЕНТ"}</Text>
         <View style={styles.track}>

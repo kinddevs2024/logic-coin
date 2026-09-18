@@ -53,6 +53,38 @@ import {
 } from "../src/games/arcade/a/utils";
 import { rewardCoins } from "../src/games/arcade/b/utils";
 import { shuffledIndexes } from "../src/games/random";
+import { strikeRules } from "../src/games/arcade/a/strike-rules";
+
+describe("Strike challenge rules", () => {
+  it("always finishes challenge rounds after seven hits", () => {
+    const rules = strikeRules(true);
+    expect(rules.attemptLimit).toBe(7);
+    for (let completedHits = 0; completedHits < 7; completedHits += 1) {
+      expect(completedHits >= rules.attemptLimit).toBe(false);
+    }
+    expect(7 >= rules.attemptLimit).toBe(true);
+  });
+
+  it("keeps all practice defaults and result thresholds unchanged", () => {
+    const practice = { attemptLimit: 38, winningHits: 28, perfectGradeHits: 30, excellentGradeHits: 22 };
+    expect(strikeRules()).toEqual(practice);
+    expect(strikeRules(false)).toEqual(practice);
+  });
+
+  it("uses reachable, proportional win and grade thresholds for seven hits", () => {
+    expect(strikeRules(true)).toEqual({
+      attemptLimit: 7,
+      winningHits: 6,
+      perfectGradeHits: 6,
+      excellentGradeHits: 5,
+    });
+  });
+
+  it("does not carry a previous mode's rules into a replay or the next challenge", () => {
+    expect([true, true, false, true, false, true].map((challengeMode) => strikeRules(challengeMode).attemptLimit))
+      .toEqual([7, 7, 38, 7, 38, 7]);
+  });
+});
 
 describe("longcat engine", () => {
   it("fills every crossed cell and stops at walls or its body", () => {
