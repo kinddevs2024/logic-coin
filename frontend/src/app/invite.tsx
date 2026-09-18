@@ -57,7 +57,6 @@ export default function InviteScreen() {
     <AppFrame>
       <ScreenHeader
         title={t("invite.title")}
-        subtitle={t("invite.subtitle")}
         onBack={() => router.back()}
       />
 
