@@ -13,7 +13,7 @@ results = []
 
 
 def adb(*args, timeout=60, check=True):
-    result = subprocess.run(["adb", *args], capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run(["adb", *args], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
     if check and result.returncode:
         raise RuntimeError(f"adb {args[0]} failed: {result.stderr or result.stdout}")
     return result.stdout
@@ -72,7 +72,7 @@ try:
     previous = Path("artifacts/previous/logic-coin.apk")
     previous_ready = False
     if previous.exists():
-        adb("install", str(previous), timeout=180)
+        adb("install", "-r", str(previous), timeout=180)
         try:
             launch()
             onboarding("previous")
@@ -81,7 +81,7 @@ try:
         except RuntimeError as error:
             results.append(f"Previous release startup failed (baseline only): {error}")
             (EVIDENCE / "previous-crash.txt").write_text(adb("logcat", "-d", "-b", "crash"), encoding="utf-8")
-    adb("logcat", "-c")
+    adb("logcat", "-b", "all", "-c")
     adb("install", "-r", "artifacts/release/logic-coin.apk", timeout=180)
     if previous.exists():
         launch()
