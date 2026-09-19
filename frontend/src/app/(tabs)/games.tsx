@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -95,7 +94,7 @@ export default function GamesScreen() {
     : GAME_CATALOG;
 
   return (
-    <AppFrame wide desktopNavigationInset contentStyle={styles.page}>
+    <AppFrame wide desktopNavigationInset contentStyle={styles.page} scrollProps={{ removeClippedSubviews: false }}>
       <ScreenHeader
         title={c.title}
         action={
@@ -106,7 +105,7 @@ export default function GamesScreen() {
         }
       />
       <View style={[styles.grid, wide && styles.gridWide]}>
-        {games.map((entry, index) => {
+        {games.map((entry) => {
           const game = localizeGame(entry, language);
           const progressKey = PROGRESS_KEY_BY_SERVER_KEY[game.key] ?? (game.key as GameId);
           const saved = ready ? progress[progressKey] ?? EMPTY_GAME_PROGRESS : EMPTY_GAME_PROGRESS;
@@ -114,7 +113,7 @@ export default function GamesScreen() {
           const accent = readableAccent(game.color, theme.mode);
           const playForeground = accentForeground(game.color, theme.mode);
           return (
-            <Animated.View key={game.key} entering={FadeInDown.delay(Math.min(index, 12) * 35).duration(380)} style={[styles.cell, wide && styles.cellWide]}>
+            <View key={game.key} collapsable={false} style={[styles.cell, wide && styles.cellWide]}>
               <GlassSurface intensity={68} variant="strong" style={styles.card}>
                 <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never)} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
                   <View style={[styles.icon, { backgroundColor: `${accent}18`, borderColor: `${accent}38` }]}>
@@ -138,7 +137,7 @@ export default function GamesScreen() {
                   </Pressable>
                 </View>
               </GlassSurface>
-            </Animated.View>
+            </View>
           );
         })}
       </View>

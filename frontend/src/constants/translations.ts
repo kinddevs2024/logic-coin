@@ -68,7 +68,7 @@ const ru = {
   "home.allChallenges": "Все челленджи",
   "home.drawer.activeDays": "активных дней",
   "home.drawer.streak": "дней подряд",
-  "home.drawer.invite": "Добавить друзей",
+  "home.drawer.invite": "Пригласить друга",
   "home.drawer.profile": "Открыть профиль",
   "task.short.title": "Быстрая награда",
   "task.short.description": "Одно короткое задание",

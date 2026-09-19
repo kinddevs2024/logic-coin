@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { useEffect } from "react";
+import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -24,9 +25,20 @@ export default function PublicProfileScreen() {
     enabled: Boolean(code),
   });
   const profile = query.data?.profile;
+  const openApp = () => {
+    if (Platform.OS !== "web" || !code || !/Android/i.test(navigator.userAgent)) return;
+    const fallback = `https://www.logic-coin.online/profile/${encodeURIComponent(code)}?web=1`;
+    window.location.assign(`intent://profile/${encodeURIComponent(code)}#Intent;scheme=logiccoin;package=com.kinddevs.logiccoin;S.browser_fallback_url=${encodeURIComponent(fallback)};end`);
+  };
+  useEffect(() => {
+    if (Platform.OS !== "web" || !code || !/Android/i.test(navigator.userAgent) || new URLSearchParams(window.location.search).has("web")) return;
+    const fallback = `https://www.logic-coin.online/profile/${encodeURIComponent(code)}?web=1`;
+    window.location.replace(`intent://profile/${encodeURIComponent(code)}#Intent;scheme=logiccoin;package=com.kinddevs.logiccoin;S.browser_fallback_url=${encodeURIComponent(fallback)};end`);
+  }, [code]);
 
   return (
     <AppFrame wide>
+      {Platform.OS === "web" && typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent) ? <AppButton onPress={openApp}>Открыть в приложении</AppButton> : null}
       {query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
       {query.error ? <AppText color={String(theme.danger)}>Профиль не найден</AppText> : null}
       {profile ? <>

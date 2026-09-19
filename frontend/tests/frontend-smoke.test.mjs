@@ -4,6 +4,21 @@ import { test } from "node:test";
 
 const root = new URL("../", import.meta.url);
 
+test("profile sharing uses the production profile route, not referral attribution", async () => {
+  const links = await readFile(new URL("src/lib/profile-link.ts", root), "utf8");
+  const profile = await readFile(new URL("src/app/profile/[code].tsx", root), "utf8");
+  const drawer = await readFile(new URL("src/components/profile-drawer.tsx", root), "utf8");
+  const games = await readFile(new URL("src/app/(tabs)/games.tsx", root), "utf8");
+  assert.match(links, /https:\/\/www.logic-coin.online/);
+  assert.match(links, /\/profile\//);
+  assert.doesNotMatch(links, /vercel\.app|\/invite\//);
+  assert.match(profile, /intent:\/\/profile\//);
+  assert.match(profile, /browser_fallback_url/);
+  assert.doesNotMatch(drawer, /user\.email|Logic member/);
+  assert.doesNotMatch(games, /FadeInDown/);
+  assert.match(games, /removeClippedSubviews: false/);
+});
+
 test("browser chrome stays brand blue in the SPA and manifest", async () => {
   const html = await readFile(new URL("public/index.html", root), "utf8");
   const manifest = await json("public/manifest.json");

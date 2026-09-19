@@ -1,15 +1,9 @@
-import { Platform, Share } from "react-native";
+import { Share } from "react-native";
 
-const PRODUCTION_ORIGIN = "https://logic-coin.vercel.app";
+const PRODUCTION_ORIGIN = "https://www.logic-coin.online";
 
 export function publicProfileUrl(referralCode: string) {
-  // This is an attribution link, not merely a public-profile link.  On
-  // Android its landing page attempts the installed app before Google Play.
-  const path = `/invite/${encodeURIComponent(referralCode.trim().toUpperCase())}`;
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    return `${window.location.origin}${path}`;
-  }
-  return `${process.env.EXPO_PUBLIC_WEB_ORIGIN ?? PRODUCTION_ORIGIN}${path}`;
+  return `${PRODUCTION_ORIGIN}/profile/${encodeURIComponent(referralCode.trim().toUpperCase())}`;
 }
 
 export function sharePublicProfile(name: string, referralCode?: string | null) {

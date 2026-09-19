@@ -165,15 +165,10 @@ export function ProfileDrawer({
                 />
                 <View style={styles.profileTop}>
                   <Avatar name={user.name} avatarUrl={user.avatarUrl} size={72} />
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="heading" color="#FFFFFF">
                       {user.name}
                     </AppText>
-                    {user.email ? (
-                      <AppText variant="caption" color="rgba(255,255,255,0.72)">
-                        {user.email}
-                      </AppText>
-                    ) : null}
                     <View style={styles.drawerCountry}>
                       <CountryFlagBadge countryCode={user.countryCode} size={16} />
                       <AppText variant="caption" color="rgba(255,255,255,0.78)">{countryName(user.countryCode, language)}</AppText>
@@ -205,12 +200,6 @@ export function ProfileDrawer({
                     </AppText>
                     <AppText variant="title" color="#FFFFFF">
                       {formatMoney(balance)}
-                    </AppText>
-                  </View>
-                  <View style={styles.lcChip}>
-                    <Ionicons name="diamond" size={15} color="#FFFFFF" />
-                    <AppText variant="caption" color="#FFFFFF">
-                      Logic member
                     </AppText>
                   </View>
                 </View>
@@ -272,6 +261,9 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 8, height: 0 },
     elevation: 18,
+    borderTopRightRadius: 36,
+    borderBottomRightRadius: 36,
+    overflow: "hidden",
   },
   drawerGlass: {
     flex: 1,
@@ -288,14 +280,15 @@ const styles = StyleSheet.create({
   profileCard: {
     position: "relative",
     borderRadius: radii.xl,
+    overflow: "hidden",
     padding: 20,
+    paddingTop: 66,
     gap: 22,
   },
   profileTop: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    paddingRight: 88,
   },
   drawerCountry: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
   profileActions: {
