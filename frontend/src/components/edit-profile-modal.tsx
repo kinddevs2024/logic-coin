@@ -126,18 +126,20 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
               <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} style={[styles.close, { backgroundColor: theme.primarySoft }]}><Ionicons name="close" size={19} color={String(theme.text)} /></Pressable>
             </View>
             <View style={styles.preview}>
-              <Avatar name={name || user.name} avatarUrl={avatarUrl} size={92} />
-              <Pressable accessibilityRole="button" disabled={picking} onPress={() => void pickAvatar()} style={[styles.photoButton, { backgroundColor: theme.primarySoft }]}>
-                {picking ? <ActivityIndicator size="small" color={String(theme.primary)} /> : <Ionicons name="camera-outline" size={17} color={String(theme.primary)} />}
-                <AppText variant="caption" color={String(theme.primary)}>Выбрать и обрезать</AppText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Изменить фото профиля"
+                accessibilityHint="Выберите фотографию и обрежьте её перед сохранением"
+                accessibilityState={{ busy: picking, disabled: picking || saveMutation.isPending }}
+                disabled={picking || saveMutation.isPending}
+                onPress={() => void pickAvatar()}
+                style={({ pressed }) => [styles.avatarButton, pressed && { opacity: 0.8 }]}
+              >
+                <Avatar name={name || user.name} avatarUrl={avatarUrl} size={92} />
+                <View pointerEvents="none" style={styles.avatarOverlay}>
+                  {picking ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="camera-outline" size={27} color="rgba(255,255,255,0.85)" />}
+                </View>
               </Pressable>
-              <AppText variant="caption" muted style={styles.cropHint}>Квадратная обрезка · компактное фото для быстрой загрузки</AppText>
-              {avatarUrl ? (
-                <Pressable accessibilityRole="button" onPress={() => setAvatarDraft(null)} style={styles.removePhoto}>
-                  <Ionicons name="trash-outline" size={14} color={theme.mode === "dark" ? String(theme.danger) : "#C33B4A"} />
-                  <AppText style={[styles.removePhotoText, theme.mode === "dark" && { color: theme.danger }]}>Удалить</AppText>
-                </Pressable>
-              ) : null}
             </View>
             <View style={styles.field}>
               <AppText variant="caption" muted>{t("profile.name")}</AppText>
@@ -212,10 +214,8 @@ const styles = StyleSheet.create({
   title: { flex: 1, fontSize: 22, lineHeight: 28, fontWeight: "900" },
   close: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   preview: { alignItems: "center", paddingVertical: 4, gap: 8 },
-  photoButton: { minHeight: 40, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  cropHint: { textAlign: "center" },
-  removePhoto: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4 },
-  removePhotoText: { color: "#C33B4A", fontSize: 12, lineHeight: 16, fontWeight: "700" },
+  avatarButton: { width: 92, height: 92, borderRadius: 46, overflow: "hidden" },
+  avatarOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(4,16,38,0.18)", alignItems: "center", justifyContent: "center", borderRadius: 46 },
   field: { gap: 6 },
   countrySearch: { minHeight: 44, borderRadius: 15, borderWidth: 1, paddingHorizontal: 13, fontSize: 14, fontWeight: "600" },
   countryScroll: { maxHeight: 260 },
