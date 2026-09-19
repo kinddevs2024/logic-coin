@@ -49,7 +49,14 @@ export default function RootLayout() {
       document.documentElement.dataset.theme = theme.mode;
       document.documentElement.style.colorScheme = theme.mode === "dark" ? "dark" : "light";
       document.body.style.backgroundColor = String(theme.background);
-      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", String(theme.background));
+      // Browser chrome keeps the brand blue, independently of the page theme.
+      let browserTheme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+      if (!browserTheme) {
+        browserTheme = document.createElement("meta");
+        browserTheme.name = "theme-color";
+        document.head.appendChild(browserTheme);
+      }
+      browserTheme.content = "#0866FF";
     } else {
       void SystemUI.setBackgroundColorAsync(theme.background).catch(() => {});
     }

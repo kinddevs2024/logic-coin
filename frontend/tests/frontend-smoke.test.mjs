@@ -4,6 +4,16 @@ import { test } from "node:test";
 
 const root = new URL("../", import.meta.url);
 
+test("browser chrome stays brand blue in the SPA and manifest", async () => {
+  const html = await readFile(new URL("public/index.html", root), "utf8");
+  const manifest = await json("public/manifest.json");
+  const layout = await readFile(new URL("src/app/_layout.tsx", root), "utf8");
+  assert.match(html, /<meta name="theme-color" content="#0866FF"/);
+  assert.match(html, /<link rel="manifest" href="\/manifest.json"/);
+  assert.equal(manifest.theme_color, "#0866FF");
+  assert.match(layout, /browserTheme.content = "#0866FF"/);
+});
+
 async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
