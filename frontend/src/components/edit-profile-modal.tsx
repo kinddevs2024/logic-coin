@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeInUp, FadeOut } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
@@ -60,7 +61,8 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
-        allowsEditing: false,
+        allowsEditing: Platform.OS !== "web",
+        aspect: [1, 1],
         quality: 1,
         exif: false,
       });
@@ -71,7 +73,19 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         setMessage("Выберите JPG, PNG или WebP");
         return;
       }
-      setCropAsset({ uri: asset.uri, width: asset.width, height: asset.height, mimeType });
+      if (Platform.OS === "web") {
+        setCropAsset({ uri: asset.uri, width: asset.width, height: asset.height, mimeType });
+      } else {
+        // The native picker has already cropped the photo. Resize only, without
+        // recentering or applying a second crop over the user's chosen region.
+        const cropped = await ImageManipulator.manipulateAsync(asset.uri, [{ resize: { width: 640 } }], {
+          compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true,
+        });
+        if (!cropped.base64) throw new Error("Missing cropped image");
+        const dataUrl = `data:image/jpeg;base64,${cropped.base64}`;
+        if (dataUrl.length > maxAvatarDataUrlChars) throw new Error("Avatar too large");
+        setAvatarDraft(dataUrl);
+      }
     } catch {
       setMessage("Не удалось загрузить фотографию");
     } finally {
