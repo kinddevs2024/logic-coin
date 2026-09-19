@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RankingPreview } from "@/components/ranking-preview";
-import type { LeaderboardMetric } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -48,7 +47,6 @@ export default function HomeScreen() {
   const { isDesktop } = useResponsiveLayout();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [rankingMetric, setRankingMetric] = useState<LeaderboardMetric>("wallet");
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
   const refreshHome = async () => {
@@ -69,9 +67,7 @@ export default function HomeScreen() {
         <View style={styles.headerSide}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("tabs.profile")} onPress={() => setDrawerOpen(true)}><Avatar name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
-        <View style={{ flexDirection: "row", gap: 6, flexShrink: 1 }}>
-          {(["wallet", "coins"] as const).map(metric => <RankingPreview key={metric} metric={metric} onPress={() => { setRankingMetric(metric); setLeaderboardOpen(true); }} />)}
-        </View>
+        <RankingPreview metric="wealth" onPress={() => setLeaderboardOpen(true)} />
         <View style={[styles.headerSide, styles.headerSideEnd]}>
           <IconButton
             name="settings-outline"
@@ -183,7 +179,7 @@ export default function HomeScreen() {
         onSettings={() => router.push("/settings")}
         onInvite={() => router.push("/invite")}
       />
-      {leaderboardOpen ? <LeaderboardModal visible initialMetric={rankingMetric} onClose={() => setLeaderboardOpen(false)} /> : null}
+      {leaderboardOpen ? <LeaderboardModal visible onClose={() => setLeaderboardOpen(false)} /> : null}
     </AppFrame>
   );
 }
