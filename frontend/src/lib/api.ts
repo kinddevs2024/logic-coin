@@ -840,6 +840,12 @@ export const adminApi = {
       { method: "POST", token },
     );
   },
+  resetDevice(deviceId: string, token: string) {
+    return request<{ device: { deviceId: string; accountLimit: number } }>(
+      `/admin/blocked-devices/${encodeURIComponent(deviceId)}/reset`,
+      { method: "POST", token },
+    );
+  },
 };
 
 export const activityApi = {

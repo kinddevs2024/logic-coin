@@ -91,3 +91,16 @@ export async function unbanDevice(deviceId: string, adminId: Types.ObjectId) {
   if (!record) throw new ApiError(404, "banned_device_not_found", "Blocked device was not found");
   return { deviceId: record.deviceId, unbannedAt: record.unbannedAt?.toISOString() ?? null };
 }
+
+export async function resetDevice(deviceId: string, adminId: Types.ObjectId) {
+  const record = await DeviceSecurity.findOneAndUpdate(
+    { deviceId },
+    {
+      $set: { accountIds: [], registeredAccountIds: [], accountLimit: 3, unbannedAt: new Date(), unbannedBy: adminId },
+      $unset: { bannedAt: 1, banReason: 1 }
+    },
+    { new: true }
+  );
+  if (!record) throw new ApiError(404, "device_not_found", "Device was not found");
+  return { deviceId: record.deviceId, accountLimit: 3 };
+}

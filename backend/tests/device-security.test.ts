@@ -4,9 +4,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ exists: vi.fn(), updateOne: vi.fn(), findOneAndUpdate: vi.fn(), find: vi.fn() }));
 vi.mock("../src/models/DeviceSecurity.js", () => ({ DeviceSecurity: mocks }));
 vi.mock("../src/models/User.js", () => ({ User: { find: () => ({ select: () => ({ lean: async () => [] }) }) } }));
-import { assertDeviceAccess, assertDeviceNotBanned, listBannedDevices, registerDeviceAccount, unbanDevice } from "../src/services/device-security.service.js";
+import { assertDeviceAccess, assertDeviceNotBanned, listBannedDevices, registerDeviceAccount, resetDevice, unbanDevice } from "../src/services/device-security.service.js";
 
 describe("device account protection", () => {
+  it("fully resets only device bindings and restores the default capacity", async () => {
+    mocks.findOneAndUpdate.mockResolvedValue({ deviceId: "device" });
+    const adminId = new Types.ObjectId();
+    await expect(resetDevice("device", adminId)).resolves.toEqual({ deviceId: "device", accountLimit: 3 });
+    expect(mocks.findOneAndUpdate).toHaveBeenCalledWith({ deviceId: "device" }, {
+      $set: { accountIds: [], registeredAccountIds: [], accountLimit: 3, unbannedAt: expect.any(Date), unbannedBy: adminId },
+      $unset: { bannedAt: 1, banReason: 1 }
+    }, { new: true });
+  });
+
+  it("reports a missing device without creating a record", async () => {
+    mocks.findOneAndUpdate.mockResolvedValue(null);
+    await expect(resetDevice("missing", new Types.ObjectId())).rejects.toMatchObject({ code: "device_not_found" });
+  });
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.updateOne.mockResolvedValue({ modifiedCount: 1 });
