@@ -12,6 +12,9 @@ function emailTransporter(): Transporter {
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
     secure: env.SMTP_SECURE,
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS
@@ -34,7 +37,13 @@ export async function sendVerificationCode(email: string, code: string): Promise
       html: `<p>Your Logic Coin verification code:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>It expires in ${env.OTP_TTL_MINUTES} minutes.</p>`
     });
     return "sent";
-  } catch {
+  } catch (error) {
+    const smtp = error as { code?: string; responseCode?: number; response?: string };
+    // Do not log recipient addresses, credentials, verification codes or raw SMTP responses.
+    console.error("email_delivery_failed", { code: smtp.code, responseCode: smtp.responseCode });
+    if (/5\.4\.5|daily.*sending limit exceeded/i.test(smtp.response ?? "")) {
+      throw new ApiError(503, "email_provider_limit", "Отправка писем временно недоступна: исчерпан лимит почтового сервиса. Войдите через Google или Telegram либо попробуйте позже.");
+    }
     throw new ApiError(502, "email_delivery_failed", "Could not send the verification email");
   }
 }

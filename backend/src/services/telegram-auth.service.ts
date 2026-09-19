@@ -6,6 +6,7 @@ import { hashOpaqueToken, opaqueTokenMatches } from "../lib/crypto.js";
 import { TelegramLoginChallenge } from "../models/TelegramLoginChallenge.js";
 import { User } from "../models/User.js";
 import { createUser, processReferralSignupReward } from "./user.service.js";
+import { assertDeviceAccess } from "./device-security.service.js";
 
 export type TelegramIdentity = {
   id: string;
@@ -222,13 +223,14 @@ async function resolveBotUsername(): Promise<string> {
   return cachedBotUsername;
 }
 
-export async function createTelegramLogin(referralCode?: string) {
+export async function createTelegramLogin(referralCode?: string, deviceId?: string) {
   requireBotToken();
   await ensureTelegramWebhook();
   const flowId = randomBytes(16).toString("base64url");
   const pollToken = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + LOGIN_TTL_MS);
   await TelegramLoginChallenge.create({
+    ...(deviceId ? { deviceId } : {}),
     flowId,
     pollTokenHash: hashOpaqueToken(pollToken),
     ...(referralCode ? { referralCode: referralCode.trim().toUpperCase() } : {}),
@@ -411,7 +413,7 @@ async function consumeConfirmedChallenge(
     { new: false }
   );
   if (!challenge?.telegramUser) return null;
-  return authenticateTelegram({
+  const user = await authenticateTelegram({
     id: challenge.telegramUser.id,
     firstName: challenge.telegramUser.firstName,
     ...(challenge.telegramUser.lastName
@@ -424,6 +426,9 @@ async function consumeConfirmedChallenge(
       ? { photoUrl: challenge.telegramUser.photoUrl }
       : {})
   }, challenge.referralCode ?? undefined);
+  // Returning via Telegram's webview must not lose the originating APK's limit.
+  await assertDeviceAccess(user._id, challenge.deviceId ?? undefined);
+  return user;
 }
 
 export async function pollTelegramLogin(flowId: string, pollToken: string) {

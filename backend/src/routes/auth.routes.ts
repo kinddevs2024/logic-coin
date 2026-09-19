@@ -316,7 +316,7 @@ router.post("/telegram/start", authLimiter, async (request, response) => {
   const parsed = z.object({ deviceId: deviceIdSchema, referralCode: z.string().trim().regex(/^[A-Za-z0-9-]{4,32}$/).optional() }).strict().safeParse(request.body ?? {});
   if (!parsed.success) throw new ApiError(400, "validation_error", "Telegram login data is invalid");
   await assertDeviceNotBanned(parsed.data.deviceId);
-  response.status(201).json({ data: await createTelegramLogin(parsed.data.referralCode) });
+  response.status(201).json({ data: await createTelegramLogin(parsed.data.referralCode, parsed.data.deviceId) });
 });
 
 router.post("/telegram/status", authLimiter, async (request, response) => {

@@ -25,7 +25,7 @@ export default function BlockedDevicesScreen() {
 
   return (
     <View style={styles.page}>
-      <AdminPageHeader title="Заблокированные устройства" description="Автоматические блокировки после регистрации более трёх аккаунтов" />
+      <AdminPageHeader title="Заблокированные устройства" description="По умолчанию разрешены три аккаунта. Разблокировка разрешает ещё один; существующие аккаунты продолжают работать." />
       <AdminDataState loading={query.isPending} error={query.error} empty={!query.isPending && !query.error && devices.length === 0} emptyText="Заблокированных устройств нет" onRetry={() => void query.refetch()} />
       <View style={styles.list}>
         {devices.map((device) => (
@@ -37,17 +37,17 @@ export default function BlockedDevicesScreen() {
               <AppText variant="label" numberOfLines={1}>{device.deviceId}</AppText>
               <AppText variant="caption" muted>{device.registrationCount} регистраций · {device.accountCount} аккаунтов</AppText>
               <AppText variant="caption" muted>{device.users.map((user) => user.email).join(", ") || "Аккаунты не найдены"}</AppText>
-              <AppText variant="caption" color={String(theme.danger)}>{device.reason === "registration_limit" ? "Превышен лимит регистраций" : "Заблокировано администратором"}</AppText>
+              <AppText variant="caption" color={String(theme.danger)}>{device.reason === "registration_limit" ? "Достигнут лимит — новые аккаунты запрещены" : "Заблокировано администратором"}</AppText>
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Разблокировать устройство"
+              accessibilityLabel="Разблокировать и разрешить ещё один аккаунт"
               disabled={unban.isPending}
               onPress={() => unban.mutate(device.deviceId)}
               style={({ pressed }) => [styles.button, { backgroundColor: theme.primarySoft }, pressed && styles.pressed]}
             >
               <Ionicons name="lock-open-outline" size={17} color={String(theme.primary)} />
-              <AppText variant="caption" color={String(theme.primary)}>Разбанить</AppText>
+              <AppText variant="caption" color={String(theme.primary)}>Разрешить +1</AppText>
             </Pressable>
           </GlassSurface>
         ))}

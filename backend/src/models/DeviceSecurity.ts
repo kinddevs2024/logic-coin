@@ -4,6 +4,7 @@ const deviceSecuritySchema = new Schema(
   {
     deviceId: { type: String, required: true, unique: true, maxlength: 160 },
     accountIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    accountLimit: { type: Number, default: 3, min: 3 },
     registeredAccountIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
     bannedAt: { type: Date },
     banReason: { type: String, enum: ["registration_limit", "manual"] },
