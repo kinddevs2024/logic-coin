@@ -65,7 +65,7 @@ function EntryValue({ entry, metric }: { entry: LeaderboardEntry; metric: Leader
   );
 }
 
-export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }: { visible: boolean; onClose: () => void; initialMetric?: LeaderboardMetric }) {
   const theme = useAppTheme();
   const blurTarget = useModalBlurTarget();
   const router = useRouter();
@@ -75,7 +75,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
-  const [metric, setMetric] = useState<LeaderboardMetric>("wealth");
+  const [metric, setMetric] = useState<LeaderboardMetric>(initialMetric);
   const [filtersWidth, setFiltersWidth] = useState(0);
   const [contentDirection, setContentDirection] = useState(1);
   const [translateY] = useState(() => new Animated.Value(900));

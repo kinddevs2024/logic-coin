@@ -22,6 +22,7 @@ import { GlassBlurTargetContext } from "@/components/glass-blur-target";
 import { AndroidSoftGlow } from "@/components/android-soft-glow";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useTabSwipe } from "@/hooks/use-tab-swipe";
 
 function AmbientOrbs() {
   const theme = useAppTheme();
@@ -164,6 +165,9 @@ type AppFrameProps = PropsWithChildren<{
   wide?: boolean;
   noPadding?: boolean;
   desktopNavigationInset?: boolean;
+  onOpenProfile?: () => void;
+  onSwipeRefresh?: () => void;
+  swipesDisabled?: boolean;
 }>;
 
 export function AppFrame({
@@ -174,7 +178,11 @@ export function AppFrame({
   wide,
   noPadding,
   desktopNavigationInset,
+  onOpenProfile,
+  onSwipeRefresh,
+  swipesDisabled,
 }: AppFrameProps) {
+  const swipeHandlers = useTabSwipe({ disabled: swipesDisabled, onOpenProfile, onRefresh: onSwipeRefresh });
   const theme = useAppTheme();
   const { isDesktop, isTablet } = useResponsiveLayout();
   const blurTarget = useRef<View | null>(null);
@@ -220,6 +228,7 @@ export function AppFrame({
 
   return (
     <SafeAreaView
+      {...swipeHandlers}
       style={[styles.safe, { backgroundColor: theme.background }]}
       edges={["top", "left", "right"]}
     >

@@ -13,7 +13,7 @@
     "preview:web": "node scripts/preview-server.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "test": "node --test tests/frontend-smoke.test.mjs && vitest run tests/game-engines.test.ts tests/payment-card.test.ts tests/android-blur.test.ts tests/theme.test.ts tests/referral-attribution.test.ts tests/avatar-crop.test.ts",
+    "test": "node --test tests/frontend-smoke.test.mjs && vitest run tests/game-engines.test.ts tests/payment-card.test.ts tests/android-blur.test.ts tests/theme.test.ts tests/referral-attribution.test.ts tests/avatar-crop.test.ts tests/tab-swipe.test.ts",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build:web"
   },
   "dependencies": {

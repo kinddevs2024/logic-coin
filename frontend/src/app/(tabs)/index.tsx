@@ -1,5 +1,8 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { RankingPreview } from "@/components/ranking-preview";
+import type { LeaderboardMetric } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -45,31 +48,30 @@ export default function HomeScreen() {
   const { isDesktop } = useResponsiveLayout();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [rankingMetric, setRankingMetric] = useState<LeaderboardMetric>("wallet");
+  const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
+  const refreshHome = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await Promise.all(["bootstrap", "challenges", "leaderboard"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
+    } finally { setRefreshing(false); }
+  };
   const balance = useAppStore((state) => state.balanceUnits);
   const goal = useAppStore((state) => state.goalUnits);
   const user = useAppStore((state) => state.user);
   const { today, pendingGameKey } = useChallenges();
 
   return (
-    <AppFrame wide desktopNavigationInset contentStyle={styles.content}>
+    <AppFrame wide desktopNavigationInset contentStyle={styles.content} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={drawerOpen || leaderboardOpen}>
       <View style={styles.header}>
         <View style={styles.headerSide}>
-          <IconButton
-            name="person-outline"
-            label={t("tabs.profile")}
-            onPress={() => setDrawerOpen(true)}
-          />
+          <Pressable accessibilityRole="button" accessibilityLabel={t("tabs.profile")} onPress={() => setDrawerOpen(true)}><Avatar name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Рейтинг" onPress={() => setLeaderboardOpen(true)} style={({ pressed }) => [styles.rankingPress, pressed && { opacity: 0.76 }]}>
-          <GlassSurface intensity={66} variant="strong" style={styles.rankingPill}>
-            <View style={styles.rankingFaces}>
-              <Avatar name={user.name} avatarUrl={user.avatarUrl} size={28} />
-              <View style={[styles.rankingFace, { backgroundColor: theme.mode === "dark" ? theme.primarySoft : "#DDEBFF" }]}><Ionicons name="person" size={13} color={theme.mode === "dark" ? String(theme.primary) : "#3978D4"} /></View>
-              <View style={[styles.rankingFace, { backgroundColor: theme.mode === "dark" ? "#2D294A" : "#EFE6FF" }]}><Ionicons name="person" size={13} color={theme.mode === "dark" ? "#B9A5FF" : "#7A5AF8"} /></View>
-            </View>
-            <Ionicons name="trophy" size={19} color={String(theme.primary)} />
-          </GlassSurface>
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 6, flexShrink: 1 }}>
+          {(["wallet", "coins"] as const).map(metric => <RankingPreview key={metric} metric={metric} onPress={() => { setRankingMetric(metric); setLeaderboardOpen(true); }} />)}
+        </View>
         <View style={[styles.headerSide, styles.headerSideEnd]}>
           <IconButton
             name="settings-outline"
@@ -78,6 +80,8 @@ export default function HomeScreen() {
           />
         </View>
       </View>
+
+      {refreshing ? <AppText accessibilityLiveRegion="polite" muted>Обновляем…</AppText> : null}
 
       <View style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
         <View style={[styles.hero, isDesktop && styles.heroDesktop]}>
@@ -179,7 +183,7 @@ export default function HomeScreen() {
         onSettings={() => router.push("/settings")}
         onInvite={() => router.push("/invite")}
       />
-      <LeaderboardModal visible={leaderboardOpen} onClose={() => setLeaderboardOpen(false)} />
+      {leaderboardOpen ? <LeaderboardModal visible initialMetric={rankingMetric} onClose={() => setLeaderboardOpen(false)} /> : null}
     </AppFrame>
   );
 }
