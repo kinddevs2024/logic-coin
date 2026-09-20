@@ -187,6 +187,7 @@ export type TodayChallenges = {
   available: boolean;
   dayKey: string;
   nextChallengeAt: string | null;
+  endsAt?: string | null;
   totalCount: number;
   completedCount: number;
   gamesCompletedToday?: number;

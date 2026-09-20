@@ -134,6 +134,8 @@ describe("daily challenge auto-creation", () => {
       monthlyChallengeCount: 2
     });
     expect(result.games.length).toBe(6);
+    expect(result.endsAt).toBe((update.$setOnInsert.endsAt as Date).toISOString());
+    expect(result.games.every(game => game.state.status === "not_started")).toBe(true);
     expect(result.prizes).toMatchObject({
       cashMinUnits: 500,
       cashMaxUnits: 10_000,

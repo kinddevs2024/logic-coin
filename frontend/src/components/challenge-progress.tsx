@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
@@ -25,7 +25,36 @@ const HEIGHT = ROW * 4;
 
 export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
   if (today && !today.available) return <ChallengeEmptyState nextAt={today.nextChallengeAt} />;
+  if (today?.available && today.endsAt && !today.games.some(game => game.state.status === "started" || game.state.status === "completed")) return <ChallengeReady today={today} />;
   return <ActiveChallengeProgress key={`${today?.dayKey}:${today?.totalCoinsToday}:${today?.completedCount}`} today={today} />;
+}
+
+function ChallengeReady({ today }: { today: TodayChallenges }) {
+  const theme = useAppTheme();
+  const { language } = useTranslation();
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const end = Date.parse(today.endsAt ?? "");
+  const seconds = Number.isFinite(end) ? Math.max(0, Math.floor((end - now) / 1000)) : 0;
+  const countdown = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, "0")).join(":");
+  const labels = {
+    ru: { until: "До окончания челленджа", pool: "Призовой фонд" },
+    en: { until: "Until the challenge ends", pool: "Prize pool" },
+    uz: { until: "Sinov tugashigacha", pool: "Mukofot jamg‘armasi" },
+  }[language];
+  return <GlassSurface variant="strong" intensity={76} style={styles.ready}>
+    <Ionicons name="timer-outline" size={26} color={String(theme.primary)} />
+    <AppText style={styles.countdown} numberOfLines={1} adjustsFontSizeToFit>{countdown}</AppText>
+    <AppText variant="caption" muted>{labels.until}</AppText>
+    <View style={styles.pool}>
+      <Ionicons name="trophy-outline" size={19} color={String(theme.primary)} />
+      <AppText variant="caption" muted>{labels.pool}</AppText>
+      <AppText variant="label">{formatMoney(today.prizes?.poolUnits ?? 0)}</AppText>
+    </View>
+  </GlassSurface>;
 }
 
 function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
@@ -79,7 +108,6 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         <Ionicons name="diamond-outline" size={22} color={String(theme.primary)} />
         <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.45} style={styles.number}>{(progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language)}</AppText>
       </View>
-      <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>
       <View style={styles.money}>
         <Ionicons name="cash-outline" size={19} color={String(theme.primary)} />
         <AppText variant="heading" style={{ flexShrink: 1 }}>{progress ? formatMoney(progress.projectedCashUnits) : "—"}</AppText>
@@ -87,6 +115,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
           <Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} />
         </Pressable>
       </View>
+      <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>
     </View>
     <View style={[styles.ranking, { borderLeftColor: theme.glassBorder }]}>
       {!token ? <AppText variant="caption" muted>{c.login}</AppText> : query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : <>
@@ -129,6 +158,9 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   </GlassSurface>;
 }
 const styles = StyleSheet.create({
+  ready: { borderRadius: 30, padding: 24, minHeight: 216, alignItems: "center", justifyContent: "center", gap: 6 },
+  countdown: { fontSize: 42, lineHeight: 52, fontWeight: "900", fontVariant: ["tabular-nums"] },
+  pool: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 16 },
   card: { borderRadius: 30, padding: 16, flexDirection: "row", alignItems: "center", overflow: "hidden" },
   metrics: { width: "47%", paddingRight: 8, minWidth: 0 },
   score: { flexDirection: "row", alignItems: "center", gap: 5 },

@@ -53,6 +53,10 @@ final result: passed
 
 ## 2026-09-20: Scrollable challenge ranking follow-up
 
+### Pre-participation countdown and metric order
+
+Requested metric order verified live at 390 x 844: coins, money with info action, completed games. Screenshot `.qa/challenge-money-order.png`; current account has one completed game and retains ranking. No browser errors captured. New not-started state uses server `endsAt` and configured prize pool; started or completed attempts retain the dashboard. Backend availability tests (3) verify deadline serialization and fresh unstarted games. Frontend typecheck, component lint, web export and backend build passed. Remaining visual gap: countdown-before-participation was not exercised on a live unstarted account; current user's progress was preserved.
+
 ### Compact typography follow-up
 
 Source: `C:/Users/MyPc/AppData/Local/Temp/codex-clipboard-846f5949-9e22-4538-b8fc-2c4e36e3a4b0.png` (589 x 426 annotated card crop). Implementation: `.qa/challenge-compact-mobile.png`, 390 x 844 CSS mobile viewport, authenticated zero-score state. Source and rendered screen were opened together; source is a scaled crop, so comparison is structural rather than pixel-identical. The card is readable in the full capture; no extra detail crop was necessary.
