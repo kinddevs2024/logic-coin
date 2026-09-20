@@ -401,6 +401,13 @@ export type ChallengeStartResult = {
 };
 
 export const challengesApi = {
+  progress(token: string) {
+    return request<{
+      dayKey: string; participantCount: number; projectedCashUnits: number;
+      self: { rank: number; totalCoins: number; completedGamesCount: number } | null;
+      neighbors: { userId: string; rank: number; totalCoins: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
+    }>("/challenges/progress", { token });
+  },
   async today(token: string) {
     const payload = await request<{ today: TodayChallenges }>(
       "/challenges/today",

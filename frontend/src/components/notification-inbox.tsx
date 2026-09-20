@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, alignItems: "center", backgroundColor: "rgba(4,12,26,0.5)", paddingHorizontal: 18 },
   panel: { flex: 1, minHeight: 0, width: "100%", maxWidth: 560, gap: 12 },
   close: { alignSelf: "flex-end" },
-  listViewport: { flex: 1, minHeight: 0, borderRadius: 24, overflow: "hidden" },
+  listViewport: { flex: 1, minHeight: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
   list: { gap: 12, paddingBottom: 8 },
   card: { padding: 18, borderRadius: 24, gap: 8 },
   cardHeading: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: 8 },

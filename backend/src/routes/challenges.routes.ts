@@ -16,10 +16,14 @@ import {
   getPendingContestReward
 } from "../services/contest.service.js";
 import { getTodayChallengeOverview } from "../services/daily-challenge.service.js";
+import { getContestProgress } from "../services/contest-progress.service.js";
 
 const router = Router();
 const gameKeySchema = z.string().trim().regex(/^[a-z0-9-]{1,80}$/);
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+router.get("/progress", async (request, response) => {
+  response.json({ data: await getContestProgress(request.auth!.userId) });
+});
 
 router.get("/today", async (request, response) => {
   response.json({ data: { today: await getTodayChallengeOverview(request.auth!.userId) } });

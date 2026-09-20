@@ -7,6 +7,7 @@ import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { ChallengeCard } from "@/components/challenge-card";
 import { ChallengeEmptyState } from "@/components/challenge-empty-state";
+import { ChallengeProgress } from "@/components/challenge-progress";
 import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -14,7 +15,6 @@ import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
-import { formatMoney } from "@/lib/format";
 
 const copy = {
   ru: { title: "Челленджи", daily: "Сегодня", complete: "пройдено", earned: "Заработано", empty: "Готовим игры дня", refresh: "Обновить", pool: "Призовой фонд" },
@@ -31,9 +31,6 @@ export default function ChallengesScreen() {
   const { today, isLoading, refresh, pendingGameKey } = useChallenges();
   const c = copy[language];
   const wide = isTablet || isDesktop;
-  const completed = today?.completedCount ?? 0;
-  const total = today?.totalCount ?? 0;
-  const ratio = total ? completed / total : 0;
 
   return (
     <AppFrame wide desktopNavigationInset contentStyle={styles.page}>
@@ -48,28 +45,7 @@ export default function ChallengesScreen() {
       />
 
       <Animated.View entering={FadeIn.duration(350)}>
-        <GlassSurface variant="strong" intensity={76} style={styles.hero}>
-          <View style={styles.heroTop}>
-            <View style={{ flex: 1 }}>
-              <AppText style={[styles.eyebrow, { color: theme.primary }]}>{c.daily.toUpperCase()}</AppText>
-              <AppText style={[styles.heroTitle, { color: theme.text }]}>{completed} / {total} {c.complete}</AppText>
-            </View>
-            <View style={[styles.scoreOrb, { backgroundColor: theme.primarySoft, borderColor: theme.glassBorder }]}>
-              <AppText style={[styles.scoreNumber, { color: theme.primary }]}>{today?.totalCoinsToday ?? 0}</AppText>
-              <AppText style={[styles.scoreLabel, { color: theme.primary }]}>{c.earned}</AppText>
-            </View>
-          </View>
-          <View style={[styles.progressTrack, { backgroundColor: theme.primarySoft }]}>
-            <View style={[styles.progressFill, { width: `${ratio > 0 ? Math.max(4, ratio * 100) : 0}%`, backgroundColor: theme.primary }]} />
-          </View>
-          {today?.prizes ? (
-            <View style={styles.prizeRow}>
-              <Ionicons name="trophy-outline" size={17} color="#F5A623" />
-              <AppText variant="caption" muted>{c.pool}</AppText>
-              <AppText variant="label">{formatMoney(today.prizes.poolUnits)}</AppText>
-            </View>
-          ) : null}
-        </GlassSurface>
+        <ChallengeProgress today={today} />
       </Animated.View>
 
       {isLoading ? (
