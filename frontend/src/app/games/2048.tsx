@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -17,6 +18,7 @@ import {
 import { EMPTY_GAME_PROGRESS, useGameProgressStore } from "@/games/progress-store";
 import { gameCoinReward } from "@/games/rewards";
 import { useGameSession } from "@/games/session-context";
+import { advanceChallengeClock, formatChallengeClock, MERGE_CHALLENGE_DURATION_MS } from "@/games/challenge-clock";
 
 type Direction = "left" | "right" | "up" | "down";
 type Grid = number[][];
@@ -99,6 +101,8 @@ function GameControl({
 }
 
 export default function MergeScreen() {
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const challengeMode = mode === "challenge";
   const session = useGameSession();
   const markStarted = session?.onStart;
   const paused = session?.paused ?? false;
@@ -110,6 +114,9 @@ export default function MergeScreen() {
   const [over, setOver] = useState(false);
   const [history, setHistory] = useState<{ grid: Grid; score: number }[]>([]);
   const recorded = useRef(false);
+  const [started, setStarted] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(60);
+  const remainingMs = useRef(MERGE_CHALLENGE_DURATION_MS);
   const viewportWidth = width > 0 ? width : 390;
   const boardSize = Math.min(480, viewportWidth - 60);
   const gap = 8;
@@ -119,16 +126,34 @@ export default function MergeScreen() {
   const nextGoal = 2 ** (level + 7);
 
   const move = useCallback((direction: Direction) => {
-    if (paused) return;
+    if (paused || over || (challengeMode && remainingSeconds <= 0)) return;
     const result = moveGrid(grid, direction);
     if (!result.changed) return;
     markStarted?.();
+    setStarted(true);
     setHistory((items) => [...items.slice(-9), { grid: grid.map((row) => [...row]), score }]);
     const next = spawn(result.next);
     setGrid(next);
     setScore(score + result.gained);
     setOver(!canContinue(next));
-  }, [grid, markStarted, paused, score]);
+  }, [challengeMode, grid, markStarted, over, paused, remainingSeconds, score]);
+
+  useEffect(() => {
+    if (!challengeMode || !started || paused || over) return;
+    let lastTick = Date.now();
+    const tick = () => {
+      const now = Date.now();
+      remainingMs.current = advanceChallengeClock(remainingMs.current, now - lastTick);
+      lastTick = now;
+      setRemainingSeconds(Math.ceil(remainingMs.current / 1000));
+      if (remainingMs.current === 0) setOver(true);
+    };
+    const timer = setInterval(tick, 100);
+    return () => {
+      clearInterval(timer);
+      remainingMs.current = advanceChallengeClock(remainingMs.current, Date.now() - lastTick);
+    };
+  }, [challengeMode, over, paused, started]);
 
   useEffect(() => {
     if (!over || recorded.current) return;
@@ -149,6 +174,7 @@ export default function MergeScreen() {
   );
 
   const restart = () => {
+    if (challengeMode) return;
     if (score > 0 && !recorded.current) recordScore("2048", score, `Плитка ${maxTile}`);
     setGrid(initialGrid());
     setScore(0);
@@ -172,7 +198,7 @@ export default function MergeScreen() {
           <PixelStat label="Рекорд" value={Math.max(progress.bestScore, score)} />
           <PixelStat label="Прошлый" value={progress.previousScore} />
           <PixelStat label="Уровень" value={level} />
-          <PixelStat label="Цель" value={nextGoal} />
+          <PixelStat label={challengeMode ? "Время" : "Цель"} value={challengeMode ? formatChallengeClock(remainingSeconds) : nextGoal} />
         </View>
         <GestureDetector gesture={gesture}>
           <PixelArena
@@ -210,7 +236,7 @@ export default function MergeScreen() {
             {over ? (
               <View style={styles.overlay}>
                 <AppText variant="heading" color="#FFFFFF">Игра окончена</AppText>
-                <PixelActionButton label="Ещё раз" icon="refresh" onPress={restart} />
+                {!challengeMode ? <PixelActionButton label="Ещё раз" icon="refresh" onPress={restart} /> : null}
               </View>
             ) : null}
           </PixelArena>
@@ -223,7 +249,7 @@ export default function MergeScreen() {
         </View>
         <View style={styles.bottomActions}>
           <PixelActionButton disabled={!history.length || over} onPress={undo} icon="arrow-undo" label="Отменить ход" />
-          <PixelActionButton onPress={restart} icon="refresh" label="Новая игра" />
+          {!challengeMode ? <PixelActionButton onPress={restart} icon="refresh" label="Новая игра" /> : null}
         </View>
       </View>
     </GameShell>

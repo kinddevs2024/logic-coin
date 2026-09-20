@@ -16,7 +16,7 @@ export function RankingPreview({ metric, onPress }: { metric: LeaderboardMetric;
   return <Pressable accessibilityRole="button" accessibilityLabel={metric === "wealth" ? "Рейтинг" : metric === "wallet" ? "Рейтинг по деньгам" : "Рейтинг по коинам"} onPress={onPress}>
     <GlassSurface intensity={66} variant="strong" style={{ minHeight: 48, borderRadius: 24, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4 }}>
       {leaders.length ? <View style={{ flexDirection: "row" }}>{leaders.map((entry, index) => <View key={entry.userId} style={{ marginLeft: index ? -8 : 0, zIndex: 3 - index }} accessible accessibilityLabel={`${entry.rank} место: ${entry.name}`}><Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={24} /></View>)}</View> : null}
-      <Ionicons name={metric === "wealth" ? "trophy" : metric === "wallet" ? "wallet-outline" : "diamond-outline"} size={17} color={String(theme.primary)} />
+      <Ionicons name={metric === "wealth" ? "trophy" : metric === "wallet" ? "wallet-outline" : "diamond-outline"} size={17} color={metric === "wealth" ? "#F5B800" : String(theme.primary)} />
     </GlassSurface>
   </Pressable>;
 }
