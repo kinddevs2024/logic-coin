@@ -8,12 +8,23 @@ import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { inboxApi, type InboxNotification } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import { useCalendars } from "expo-localization";
+import { useTranslation } from "@/hooks/use-translation";
+import { formatNotificationTime } from "@/lib/notification-time";
 
 const config = { itemVisiblePercentThreshold: 70, minimumViewTime: 800 };
 
 export function NotificationInbox({ onClose }: { onClose: () => void }) {
   const token = useAppStore(s => s.accessToken);
   const theme = useAppTheme();
+  const { language } = useTranslation();
+  const [calendar] = useCalendars();
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    const subscription = AppState.addEventListener("change", state => { if (state === "active") setNow(new Date()); });
+    return () => { clearInterval(timer); subscription.remove(); };
+  }, []);
   const { height } = useWindowDimensions();
   const reduced = useReducedMotion();
   const [history, setHistory] = useState(false);
@@ -64,9 +75,11 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
         <FlatList key={String(history)} data={items} keyExtractor={item => item.id} style={{ flexGrow: 0 }} contentContainerStyle={styles.list}
           onViewableItemsChanged={viewable} viewabilityConfig={config}
           renderItem={({ item }) => <GlassSurface style={styles.card} variant="strong">
-            <AppText variant="label">{item.kind === "gift" ? "🎁 " : item.kind === "result" ? "🏆 " : ""}{item.title}</AppText>
+            <View style={styles.cardHeading}>
+              <AppText variant="label" style={styles.cardTitle}>{item.kind === "gift" ? "🎁 " : item.kind === "result" ? "🏆 " : ""}{item.title}</AppText>
+              <AppText variant="caption" muted style={styles.timestamp}>{formatNotificationTime(item.createdAt, { now, language, uses24hourClock: calendar.uses24hourClock })}</AppText>
+            </View>
             <AppText>{item.body}</AppText>
-            <AppText variant="caption" muted>{new Date(item.createdAt).toLocaleString()}</AppText>
           </GlassSurface>}
           ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>{history ? "Уведомлений пока нет" : "Новых уведомлений нет"}</AppText></GlassSurface> : null}
           ListFooterComponent={query.hasNextPage ? <Pressable disabled={query.isFetchingNextPage} onPress={() => void query.fetchNextPage()} style={styles.card}><AppText>{query.isFetchingNextPage ? "Загружаем…" : "Показать ещё"}</AppText></Pressable> : null}
@@ -81,4 +94,7 @@ const styles = StyleSheet.create({
   header: { padding: 14, borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 8 },
   list: { gap: 12, paddingBottom: 8 },
   card: { padding: 18, borderRadius: 24, gap: 8 },
+  cardHeading: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: 8 },
+  cardTitle: { flexGrow: 1, flexShrink: 1, flexBasis: 150 },
+  timestamp: { marginLeft: "auto", textAlign: "right", fontSize: 11, flexShrink: 1 },
 });
