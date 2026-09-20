@@ -1,8 +1,8 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { memo, useCallback, useMemo, useState } from "react";
+import { FlatList, Image, Platform, Pressable, StyleSheet, View, type ListRenderItemInfo, type StyleProp, type ViewStyle } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -18,6 +18,7 @@ import { useGameProgressSync } from "@/hooks/use-game-progress-sync";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { gamesApi } from "@/lib/api";
+import { androidImageProps } from "@/lib/android-image";
 import { accentForeground, readableAccent } from "@/lib/theme-colors";
 import { useAppStore } from "@/store/app-store";
 import type { GameCatalogItem } from "@/types";
@@ -65,19 +66,88 @@ function mapServerGame(entry: GameCatalogItem): LocalizedGame | null {
   };
 }
 
-export default function GamesScreen() {
+function GamesHeader() {
+  const theme = useAppTheme();
+  const { language } = useTranslation();
+  const coinBalance = useAppStore((state) => state.coinBalance);
+
+  return (
+    <ScreenHeader
+      title={copy[language].title}
+      action={
+        <GlassSurface intensity={64} variant="strong" style={styles.count}>
+          <Ionicons name="diamond" size={18} color={String(theme.primary)} />
+          <AppText style={[styles.countText, { color: theme.primary }]}>{coinBalance} coin</AppText>
+        </GlassSurface>
+      }
+    />
+  );
+}
+
+const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
+  game: GameCatalogItem;
+  ready: boolean;
+  wide: boolean;
+  onOpenSkins: (gameId: GameId) => void;
+}) {
   const theme = useAppTheme();
   const router = useRouter();
+  const { language } = useTranslation();
+  const c = copy[language];
+  const progressKey = PROGRESS_KEY_BY_SERVER_KEY[game.key] ?? (game.key as GameId);
+  const coins = useGameProgressStore((state) => ready ? state.games[progressKey]?.coins ?? EMPTY_GAME_PROGRESS.coins : EMPTY_GAME_PROGRESS.coins);
+  const cover = gameCoverFor(game.key);
+  const accent = readableAccent(game.color, theme.mode);
+  const playForeground = accentForeground(game.color, theme.mode);
+  const play = () => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never);
+
+  return (
+    <View collapsable={false} style={[styles.cell, wide && styles.cellWide]}>
+      <GlassSurface intensity={68} variant="strong" style={styles.card}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={play} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
+          <View style={[styles.icon, { backgroundColor: `${accent}18`, borderColor: `${accent}38` }]}>
+            {cover ? <Image source={cover} resizeMode="cover" {...androidImageProps} style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} color={accent} size={28} />}
+          </View>
+          <View style={styles.copy}>
+            <AppText style={[styles.title, { color: theme.text }]} numberOfLines={1}>{game.title}</AppText>
+            <View style={styles.bestRow}>
+              <Ionicons name="diamond-outline" size={13} color={accent} />
+              <AppText style={[styles.best, { color: accent }]}>{c.best} {Math.min(1000, coins)}</AppText>
+            </View>
+          </View>
+        </Pressable>
+        <View style={styles.cardActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Скины: ${game.title}`} onPress={() => onOpenSkins(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
+            <Ionicons name="shirt-outline" color={accent} size={17} />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={play} style={({ pressed }) => [styles.playButton, { backgroundColor: game.color }, pressed && styles.pressed]}>
+            <Ionicons name="play" color={playForeground} size={15} />
+            <AppText style={[styles.playText, { color: playForeground }]}>{c.play}</AppText>
+          </Pressable>
+        </View>
+      </GlassSurface>
+    </View>
+  );
+});
+
+function CatalogRowSeparator() {
+  return <View style={styles.rowSeparator} />;
+}
+
+function CatalogProgressSync() {
+  useGameProgressSync();
+  return null;
+}
+
+const catalogRowKey = (row: GameCatalogItem[]) => row[0].key;
+
+export default function GamesScreen() {
   const { language } = useTranslation();
   const { isTablet, isDesktop } = useResponsiveLayout();
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
-  const progress = useGameProgressStore((state) => state.games);
-  const coinBalance = useAppStore((state) => state.coinBalance);
   const ready = useClientReady();
   const [economyGameId, setEconomyGameId] = useState<GameId | null>(null);
-  useGameProgressSync();
-  const c = copy[language];
   const wide = isTablet || isDesktop;
   const query = useQuery({
     queryKey: ["games", accessToken],
@@ -86,63 +156,65 @@ export default function GamesScreen() {
     staleTime: 60_000,
   });
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
-  const games = authenticated && query.isSuccess
-    ? query.data
-        .filter((entry) => entry.practiceEnabled)
-        .map(mapServerGame)
-        .filter((entry): entry is LocalizedGame => entry !== null)
-    : GAME_CATALOG;
+  const games = useMemo(() => {
+    const catalog = authenticated && query.isSuccess
+      ? query.data
+          .filter((entry) => entry.practiceEnabled)
+          .map(mapServerGame)
+          .filter((entry): entry is LocalizedGame => entry !== null)
+      : GAME_CATALOG;
+    return catalog.map((entry) => localizeGame(entry, language));
+  }, [authenticated, language, query.data, query.isSuccess]);
+  const rows = useMemo(() => {
+    const result: GameCatalogItem[][] = [];
+    const columns = wide ? 2 : 1;
+    for (let index = 0; index < games.length; index += columns) {
+      result.push(games.slice(index, index + columns));
+    }
+    return result;
+  }, [games, wide]);
+  const renderRow = useCallback(({ item }: ListRenderItemInfo<GameCatalogItem[]>) => (
+    <View style={wide ? styles.listRowWide : undefined}>
+      {item.map((game) => <GameCard key={game.key} game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId} />)}
+    </View>
+  ), [ready, wide]);
+  const renderNativeCatalog = (contentContainerStyle: StyleProp<ViewStyle>) => (
+    <>
+      <FlatList
+        role="main"
+        style={styles.list}
+        contentContainerStyle={contentContainerStyle}
+        data={rows}
+        keyExtractor={catalogRowKey}
+        renderItem={renderRow}
+        ListHeaderComponent={GamesHeader}
+        ItemSeparatorComponent={CatalogRowSeparator}
+        initialNumToRender={6}
+        maxToRenderPerBatch={3}
+        windowSize={3}
+        removeClippedSubviews={false}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      />
+      {economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
+    </>
+  );
 
   return (
-    <AppFrame wide desktopNavigationInset contentStyle={styles.page} scrollProps={{ removeClippedSubviews: false }}>
-      <ScreenHeader
-        title={c.title}
-        action={
-          <GlassSurface intensity={64} variant="strong" style={styles.count}>
-            <Ionicons name="diamond" size={18} color={String(theme.primary)} />
-            <AppText style={[styles.countText, { color: theme.primary }]}>{coinBalance} coin</AppText>
-          </GlassSurface>
-        }
-      />
-      <View style={[styles.grid, wide && styles.gridWide]}>
-        {games.map((entry) => {
-          const game = localizeGame(entry, language);
-          const progressKey = PROGRESS_KEY_BY_SERVER_KEY[game.key] ?? (game.key as GameId);
-          const saved = ready ? progress[progressKey] ?? EMPTY_GAME_PROGRESS : EMPTY_GAME_PROGRESS;
-          const cover = gameCoverFor(game.key);
-          const accent = readableAccent(game.color, theme.mode);
-          const playForeground = accentForeground(game.color, theme.mode);
-          return (
-            <View key={game.key} collapsable={false} style={[styles.cell, wide && styles.cellWide]}>
-              <GlassSurface intensity={68} variant="strong" style={styles.card}>
-                <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never)} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
-                  <View style={[styles.icon, { backgroundColor: `${accent}18`, borderColor: `${accent}38` }]}>
-                    {cover ? <Image source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} color={accent} size={28} />}
-                  </View>
-                  <View style={styles.copy}>
-                    <AppText style={[styles.title, { color: theme.text }]} numberOfLines={1}>{game.title}</AppText>
-                    <View style={styles.bestRow}>
-                      <Ionicons name="diamond-outline" size={13} color={accent} />
-                      <AppText style={[styles.best, { color: accent }]}>{c.best} {Math.min(1000, saved.coins)}</AppText>
-                    </View>
-                  </View>
-                </Pressable>
-                <View style={styles.cardActions}>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Скины: ${game.title}`} onPress={() => setEconomyGameId(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
-                    <Ionicons name="shirt-outline" color={accent} size={17} />
-                  </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never)} style={({ pressed }) => [styles.playButton, { backgroundColor: game.color }, pressed && styles.pressed]}>
-                    <Ionicons name="play" color={playForeground} size={15} />
-                    <AppText style={[styles.playText, { color: playForeground }]}>{c.play}</AppText>
-                  </Pressable>
-                </View>
-              </GlassSurface>
+    <>
+      <CatalogProgressSync />
+      <AppFrame wide desktopNavigationInset contentStyle={styles.page} scrollProps={{ removeClippedSubviews: false }} renderScrollContent={Platform.OS === "android" ? renderNativeCatalog : undefined}>
+        {Platform.OS !== "android" ? (
+          <>
+            <GamesHeader />
+            <View style={[styles.grid, wide && styles.gridWide]}>
+              {games.map((game) => <GameCard key={game.key} game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId} />)}
             </View>
-          );
-        })}
-      </View>
-      {economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
-    </AppFrame>
+            {economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
+          </>
+        ) : null}
+      </AppFrame>
+    </>
   );
 }
 
@@ -152,6 +224,9 @@ const styles = StyleSheet.create({
   countText: { fontSize: 12, lineHeight: 15, fontWeight: "900" },
   grid: { gap: 11 },
   gridWide: { flexDirection: "row", flexWrap: "wrap" },
+  list: { flex: 1 },
+  listRowWide: { flexDirection: "row", flexWrap: "wrap", gap: 11 },
+  rowSeparator: { height: 11 },
   cell: { width: "100%" },
   cellWide: { width: "49%", minWidth: 330, flexGrow: 1 },
   playArea: { flex: 1, minWidth: 0, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 13, borderRadius: 22 },

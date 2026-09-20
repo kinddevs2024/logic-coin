@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import type { ComponentProps } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-native";
@@ -10,6 +10,7 @@ import { gameCoverFor } from "@/constants/game-covers";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { accentForeground } from "@/lib/theme-colors";
+import { androidImageProps } from "@/lib/android-image";
 import type { ChallengeGameState, GameCatalogItem } from "@/types";
 
 function iconName(icon: string): ComponentProps<typeof Ionicons>["name"] {
@@ -58,7 +59,7 @@ export function ChallengeCard({
           ]}
         >
           <View style={[styles.icon, compact && styles.iconCompact, { backgroundColor: `${game.color}18`, borderColor: `${game.color}32` }]}>
-            {cover ? <Image source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={iconName(game.icon)} size={compact ? 21 : 25} color={game.color} />}
+            {cover ? <Image {...androidImageProps} source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={iconName(game.icon)} size={compact ? 21 : 25} color={game.color} />}
           </View>
           <View style={styles.copy}>
             <View style={styles.titleRow}>

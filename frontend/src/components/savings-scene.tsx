@@ -16,17 +16,18 @@ import { AppText } from "@/components/app-text";
 import { AndroidSoftGlow } from "@/components/android-soft-glow";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
+import { androidImageProps } from "@/lib/android-image";
 import { useAppStore } from "@/store/app-store";
 
-const islandSource = require("../../assets/scene/island.png");
+const islandSource = require("../../assets/scene/island.webp");
 const jarStateSources: ImageSourcePropType[] = [
-  require("../../assets/scene/1-Photoroom.png"),
-  require("../../assets/scene/2-Photoroom.png"),
-  require("../../assets/scene/3-Photoroom.png"),
-  require("../../assets/scene/4-Photoroom.png"),
-  require("../../assets/scene/5-Photoroom.png"),
-  require("../../assets/scene/6-Photoroom.png"),
-  require("../../assets/scene/7-Photoroom.png"),
+  require("../../assets/scene/1-Photoroom.webp"),
+  require("../../assets/scene/2-Photoroom.webp"),
+  require("../../assets/scene/3-Photoroom.webp"),
+  require("../../assets/scene/4-Photoroom.webp"),
+  require("../../assets/scene/5-Photoroom.webp"),
+  require("../../assets/scene/6-Photoroom.webp"),
+  require("../../assets/scene/7-Photoroom.webp"),
 ];
 
 const moneyDrops: {
@@ -39,7 +40,7 @@ const moneyDrops: {
   delay: number;
 }[] = [
   {
-    source: require("../../assets/scene/coin-angle.png"),
+    source: require("../../assets/scene/coin-angle.webp"),
     size: 48,
     startX: -150,
     startY: -44,
@@ -57,7 +58,7 @@ const moneyDrops: {
     delay: 110,
   },
   {
-    source: require("../../assets/scene/coin-gold-a.png"),
+    source: require("../../assets/scene/coin-gold-a.webp"),
     size: 44,
     startX: 92,
     startY: -64,
@@ -75,7 +76,7 @@ const moneyDrops: {
     delay: 320,
   },
   {
-    source: require("../../assets/scene/coin-silver.png"),
+    source: require("../../assets/scene/coin-silver.webp"),
     size: 40,
     startX: 174,
     startY: -20,
@@ -105,9 +106,11 @@ function MoneyDrop({
   bendX,
   rotation,
   delay,
+  onComplete,
 }: (typeof moneyDrops)[number] & {
   eventId: number;
   phase: "front" | "inside";
+  onComplete?: (eventId: number) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const [progress] = useState(() => new Animated.Value(0));
@@ -125,14 +128,17 @@ function MoneyDrop({
         useNativeDriver: Platform.OS !== "web",
       }),
     ]);
-    animation.start();
+    animation.start(({ finished }) => {
+      if (finished) onComplete?.(eventId);
+    });
     return () => animation.stop();
-  }, [delay, eventId, progress, reduceMotion]);
+  }, [delay, eventId, onComplete, progress, reduceMotion]);
 
   const isFront = phase === "front";
 
   return (
     <Animated.Image
+      {...androidImageProps}
       source={source}
       resizeMode="contain"
       accessibilityIgnoresInvertColors
@@ -186,9 +192,11 @@ function MoneyDrop({
 function MoneyLayer({
   eventId,
   phase,
+  onComplete,
 }: {
   eventId: number;
   phase: "front" | "inside";
+  onComplete?: (eventId: number) => void;
 }) {
   return (
     <View
@@ -206,6 +214,7 @@ function MoneyLayer({
           {...drop}
           eventId={eventId}
           phase={phase}
+          onComplete={index === moneyDrops.length - 1 ? onComplete : undefined}
         />
       ))}
     </View>
@@ -224,6 +233,10 @@ export function SavingsScene({
   const { width: windowWidth } = useWindowDimensions();
   const rewardEventId = useAppStore((state) => state.rewardEventId);
   const reduceMotion = useReducedMotion();
+  const [completedRewardEventId, setCompletedRewardEventId] = useState<number | null>(null);
+  // Preserve the entrance/reward effect, then release its ten transparent image
+  // views. The next reward mounts the same animation again from its first frame.
+  const showMoney = !reduceMotion && completedRewardEventId !== rewardEventId;
   const progress = Math.max(0, Math.min(1, balance / Math.max(goal, 1)));
   const stateIndex = jarIndex(progress);
   const stageScale = Math.min(
@@ -295,12 +308,13 @@ export function SavingsScene({
           {Platform.OS === "android" ? <AndroidSoftGlow color={theme.orbOne} diameter={310} blurRadius={44} /> : null}
         </View>
         <Image
+          {...androidImageProps}
           source={islandSource}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
           style={styles.island}
         />
-        <MoneyLayer eventId={rewardEventId} phase="inside" />
+        {showMoney ? <MoneyLayer eventId={rewardEventId} phase="inside" /> : null}
         <Animated.View
           style={[
             styles.jarGroup,
@@ -324,6 +338,7 @@ export function SavingsScene({
           ]}
         >
           <Image
+            {...androidImageProps}
             source={jarStateSources[stateIndex]}
             resizeMode="contain"
             accessibilityLabel={`${Math.round(progress * 100)}%`}
@@ -336,7 +351,7 @@ export function SavingsScene({
             </AppText>
           </View>
         </Animated.View>
-        <MoneyLayer eventId={rewardEventId} phase="front" />
+        {showMoney ? <MoneyLayer eventId={rewardEventId} phase="front" onComplete={setCompletedRewardEventId} /> : null}
       </View>
     </View>
   );

@@ -29,25 +29,25 @@ const slides: Slide[] = [
   {
     title: "onboarding.one.title",
     body: "onboarding.one.body",
-    image: require("../../assets/onboarding/01-savings.png"),
+    image: require("../../assets/onboarding/01-savings.webp"),
     imageLabel: "Glass savings jar on a floating island",
   },
   {
     title: "onboarding.two.title",
     body: "onboarding.two.body",
-    image: require("../../assets/onboarding/02-challenges.png"),
+    image: require("../../assets/onboarding/02-challenges.webp"),
     imageLabel: "Six daily puzzle games",
   },
   {
     title: "onboarding.three.title",
     body: "onboarding.three.body",
-    image: require("../../assets/onboarding/03-streak.png"),
+    image: require("../../assets/onboarding/03-streak.webp"),
     imageLabel: "Activity streak calendar and daily gift",
   },
   {
     title: "onboarding.four.title",
     body: "onboarding.four.body",
-    image: require("../../assets/onboarding/04-withdraw.png"),
+    image: require("../../assets/onboarding/04-withdraw.webp"),
     imageLabel: "Savings jar and payment card",
   },
 ];

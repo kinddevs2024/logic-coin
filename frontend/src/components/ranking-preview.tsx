@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, View } from "react-native";
 import { Avatar } from "@/components/avatar";
 import { GlassSurface } from "@/components/glass-surface";

@@ -36,6 +36,7 @@ build/
 coverage/
 .nyc_output/
 *.tsbuildinfo
+__pycache__/
 .gradle/
 artifacts/
 

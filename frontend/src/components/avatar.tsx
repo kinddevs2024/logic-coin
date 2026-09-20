@@ -4,6 +4,7 @@ import { Image, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { initials } from "@/lib/format";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { androidImageProps } from "@/lib/android-image";
 
 export function Avatar({
   name,
@@ -36,6 +37,7 @@ function AvatarContent({ name, avatarUrl, size }: { name?: string; avatarUrl?: s
   if (avatarUrl && !failed) {
     return (
       <Image
+        {...androidImageProps}
         accessibilityLabel={name ? `Фото ${name}` : "Фото профиля"}
         source={{ uri: avatarUrl }}
         style={{ flex: 1, width: "100%", borderRadius: size / 2 }}

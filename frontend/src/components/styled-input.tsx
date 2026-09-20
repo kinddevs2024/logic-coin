@@ -1,6 +1,6 @@
 import React, { type ComponentProps } from "react";
 import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";

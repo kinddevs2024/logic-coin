@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -30,14 +30,22 @@ export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
 }
 
 function ChallengeReady({ today }: { today: TodayChallenges }) {
+  const focused = useIsFocused();
+  // Reset this small clock when focus changes so the first visible render uses
+  // current time, including the expired button state, without a hidden timer.
+  return <ChallengeReadyClock key={focused ? "focused" : "hidden"} today={today} focused={focused} />;
+}
+
+function ChallengeReadyClock({ today, focused }: { today: TodayChallenges; focused: boolean }) {
   const router = useRouter();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
+    if (!focused) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [focused]);
   const end = Date.parse(today.endsAt ?? "");
   const seconds = Number.isFinite(end) ? Math.max(0, Math.floor((end - now) / 1000)) : 0;
   const countdown = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, "0")).join(":");

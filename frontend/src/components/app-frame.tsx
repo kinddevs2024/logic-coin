@@ -7,11 +7,12 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  type StyleProp,
   type ScrollViewProps,
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect, useRef, useState, type PropsWithChildren } from "react";
+import { useEffect, useRef, useState, type PropsWithChildren, type ReactNode } from "react";
 import Reanimated, {
   FadeInDown,
   ReduceMotion,
@@ -162,6 +163,7 @@ type AppFrameProps = PropsWithChildren<{
   scroll?: boolean;
   contentStyle?: ViewStyle;
   scrollProps?: ScrollViewProps;
+  renderScrollContent?: (contentContainerStyle: StyleProp<ViewStyle>) => ReactNode;
   wide?: boolean;
   noPadding?: boolean;
   desktopNavigationInset?: boolean;
@@ -175,6 +177,7 @@ export function AppFrame({
   scroll = true,
   contentStyle,
   scrollProps,
+  renderScrollContent,
   wide,
   noPadding,
   desktopNavigationInset,
@@ -209,7 +212,9 @@ export function AppFrame({
     },
     contentStyle,
   ];
-  const body = scroll ? (
+  // Virtualized screens own the scroll container while sharing the same insets,
+  // background and swipe handlers. Never nest their list inside a ScrollView.
+  const body = renderScrollContent ? renderScrollContent(content) : scroll ? (
     <ScrollView
       {...scrollProps}
       role="main"

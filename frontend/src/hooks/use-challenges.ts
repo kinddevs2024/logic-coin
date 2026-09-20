@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsFocused } from "expo-router";
 import { useEffect, useMemo, useRef } from "react";
+import { Platform } from "react-native";
 
 import { demoTodayGames } from "@/constants/games";
 import { gameCoinReward } from "@/games/rewards";
@@ -53,6 +55,7 @@ function buildGuestToday(
 }
 
 export function useChallenges() {
+  const focused = useIsFocused();
   const { language } = useTranslation();
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
@@ -80,7 +83,10 @@ export function useChallenges() {
   const query = useQuery({
     queryKey: ["challenges", "today", accessToken],
     queryFn: () => challengesApi.today(accessToken!),
+    // All four tabs stay mounted. Only the visible native screen should poll;
+    // every observer still receives the same shared cache when it opens.
     enabled: authenticated,
+    subscribed: Platform.OS === "web" || focused,
     staleTime: 15_000,
     refetchInterval: 15_000,
     retry: 1,

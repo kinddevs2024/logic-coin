@@ -2,13 +2,13 @@ import "react-native-reanimated";
 import "../global.css";
 import "@/lib/referral-attribution";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -43,6 +43,22 @@ export default function RootLayout() {
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
   const language = useAppStore((state) => state.language) ?? "ru";
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    // React Query observes browser focus by default. Native polling must pause
+    // when Android is backgrounded and resume with the existing freshness rules.
+    if (AppState.currentState !== null) {
+      focusManager.setFocused(AppState.currentState === "active");
+    }
+    const subscription = AppState.addEventListener("change", (state) => {
+      focusManager.setFocused(state === "active");
+    });
+    return () => {
+      subscription.remove();
+      focusManager.setFocused(undefined);
+    };
+  }, []);
 
   useEffect(() => {
     if (Platform.OS === "web") {

@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 import type { GameId } from "./progress-store";
 
