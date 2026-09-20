@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { useIsFocused } from "expo-router";
+import { useIsFocused, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/app-text";
@@ -21,7 +21,7 @@ const copy = {
 };
 type Cursor = { snapshot: string; offset: number; end?: number };
 const ROW = 46;
-const HEIGHT = ROW * 4;
+const HEIGHT = ROW * 3.5;
 
 export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
   if (today && !today.available) return <ChallengeEmptyState nextAt={today.nextChallengeAt} />;
@@ -30,6 +30,7 @@ export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
 }
 
 function ChallengeReady({ today }: { today: TodayChallenges }) {
+  const router = useRouter();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const [now, setNow] = useState(Date.now);
@@ -45,8 +46,10 @@ function ChallengeReady({ today }: { today: TodayChallenges }) {
     en: { until: "Until the challenge ends", pool: "Prize pool" },
     uz: { until: "Sinov tugashigacha", pool: "Mukofot jamg‘armasi" },
   }[language];
-  return <GlassSurface variant="strong" intensity={76} style={styles.ready}>
-    <Ionicons name="timer-outline" size={26} color={String(theme.primary)} />
+  const firstGame = today.games[0];
+  return <Pressable accessibilityRole="button" accessibilityLabel={language === "ru" ? "Начать челлендж с первой игры" : language === "uz" ? "Sinovni birinchi o‘yindan boshlash" : "Start challenge from the first game"} disabled={!firstGame || seconds === 0} onPress={() => {
+    if (firstGame) router.push({ pathname: "/play/[gameKey]", params: { gameKey: firstGame.key, mode: "challenge" } } as never);
+  }}><GlassSurface variant="strong" intensity={76} style={styles.ready}>
     <AppText style={styles.countdown} numberOfLines={1} adjustsFontSizeToFit>{countdown}</AppText>
     <AppText variant="caption" muted>{labels.until}</AppText>
     <View style={styles.pool}>
@@ -54,7 +57,7 @@ function ChallengeReady({ today }: { today: TodayChallenges }) {
       <AppText variant="caption" muted>{labels.pool}</AppText>
       <AppText variant="label">{formatMoney(today.prizes?.poolUnits ?? 0)}</AppText>
     </View>
-  </GlassSurface>;
+  </GlassSurface></Pressable>;
 }
 
 function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
@@ -159,14 +162,14 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
 }
 const styles = StyleSheet.create({
   ready: { borderRadius: 30, padding: 24, minHeight: 216, alignItems: "center", justifyContent: "center", gap: 6 },
-  countdown: { fontSize: 42, lineHeight: 52, fontWeight: "900", fontVariant: ["tabular-nums"] },
+  countdown: { fontSize: 56, lineHeight: 66, fontWeight: "900", fontVariant: ["tabular-nums"] },
   pool: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 16 },
-  card: { borderRadius: 30, padding: 16, flexDirection: "row", alignItems: "center", overflow: "hidden" },
+  card: { borderRadius: 30, paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", overflow: "hidden" },
   metrics: { width: "47%", paddingRight: 8, minWidth: 0 },
   score: { flexDirection: "row", alignItems: "center", gap: 5 },
   number: { fontSize: 46, lineHeight: 56, fontWeight: "900", flexShrink: 1, minWidth: 0, letterSpacing: -1.5 },
-  completed: { marginTop: 22, fontSize: 17, lineHeight: 24 },
-  money: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 22 },
+  completed: { marginTop: 20, fontSize: 17, lineHeight: 24 },
+  money: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 20 },
   infoButton: { minWidth: 24, minHeight: 40, alignItems: "center", justifyContent: "center" },
   ranking: { width: "53%", borderLeftWidth: 1, paddingLeft: 8, minWidth: 0, minHeight: HEIGHT, justifyContent: "center" },
   viewport: { height: HEIGHT, flexGrow: 0, borderRadius: 14 },

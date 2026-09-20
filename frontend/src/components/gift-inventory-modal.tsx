@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { giftsApi } from "@/lib/api";
@@ -77,6 +79,28 @@ function giftActionLabel(gift: GiftItem, usable: boolean, context: GiftContext) 
 
 export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = false, completed = false, supportsTimeExtension = false, gameKey, onClose, onUse }: GiftInventoryModalProps) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+  const [motion] = useState(() => new Animated.Value(1));
+  const closing = useRef(false);
+  useEffect(() => {
+    if (!visible) return;
+    closing.current = false;
+    motion.setValue(1);
+    const entrance = reduceMotion
+      ? Animated.timing(motion, { toValue: 0, duration: 0, useNativeDriver: Platform.OS !== "web" })
+      : Animated.spring(motion, { toValue: 0, damping: 22, stiffness: 190, mass: 0.9, useNativeDriver: Platform.OS !== "web" });
+    entrance.start();
+    return () => { motion.stopAnimation(); };
+  }, [motion, reduceMotion, visible]);
+  const close = () => {
+    if (closing.current) return;
+    closing.current = true;
+    Animated.timing(motion, { toValue: 1, duration: reduceMotion ? 0 : 210, useNativeDriver: Platform.OS !== "web" }).start(({ finished }) => {
+      if (finished) onClose();
+      else closing.current = false;
+    });
+  };
   const accessToken = useAppStore((state) => state.accessToken);
   const authenticated = useAppStore((state) => state.authMode) === "authenticated" && Boolean(accessToken);
   const queryClient = useQueryClient();
@@ -99,15 +123,17 @@ export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = f
   const used = (gifts.data ?? []).filter((gift) => gift.status === "used");
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={close} statusBarTranslucent>
       <View style={styles.backdrop}>
-        <Pressable accessibilityLabel="Закрыть подарки" style={StyleSheet.absoluteFill} onPress={onClose} />
-        <BlurView intensity={68} tint="dark" style={[styles.sheet, { paddingBottom: Math.max(18, insets.bottom + 8) }]}>
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(2,5,15,0.55)", opacity: motion.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: "clamp" }) }]} />
+        <Pressable accessibilityLabel="Закрыть подарки" style={StyleSheet.absoluteFill} onPress={close} />
+        <Animated.View style={{ maxHeight: "82%", transform: [{ translateY: motion.interpolate({ inputRange: [0, 1], outputRange: [0, height] }) }] }}>
+        <BlurView intensity={68} tint="dark" style={[styles.sheet, { maxHeight: "100%", flexShrink: 1, paddingBottom: Math.max(18, insets.bottom + 8) }]}>
           <LinearGradient pointerEvents="none" colors={["rgba(124,92,255,0.22)", "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} />
           <View style={styles.handle} />
           <View style={styles.header}>
             <View style={styles.titleGroup}><View style={styles.giftIcon}><Ionicons name="gift" color="#FFFFFF" size={23} /></View><View><Text style={styles.title}>Подарки</Text><Text style={styles.subtitle}>Бонусы аккаунта</Text></View></View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={onClose} style={styles.close}><Ionicons name="close" color="rgba(255,255,255,0.78)" size={22} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={styles.close}><Ionicons name="close" color="rgba(255,255,255,0.78)" size={22} /></Pressable>
           </View>
 
           {!authenticated ? <View style={styles.empty}><Ionicons name="lock-closed-outline" size={34} color="#A89AFF" /><Text style={styles.emptyTitle}>Подарки хранятся в аккаунте</Text><Text style={styles.emptyText}>Войдите, чтобы получать и использовать бонусы.</Text></View> : gifts.isLoading ? <View style={styles.loading}><ActivityIndicator color="#A89AFF" /><Text style={styles.emptyText}>Загружаем подарки</Text></View> : gifts.isError ? <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={34} color="#FF8B9A" /><Text style={styles.emptyTitle}>Не удалось загрузить</Text><Pressable onPress={() => void gifts.refetch()} style={styles.retry}><Text style={styles.retryText}>Повторить</Text></Pressable></View> : (
@@ -122,6 +148,7 @@ export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = f
           )}
           {useGift.error ? <Text style={styles.errorText}>Подарок не применился. Попробуйте ещё раз.</Text> : null}
         </BlurView>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -141,7 +168,7 @@ function GiftCard({ gift, viewOnly = false, busy = false, disabled = false, usab
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(2,5,15,0.55)" },
+  backdrop: { flex: 1, justifyContent: "flex-end" },
   sheet: { maxHeight: "82%", overflow: "hidden", borderTopLeftRadius: 32, borderTopRightRadius: 32, borderWidth: 1, borderBottomWidth: 0, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(10,14,30,0.92)", paddingHorizontal: 18, paddingTop: 10 },
   handle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.24)", marginBottom: 16 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
