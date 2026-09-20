@@ -12,6 +12,7 @@ import type { GiftItem, GiftUseEffect } from "@/types";
 
 type GiftInventoryModalProps = {
   visible: boolean;
+  viewOnly?: boolean;
   sessionReady?: boolean;
   completed?: boolean;
   supportsTimeExtension?: boolean;
@@ -74,7 +75,7 @@ function giftActionLabel(gift: GiftItem, usable: boolean, context: GiftContext) 
   return "Запустите";
 }
 
-export function GiftInventoryModal({ visible, sessionReady = false, completed = false, supportsTimeExtension = false, gameKey, onClose, onUse }: GiftInventoryModalProps) {
+export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = false, completed = false, supportsTimeExtension = false, gameKey, onClose, onUse }: GiftInventoryModalProps) {
   const insets = useSafeAreaInsets();
   const accessToken = useAppStore((state) => state.accessToken);
   const authenticated = useAppStore((state) => state.authMode) === "authenticated" && Boolean(accessToken);
@@ -84,7 +85,7 @@ export function GiftInventoryModal({ visible, sessionReady = false, completed = 
   const gifts = useQuery({ queryKey, queryFn: () => giftsApi.list(accessToken!), enabled: visible && authenticated, staleTime: 10_000, retry: 1 });
   const useGift = useMutation({
     mutationFn: (gift: GiftItem) => {
-      if (!canUseGift(gift, context)) throw new Error("gift_not_available_in_this_state");
+      if (viewOnly || !canUseGift(gift, context)) throw new Error("gift_not_available_in_this_state");
       return giftsApi.use(gift.id, accessToken!, gift.kind === "coin" ? undefined : gameKey);
     },
     onSuccess: ({ gift, effect }) => {
@@ -112,10 +113,11 @@ export function GiftInventoryModal({ visible, sessionReady = false, completed = 
           {!authenticated ? <View style={styles.empty}><Ionicons name="lock-closed-outline" size={34} color="#A89AFF" /><Text style={styles.emptyTitle}>Подарки хранятся в аккаунте</Text><Text style={styles.emptyText}>Войдите, чтобы получать и использовать бонусы.</Text></View> : gifts.isLoading ? <View style={styles.loading}><ActivityIndicator color="#A89AFF" /><Text style={styles.emptyText}>Загружаем подарки</Text></View> : gifts.isError ? <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={34} color="#FF8B9A" /><Text style={styles.emptyTitle}>Не удалось загрузить</Text><Pressable onPress={() => void gifts.refetch()} style={styles.retry}><Text style={styles.retryText}>Повторить</Text></Pressable></View> : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
               {available.length ? <Text style={styles.sectionLabel}>ДОСТУПНО · {available.length}</Text> : null}
-              {available.map((gift) => <GiftCard key={gift.id} gift={gift} usable={canUseGift(gift, context)} context={context} busy={useGift.isPending && useGift.variables?.id === gift.id} onUse={() => useGift.mutate(gift)} />)}
+              {viewOnly ? <Text style={styles.emptyText}>Здесь можно посмотреть подарки. Применяйте их внутри игры.</Text> : null}
+              {available.map((gift) => <GiftCard key={gift.id} gift={gift} viewOnly={viewOnly} usable={canUseGift(gift, context)} context={context} busy={useGift.isPending && useGift.variables?.id === gift.id} onUse={() => useGift.mutate(gift)} />)}
               {!available.length ? <View style={styles.empty}><Ionicons name="gift-outline" size={36} color="rgba(255,255,255,0.34)" /><Text style={styles.emptyTitle}>Пока пусто</Text><Text style={styles.emptyText}>Новые подарки появятся после активностей и серий входа.</Text></View> : null}
               {used.length ? <Text style={[styles.sectionLabel, styles.usedLabel]}>ИСПОЛЬЗОВАНО · {used.length}</Text> : null}
-              {used.map((gift) => <GiftCard key={gift.id} gift={gift} disabled />)}
+              {used.map((gift) => <GiftCard key={gift.id} gift={gift} viewOnly={viewOnly} disabled />)}
             </ScrollView>
           )}
           {useGift.error ? <Text style={styles.errorText}>Подарок не применился. Попробуйте ещё раз.</Text> : null}
@@ -125,7 +127,7 @@ export function GiftInventoryModal({ visible, sessionReady = false, completed = 
   );
 }
 
-function GiftCard({ gift, busy = false, disabled = false, usable = true, context, onUse }: { gift: GiftItem; busy?: boolean; disabled?: boolean; usable?: boolean; context?: GiftContext; onUse?: () => void }) {
+function GiftCard({ gift, viewOnly = false, busy = false, disabled = false, usable = true, context, onUse }: { gift: GiftItem; viewOnly?: boolean; busy?: boolean; disabled?: boolean; usable?: boolean; context?: GiftContext; onUse?: () => void }) {
   const unavailable = disabled || gift.status !== "available";
   const presentation = giftPresentation(gift);
   const actionEnabled = !unavailable && usable && !busy;
@@ -133,7 +135,7 @@ function GiftCard({ gift, busy = false, disabled = false, usable = true, context
     <View style={[styles.card, unavailable && styles.cardUsed]}>
       <LinearGradient colors={unavailable ? ["rgba(255,255,255,0.05)", "rgba(255,255,255,0.025)"] : ["rgba(124,92,255,0.28)", "rgba(55,189,248,0.10)"]} style={styles.cardIcon}><Ionicons name={presentation.icon} color={unavailable ? "rgba(255,255,255,0.34)" : "#D8D1FF"} size={28} /></LinearGradient>
       <View style={styles.cardInfo}><Text style={[styles.cardTitle, unavailable && styles.dimmed]}>{presentation.title}</Text><Text numberOfLines={2} style={styles.cardDescription}>{gift.description || presentation.fallback}</Text></View>
-      <Pressable accessibilityRole="button" accessibilityLabel={presentation.accessibility} accessibilityState={{ disabled: !actionEnabled, busy }} disabled={!actionEnabled} onPress={onUse} style={({ pressed }) => [styles.useButton, (!usable || unavailable) && styles.useButtonUsed, pressed && styles.pressed]}>{busy ? <ActivityIndicator size="small" color="#0A0910" /> : <Text style={[styles.useText, (!usable || unavailable) && styles.useTextUsed]}>{giftActionLabel(gift, usable, context ?? { sessionReady: false, completed: false, hasGame: false, supportsTimeExtension: false })}</Text>}</Pressable>
+      {!viewOnly ? <Pressable accessibilityRole="button" accessibilityLabel={presentation.accessibility} accessibilityState={{ disabled: !actionEnabled, busy }} disabled={!actionEnabled} onPress={onUse} style={({ pressed }) => [styles.useButton, (!usable || unavailable) && styles.useButtonUsed, pressed && styles.pressed]}>{busy ? <ActivityIndicator size="small" color="#0A0910" /> : <Text style={[styles.useText, (!usable || unavailable) && styles.useTextUsed]}>{giftActionLabel(gift, usable, context ?? { sessionReady: false, completed: false, hasGame: false, supportsTimeExtension: false })}</Text>}</Pressable> : null}
     </View>
   );
 }

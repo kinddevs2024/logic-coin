@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
@@ -8,6 +9,8 @@ import { AppText } from "@/components/app-text";
 import { ChallengeCard } from "@/components/challenge-card";
 import { ChallengeEmptyState } from "@/components/challenge-empty-state";
 import { ChallengeProgress } from "@/components/challenge-progress";
+import { IconButton } from "@/components/buttons";
+import { GiftInventoryModal } from "@/components/gift-inventory-modal";
 import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -26,6 +29,7 @@ export default function ChallengesScreen() {
   const theme = useAppTheme();
   const { language } = useTranslation();
   const router = useRouter();
+  const [giftsOpen, setGiftsOpen] = useState(false);
   const { isTablet, isDesktop } = useResponsiveLayout();
   const coinBalance = useAppStore((state) => state.coinBalance);
   const { today, isLoading, refresh, pendingGameKey } = useChallenges();
@@ -33,14 +37,17 @@ export default function ChallengesScreen() {
   const wide = isTablet || isDesktop;
 
   return (
-    <AppFrame wide desktopNavigationInset contentStyle={styles.page}>
+    <AppFrame wide desktopNavigationInset contentStyle={styles.page} swipesDisabled={giftsOpen}>
       <ScreenHeader
         title={c.title}
         action={
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <IconButton name="gift-outline" label={language === "ru" ? "Мои подарки" : language === "uz" ? "Sovg‘alarim" : "My gifts"} onPress={() => setGiftsOpen(true)} />
           <GlassSurface variant="strong" intensity={68} style={styles.coinPill}>
             <Ionicons name="diamond" size={16} color="#F5B800" />
             <AppText style={[styles.coinValue, { color: theme.text }]}>{today?.coins.balance ?? coinBalance}</AppText>
           </GlassSurface>
+          </View>
         }
       />
 
@@ -75,6 +82,7 @@ export default function ChallengesScreen() {
           </Pressable>
         </View>
       ) : null}
+      <GiftInventoryModal visible={giftsOpen} viewOnly onClose={() => setGiftsOpen(false)} />
     </AppFrame>
   );
 }
