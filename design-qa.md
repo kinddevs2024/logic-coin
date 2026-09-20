@@ -194,4 +194,18 @@ Fonts, spacing, theme colors, avatar assets and content: implemented using exist
 
 No visual comparison completed. No claim of visual acceptance.
 
-final result: blocked
+## Follow-up verification — 2026-09-20, challenge header gifts
+
+Browser access restored through Chrome (in-app browser still unavailable). User completed sign-in; no credentials were copied. Production deployed with rollback backup `challenge-progress-gifts-20260920`.
+
+Source gift-button target: C:/Users/MyPc/AppData/Local/Temp/codex-clipboard-75deb039-3fdd-43aa-96e4-9b2c7507b45e.png (495 x 97). Compared together with the rendered mobile capture. Button is between page title and coin balance as drawn; current Russian locale and different account balance are intentional.
+
+Implementation captures: `.qa/challenge-summary-mobile.png`, `.qa/challenge-gifts-mobile.png`. Mobile viewport 390 x 844 CSS pixels, capture 390 x 844 (1x); desktop also inspected at 1503 x 859 after viewport reset. Gift reference is a header crop, so comparison is structural, not a full-screen pixel match. Challenge sketch was also displayed together with mobile capture: metric order and two-column division agree; populated ranking is unavailable because today's live contest has no participants. Neighbour positioning remains covered by six focused tests, not a claimed live visual test.
+
+Interactions: opened My gifts, waited for actual inventory (5 available, 4 used), confirmed no use buttons in view-only mode, closed back to challenges. No inventory mutation performed. No new runtime errors during these interactions; logs included an earlier Google FedCM login failure, outside the changed flow.
+
+Fidelity surfaces: existing fonts and theme colors retained; header fits mobile without clipping; library gift/diamond/cash icons and existing avatar renderer reused; labels distinguish projected cash from a settled prize. Gift sheet has readable independent cards. No new actionable P0/P1/P2 findings in inspected states. Remaining verification gap: populated live ranking and APK were not visually tested.
+
+React review: gift query enabled only while modal is visible and authenticated; view-only is enforced in UI and mutation guard; page swipes disabled while gift modal is open. Builds/typecheck/targeted lint passed, six neighborhood/service tests and fourteen existing gift/contest tests passed.
+
+final result: passed
