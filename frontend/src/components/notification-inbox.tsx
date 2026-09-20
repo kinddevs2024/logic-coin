@@ -73,6 +73,7 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
         {token && query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
         {query.error ? <Pressable onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())}><AppText color={String(theme.danger)}>Не удалось загрузить. Нажмите, чтобы повторить.</AppText></Pressable> : null}
         {readError ? <Pressable onPress={() => read([...failed.current])}><AppText color={String(theme.danger)}>Не удалось сохранить просмотр. Повторить</AppText></Pressable> : null}
+        <View style={styles.listViewport}>
         <FlatList data={items} keyExtractor={item => item.id} style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 12) }]}
           onEndReachedThreshold={0.3}
           onEndReached={() => {
@@ -89,6 +90,7 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
           ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>Уведомлений пока нет</AppText></GlassSurface> : null}
           ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null}
         />
+        </View>
       </Animated.View>
     </View>
   </Modal>;
@@ -97,6 +99,7 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, alignItems: "center", backgroundColor: "rgba(4,12,26,0.5)", paddingHorizontal: 18 },
   panel: { flex: 1, minHeight: 0, width: "100%", maxWidth: 560, gap: 12 },
   close: { alignSelf: "flex-end" },
+  listViewport: { flex: 1, minHeight: 0, borderRadius: 24, overflow: "hidden" },
   list: { gap: 12, paddingBottom: 8 },
   card: { padding: 18, borderRadius: 24, gap: 8 },
   cardHeading: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: 8 },
