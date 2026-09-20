@@ -1,11 +1,6 @@
 name: TEST ONLY Android tabs rendering comparison - DO NOT DISTRIBUTE
 
 on:
-  # One-time branch-only registration for workflow_dispatch. Remove this push
-  # trigger after its initial run; the default branch is never targeted.
-  push:
-    branches: [codex/optimize-android-tabs]
-    paths: [.github/workflows/android-tabs-qa.yml]
   workflow_dispatch:
     inputs:
       baseline_ref:

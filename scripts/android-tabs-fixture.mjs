@@ -135,7 +135,7 @@ export function createFixtureServer({ clientOrigin = 'http://127.0.0.1:8184', lo
       else if (route === '/games/progress' && method === 'PUT') { if (body.games && typeof body.games === 'object') progress = body.games; send(200,{games:progress}); }
       else if (route === '/challenges/today' && method === 'GET') send(200,{today:today()});
       else if (route === '/challenges/rewards/pending' && method === 'GET') send(200,{reward:null});
-      else if (route === '/challenges/progress' && method === 'GET') send(200,{dayKey,participantCount:25,projectedCashUnits:30,previous:null,next:null,self:{rank:4,totalCoins:scenario.completed*120,completedGamesCount:scenario.completed},neighbors:Array.from({length:7},(_,index)=>({userId:index===3?'qa-local-user':`qa-neighbor-${index}`,rank:index+1,totalCoins:480-index*120,name:index===3?'QA Профиль':`QA Игрок ${index+1}`,avatarUrl,isSelf:index===3}))});
+      else if (route === '/challenges/progress' && method === 'GET') send(200,{dayKey,participantCount:25,projectedCashUnits:30,previous:null,next:null,self:{rank:4,totalCoins:scenario.completed*120,completedGamesCount:scenario.completed},neighbors:Array.from({length:7},(_,index)=>({userId:index===3?'qa-local-user':`qa-neighbor-${index}`,rank:index+1,totalCoins:Math.max(0,scenario.completed*120+(3-index)*30),name:index===3?'QA Профиль':`QA Игрок ${index+1}`,avatarUrl,isSelf:index===3}))});
       else if (route === '/referrals' && method === 'GET') send(200,{referral});
       else if (route === '/activity' && method === 'GET') send(200,activity);
       else if (route === '/activity/check-in' && method === 'POST') send(200,{day:activity.days[0]});
@@ -172,6 +172,9 @@ async function selfTest() {
     assert.equal(boot.payload.data.todayChallenges.games.length,6);
     assert.equal((await request('/api/v1/games',{headers})).payload.data.games.length,13);
     assert.equal((await request('/api/v1/challenges/rewards/pending',{headers})).payload.data.reward,null);
+    const leaderboard = (await request('/api/v1/challenges/progress',{headers})).payload.data;
+    assert.ok(leaderboard.neighbors.every((player,index,players) => player.totalCoins >= 0 && (index === 0 || players[index - 1].totalCoins >= player.totalCoins)));
+    assert.equal(leaderboard.neighbors.find(player => player.isSelf).totalCoins,leaderboard.self.totalCoins);
     assert.equal((await request('/api/v1/withdrawals',{headers,method:'POST',body:'{}'})).status,404);
     const picture = await fetch(origin+'/qa/avatar.png');
     assert.deepEqual([...new Uint8Array(await picture.arrayBuffer()).slice(0,8)],[137,80,78,71,13,10,26,10]);
