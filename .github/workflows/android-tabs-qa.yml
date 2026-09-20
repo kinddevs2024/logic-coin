@@ -117,7 +117,9 @@ jobs:
           python3 - <<'PY'
           import json, pathlib, re, xml.etree.ElementTree as ET
           android_ns = 'http://schemas.android.com/apk/res/android'
+          tools_ns = 'http://schemas.android.com/tools'
           ET.register_namespace('android', android_ns)
+          ET.register_namespace('tools', tools_ns)
           app = json.loads(pathlib.Path('frontend/app.json').read_text())['expo']
           assert app['android']['package'] == 'com.kinddevs.logiccoin', 'Unexpected application package'
           manifest = pathlib.Path('frontend/android/app/src/main/AndroidManifest.xml')
@@ -127,6 +129,11 @@ jobs:
           key = '{' + android_ns + '}networkSecurityConfig'
           assert key not in application.attrib, 'Existing network security config requires explicit review'
           application.set(key, '@xml/qa_network_security_config')
+          replace_key = '{' + tools_ns + '}replace'
+          replacements = [value.strip() for value in application.get(replace_key, '').split(',') if value.strip()]
+          if 'android:networkSecurityConfig' not in replacements:
+            replacements.append('android:networkSecurityConfig')
+          application.set(replace_key, ','.join(replacements))
           application.set('{' + android_ns + '}usesCleartextTraffic', 'false')
           tree.write(manifest, encoding='utf-8', xml_declaration=True)
           config = pathlib.Path('frontend/android/app/src/main/res/xml/qa_network_security_config.xml')
