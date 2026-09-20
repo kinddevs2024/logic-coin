@@ -42,11 +42,11 @@ export async function listInbox(userId: Types.ObjectId, all: boolean, before?: {
     { createdAt: { $lt: new Date(before.date) } },
     { createdAt: new Date(before.date), id: { $lt: before.id } }
   ] } });
-  stages.push({ $sort: { createdAt: -1, id: -1 } }, { $limit: 31 });
+  stages.push({ $sort: { createdAt: -1, id: -1 } }, { $limit: 11 });
   const rows = await NotificationEvent.aggregate(stages);
-  const items = rows.slice(0, 30).map(row => ({ ...row, createdAt: new Date(row.createdAt).toISOString() })) as InboxItem[];
+  const items = rows.slice(0, 10).map(row => ({ ...row, createdAt: new Date(row.createdAt).toISOString() })) as InboxItem[];
   const last = items.at(-1);
-  return { items, next: rows.length > 30 && last ? { date: last.createdAt, id: last.id } : null };
+  return { items, next: rows.length > 10 && last ? { date: last.createdAt, id: last.id } : null };
 }
 
 export async function markInboxRead(userId: Types.ObjectId, ids: string[]) {

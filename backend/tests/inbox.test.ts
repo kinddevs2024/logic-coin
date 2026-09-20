@@ -20,13 +20,20 @@ describe("notification inbox", () => {
   });
   it("history includes read notifications and paginates without losing equal timestamps", async () => {
     const date = "2026-09-19T00:00:00.000Z";
-    m.aggregate.mockResolvedValue(Array.from({ length: 31 }, (_, i) => ({ id: `gift:${i}`, createdAt: new Date(date), read: true })));
+    m.aggregate.mockResolvedValue(Array.from({ length: 11 }, (_, i) => ({ id: `gift:${i}`, createdAt: new Date(date), read: true })));
     const page = await listInbox(userId, true, { date, id: "gift:cursor" });
-    expect(page.items).toHaveLength(30);
-    expect(page.next).toEqual({ date, id: "gift:29" });
+    expect(page.items).toHaveLength(10);
+    expect(page.next).toEqual({ date, id: "gift:9" });
     const stages = m.aggregate.mock.calls[0]![0];
     expect(stages).not.toContainEqual({ $match: { read: false } });
+    expect(stages).toContainEqual({ $limit: 11 });
     expect(stages).toContainEqual({ $match: { $or: [{ createdAt: { $lt: new Date(date) } }, { createdAt: new Date(date), id: { $lt: "gift:cursor" } }] } });
+  });
+  it("stops pagination on a full final page", async () => {
+    m.aggregate.mockResolvedValue(Array.from({ length: 10 }, (_, i) => ({ id: `gift:${i}`, createdAt: new Date() })));
+    const page = await listInbox(userId, true);
+    expect(page.items).toHaveLength(10);
+    expect(page.next).toBeNull();
   });
   it("does not create read receipts for another user's notification", async () => {
     await expect(markInboxRead(userId, ["gift:unowned"])).resolves.toEqual({ marked: 0 });
