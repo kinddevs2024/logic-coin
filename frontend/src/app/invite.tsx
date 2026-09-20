@@ -1,5 +1,4 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Share, StyleSheet, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
@@ -13,7 +12,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
-import { referralsApi } from "@/lib/api";
+import { useReferrals } from "@/hooks/use-referrals";
 import { useAppStore } from "@/store/app-store";
 import { formatMoney } from "@/lib/format";
 
@@ -25,15 +24,7 @@ export default function InviteScreen() {
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
-  const referralQuery = useQuery({
-    queryKey: ["referrals", accessToken],
-    queryFn: () => referralsApi.overview(accessToken!),
-    enabled: authenticated,
-    staleTime: 30_000,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchInterval: 15_000,
-  });
+  const referralQuery = useReferrals();
   const referral = referralQuery.data;
   const friends = referral?.friends ?? [];
   const code = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";

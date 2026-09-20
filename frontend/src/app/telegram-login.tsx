@@ -8,6 +8,7 @@ import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
 import { LogicCoinLogo } from "@/components/logo";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { isTelegramMiniApp } from "@/lib/telegram-context";
 
 const ANDROID_PACKAGE = "com.kinddevs.logiccoin";
 
@@ -29,7 +30,7 @@ export default function TelegramLoginScreen() {
   }, [router, token]);
 
   const openApplication = useCallback(() => {
-    if (!token || Platform.OS !== "web") {
+    if (!token || Platform.OS !== "web" || isTelegramMiniApp()) {
       continueInBrowser();
       return;
     }
@@ -66,7 +67,8 @@ export default function TelegramLoginScreen() {
     if (!token) {
       return;
     }
-    const timer = window.setTimeout(openApplication, 180);
+    // Never auto-navigate a WebView to an unsupported custom URL scheme.
+    const timer = window.setTimeout(continueInBrowser, 180);
     return () => window.clearTimeout(timer);
   }, [continueInBrowser, openApplication, token]);
 

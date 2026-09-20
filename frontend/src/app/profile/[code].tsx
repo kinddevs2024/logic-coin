@@ -17,6 +17,7 @@ import { AppButton } from "@/components/buttons";
 import { sharePublicProfile } from "@/lib/profile-link";
 import { cosmeticsFor } from "@/games/cosmetics";
 import type { GameId } from "@/games/progress-store";
+import { isTelegramMiniApp } from "@/lib/telegram-context";
 
 export default function PublicProfileScreen() {
   const theme = useAppTheme();
@@ -29,12 +30,12 @@ export default function PublicProfileScreen() {
   });
   const profile = query.data?.profile;
   const openApp = () => {
-    if (Platform.OS !== "web" || !code || !/Android/i.test(navigator.userAgent)) return;
+    if (Platform.OS !== "web" || !code || isTelegramMiniApp() || !/Android/i.test(navigator.userAgent)) return;
     const fallback = `https://www.logic-coin.online/profile/${encodeURIComponent(code)}?web=1`;
     window.location.assign(`intent://profile/${encodeURIComponent(code)}#Intent;scheme=logiccoin;package=com.kinddevs.logiccoin;S.browser_fallback_url=${encodeURIComponent(fallback)};end`);
   };
   useEffect(() => {
-    if (Platform.OS !== "web" || !code || !/Android/i.test(navigator.userAgent) || new URLSearchParams(window.location.search).has("web")) return;
+    if (Platform.OS !== "web" || !code || isTelegramMiniApp() || !/Android/i.test(navigator.userAgent) || new URLSearchParams(window.location.search).has("web")) return;
     const fallback = `https://www.logic-coin.online/profile/${encodeURIComponent(code)}?web=1`;
     window.location.replace(`intent://profile/${encodeURIComponent(code)}#Intent;scheme=logiccoin;package=com.kinddevs.logiccoin;S.browser_fallback_url=${encodeURIComponent(fallback)};end`);
   }, [code]);

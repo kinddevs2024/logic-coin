@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -17,7 +17,8 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
-import { authApi, referralsApi } from "@/lib/api";
+import { authApi } from "@/lib/api";
+import { useReferrals } from "@/hooks/use-referrals";
 import { formatMoney } from "@/lib/format";
 import { sharePublicProfile } from "@/lib/profile-link";
 import { readableAccent } from "@/lib/theme-colors";
@@ -42,12 +43,7 @@ export default function ProfileScreen() {
   const refreshToken = useAppStore((state) => state.refreshToken);
   const logout = useAppStore((state) => state.logout);
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
-  const referralQuery = useQuery({
-    queryKey: ["referrals", accessToken],
-    queryFn: () => referralsApi.overview(accessToken!),
-    enabled: authenticated,
-    staleTime: 30_000,
-  });
+  const referralQuery = useReferrals();
   const referral = referralQuery.data;
   const friendCount = authenticated ? referral?.invitedCount ?? 0 : 0;
   const referralCode = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";

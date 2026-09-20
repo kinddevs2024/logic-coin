@@ -9,6 +9,8 @@ import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
 import { LogoMark } from "@/components/logo";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { isTelegramMiniApp } from "@/lib/telegram-context";
+import { captureRegistrationReferral } from "@/lib/referral-attribution";
 
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.kinddevs.logiccoin";
 
@@ -22,16 +24,20 @@ export default function ReferralLandingScreen() {
 
   useEffect(() => {
     if (!validCode) return;
-    if (Platform.OS !== "web") {
-      router.replace({ pathname: "/login", params: { ref: code } });
-      return;
-    }
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (!isAndroid) return;
-    // Chrome opens the installed package. If it is absent, the browser uses
-    // the explicit Play fallback instead of leaving the visitor on a dead URL.
-    const intent = `intent://invite/${encodeURIComponent(code)}#Intent;scheme=logiccoin;package=com.kinddevs.logiccoin;S.browser_fallback_url=${encodeURIComponent(PLAY_STORE_URL)};end`;
-    window.location.replace(intent);
+    let cancelled = false;
+    void captureRegistrationReferral(`/invite/${encodeURIComponent(code)}`).then(() => {
+      if (cancelled) return;
+      if (Platform.OS !== "web") {
+        router.replace({ pathname: "/login", params: { ref: code } });
+        return;
+      }
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      if (!isAndroid || isTelegramMiniApp()) return;
+      // Preserve the invitation in the URI passed to the installed package.
+      const intent = `intent://invite/${encodeURIComponent(code)}#Intent;scheme=logiccoin;package=com.kinddevs.logiccoin;S.browser_fallback_url=${encodeURIComponent(PLAY_STORE_URL)};end`;
+      window.location.replace(intent);
+    });
+    return () => { cancelled = true; };
   }, [code, router, validCode]);
 
   if (!validCode) {

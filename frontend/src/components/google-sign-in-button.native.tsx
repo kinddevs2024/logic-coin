@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-nat
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { selectGoogleAccount } from "@/lib/google-account-selection";
 
 export function GoogleSignInButton({
   onCredential,
@@ -27,8 +28,7 @@ export function GoogleSignInButton({
     if (!clientId || busy || disabled) return;
     setBusy(true);
     try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const result = await GoogleSignin.signIn();
+      const result = await selectGoogleAccount(GoogleSignin);
       if (result.type === "success" && result.data.idToken) {
         onCredential(result.data.idToken);
       }
