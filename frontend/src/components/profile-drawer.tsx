@@ -175,6 +175,15 @@ export function ProfileDrawer({
                     </View>
                   </View>
                 </View>
+                <View style={styles.balanceRow}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <AppText variant="caption" color="rgba(255,255,255,0.72)">
+                      {t("home.balance")}
+                    </AppText>
+                    <AppText variant="title" color="#FFFFFF">
+                      {formatMoney(balance)}
+                    </AppText>
+                  </View>
                 <View style={styles.profileActions}>
                   <Pressable
                     accessibilityRole="button"
@@ -193,15 +202,6 @@ export function ProfileDrawer({
                     <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
                   </Pressable>
                 </View>
-                <View style={styles.balanceRow}>
-                  <View>
-                    <AppText variant="caption" color="rgba(255,255,255,0.72)">
-                      {t("home.balance")}
-                    </AppText>
-                    <AppText variant="title" color="#FFFFFF">
-                      {formatMoney(balance)}
-                    </AppText>
-                  </View>
                 </View>
               </LinearGradient>
 
@@ -282,7 +282,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     overflow: "hidden",
     padding: 20,
-    paddingTop: 66,
     gap: 22,
   },
   profileTop: {
@@ -292,9 +291,7 @@ const styles = StyleSheet.create({
   },
   drawerCountry: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
   profileActions: {
-    position: "absolute",
-    top: 14,
-    right: 14,
+    flexShrink: 0,
     flexDirection: "row",
     gap: 8,
   },
@@ -311,8 +308,9 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.72, transform: [{ scale: 0.96 }] },
   balanceRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
   },
   lcChip: {
     borderRadius: 999,
