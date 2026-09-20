@@ -1,0 +1,203 @@
+name: TEST ONLY Android tabs rendering comparison - DO NOT DISTRIBUTE
+
+on:
+  # One-time branch-only registration for workflow_dispatch. Remove this push
+  # trigger after its initial run; the default branch is never targeted.
+  push:
+    branches: [codex/optimize-android-tabs]
+    paths: [.github/workflows/android-tabs-qa.yml]
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: Baseline commit/ref for the identical local-fixture rendering comparison
+        required: false
+        default: 7a50db020a2abf19d56e092223aaacf4ce7a056f
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-tabs-qa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qa-apk:
+    name: TEST ONLY ${{ matrix.variant }} x86_64 release
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, candidate]
+    env:
+      CI: "true"
+      EXPO_NO_DOTENV: "1"
+      EXPO_NO_TELEMETRY: "1"
+      NODE_ENV: production
+      EXPO_PUBLIC_API_URL: http://127.0.0.1:8184/api/v1
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: ""
+      EXPO_PUBLIC_APPODEAL_APP_KEY: ""
+      EXPO_PUBLIC_APPODEAL_TEST_MODE: "true"
+      EXPO_PUBLIC_YANDEX_TEST_MODE: "true"
+      QA_VARIANT: ${{ matrix.variant }}
+      QA_WORKFLOW_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.variant == 'baseline' && (inputs.baseline_ref || '7a50db020a2abf19d56e092223aaacf4ce7a056f') || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Use pinned npm
+        run: npm install --global npm@11.18.0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            package-lock.json
+            frontend/app.json
+            frontend/plugins/**
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install frontend workspace
+        run: npm ci --workspace frontend --include=dev
+
+      - name: Apply identical temporary QA-only ad stubs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$EXPO_PUBLIC_API_URL" = "http://127.0.0.1:8184/api/v1"
+          test -z "$EXPO_PUBLIC_APPODEAL_APP_KEY"
+          mkdir -p artifacts/android-tabs-qa
+          git rev-parse HEAD > artifacts/android-tabs-qa/source-sha.txt
+          python3 - <<'PY'
+          import pathlib, re
+          root = pathlib.Path('frontend/src')
+          runtime = root / 'components/ad-runtime.tsx'
+          provider = root / 'lib/rewarded-ad-provider.native.ts'
+          runtime_source = runtime.read_text()
+          provider_source = provider.read_text()
+          assert re.search(r'export function AdRuntime\s*\(\s*\)', runtime_source), 'Unexpected AdRuntime export; inspect baseline/candidate before patching'
+          assert re.search(r'\.initialize\(userId\)', runtime_source), 'Expected ad initialization was not found'
+          assert 'class AppodealRewardedAdProvider implements RewardedAdProvider' in provider_source, 'Unexpected native provider implementation'
+          assert re.search(r'export const rewardedAds:\s*RewardedAdProvider\s*=\s*new AppodealRewardedAdProvider\(\)', provider_source), 'Unexpected provider export'
+          runtime.write_text('// Ephemeral CI rendering benchmark only. Never ship this stub.\nexport function AdRuntime() { return null; }\n')
+          provider.write_text('''// Ephemeral CI rendering benchmark only. Never ship this stub.
+          import type { RewardedAdProvider } from "./rewarded-ad";
+          export const rewardedAds: RewardedAdProvider = {
+            async initialize() { return false; },
+            async show(placement) { return { provider: "demo", placement, completed: false, proof: "", reason: "unavailable" }; },
+            async showInterstitial() { return false; },
+            async showAppOpen() { return false; },
+            diagnostics() { return { configured: false, initialized: false, testMode: true, rewardedLoaded: false, interstitialLoaded: false, sdkVersion: "QA-NO-ADS" }; },
+          };
+          ''')
+          print('QA checkout only: ad runtime/provider replaced; auth screens, tab UI and gameplay sources unchanged.')
+          PY
+          npm run typecheck --workspace frontend
+
+      - name: Generate Android release project
+        working-directory: frontend
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Allow only the local fixture HTTP endpoint in QA manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, re, xml.etree.ElementTree as ET
+          android_ns = 'http://schemas.android.com/apk/res/android'
+          ET.register_namespace('android', android_ns)
+          app = json.loads(pathlib.Path('frontend/app.json').read_text())['expo']
+          assert app['android']['package'] == 'com.kinddevs.logiccoin', 'Unexpected application package'
+          manifest = pathlib.Path('frontend/android/app/src/main/AndroidManifest.xml')
+          tree = ET.parse(manifest)
+          application = tree.getroot().find('application')
+          assert application is not None, 'Generated application element is missing'
+          key = '{' + android_ns + '}networkSecurityConfig'
+          assert key not in application.attrib, 'Existing network security config requires explicit review'
+          application.set(key, '@xml/qa_network_security_config')
+          application.set('{' + android_ns + '}usesCleartextTraffic', 'false')
+          tree.write(manifest, encoding='utf-8', xml_declaration=True)
+          config = pathlib.Path('frontend/android/app/src/main/res/xml/qa_network_security_config.xml')
+          config.parent.mkdir(parents=True, exist_ok=True)
+          config.write_text('''<?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+            <base-config cleartextTrafficPermitted="false" />
+            <domain-config cleartextTrafficPermitted="true"><domain includeSubdomains="false">127.0.0.1</domain></domain-config>
+          </network-security-config>
+          ''')
+          gradle = pathlib.Path('frontend/android/app/build.gradle').read_text()
+          assert re.search(r'release\s*\{[^}]*signingConfig\s+signingConfigs\.debug', gradle), 'Expected Expo debug signer for release QA APK; do not load production signing keys'
+          print('QA-only manifest: cleartext allowed for 127.0.0.1 only; package retained; Expo debug signer checked.')
+          PY
+
+      - name: Build TEST ONLY x86_64 release APK
+        working-directory: frontend/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 -Pandroid.enableMinifyInReleaseBuilds=false -Pandroid.enableShrinkResourcesInReleaseBuilds=false --build-cache --no-daemon --stacktrace
+
+      - name: Verify and label non-distributable artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find frontend/android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk')
+          test "${#apks[@]}" -eq 1
+          output="artifacts/android-tabs-qa/TEST-ONLY-${QA_VARIANT}-x86_64.apk"
+          cp "${apks[0]}" "$output"
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          test -n "$build_tools"
+          "$build_tools/apksigner" verify --verbose --print-certs "$output" > "${output}.signer.txt"
+          "$build_tools/aapt" dump badging "$output" > "${output}.badging.txt"
+          grep -q "native-code: 'x86_64'" "${output}.badging.txt"
+          if grep -q '^application-debuggable' "${output}.badging.txt"; then
+            echo 'Expected release runtime, found debuggable APK' >&2
+            exit 1
+          fi
+          sha256sum "$output" > "${output}.sha256"
+          python3 - <<'PY'
+          import json, os, pathlib
+          output = pathlib.Path('artifacts/android-tabs-qa')
+          metadata = {
+            'warning': 'TEST ONLY. DO NOT DISTRIBUTE OR UPLOAD TO A STORE.',
+            'variant': os.environ['QA_VARIANT'],
+            'source_sha': (output / 'source-sha.txt').read_text().strip(),
+            'workflow_sha': os.environ['QA_WORKFLOW_SHA'],
+            'api_url': os.environ['EXPO_PUBLIC_API_URL'],
+            'package': 'com.kinddevs.logiccoin',
+            'abi': 'x86_64',
+            'runtime': 'release; Hermes; minify=false; shrinkResources=false',
+            'signing': 'Expo debug signer; no production signing secrets',
+            'fixture_login': 'Existing email/password UI; synthetic local account only; no auth bypass',
+            'qa_patches': ['AdRuntime returns null', 'native rewardedAds returns unavailable; no SDK load/show calls', 'generated manifest permits cleartext only for 127.0.0.1'],
+            'scope': 'Tab rendering comparison only. Does not benchmark production auth, server, ads, startup SDK work or network performance.',
+          }
+          (output / 'metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
+          (output / 'DO-NOT-DISTRIBUTE.txt').write_text(metadata['warning'] + '\nUse only on the disposable QA emulator with adb reverse tcp:8184 tcp:8184 and scripts/android-tabs-fixture.mjs.\n')
+          PY
+          echo '### TEST ONLY rendering comparison APK' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Not a production release. Local fixture API, no-op ad runtime/provider, debug signer, x86_64 release runtime.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload TEST ONLY comparison APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TEST-ONLY-android-tabs-${{ matrix.variant }}-${{ github.run_number }}
+          path: artifacts/android-tabs-qa/
+          if-no-files-found: error
+          retention-days: 7
