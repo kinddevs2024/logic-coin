@@ -16,6 +16,7 @@ const modelMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/config/env.js", () => ({ env: { DEFAULT_TIMEZONE: "UTC" } }));
+vi.mock("../src/models/ChallengeAdReward.js", () => ({ ChallengeAdReward: { find: () => ({ select: () => ({ lean: async () => [] }) }) } }));
 vi.mock("../src/models/User.js", () => ({ User: { findById: modelMocks.userFindById } }));
 vi.mock("../src/models/DailyChallengeSet.js", () => ({
   DailyChallengeSet: {

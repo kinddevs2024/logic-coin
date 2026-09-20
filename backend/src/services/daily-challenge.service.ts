@@ -16,6 +16,7 @@ import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { Game } from "../models/Game.js";
 import { NotificationEvent } from "../models/NotificationEvent.js";
 import { User } from "../models/User.js";
+import { ChallengeAdReward } from "../models/ChallengeAdReward.js";
 import { serializeCoins, serializeGame } from "./serialization.service.js";
 import { settleExpiredDailyContests } from "./contest.service.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
@@ -198,6 +199,8 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
     .filter((item) => item !== null);
 
   const completedCount = items.filter((item) => item.state.status === "completed").length;
+  const adRewards = await ChallengeAdReward.find({ userId, dayKey }).select("amount").lean();
+  const adCoins = adRewards.reduce((total, reward) => total + reward.amount, 0);
   return {
     status: "published" as const,
     available: true,
@@ -208,7 +211,7 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
     totalCount: items.length,
     completedCount,
     gamesCompletedToday,
-    totalCoinsToday: ledgerTotal[0]?.total ?? 0,
+    totalCoinsToday: (ledgerTotal[0]?.total ?? 0) + adCoins,
     monthlyChallengeCount: monthlyChallengeDays.length,
     games: items,
     coins: serializeCoins(user.coins),

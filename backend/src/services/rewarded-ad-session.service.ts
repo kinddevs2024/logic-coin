@@ -11,12 +11,15 @@ import { ApiError } from "../lib/api-error.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { Game } from "../models/Game.js";
+import { ChallengeAdReward } from "../models/ChallengeAdReward.js";
+import { challengeAdRewardDay, NAVIGATION_CHALLENGE_REWARD } from "../lib/challenge-ad-reward.js";
 import {
   REWARDED_AD_PLACEMENTS,
   RewardedAdSession
 } from "../models/RewardedAdSession.js";
 import { creditCoins, getCoinBalance } from "./coin.service.js";
 import { challengeDayKey } from "./daily-challenge.service.js";
+import { invalidateContestProgress } from "./contest-progress.service.js";
 
 export type RewardedAdPlacement = (typeof REWARDED_AD_PLACEMENTS)[number];
 export type RewardedAdProvider = "yandex" | "appodeal";
@@ -25,7 +28,7 @@ const SESSION_TTL_MS = 20 * 60 * 1000;
 const CALLBACK_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 const COIN_REWARDS: Partial<Record<RewardedAdPlacement, number>> = {
   "challenge-third-game": 75,
-  "navigation-frequency": 25
+  "navigation-frequency": NAVIGATION_CHALLENGE_REWARD
 };
 
 function serializeSession(session: {
@@ -144,6 +147,7 @@ export async function claimRewardedAdCoins(input: {
   try {
     let rewardCoins = 0;
     let idempotentReplay = false;
+    let challengeDay: string | null = null;
     await databaseSession.withTransaction(async () => {
       const adSession = await RewardedAdSession.findOne({
         userId: input.userId,
@@ -153,8 +157,10 @@ export async function claimRewardedAdCoins(input: {
         throw new ApiError(404, "rewarded_ad_session_not_found", "Ad session not found");
       }
       if (adSession.status === "claimed") {
-        rewardCoins = adSession.rewardCoins;
+        rewardCoins = 0;
         idempotentReplay = true;
+        const previous = await ChallengeAdReward.findOne({ sessionId: adSession.sessionId }).session(databaseSession);
+        challengeDay = previous?.dayKey ?? null;
         return;
       }
       if (adSession.status !== "completed" || adSession.expiresAt.getTime() < Date.now()) {
@@ -163,26 +169,41 @@ export async function claimRewardedAdCoins(input: {
       if (adSession.rewardCoins <= 0) {
         throw new ApiError(409, "rewarded_ad_has_no_coin_reward", "This placement has no coin reward");
       }
-      const credited = await creditCoins(
-        {
-          userId: input.userId,
-          amount: adSession.rewardCoins,
-          type: "rewarded_ad_reward",
-          sourceId: `rewarded-ad:${adSession.sessionId}`,
-          description: `${adSession.provider} rewarded video`,
-          metadata: { placement: adSession.placement, provider: adSession.provider }
-        },
-        databaseSession
-      );
-      rewardCoins = credited.idempotentReplay ? 0 : adSession.rewardCoins;
+      if (adSession.placement === "navigation-frequency") {
+        const now = new Date();
+        const today = challengeDayKey(now);
+        const set = await DailyChallengeSet.findOne({ dayKey: today }).session(databaseSession);
+        challengeDay = challengeAdRewardDay(today, set, now);
+        adSession.rewardCoins = NAVIGATION_CHALLENGE_REWARD;
+        await ChallengeAdReward.create([{
+          userId: input.userId, sessionId: adSession.sessionId,
+          dayKey: challengeDay, amount: NAVIGATION_CHALLENGE_REWARD,
+        }], { session: databaseSession });
+        rewardCoins = NAVIGATION_CHALLENGE_REWARD;
+      } else {
+        const credited = await creditCoins(
+          {
+            userId: input.userId,
+            amount: adSession.rewardCoins,
+            type: "rewarded_ad_reward",
+            sourceId: `rewarded-ad:${adSession.sessionId}`,
+            description: `${adSession.provider} rewarded video`,
+            metadata: { placement: adSession.placement, provider: adSession.provider }
+          },
+          databaseSession
+        );
+        rewardCoins = credited.idempotentReplay ? 0 : adSession.rewardCoins;
+      }
       adSession.status = "claimed";
       adSession.claimedAt = new Date();
       await adSession.save({ session: databaseSession });
     });
+    if (challengeDay && !idempotentReplay) invalidateContestProgress(challengeDay);
     return {
       sessionId: input.sessionId,
       credited: rewardCoins,
       idempotentReplay,
+      challengeDayKey: challengeDay,
       coins: await getCoinBalance(input.userId)
     };
   } finally {

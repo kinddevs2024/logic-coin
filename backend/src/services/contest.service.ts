@@ -22,6 +22,7 @@ import { DailyContestResult } from "../models/DailyContestResult.js";
 import { DailyContestSettlement } from "../models/DailyContestSettlement.js";
 import { NotificationEvent } from "../models/NotificationEvent.js";
 import { User } from "../models/User.js";
+import { ChallengeAdReward } from "../models/ChallengeAdReward.js";
 import { grantGift } from "./gift.service.js";
 import {
   creditReferralCashPrizeShare
@@ -55,6 +56,15 @@ export async function collectContestStandings(dayKey: string): Promise<ContestSt
     }
     byUser.set(key, current);
   }
+  const adRewards = await ChallengeAdReward.find({ dayKey }).lean();
+  const bonusTotals = new Map<string, number>();
+  for (const reward of adRewards) {
+    const key = reward.userId.toString();
+    bonusTotals.set(key, (bonusTotals.get(key) ?? 0) + reward.amount);
+    const current = byUser.get(key) ?? { gameIds: new Set<string>(), finishedAt: null, userId: reward.userId };
+    if (!current.finishedAt || reward.createdAt > current.finishedAt) current.finishedAt = reward.createdAt;
+    byUser.set(key, current);
+  }
   if (byUser.size === 0) return [];
 
   const totals = await CoinLedgerEntry.aggregate<{ _id: Types.ObjectId; totalCoins: number }>([
@@ -71,7 +81,7 @@ export async function collectContestStandings(dayKey: string): Promise<ContestSt
 
   return [...byUser.entries()].map(([userId, value]) => ({
     userId,
-    totalCoins: totalsByUser.get(userId) ?? 0,
+    totalCoins: (totalsByUser.get(userId) ?? 0) + (bonusTotals.get(userId) ?? 0),
     completedGamesCount: value.gameIds.size,
     finishedAt: value.finishedAt?.toISOString() ?? null
   }));

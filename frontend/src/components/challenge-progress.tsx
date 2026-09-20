@@ -25,7 +25,7 @@ const HEIGHT = ROW * 3.5;
 
 export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
   if (today && !today.available) return <ChallengeEmptyState nextAt={today.nextChallengeAt} />;
-  if (today?.available && today.endsAt && !today.games.some(game => game.state.status === "started" || game.state.status === "completed")) return <ChallengeReady today={today} />;
+  if (today?.available && today.endsAt && !today.totalCoinsToday && !today.games.some(game => game.state.status === "started" || game.state.status === "completed")) return <ChallengeReady today={today} />;
   return <ActiveChallengeProgress key={`${today?.dayKey}:${today?.revision}:${today?.totalCoinsToday}:${today?.completedCount}`} today={today} />;
 }
 

@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable inside gesture worklets. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, Tabs, useRouter } from "expo-router";
 import {
   useCallback,
@@ -113,7 +113,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
   const [rewardOfferVisible, setRewardOfferVisible] = useState(false);
   const [rewardAdBusy, setRewardAdBusy] = useState(false);
   const accessToken = useAppStore((store) => store.accessToken);
-  const setCoinBalance = useAppStore((store) => store.setCoinBalance);
+  const queryClient = useQueryClient();
   const lensPosition = useSharedValue(activeIndex);
   const lensMorph = useSharedValue(0);
   const dragOrigin = useSharedValue(activeIndex);
@@ -136,7 +136,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
       if (!focused && !event.defaultPrevented) {
         navigation.navigate(route.name, route.params);
       }
-      if (Platform.OS === "android") {
+      if (Platform.OS === "android" && accessToken) {
         void AsyncStorage.getItem(NAV_AD_COUNTER_KEY).then(async (stored) => {
           const parsed = stored ? JSON.parse(stored) as { count?: number; threshold?: number } : {};
           const count = (parsed.count ?? 0) + 1;
@@ -150,7 +150,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         }).catch(() => undefined);
       }
     },
-    [focusedRouteKey, navigation, visibleRoutes],
+    [accessToken, focusedRouteKey, navigation, visibleRoutes],
   );
 
   const watchNavigationReward = useCallback(async () => {
@@ -163,13 +163,13 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         claimCoins: true,
       });
       if (reward.receipt.completed && reward.verified) {
-        if (reward.coinBalance !== undefined) setCoinBalance(reward.coinBalance);
+        await queryClient.invalidateQueries({ queryKey: ["challenges"] });
         setRewardOfferVisible(false);
       }
     } finally {
       setRewardAdBusy(false);
     }
-  }, [accessToken, rewardAdBusy, setCoinBalance]);
+  }, [accessToken, rewardAdBusy, queryClient]);
 
   const clearPointerFocus = useCallback(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
@@ -397,8 +397,8 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         <View style={styles.adOfferBackdrop}>
           <GlassSurface intensity={76} variant="strong" style={styles.adOfferCard}>
             <View style={styles.adOfferIcon}><Ionicons name="play" size={26} color="#FFFFFF" /></View>
-            <Text style={styles.adOfferTitle}>Получить 25 coin?</Text>
-            <Text style={styles.adOfferText}>Посмотрите короткое видео. Награда начислится после полного просмотра.</Text>
+            <Text style={styles.adOfferTitle}>Получить 45 коинов в челлендж?</Text>
+            <Text style={styles.adOfferText}>После полного просмотра — 45 коинов в текущий челлендж. Если он закончился, в следующий. Общий баланс не изменится.</Text>
             <Pressable disabled={rewardAdBusy} onPress={() => void watchNavigationReward()} style={({ pressed }) => [styles.adOfferPrimary, pressed && styles.playStoreLinkPressed]}>
               {rewardAdBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle" size={21} color="#FFFFFF" /><Text style={styles.adOfferPrimaryText}>Смотреть</Text></>}
             </Pressable>

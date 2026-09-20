@@ -13,6 +13,11 @@ type Snapshot = Awaited<ReturnType<typeof buildSnapshot>>;
 const snapshots = new Map<string, Snapshot>();
 let pending: { dayKey: string; promise: Promise<Snapshot> } | undefined;
 
+export function invalidateContestProgress(dayKey: string) {
+  for (const [id, value] of snapshots) if (value.dayKey === dayKey) snapshots.delete(id);
+  if (pending?.dayKey === dayKey) pending = undefined;
+}
+
 async function buildSnapshot(dayKey: string) {
   const [set, standings, users] = await Promise.all([
     DailyChallengeSet.findOne({ dayKey, status: "published" }).lean(),
