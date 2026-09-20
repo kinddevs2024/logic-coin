@@ -15,14 +15,17 @@ import { activateNextChallengeCoinGifts } from "./gift.service.js";
 import { verifyRewardedAd, type RewardedAdProof } from "./rewarded-ad.service.js";
 import { serializeCoins } from "./serialization.service.js";
 
-async function dailyGame(input: { gameKey: string; dayKey: string }) {
+async function dailyGame(input: { gameKey: string; dayKey: string; completingUserId?: Types.ObjectId }) {
   const game = await findActiveGameByKey(input.gameKey);
   const set = await getDailyChallengeSet(input.dayKey);
   if (!set || set.status !== "published") {
     throw new ApiError(409, "challenges_not_published", "Today's challenges are not published");
   }
   const inSet = (set.gameIds as Types.ObjectId[]).some((gameId) => gameId.equals(game._id));
-  if (!inSet) {
+  const existingAttempt = !inSet && input.completingUserId
+    ? await ChallengeAttempt.exists({ userId: input.completingUserId, dailyChallengeSetId: set._id, gameId: game._id, mode: "challenge", status: { $in: ["started", "completed"] } })
+    : false;
+  if (!inSet && !existingAttempt) {
     throw new ApiError(409, "game_not_in_today_set", "This game is not part of today's challenges");
   }
   return { game, set };
@@ -150,7 +153,7 @@ export async function completeChallengeAttempt(input: {
   validateScore(input.score);
   validateDuration(input.durationMs);
   const dayKey = challengeDayKey();
-  const { game } = await dailyGame({ gameKey: input.gameKey, dayKey });
+  const { game } = await dailyGame({ gameKey: input.gameKey, dayKey, completingUserId: input.userId });
   const maxCoins = Math.min(MAX_GAME_COINS, game.scoring?.maxCoins ?? MAX_GAME_COINS);
   const coinsAwarded = challengeCoinsForScore(input.score, maxCoins);
 

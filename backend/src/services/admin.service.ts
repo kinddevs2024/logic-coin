@@ -196,6 +196,9 @@ export async function configureDailyChallenge(input: {
     throw new ApiError(400, "invalid_prize_pool", "Prize pool must cover at least the first prize");
   }
   const maxAttemptsPerGame = input.maxAttemptsPerGame ?? 1;
+  const existing = await DailyChallengeSet.findOne({ dayKey: input.dayKey });
+  // Saving an active day updates it in place, never takes it offline.
+  const publish = input.publish || existing?.status === "published";
   const oneSecondAttemptLimit = ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT;
   if (!Number.isInteger(maxAttemptsPerGame) || maxAttemptsPerGame < 1 || maxAttemptsPerGame > 100) {
     throw new ApiError(400, "invalid_attempt_limit", "Challenge attempts per game must be between 1 and 100");
@@ -216,6 +219,10 @@ export async function configureDailyChallenge(input: {
   if (input.selectionMode === "manual") {
     normalizedKeys = (input.gameKeys ?? []).map(canonicalGameKey);
     selectionSeed = `manual:${input.dayKey}`;
+  } else if (existing?.selectionMode === "random") {
+    selectionSeed = existing.selectionSeed;
+    const keysById = new Map(eligibleGames.map(game => [String(game._id), game.key]));
+    normalizedKeys = existing.gameIds.map(id => keysById.get(String(id)) ?? "");
   } else {
     selectionSeed = `admin-random:${input.dayKey}:${randomUUID()}`;
     normalizedKeys = pickSeededSubset(
@@ -235,38 +242,18 @@ export async function configureDailyChallenge(input: {
   }
   const gameIds = chosenGames.map((game) => game!._id);
 
-  const existing = await DailyChallengeSet.findOne({ dayKey: input.dayKey });
   if (existing?.status === "settled") {
     throw new ApiError(409, "challenge_already_settled", "A settled challenge cannot be changed");
   }
-  const hasAttempts = existing
-    ? Boolean(
-        await ChallengeAttempt.exists({
-          dailyChallengeSetId: existing._id,
-          mode: "challenge"
-        })
-      )
-    : false;
-  if (existing && hasAttempts) {
-    const changedGames = existing.gameIds.map(String).join(",") !== gameIds.map(String).join(",");
-    if (changedGames || !input.publish) {
-      throw new ApiError(
-        409,
-        "challenge_has_attempts",
-        "A published challenge cannot be replaced or unpublished after participation begins"
-      );
-    }
-  }
-
-  const isFirstPublication = input.publish && existing?.status !== "published";
+  const isFirstPublication = publish && existing?.status !== "published";
   const firstPublishedAt = isFirstPublication
     ? new Date()
     : existing?.publishedAt ?? new Date();
-  const endsAt = new Date(firstPublishedAt.getTime() + 24 * 60 * 60 * 1_000);
+  const endsAt = !isFirstPublication && existing?.endsAt ? existing.endsAt : new Date(firstPublishedAt.getTime() + 24 * 60 * 60 * 1_000);
   const update = {
     $set: {
       timezone: env.DEFAULT_TIMEZONE,
-      status: input.publish ? ("published" as const) : ("draft" as const),
+      status: publish ? ("published" as const) : ("draft" as const),
       selectionMode: input.selectionMode,
       selectionSeed,
       gameIds,
@@ -276,11 +263,11 @@ export async function configureDailyChallenge(input: {
       coinPrizeAmounts: input.coinPrizeAmounts ?? [0, 0, 0, 0, 0, 0],
       maxAttemptsPerGame,
       oneSecondAttemptLimit,
-      ...(input.publish
+      ...(publish
         ? { publishedAt: firstPublishedAt, endsAt, publishedBySubject: input.adminSubject }
         : {})
     },
-    ...(!input.publish
+    ...(!publish
       ? { $unset: { publishedAt: 1, endsAt: 1, publishedBy: 1, publishedBySubject: 1 } }
       : {})
   };

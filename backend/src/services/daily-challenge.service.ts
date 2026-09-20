@@ -204,6 +204,7 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
     dayKey,
     nextChallengeAt: null,
     endsAt: set.endsAt?.toISOString() ?? null,
+    revision: set.updatedAt?.toISOString() ?? null,
     totalCount: items.length,
     completedCount,
     gamesCompletedToday,

@@ -188,6 +188,7 @@ export type TodayChallenges = {
   dayKey: string;
   nextChallengeAt: string | null;
   endsAt?: string | null;
+  revision?: string | null;
   totalCount: number;
   completedCount: number;
   gamesCompletedToday?: number;

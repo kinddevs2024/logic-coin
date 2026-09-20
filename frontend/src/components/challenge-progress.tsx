@@ -26,7 +26,7 @@ const HEIGHT = ROW * 3.5;
 export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
   if (today && !today.available) return <ChallengeEmptyState nextAt={today.nextChallengeAt} />;
   if (today?.available && today.endsAt && !today.games.some(game => game.state.status === "started" || game.state.status === "completed")) return <ChallengeReady today={today} />;
-  return <ActiveChallengeProgress key={`${today?.dayKey}:${today?.totalCoinsToday}:${today?.completedCount}`} today={today} />;
+  return <ActiveChallengeProgress key={`${today?.dayKey}:${today?.revision}:${today?.totalCoinsToday}:${today?.completedCount}`} today={today} />;
 }
 
 function ChallengeReady({ today }: { today: TodayChallenges }) {
@@ -68,7 +68,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   const c = copy[language];
   const [info, setInfo] = useState(false);
   const client = useQueryClient();
-  const queryKey = ["challenges", "progress-scroll", token, today?.dayKey, today?.totalCoinsToday, today?.completedCount];
+  const queryKey = ["challenges", "progress-scroll", token, today?.dayKey, today?.revision, today?.totalCoinsToday, today?.completedCount];
   const query = useInfiniteQuery({
     queryKey,
     initialPageParam: undefined as Cursor | undefined,

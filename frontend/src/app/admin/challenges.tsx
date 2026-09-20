@@ -103,17 +103,19 @@ export default function AdminChallengesScreen() {
       coinPrizeAmounts: draft.coins.split(",").map((value) => Number(value.trim())),
       maxAttemptsPerGame: Number(draft.maxAttempts),
       oneSecondAttemptLimit: 7,
-      publish,
+      publish: publish || challenge?.status === "published",
     }, adminToken),
     onSuccess: (result, publish) => {
+      setDrafts(current => { const next = { ...current }; delete next[dayKey]; return next; });
       setNotice(
-        publish
+        challenge?.status === "published" ? "Изменения опубликованы. Челлендж обновится у пользователей автоматически." : publish
           ? result.notificationEvent
             ? `Челлендж опубликован. Уведомление создано для ${result.notificationEvent.targetCount} пользователей.`
             : "Челлендж опубликован. Активных устройств для уведомления пока нет."
           : "Черновик сохранён.",
       );
       void queryClient.invalidateQueries({ queryKey: ["admin"] });
+      void queryClient.invalidateQueries({ queryKey: ["challenges"] });
     },
     onError: (error) => setNotice(error instanceof Error ? error.message : "Не удалось сохранить челлендж"),
   });
