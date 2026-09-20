@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { useRef, useState } from "react";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { GlassSurface } from "@/components/glass-surface";
+import { ChallengeEmptyState } from "@/components/challenge-empty-state";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { challengesApi } from "@/lib/api";
@@ -13,72 +15,134 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const copy = {
-  ru: { points: "Баллы", completed: "игр пройдено", prize: "Предварительный приз", hint: "Сумма по текущему месту. Приз будет определён после завершения челленджа.", rating: "Рейтинг", you: "Вы", empty: "Пока нет участников", join: "Пройдите игру, чтобы попасть в рейтинг", login: "Войдите, чтобы увидеть рейтинг", retry: "Повторить загрузку" },
-  en: { points: "Points", completed: "games completed", prize: "Estimated prize", hint: "Based on your current rank. The final prize is determined when the challenge ends.", rating: "Ranking", you: "You", empty: "No participants yet", join: "Finish a game to join the ranking", login: "Sign in to see the ranking", retry: "Retry loading" },
-  uz: { points: "Ballar", completed: "o‘yin bajarildi", prize: "Taxminiy mukofot", hint: "Joriy o‘ringa asoslangan. Yakuniy mukofot sinov tugagach aniqlanadi.", rating: "Reyting", you: "Siz", empty: "Hali ishtirokchilar yo‘q", join: "Reytingga kirish uchun o‘yinni yakunlang", login: "Reyting uchun tizimga kiring", retry: "Qayta yuklash" },
+  ru: { completed: "пройдено", hint: "Сумма по текущему месту. Приз будет определён после завершения челленджа. Для получения приза необходимо участвовать в челлендже.", you: "Вы", login: "Войдите, чтобы увидеть рейтинг", retry: "Обновить рейтинг", close: "Закрыть", info: "О денежном призе" },
+  en: { completed: "completed", hint: "Based on your current rank. The final prize is determined when the challenge ends. You must participate in the challenge to earn a prize.", you: "You", login: "Sign in to see the ranking", retry: "Refresh ranking", close: "Close", info: "About the cash prize" },
+  uz: { completed: "bajarildi", hint: "Joriy o‘ringa asoslangan. Yakuniy mukofot sinov tugagach aniqlanadi. Mukofot uchun sinovda qatnashish kerak.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Pul mukofoti haqida" },
 };
+type Cursor = { snapshot: string; offset: number; end?: number };
+const ROW = 56;
+const HEIGHT = ROW * 4;
 
 export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
+  if (today && !today.available) return <ChallengeEmptyState nextAt={today.nextChallengeAt} />;
+  return <ActiveChallengeProgress key={`${today?.dayKey}:${today?.totalCoinsToday}:${today?.completedCount}`} today={today} />;
+}
+
+function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   const theme = useAppTheme();
   const { language } = useTranslation();
   const token = useAppStore(s => s.accessToken);
   const focused = useIsFocused();
   const c = copy[language];
-  const query = useQuery({
-    queryKey: ["challenges", "progress", token, today?.dayKey, today?.totalCoinsToday, today?.completedCount],
-    queryFn: () => challengesApi.progress(token!),
+  const [info, setInfo] = useState(false);
+  const client = useQueryClient();
+  const queryKey = ["challenges", "progress-scroll", token, today?.dayKey, today?.totalCoinsToday, today?.completedCount];
+  const query = useInfiniteQuery({
+    queryKey,
+    initialPageParam: undefined as Cursor | undefined,
+    queryFn: ({ pageParam }) => challengesApi.progress(token!, pageParam),
+    getNextPageParam: page => page.next ?? undefined,
+    getPreviousPageParam: page => page.previous ?? undefined,
     enabled: Boolean(token && today?.available && focused),
-    refetchInterval: focused ? 30_000 : false,
-    staleTime: 15_000,
-    retry: 1,
+    refetchOnWindowFocus: false, refetchOnMount: "always", staleTime: Infinity, gcTime: 0, retry: 1,
   });
-  const progress = query.data?.dayKey === today?.dayKey ? query.data : undefined;
+  const pages = query.data?.pages ?? [];
+  const progress = pages[0];
+  const rows = pages.flatMap(page => page.neighbors);
+  const list = useRef<ScrollView>(null);
+  const position = useRef({ firstRank: 0, y: 0, initialized: false, programmatic: false });
+  const busy = useRef(false);
+  const reposition = () => {
+    const state = position.current;
+    const first = rows[0]?.rank ?? 0;
+    if (!first) return;
+    let target = state.y;
+    if (!state.initialized) {
+      const index = rows.findIndex(row => row.isSelf);
+      target = Math.max(0, index * ROW - (HEIGHT - ROW) / 2);
+      state.initialized = true;
+    } else if (state.firstRank > first) target += (state.firstRank - first) * ROW;
+    state.firstRank = first;
+    if (Math.abs(target - state.y) > 1) {
+      state.programmatic = true;
+      state.y = target;
+      list.current?.scrollTo({ y: target, animated: false });
+    }
+  };
+  const refresh = () => {
+    position.current = { firstRank: 0, y: 0, initialized: false, programmatic: false };
+    void client.resetQueries({ queryKey, exact: true });
+  };
   return <GlassSurface variant="strong" intensity={76} style={styles.card}>
     <View style={styles.metrics}>
-      <AppText variant="caption" muted>{c.points}</AppText>
       <View style={styles.score}>
         <Ionicons name="diamond-outline" size={22} color={String(theme.primary)} />
         <AppText style={styles.number}>{(progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language)}</AppText>
       </View>
-      <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0} / {today?.totalCount ?? 0}</AppText>
-      <AppText variant="caption" muted>{c.completed}</AppText>
+      <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>
       <View style={styles.money}>
-        <Ionicons name="cash-outline" size={20} color={String(theme.primary)} />
-        <AppText variant="heading">{progress ? formatMoney(progress.projectedCashUnits) : "—"}</AppText>
+        <Ionicons name="cash-outline" size={19} color={String(theme.primary)} />
+        <AppText variant="heading" style={{ flexShrink: 1 }}>{progress ? formatMoney(progress.projectedCashUnits) : "—"}</AppText>
+        <Pressable accessibilityRole="button" accessibilityLabel={c.info} hitSlop={8} onPress={() => setInfo(true)} style={styles.infoButton}>
+          <Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} />
+        </Pressable>
       </View>
-      <AppText variant="caption" muted>{c.prize}</AppText>
     </View>
     <View style={[styles.ranking, { borderLeftColor: theme.glassBorder }]}>
-      <AppText variant="caption" muted>{c.rating}</AppText>
-      {!token ? <AppText variant="caption" muted>{c.login}</AppText> : query.isPending && today?.available ? <ActivityIndicator color={String(theme.primary)} /> : query.isError ? <Pressable onPress={() => void query.refetch()}><AppText variant="caption">{c.retry}</AppText></Pressable> : <>
-        {(progress?.neighbors ?? []).map(row => <View key={row.userId} style={[styles.row, row.isSelf && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}>
-          <AppText style={styles.rank} muted={!row.isSelf}>{row.rank}</AppText>
-          <Avatar name={row.name} avatarUrl={row.avatarUrl} size={26} />
-          <View style={styles.person}>
-            <AppText variant="caption" numberOfLines={1}>{row.isSelf ? c.you : row.name}</AppText>
-            <AppText variant="label" numberOfLines={1}>{row.totalCoins.toLocaleString(language)}</AppText>
-          </View>
-        </View>)}
-        {!progress?.neighbors.length ? <AppText variant="caption" muted>{c.empty}</AppText> : null}
-        {progress && !progress.self ? <AppText variant="caption" muted>{c.join}</AppText> : null}
+      {!token ? <AppText variant="caption" muted>{c.login}</AppText> : query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : <>
+        <ScrollView ref={list} nestedScrollEnabled style={styles.viewport} showsVerticalScrollIndicator={false} scrollEventThrottle={32} onContentSizeChange={reposition}
+          onScroll={event => {
+            const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+            const state = position.current;
+            const previousY = state.y;
+            state.y = contentOffset.y;
+            if (state.programmatic) { state.programmatic = false; return; }
+            if (!state.initialized || busy.current || query.isFetching || query.isError || Math.abs(previousY - contentOffset.y) < 1) return;
+            const up = contentOffset.y < previousY && contentOffset.y < ROW;
+            const down = contentOffset.y > previousY && contentSize.height - contentOffset.y - layoutMeasurement.height < ROW;
+            if ((up && query.hasPreviousPage) || (down && query.hasNextPage)) {
+              busy.current = true;
+              void (up ? query.fetchPreviousPage() : query.fetchNextPage()).finally(() => { busy.current = false; });
+            }
+          }}>
+          {rows.map(row => <View key={row.userId} style={[styles.row, row.isSelf && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}>
+            <AppText style={styles.rank} muted={!row.isSelf}>{row.rank}</AppText>
+            <Avatar name={row.name} avatarUrl={row.avatarUrl} size={26} />
+            <View style={styles.person}>
+              <AppText variant="caption" numberOfLines={1}>{row.isSelf ? c.you : row.name}</AppText>
+              <AppText variant="label" numberOfLines={1}>{row.totalCoins.toLocaleString(language)}</AppText>
+            </View>
+          </View>)}
+        </ScrollView>
+        {query.isFetchingNextPage || query.isFetchingPreviousPage ? <ActivityIndicator style={styles.loading} size="small" color={String(theme.primary)} /> : null}
+        {query.isError ? <Pressable onPress={refresh}><AppText variant="caption">{c.retry}</AppText></Pressable> : null}
       </>}
     </View>
-    <View style={styles.note}>
-      <Ionicons name="information-circle-outline" size={15} color={String(theme.textMuted)} />
-      <AppText variant="caption" muted style={{ flex: 1, fontSize: 10 }}>{c.hint}</AppText>
-    </View>
+    <Modal visible={info} transparent animationType="fade" onRequestClose={() => setInfo(false)}>
+      <View style={styles.backdrop}>
+        <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={() => setInfo(false)} />
+        <GlassSurface variant="strong" style={styles.explanation}>
+          <AppText>{c.hint}</AppText>
+          <Pressable accessibilityRole="button" onPress={() => setInfo(false)}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
+        </GlassSurface>
+      </View>
+    </Modal>
   </GlassSurface>;
 }
 const styles = StyleSheet.create({
-  card: { borderRadius: 30, padding: 16, flexDirection: "row", flexWrap: "wrap", alignItems: "center", overflow: "hidden" },
-  metrics: { width: "47%", paddingRight: 12, minWidth: 0 },
-  score: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 4 },
+  card: { borderRadius: 30, padding: 16, flexDirection: "row", alignItems: "center", overflow: "hidden" },
+  metrics: { width: "47%", paddingRight: 8, minWidth: 0 },
+  score: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
   number: { fontSize: 28, lineHeight: 34, fontWeight: "900", flexShrink: 1 },
-  completed: { marginTop: 18, fontSize: 19 },
-  money: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 18 },
-  ranking: { width: "53%", borderLeftWidth: 1, paddingLeft: 10, gap: 5, minWidth: 0 },
-  row: { flexDirection: "row", alignItems: "center", gap: 5, padding: 5, borderRadius: 14, borderWidth: 1, borderColor: "transparent", minHeight: 48 },
+  completed: { marginTop: 22, fontSize: 17, lineHeight: 24 },
+  money: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 22 },
+  infoButton: { minWidth: 24, minHeight: 40, alignItems: "center", justifyContent: "center" },
+  ranking: { width: "53%", borderLeftWidth: 1, paddingLeft: 8, minWidth: 0, minHeight: HEIGHT, justifyContent: "center" },
+  viewport: { height: HEIGHT, flexGrow: 0, borderRadius: 14 },
+  row: { height: ROW, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 5, borderRadius: 14, borderWidth: 1, borderColor: "transparent" },
   rank: { minWidth: 15, fontSize: 10 },
   person: { flex: 1, minWidth: 0 },
-  note: { width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 5, marginTop: 14 },
+  loading: { position: "absolute", bottom: 2, right: 4 },
+  backdrop: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.5)" },
+  explanation: { width: "100%", maxWidth: 420, padding: 24, borderRadius: 24, gap: 20 },
 });

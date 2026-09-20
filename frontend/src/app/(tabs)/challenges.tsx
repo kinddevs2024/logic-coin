@@ -7,7 +7,6 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { ChallengeCard } from "@/components/challenge-card";
-import { ChallengeEmptyState } from "@/components/challenge-empty-state";
 import { ChallengeProgress } from "@/components/challenge-progress";
 import { IconButton } from "@/components/buttons";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
@@ -75,7 +74,6 @@ export default function ChallengesScreen() {
 
       {!isLoading && !today?.games.length ? (
         <View style={styles.emptyBlock}>
-          <ChallengeEmptyState />
           <Pressable onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: theme.primary }]}>
             <Ionicons name="refresh" size={18} color={String(theme.onPrimary)} />
             <AppText color={String(theme.onPrimary)} variant="label">{c.refresh}</AppText>

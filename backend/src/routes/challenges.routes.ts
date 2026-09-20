@@ -22,7 +22,9 @@ const router = Router();
 const gameKeySchema = z.string().trim().regex(/^[a-z0-9-]{1,80}$/);
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 router.get("/progress", async (request, response) => {
-  response.json({ data: await getContestProgress(request.auth!.userId) });
+  const query = z.object({ snapshot: z.string().uuid().optional(), offset: z.coerce.number().int().min(0).max(10_000_000).optional(), end: z.coerce.number().int().positive().max(10_000_000).optional() }).safeParse(request.query);
+  if (!query.success || Boolean(query.data.snapshot) !== (query.data.offset !== undefined) || (query.data.end !== undefined && (query.data.offset === undefined || query.data.end <= query.data.offset))) throw new ApiError(400, "invalid_cursor", "Ranking cursor is invalid");
+  response.json({ data: await getContestProgress(request.auth!.userId, query.data.snapshot ? { snapshot: query.data.snapshot, offset: query.data.offset!, ...(query.data.end !== undefined ? { end: query.data.end } : {}) } : undefined) });
 });
 
 router.get("/today", async (request, response) => {

@@ -82,6 +82,7 @@ export function useChallenges() {
     queryFn: () => challengesApi.today(accessToken!),
     enabled: authenticated,
     staleTime: 15_000,
+    refetchInterval: state => state.state.data && !state.state.data.available ? 15_000 : false,
     retry: 1,
   });
 

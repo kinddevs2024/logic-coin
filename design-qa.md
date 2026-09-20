@@ -51,6 +51,14 @@ The One Second practice intro states `Без ограничений`; its active
 
 final result: passed
 
+## 2026-09-20: Scrollable challenge ranking follow-up
+
+Published summary cleanup, prize-info modal, server-based next-challenge countdown, and bidirectional ranking pages of at most five public profiles. Zero-score accounts are included without changing cash settlement eligibility. Initial window centers self where neighboring ranks exist; final ranks still receive five rows to allow upward scrolling.
+
+Live authenticated check on logic-coin.online at 390 x 844: initial ranks 4–8 with self rank 6 centered and partial outer rows; downward scrolling appended ranks 9–13; upward scrolling prepended ranks 1–3. Prize explanation opened and closed. No captured browser console errors. Screenshot: `.qa/challenge-scroll-mobile.png`. Viewport override reset afterwards.
+
+Frontend typecheck, targeted lint, web export and backend build passed. Backend progress/neighborhood tests passed again after the last-place pagination correction (9 tests). The no-challenge countdown and native APK were not visually exercised in this live check.
+
 ### Pass 4 — optical lens and drag fidelity
 
 - Re-measured the supplied iPhone reference against the live 434 x 881 layout: the lens now exceeds the bar height slightly and spans 1.23 tab slots.

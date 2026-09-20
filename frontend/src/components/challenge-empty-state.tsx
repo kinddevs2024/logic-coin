@@ -7,9 +7,9 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 
 const copy = {
-  ru: { eyebrow: "Следующий запуск", title: "Сегодня челленджа нет", text: "Новый набор появится после публикации администрацией", waiting: "Ожидаем публикацию" },
-  en: { eyebrow: "Next launch", title: "No challenge today", text: "A new set appears after the administrator publishes it", waiting: "Waiting for publication" },
-  uz: { eyebrow: "Keyingi start", title: "Bugun sinov yo‘q", text: "Administrator e’lon qilgach yangi to‘plam paydo bo‘ladi", waiting: "E’lon kutilmoqda" },
+  ru: { eyebrow: "Следующий челлендж", title: "Скоро новые игры", text: "Новый челлендж появится автоматически", waiting: "До запуска" },
+  en: { eyebrow: "Next challenge", title: "New games coming soon", text: "The next challenge will appear automatically", waiting: "Until launch" },
+  uz: { eyebrow: "Keyingi sinov", title: "Tez orada yangi o‘yinlar", text: "Yangi sinov avtomatik paydo bo‘ladi", waiting: "Boshlanishigacha" },
 } as const;
 
 function millisecondsToNextMidnight() {
@@ -27,14 +27,18 @@ function formatCountdown(milliseconds: number) {
   return [hours, minutes, rest].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
-export function ChallengeEmptyState({ compact = false }: { compact?: boolean }) {
+export function ChallengeEmptyState({ compact = false, nextAt }: { compact?: boolean; nextAt?: string | null }) {
   const theme = useAppTheme();
   const { language } = useTranslation();
-  const [remaining, setRemaining] = useState(millisecondsToNextMidnight);
+  const [fallbackTarget] = useState(() => Date.now() + millisecondsToNextMidnight());
+  const parsedTarget = nextAt ? Date.parse(nextAt) : NaN;
+  const target = Number.isFinite(parsedTarget) ? parsedTarget : fallbackTarget;
+  const [now, setNow] = useState(Date.now);
+  const remaining = Math.max(0, target - now);
   const c = copy[language];
 
   useEffect(() => {
-    const timer = setInterval(() => setRemaining(millisecondsToNextMidnight()), 1_000);
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -59,7 +63,7 @@ export function ChallengeEmptyState({ compact = false }: { compact?: boolean }) 
 }
 
 const styles = StyleSheet.create({
-  root: { minHeight: 104, borderRadius: 24, borderWidth: 1, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  root: { minHeight: 180, borderRadius: 24, borderWidth: 1, padding: 18, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 },
   compact: { minHeight: 82, borderRadius: 20, padding: 11 },
   icon: { width: 48, height: 48, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   copy: { flex: 1, minWidth: 0, gap: 2 },

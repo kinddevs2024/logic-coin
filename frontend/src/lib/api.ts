@@ -401,12 +401,14 @@ export type ChallengeStartResult = {
 };
 
 export const challengesApi = {
-  progress(token: string) {
+  progress(token: string, cursor?: { snapshot: string; offset: number; end?: number }) {
     return request<{
       dayKey: string; participantCount: number; projectedCashUnits: number;
+      previous: { snapshot: string; offset: number; end?: number } | null;
+      next: { snapshot: string; offset: number; end?: number } | null;
       self: { rank: number; totalCoins: number; completedGamesCount: number } | null;
       neighbors: { userId: string; rank: number; totalCoins: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
-    }>("/challenges/progress", { token });
+    }>(`/challenges/progress${cursor ? `?snapshot=${encodeURIComponent(cursor.snapshot)}&offset=${cursor.offset}${cursor.end !== undefined ? `&end=${cursor.end}` : ""}` : ""}`, { token });
   },
   async today(token: string) {
     const payload = await request<{ today: TodayChallenges }>(
