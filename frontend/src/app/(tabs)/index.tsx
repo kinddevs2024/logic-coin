@@ -14,6 +14,7 @@ import { ChallengeCard } from "@/components/challenge-card";
 import { ChallengeEmptyState } from "@/components/challenge-empty-state";
 import { GlassSurface } from "@/components/glass-surface";
 import { LeaderboardModal } from "@/components/leaderboard-modal";
+import { NotificationInbox } from "@/components/notification-inbox";
 import { ProfileDrawer } from "@/components/profile-drawer";
 import { SavingsScene } from "@/components/savings-scene";
 import { SectionHeader } from "@/components/section-header";
@@ -47,6 +48,7 @@ export default function HomeScreen() {
   const { isDesktop } = useResponsiveLayout();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
   const refreshHome = async () => {
@@ -62,7 +64,7 @@ export default function HomeScreen() {
   const { today, pendingGameKey } = useChallenges();
 
   return (
-    <AppFrame wide desktopNavigationInset contentStyle={styles.content} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={drawerOpen || leaderboardOpen}>
+    <AppFrame wide desktopNavigationInset contentStyle={styles.content} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={drawerOpen || leaderboardOpen || inboxOpen}>
       <View style={styles.header}>
         <View style={styles.headerSide}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("tabs.profile")} onPress={() => setDrawerOpen(true)}><Avatar name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
@@ -70,9 +72,9 @@ export default function HomeScreen() {
         <RankingPreview metric="wealth" onPress={() => setLeaderboardOpen(true)} />
         <View style={[styles.headerSide, styles.headerSideEnd]}>
           <IconButton
-            name="settings-outline"
-            label={t("profile.settings")}
-            onPress={() => router.push("/settings")}
+            name="notifications-outline"
+            label="Уведомления"
+            onPress={() => setInboxOpen(true)}
           />
         </View>
       </View>
@@ -180,6 +182,7 @@ export default function HomeScreen() {
         onInvite={() => router.push("/invite")}
       />
       {leaderboardOpen ? <LeaderboardModal visible onClose={() => setLeaderboardOpen(false)} /> : null}
+      {inboxOpen ? <NotificationInbox onClose={() => setInboxOpen(false)} /> : null}
     </AppFrame>
   );
 }

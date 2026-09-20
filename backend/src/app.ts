@@ -26,6 +26,7 @@ import leaderboardRoutes from "./routes/leaderboard.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import publicProfileRoutes from "./routes/public-profile.routes.js";
 import adsRoutes from "./routes/ads.routes.js";
+import notificationsRoutes from "./routes/notifications.routes.js";
 
 export const app = express();
 
@@ -65,6 +66,7 @@ api.use("/admin", adminRoutes);
 api.use("/profile", publicProfileRoutes);
 api.use("/ads", adsRoutes);
 api.use(requireAuth);
+api.use("/notifications", notificationsRoutes);
 api.use("/bootstrap", bootstrapRoutes);
 api.use("/me", meRoutes);
 api.use("/tasks", tasksRoutes);

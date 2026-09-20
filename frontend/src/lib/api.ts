@@ -848,6 +848,17 @@ export const adminApi = {
   },
 };
 
+export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
+export const inboxApi = {
+  list(token: string, all: boolean, cursor: { date: string; id: string } | null) {
+    const query = new URLSearchParams({ all: String(all), ...(cursor ?? {}) });
+    return request<{ items: InboxNotification[]; next: { date: string; id: string } | null }>(`/notifications?${query}`, { token });
+  },
+  read(token: string, ids: string[]) {
+    return request<{ marked: number }>("/notifications/read", { method: "POST", token, body: JSON.stringify({ ids }) });
+  },
+};
+
 export const activityApi = {
   list(
     token: string,
