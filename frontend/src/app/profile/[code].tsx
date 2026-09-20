@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
@@ -14,6 +14,8 @@ import { formatMoney } from "@/lib/format";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { AppButton } from "@/components/buttons";
 import { sharePublicProfile } from "@/lib/profile-link";
+import { cosmeticsFor } from "@/games/cosmetics";
+import type { GameId } from "@/games/progress-store";
 
 export default function PublicProfileScreen() {
   const theme = useAppTheme();
@@ -46,7 +48,6 @@ export default function PublicProfileScreen() {
           <Avatar name={profile.name} avatarUrl={profile.avatarUrl} size={92} />
           <AppText variant="title">{profile.name}</AppText>
           <View style={styles.countryLine}><CountryFlagBadge countryCode={profile.countryCode} size={19} /><AppText muted>{countryName(profile.countryCode)}</AppText></View>
-          <AppText muted>Публичный профиль · {profile.referralCode}</AppText>
         </GlassSurface>
         <View style={styles.grid}>
           <Stat icon="wallet-outline" label="Баланс" value={formatMoney(profile.balanceUnits)} />
@@ -56,7 +57,13 @@ export default function PublicProfileScreen() {
         </View>
         <GlassSurface variant="soft" intensity={58} style={styles.skinBlock}>
           <AppText variant="heading">Скины игр</AppText>
-          <AppText muted>{profile.skins.length ? profile.skins.join(", ") : "Пока нет купленных скинов"}</AppText>
+          {profile.skins.length ? <View style={styles.skinsRow}>{profile.skins.map(key => {
+            const [gameId, skinId] = key.split(":");
+            const skin = cosmeticsFor(gameId as GameId).find(item => item.id === skinId);
+            return <View key={key} accessible accessibilityLabel={skin ? `${skin.name} — ${gameId}` : "Скин игры"} style={[styles.skinIcon, { backgroundColor: skin?.secondary ?? theme.primarySoft }]}>
+              <MaterialCommunityIcons name={skin?.icon ?? "tshirt-crew-outline"} size={23} color={skin?.primary ?? String(theme.primary)} />
+            </View>;
+          })}</View> : <AppText muted>Пока нет купленных скинов</AppText>}
         </GlassSurface>
         <AppButton icon="share-outline" onPress={() => void sharePublicProfile(profile.name, profile.referralCode)}>Поделиться профилем</AppButton>
       </> : null}
@@ -74,5 +81,7 @@ const styles = StyleSheet.create({
   countryLine: { flexDirection: "row", alignItems: "center", gap: 7 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
   stat: { flexGrow: 1, flexBasis: "45%", minHeight: 110, alignItems: "center", justifyContent: "center", gap: 5, borderRadius: 22 },
-  skinBlock: { marginTop: 14, gap: 7, padding: 18, borderRadius: 22 },
+  skinBlock: { marginTop: 14, marginBottom: 16, gap: 10, padding: 18, borderRadius: 22 },
+  skinsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  skinIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });
