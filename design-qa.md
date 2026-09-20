@@ -53,6 +53,14 @@ final result: passed
 
 ## 2026-09-20: Scrollable challenge ranking follow-up
 
+### Compact typography follow-up
+
+Source: `C:/Users/MyPc/AppData/Local/Temp/codex-clipboard-846f5949-9e22-4538-b8fc-2c4e36e3a4b0.png` (589 x 426 annotated card crop). Implementation: `.qa/challenge-compact-mobile.png`, 390 x 844 CSS mobile viewport, authenticated zero-score state. Source and rendered screen were opened together; source is a scaled crop, so comparison is structural rather than pixel-identical. The card is readable in the full capture; no extra detail crop was necessary.
+
+Typography: existing font retained, score increased 28 to 46 with single-line fitting. Layout: row height reduced 56 to 46, avatar precedes `rank · name`, score on second line; self remains centered and outer rows partially visible. Colors and image assets unchanged. Copy matches the requested middle-dot separator. Live downward scrolling loaded ranks 9–13, with no console errors. Typecheck, targeted lint and export passed. Four-digit live score was not available on this account; no production score was modified for QA. No actionable P0/P1/P2 findings.
+
+final result: passed
+
 Published summary cleanup, prize-info modal, server-based next-challenge countdown, and bidirectional ranking pages of at most five public profiles. Zero-score accounts are included without changing cash settlement eligibility. Initial window centers self where neighboring ranks exist; final ranks still receive five rows to allow upward scrolling.
 
 Live authenticated check on logic-coin.online at 390 x 844: initial ranks 4–8 with self rank 6 centered and partial outer rows; downward scrolling appended ranks 9–13; upward scrolling prepended ranks 1–3. Prize explanation opened and closed. No captured browser console errors. Screenshot: `.qa/challenge-scroll-mobile.png`. Viewport override reset afterwards.

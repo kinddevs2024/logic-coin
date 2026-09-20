@@ -20,7 +20,7 @@ const copy = {
   uz: { completed: "bajarildi", hint: "Joriy o‘ringa asoslangan. Yakuniy mukofot sinov tugagach aniqlanadi. Mukofot uchun sinovda qatnashish kerak.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Pul mukofoti haqida" },
 };
 type Cursor = { snapshot: string; offset: number; end?: number };
-const ROW = 56;
+const ROW = 46;
 const HEIGHT = ROW * 4;
 
 export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
@@ -77,7 +77,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
     <View style={styles.metrics}>
       <View style={styles.score}>
         <Ionicons name="diamond-outline" size={22} color={String(theme.primary)} />
-        <AppText style={styles.number}>{(progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language)}</AppText>
+        <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.45} style={styles.number}>{(progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language)}</AppText>
       </View>
       <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>
       <View style={styles.money}>
@@ -106,10 +106,9 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
             }
           }}>
           {rows.map(row => <View key={row.userId} style={[styles.row, row.isSelf && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}>
-            <AppText style={styles.rank} muted={!row.isSelf}>{row.rank}</AppText>
             <Avatar name={row.name} avatarUrl={row.avatarUrl} size={26} />
             <View style={styles.person}>
-              <AppText variant="caption" numberOfLines={1}>{row.isSelf ? c.you : row.name}</AppText>
+              <AppText variant="caption" numberOfLines={1}>{row.rank} · {row.isSelf ? c.you : row.name}</AppText>
               <AppText variant="label" numberOfLines={1}>{row.totalCoins.toLocaleString(language)}</AppText>
             </View>
           </View>)}
@@ -132,15 +131,14 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
 const styles = StyleSheet.create({
   card: { borderRadius: 30, padding: 16, flexDirection: "row", alignItems: "center", overflow: "hidden" },
   metrics: { width: "47%", paddingRight: 8, minWidth: 0 },
-  score: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
-  number: { fontSize: 28, lineHeight: 34, fontWeight: "900", flexShrink: 1 },
+  score: { flexDirection: "row", alignItems: "center", gap: 5 },
+  number: { fontSize: 46, lineHeight: 56, fontWeight: "900", flexShrink: 1, minWidth: 0, letterSpacing: -1.5 },
   completed: { marginTop: 22, fontSize: 17, lineHeight: 24 },
   money: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 22 },
   infoButton: { minWidth: 24, minHeight: 40, alignItems: "center", justifyContent: "center" },
   ranking: { width: "53%", borderLeftWidth: 1, paddingLeft: 8, minWidth: 0, minHeight: HEIGHT, justifyContent: "center" },
   viewport: { height: HEIGHT, flexGrow: 0, borderRadius: 14 },
   row: { height: ROW, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 5, borderRadius: 14, borderWidth: 1, borderColor: "transparent" },
-  rank: { minWidth: 15, fontSize: 10 },
   person: { flex: 1, minWidth: 0 },
   loading: { position: "absolute", bottom: 2, right: 4 },
   backdrop: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.5)" },
