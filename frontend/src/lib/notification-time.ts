@@ -12,8 +12,8 @@ export function formatNotificationTime(value: string, options: {
   const day = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000;
   const days = day(now) - day(date);
   if (days === 0) return time;
-  const labels = { ru: ["Вчера", "Позавчера"], en: ["Yesterday", "Day before yesterday"], uz: ["Kecha", "O‘tgan kuni"] };
-  if (days === 1 || days === 2) return `${labels[language][days - 1]}, ${time}`;
+  const labels = { ru: "Вчера", en: "Yesterday", uz: "Kecha" };
+  if (days === 1) return `${labels[language]}, ${time}`;
   const parts = new Intl.DateTimeFormat(language, { day: "numeric", month: "long" }).formatToParts(date);
   const calendarDate = `${date.getDate()} ${parts.find(part => part.type === "month")?.value ?? ""}`;
   return `${calendarDate}${date.getFullYear() !== now.getFullYear() ? ` ${date.getFullYear()}` : ""}, ${time}`;

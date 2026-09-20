@@ -11,6 +11,7 @@ import { useAppStore } from "@/store/app-store";
 import { useCalendars } from "expo-localization";
 import { useTranslation } from "@/hooks/use-translation";
 import { formatNotificationTime } from "@/lib/notification-time";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const config = { itemVisiblePercentThreshold: 70, minimumViewTime: 800 };
 
@@ -26,6 +27,9 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
     return () => { clearInterval(timer); subscription.remove(); };
   }, []);
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [closing, setClosing] = useState(false);
+  const close = useCallback(() => setClosing(true), []);
   const reduced = useReducedMotion();
   const [readError, setReadError] = useState(false);
   const seen = useRef(new Set<string>());
@@ -41,10 +45,10 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
     gcTime: 0,
   });
   useEffect(() => {
-    const animation = Animated.timing(offset, { toValue: 0, duration: reduced ? 0 : 320, useNativeDriver: Platform.OS !== "web" });
-    animation.start();
+    const animation = Animated.timing(offset, { toValue: closing ? -height : 0, duration: reduced ? 0 : 320, useNativeDriver: Platform.OS !== "web" });
+    animation.start(({ finished }) => { if (finished && closing) onClose(); });
     return () => animation.stop();
-  }, [offset, reduced]);
+  }, [offset, reduced, closing, height, onClose]);
   const read = useCallback((ids: string[]) => {
     if (!token || !ids.length) return;
     ids.forEach(id => seen.current.add(id));
@@ -58,18 +62,18 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
     read(viewableItems.filter(v => v.isViewable && !v.item.read && !seen.current.has(v.item.id)).map(v => v.item.id));
   }, [read]);
   const items = query.data?.pages.flatMap(page => page.items) ?? [];
-  return <Modal transparent visible animationType="none" onRequestClose={onClose} statusBarTranslucent>
-    <View style={styles.overlay}>
-      <Pressable accessibilityLabel="Закрыть уведомления" accessibilityRole="button" onPress={onClose} style={StyleSheet.absoluteFill} />
-      <Animated.View accessibilityViewIsModal style={[styles.panel, { maxHeight: height * 0.76, transform: [{ translateY: offset }] }]}>
+  return <Modal transparent visible animationType="none" onRequestClose={close} statusBarTranslucent>
+    <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 12) }]}>
+      <Pressable accessibilityLabel="Закрыть уведомления" accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
+      <Animated.View accessibilityViewIsModal style={[styles.panel, { transform: [{ translateY: offset }] }]}>
         <View style={styles.close}>
-          <IconButton name="close" label="Закрыть" onPress={onClose} />
+          <IconButton name="close" label="Закрыть" onPress={close} />
         </View>
         {!token ? <GlassSurface style={styles.card}><AppText>Войдите, чтобы увидеть уведомления</AppText></GlassSurface> : null}
         {token && query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
         {query.error ? <Pressable onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())}><AppText color={String(theme.danger)}>Не удалось загрузить. Нажмите, чтобы повторить.</AppText></Pressable> : null}
         {readError ? <Pressable onPress={() => read([...failed.current])}><AppText color={String(theme.danger)}>Не удалось сохранить просмотр. Повторить</AppText></Pressable> : null}
-        <FlatList data={items} keyExtractor={item => item.id} style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={styles.list}
+        <FlatList data={items} keyExtractor={item => item.id} style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 12) }]}
           onEndReachedThreshold={0.3}
           onEndReached={() => {
             if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
@@ -90,8 +94,8 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
   </Modal>;
 }
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(4,12,26,0.5)", padding: 18 },
-  panel: { width: "100%", maxWidth: 560, gap: 12 },
+  overlay: { flex: 1, alignItems: "center", backgroundColor: "rgba(4,12,26,0.5)", paddingHorizontal: 18 },
+  panel: { flex: 1, minHeight: 0, width: "100%", maxWidth: 560, gap: 12 },
   close: { alignSelf: "flex-end" },
   list: { gap: 12, paddingBottom: 8 },
   card: { padding: 18, borderRadius: 24, gap: 8 },
