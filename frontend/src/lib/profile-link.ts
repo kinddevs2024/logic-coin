@@ -1,4 +1,4 @@
-import { Share } from "react-native";
+import { shareLink } from "./share-link";
 
 const PRODUCTION_ORIGIN = "https://www.logic-coin.online";
 
@@ -9,9 +9,5 @@ export function publicProfileUrl(referralCode: string) {
 export function sharePublicProfile(name: string, referralCode?: string | null) {
   if (!referralCode) return Promise.resolve();
   const url = publicProfileUrl(referralCode);
-  return Share.share({
-    title: `Logic Coin · ${name}`,
-    message: `${name} в Logic Coin\n${url}`,
-    url,
-  });
+  return shareLink(`Logic Coin · ${name}`, `${name} в Logic Coin`, url);
 }

@@ -1,5 +1,21 @@
 # Logic Coin design QA — 18 browser annotations
 
+## 2026-09-23: branded QR and link previews
+
+Source: `C:/Users/MyPc/Downloads/ChatGPT Image Sep 21, 2026, 06_39_41 PM.png` (1254 × 1254). Component comparison: `http://127.0.0.1:8096`, inline CUA screenshots from this run (reference and implementation displayed together at 276 CSS px, 1x). Production verification: `https://www.logic-coin.online/invite`, authenticated light theme, 626 × 881 capture. QR rendering/decoding also checked in a 320 × 800 browser override; rendered QR width 225px with scrollbar. Profile JPEG evidence: `.qa/profile-live.jpg` (1200 × 630, actual Linux production renderer). Browser screenshots were inspected inline, not saved to disk.
+
+Findings and history: the initial logo was too small, so its scale was raised from 0.48 through 0.75 to 0.9; fresh captures and pixel decoding passed after the change. The real matrix is intentionally denser than the decorative reference and the center logo remains smaller, preserving readability of real invitation URLs. Blue/cyan gradient, rounded connected modules, rounded eyes, brand logo and white backing agree with the reference. No unrelated page typography or layout was redesigned.
+
+Required surfaces: existing application fonts/copy retained; component is centered and fits mobile widths; blue foreground remains contrasting against white; supplied brand raster remains sharp; per-user link is encoded, not painted. Both the normal and maximum-length example links decoded exactly at 1x and 2x using jsQR against pixels from the actual SVG rendered in the browser. Profile card shows existing public avatar/name/balance/coins/completed game count, without email or private fields. Promotional card typography and Cyrillic copy were visually inspected. React review: standalone QR component, no duplicate event subscriptions, no new auth state or referral mutations; typed share helper handles cancellation and unsupported-browser copy fallback.
+
+Evidence: root, games, invitation and profile URLs returned HTML Open Graph metadata to a TelegramBot user agent, and their referenced JPEGs returned HTTP 200 with image/jpeg. Profile URL uses a profile-specific image, invitation uses promotional artwork. 117 backend tests, 101 frontend unit tests and smoke tests passed; typecheck, focused lint, clean Linux web export passed. The web export template is public/index.html (not only +html.tsx); a regression check covers this.
+
+Remaining gaps: a real Telegram message preview and an installed APK were not tested. These are not claimed verified. Development-only QR harness logs include a react-native-svg transform-origin naming warning; no QR decoding/render failure. Intentional limitations: third-party preview caches, and no forced photo-file attachment. No actionable P0/P1/P2 design findings remain in inspected states.
+
+final result: passed
+
+---
+
 - Source visual truth: the 18 annotated browser screenshots supplied in the active task, including the 434 x 881 home, games, profile, challenge-result, and One Second states.
 - Supporting source capture: `C:\Users\MyPc\Documents\Logic-coin\.qa\one-second-source.png`
 - Implementation: `http://127.0.0.1:8081`

@@ -27,6 +27,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import publicProfileRoutes from "./routes/public-profile.routes.js";
 import adsRoutes from "./routes/ads.routes.js";
 import notificationsRoutes from "./routes/notifications.routes.js";
+import shareRoutes from "./routes/share.routes.js";
 
 export const app = express();
 
@@ -60,6 +61,7 @@ app.use(globalLimiter);
 
 const api = express.Router();
 api.use("/health", healthRoutes);
+api.use("/share", shareRoutes);
 api.use(requireDatabase);
 api.use("/auth", authRoutes);
 api.use("/admin", adminRoutes);

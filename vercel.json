@@ -26,6 +26,20 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/profile/:code",
+      "has": [{ "type": "host", "value": "logic-coin.vercel.app" }],
+      "destination": "https://www.logic-coin.online/profile/:code",
+      "permanent": true
+    },
+    {
+      "source": "/invite/:code",
+      "has": [{ "type": "host", "value": "logic-coin.vercel.app" }],
+      "destination": "https://www.logic-coin.online/invite/:code",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import { Share, StyleSheet, View } from "react-native";
-import QRCode from "react-native-qrcode-svg";
+import { StyleSheet, View } from "react-native";
+import { InviteQr } from "@/components/invite-qr";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -15,6 +15,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { useReferrals } from "@/hooks/use-referrals";
 import { useAppStore } from "@/store/app-store";
 import { formatMoney } from "@/lib/format";
+import { shareLink } from "@/lib/share-link";
 
 export default function InviteScreen() {
   const router = useRouter();
@@ -37,11 +38,7 @@ export default function InviteScreen() {
       router.push("/login");
       return;
     }
-    void Share.share({
-      title: "Logic Coin",
-      message: `Logic Coin\n${inviteUrl}`,
-      url: inviteUrl,
-    });
+    void shareLink("Logic Coin", "Играй со мной в Logic Coin: игры, челленджи и денежные призы.", inviteUrl);
   };
 
   return (
@@ -90,7 +87,7 @@ export default function InviteScreen() {
       <GlassSurface intensity={68} style={styles.codeCard}>
         {inviteUrl ? (
           <View testID="invite-qr" accessible accessibilityRole="image" accessibilityLabel={t("invite.share")} style={styles.qr}>
-            <QRCode value={inviteUrl} size={200} quietZone={20} color="#000000" backgroundColor="#FFFFFF" />
+            <InviteQr value={inviteUrl} />
           </View>
         ) : null}
         <AppButton icon="share-social-outline" glow onPress={share}>

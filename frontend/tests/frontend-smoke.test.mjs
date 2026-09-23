@@ -4,6 +4,17 @@ import { test } from "node:test";
 
 const root = new URL("../", import.meta.url);
 
+test("single-page export provides social preview metadata without JavaScript", async () => {
+  const html = await readFile(new URL("public/index.html", root), "utf8");
+  for (const tag of ["og:title", "og:description", "og:image", "og:url", "twitter:card"]) {
+    assert.ok(html.includes(tag), `${tag} must exist in the actual single-page export template`);
+  }
+  assert.match(html, /https:\/\/www.logic-coin.online\/share\/logic-coin-v1.jpg/);
+  const image = await readFile(new URL("public/share/logic-coin-v1.jpg", root));
+  assert.equal(image[0], 0xff);
+  assert.equal(image[1], 0xd8);
+});
+
 test("profile sharing uses the production profile route, not referral attribution", async () => {
   const links = await readFile(new URL("src/lib/profile-link.ts", root), "utf8");
   const profile = await readFile(new URL("src/app/profile/[code].tsx", root), "utf8");
