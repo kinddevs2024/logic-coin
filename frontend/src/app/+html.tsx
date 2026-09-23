@@ -27,7 +27,7 @@ export default function RootHtml({ children }: { children: ReactNode }) {
         <meta property="og:url" content="https://www.logic-coin.online/" />
         <meta property="og:title" content="Logic Coin — играй, соревнуйся, выигрывай" />
         <meta property="og:description" content="Короткие игры, ежедневные челленджи и денежные призы. Награды зависят от результатов и правил челленджа." />
-        <meta property="og:image" content="https://www.logic-coin.online/share/logic-coin-v1.jpg" />
+        <meta property="og:image" content="https://www.logic-coin.online/share/logic-coin-guide-v2.jpg" />
         <meta property="og:image:type" content="image/jpeg" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -35,7 +35,7 @@ export default function RootHtml({ children }: { children: ReactNode }) {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Logic Coin — играй, соревнуйся, выигрывай" />
         <meta name="twitter:description" content="Игры, ежедневные челленджи и денежные призы." />
-        <meta name="twitter:image" content="https://www.logic-coin.online/share/logic-coin-v1.jpg" />
+        <meta name="twitter:image" content="https://www.logic-coin.online/share/logic-coin-guide-v2.jpg" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="preload" href="/fonts/Ionicons.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />

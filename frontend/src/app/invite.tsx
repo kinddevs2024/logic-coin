@@ -30,7 +30,7 @@ export default function InviteScreen() {
   const friends = referral?.friends ?? [];
   const code = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";
   const inviteUrl = authenticated
-    ? referral?.link || (code !== "—" ? `https://logic-coin.online/invite/${encodeURIComponent(code)}` : "")
+    ? (code !== "—" ? `https://www.logic-coin.online/invite/${encodeURIComponent(code)}?preview=2` : "")
     : "";
 
   const share = () => {

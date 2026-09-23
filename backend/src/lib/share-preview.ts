@@ -1,7 +1,7 @@
 export const SHARE_ORIGIN = "https://www.logic-coin.online";
 export const SHARE_TITLE = "Logic Coin — играй, соревнуйся, выигрывай";
 export const SHARE_DESCRIPTION = "Играй в короткие игры, участвуй в ежедневных челленджах и соревнуйся за денежные призы. Награды зависят от результатов и правил челленджа.";
-export const SHARE_IMAGE = `${SHARE_ORIGIN}/share/logic-coin-v1.jpg`;
+export const SHARE_IMAGE = `${SHARE_ORIGIN}/share/logic-coin-guide-v2.jpg`;
 
 export function escapeMarkup(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);

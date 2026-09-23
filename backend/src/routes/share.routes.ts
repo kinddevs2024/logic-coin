@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { rateLimit } from "express-rate-limit";
 import { User } from "../models/User.js";
@@ -20,14 +21,15 @@ router.get("/page/:kind/:code", requireDatabase, async (request, response) => {
   const { kind, code } = request.params;
   if ((kind !== "profile" && kind !== "invite") || !validCode(code)) throw new ApiError(404, "not_found", "Not found");
   const normalized = code.toUpperCase();
-  const user = await User.findOne({ referralCode: normalized }).select("name").lean();
+  const version = typeof request.query.preview === "string" && /^\d{1,12}$/.test(request.query.preview) ? `?preview=${request.query.preview}` : "";
+  const user = await User.findOne({ referralCode: normalized }).select("name updatedAt").lean();
   const profile = kind === "profile" && Boolean(user);
   const name = user?.name?.slice(0, 80) || "Игрок";
   const preview = {
     title: profile ? `${name} · Logic Coin` : kind === "invite" && user ? `${name} приглашает тебя в Logic Coin` : SHARE_TITLE,
     description: profile ? "Открой профиль игрока: результаты, монеты и достижения в челленджах Logic Coin." : SHARE_DESCRIPTION,
-    url: `${SHARE_ORIGIN}/${kind}/${normalized}`,
-    image: profile ? `${SHARE_ORIGIN}/api/v1/share/profile/${normalized}.jpg` : SHARE_IMAGE,
+    url: `${SHARE_ORIGIN}/${kind}/${normalized}${version}`,
+    image: profile ? `${SHARE_ORIGIN}/api/v1/share/profile/${normalized}.jpg?v=${new Date(user!.updatedAt || 0).getTime()}` : SHARE_IMAGE,
     profile,
   };
   const html = await readFile(resolve(webRoot(), "index.html"), "utf8");
@@ -37,17 +39,18 @@ router.get("/page/:kind/:code", requireDatabase, async (request, response) => {
 router.get("/profile/:file", requireDatabase, async (request, response) => {
   const code = String(request.params.file).replace(/\.jpg$/, "").toUpperCase();
   if (!validCode(code)) throw new ApiError(404, "not_found", "Not found");
-  const cached = images.get(code);
+  const user = await User.findOne({ referralCode: code }).select("name avatarUrl countryCode coins wallet").lean();
+  if (!user) throw new ApiError(404, "profile_not_found", "Profile not found");
+  const completed = await ChallengeAttempt.countDocuments({ userId: user._id, mode: "challenge", status: "completed" });
+  const key = createHash("sha256").update(JSON.stringify([code, user, completed])).digest("hex");
+  const cached = images.get(key);
   if (cached && cached.expires > Date.now()) {
     response.set("Cache-Control", "public, max-age=300").type("jpeg").send(cached.data);
     return;
   }
-  const user = await User.findOne({ referralCode: code }).select("name avatarUrl countryCode coins wallet").lean();
-  if (!user) throw new ApiError(404, "profile_not_found", "Profile not found");
-  const completed = await ChallengeAttempt.countDocuments({ userId: user._id, mode: "challenge", status: "completed" });
   const data = await renderProfileImage(user, completed);
   if (images.size >= 100) images.delete(images.keys().next().value!);
-  images.set(code, { expires: Date.now() + 300_000, data });
+  images.set(key, { expires: Date.now() + 300_000, data });
   response.set("Cache-Control", "public, max-age=300").type("jpeg").send(data);
 });
 

@@ -28,14 +28,27 @@ describe("public link preview pages", () => {
     const result = await request(app).get("/share/page/invite/LC1234");
     expect(result.status).toBe(200);
     expect(result.text).toContain("/invite/LC1234");
-    expect(result.text).toContain("/share/logic-coin-v1.jpg");
+    expect(result.text).toContain("/share/logic-coin-guide-v2.jpg");
     expect(result.text).not.toContain("/share/profile/");
+  });
+  it("preserves a bounded preview revision in canonical metadata", async () => {
+    const result = await request(app).get("/share/page/invite/LC1234?preview=2");
+    expect(result.text).toContain('content="https://www.logic-coin.online/invite/LC1234?preview=2"');
+    expect(result.text).toContain("logic-coin-guide-v2.jpg");
+  });
+  it("uses the requested account and versions its updated profile image", async () => {
+    findOne.mockReturnValue({ select: () => ({ lean: async () => ({ name: "Logic Coin", updatedAt: new Date("2026-09-23T00:00:00Z") }) }) });
+    const result = await request(app).get("/share/page/profile/LCGBCWCSSD");
+    expect(findOne).toHaveBeenCalledWith({ referralCode: "LCGBCWCSSD" });
+    expect(result.text).toContain("Logic Coin · Logic Coin");
+    expect(result.text).toContain("LCGBCWCSSD.jpg?v=1790121600000");
+    expect(result.text).not.toContain("Tester");
   });
   it("uses the generic image for an unknown account", async () => {
     findOne.mockReturnValue({ select: () => ({ lean: async () => null }) });
     const result = await request(app).get("/share/page/profile/LC4040");
     expect(result.status).toBe(200);
-    expect(result.text).toContain("/share/logic-coin-v1.jpg");
+    expect(result.text).toContain("/share/logic-coin-guide-v2.jpg");
     expect(result.text).not.toContain("Alice");
   });
   it("rejects invalid route kinds and untrusted path fragments", async () => {

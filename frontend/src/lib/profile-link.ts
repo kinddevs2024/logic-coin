@@ -8,6 +8,7 @@ export function publicProfileUrl(referralCode: string) {
 
 export function sharePublicProfile(name: string, referralCode?: string | null) {
   if (!referralCode) return Promise.resolve();
-  const url = publicProfileUrl(referralCode);
+  // A new share can request a fresh social snapshot; old messages remain snapshots.
+  const url = `${publicProfileUrl(referralCode)}?preview=${Math.floor(Date.now() / 60000)}`;
   return shareLink(`Logic Coin · ${name}`, `${name} в Logic Coin`, url);
 }
