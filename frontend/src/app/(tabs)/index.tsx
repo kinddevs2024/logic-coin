@@ -159,14 +159,7 @@ export default function HomeScreen() {
             style={[styles.activityStrip, { borderColor: theme.glassBorder }]}
           >
             <View style={styles.activityItem}>
-              <View style={styles.activityInfo}>
-                <View style={[styles.activityIcon, { backgroundColor: theme.primarySoft }]}>
-                  <Ionicons name="game-controller-outline" size={21} color={String(theme.primary)} />
-                </View>
-                <View style={styles.activityCopy}>
-                  <AppText style={styles.activityTitle}>Игр сегодня</AppText>
-                </View>
-              </View>
+              <AppText style={styles.activityTitle}>Игры на сегодня</AppText>
               <ProgressDonut
                 value={`${today?.gamesCompletedToday ?? today?.completedCount ?? 0} / ${today?.totalCount ?? 0}`}
                 progress={(today?.totalCount ?? 0) > 0 ? (today?.gamesCompletedToday ?? today?.completedCount ?? 0) / (today?.totalCount ?? 1) : 0}
@@ -176,14 +169,7 @@ export default function HomeScreen() {
             </View>
             <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
             <View style={styles.activityItem}>
-              <View style={styles.activityInfo}>
-                <View style={[styles.activityIconMonthly, theme.mode === "dark" && { backgroundColor: "#2D294A" }]}>
-                  <Ionicons name="calendar-outline" size={21} color={theme.mode === "dark" ? "#B9A5FF" : "#7A5AF8"} />
-                </View>
-                <View style={styles.activityCopy}>
-                  <AppText style={styles.activityTitle}>Челленджей за месяц</AppText>
-                </View>
-              </View>
+              <AppText style={styles.activityTitle}>Челленджей за месяц</AppText>
               <ProgressDonut
                 value={String(today?.monthlyChallengeCount ?? 0)}
                 progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
@@ -252,16 +238,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 64,
   },
-  activityStrip: { minHeight: 108, marginTop: 12, borderRadius: 26, paddingHorizontal: 12, paddingVertical: 12, flexDirection: "row", alignItems: "center", borderWidth: 1 },
-  activityItem: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingHorizontal: 8 },
-  activityInfo: { flex: 1, minWidth: 0, flexDirection: "column", alignItems: "flex-start", gap: 6 },
-  activityIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
-  activityIconMonthly: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#EFE6FF" },
-  activityCopy: { flex: 0, width: "100%", minWidth: 0, maxWidth: 82, alignItems: "flex-start", gap: 2 },
-  activityTitle: { maxWidth: 82, fontSize: 12, lineHeight: 16, fontWeight: "800", textAlign: "left", flexShrink: 1 },
+  activityStrip: { minHeight: 82, marginTop: 12, borderRadius: 22, paddingHorizontal: 6, paddingVertical: 8, flexDirection: "row", alignItems: "stretch", borderWidth: StyleSheet.hairlineWidth },
+  activityItem: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-evenly", gap: 8, paddingHorizontal: 8 },
+  activityTitle: { minWidth: 0, maxWidth: "58%", fontSize: 12, lineHeight: 16, fontWeight: "800", textAlign: "left", flexShrink: 1 },
   donut: { width: 64, height: 64, alignItems: "center", justifyContent: "center" },
   donutValue: { position: "absolute", fontSize: 14, lineHeight: 18, fontWeight: "900" },
-  activityDivider: { width: 1, height: 64, marginHorizontal: 8 },
+  activityDivider: { width: StyleSheet.hairlineWidth, alignSelf: "stretch", marginHorizontal: 4 },
   tasksPanel: {
     borderRadius: 34,
     padding: 14,

@@ -120,7 +120,7 @@ export function ProfileDrawer({
             { backgroundColor: "rgba(4,16,38,0.32)", opacity: backdrop },
           ]}
         >
-          <BlurView
+          {visible && !(Platform.OS === "android" && editing) ? <BlurView
             pointerEvents="none"
             intensity={34}
             tint={theme.mode === "dark" ? "dark" : "light"}
@@ -131,7 +131,7 @@ export function ProfileDrawer({
                 }
               : {})}
             style={StyleSheet.absoluteFill}
-          />
+          /> : null}
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
         </Animated.View>
         <Animated.View

@@ -5,12 +5,17 @@ import { useEffect, type ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, Text, type TextStyle, View, type ViewStyle } from "react-native";
 import Animated, { cancelAnimation, Easing, FadeIn, FadeInDown, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import type { ArcadeGameSkin } from "./types";
 import { gameCoinReward } from "../../rewards";
 import { useGameSession } from "../../session-context";
 
 type GradientColors = readonly [string, string, ...string[]];
+
+function AmbientGlow({ color, id }: { color: string; id: string }) {
+  return <Svg width="100%" height="100%" viewBox="0 0 400 400"><Defs><RadialGradient id={id}><Stop offset="0" stopColor={color} stopOpacity={0.18} /><Stop offset="0.45" stopColor={color} stopOpacity={0.08} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient></Defs><Rect width="400" height="400" fill={`url(#${id})`} /></Svg>;
+}
 
 function parseHex(color: string) {
   const normalized = color.trim().replace("#", "");
@@ -74,28 +79,29 @@ export function GameRoot({ colors, children, skin }: { colors: GradientColors; c
     };
   }, [driftOne, driftTwo, reducedMotion]);
   const ambientOneMotion = useAnimatedStyle(() => ({
-    transform: [{ translateX: driftOne.value * 32 }, { translateY: driftOne.value * 22 }, { scale: 1 + driftOne.value * 0.08 }],
+    transform: [{ translateX: driftOne.value * 64 }, { translateY: driftOne.value * 48 }, { scale: 1 + driftOne.value * 0.12 }],
   }));
   const ambientTwoMotion = useAnimatedStyle(() => ({
-    transform: [{ translateX: driftTwo.value * -26 }, { translateY: driftTwo.value * -34 }, { scale: 1 + driftTwo.value * 0.06 }],
+    transform: [{ translateX: driftTwo.value * -56 }, { translateY: driftTwo.value * -64 }, { scale: 1 + driftTwo.value * 0.1 }],
   }));
   return (
     <LinearGradient colors={themedColors} style={styles.root}>
-      <Animated.View pointerEvents="none" style={[styles.ambientOne, custom && { backgroundColor: withAlpha(skin!.primary, 0.16) }, ambientOneMotion]} />
-      <Animated.View pointerEvents="none" style={[styles.ambientTwo, custom && { backgroundColor: withAlpha(skin!.secondary, 0.11) }, ambientTwoMotion]} />
+      <Animated.View pointerEvents="none" style={[styles.ambientOne, { backgroundColor: "transparent", filter: undefined }, ambientOneMotion]}><AmbientGlow id="ambient-top" color={custom ? skin!.primary : "#A78BFA"} /></Animated.View>
+      <Animated.View pointerEvents="none" style={[styles.ambientTwo, { backgroundColor: "transparent", filter: undefined }, ambientTwoMotion]}><AmbientGlow id="ambient-bottom" color={custom ? skin!.secondary : "#60A5FA"} /></Animated.View>
       <SafeAreaView edges={["top", "bottom", "left", "right"]} style={styles.safe}>{children}</SafeAreaView>
     </LinearGradient>
   );
 }
 
 export function GameHeader({ title, accent, onExit, right }: { title: string; accent: string; onExit?: () => void; right?: ReactNode }) {
+  const session = useGameSession();
   return (
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="Назад" hitSlop={12} onPress={onExit} style={styles.iconButton}>
         <Ionicons name="chevron-back" color="#FFFFFF" size={23} />
       </Pressable>
       <Text numberOfLines={1} style={[styles.headerTitle, { color: accent }]}>{title}</Text>
-      <View style={styles.headerRight}>{right}</View>
+      <View style={[styles.headerRight, { flexDirection: "row", alignItems: "center", gap: 8 }]}>{right}{session?.headerAction}</View>
     </View>
   );
 }
@@ -105,9 +111,9 @@ export function GlassPanel({ children, style }: { children: ReactNode; style?: V
 }
 
 export function HudStat({ label, value, color = "#FFFFFF", style }: { label: string; value: string | number; color?: string; style?: ViewStyle }) {
-  const coinMetric = /(сч[её]т|очки|очков|score|рекорд|best)/i.test(label);
-  const visibleLabel = coinMetric ? (/(рекорд|best)/i.test(label) ? "ЛУЧШИЙ COIN" : "COIN") : label;
-  const visibleValue = coinMetric && typeof value === "number" ? gameCoinReward(value) : value;
+  const session = useGameSession();
+  const visibleLabel = label;
+  const visibleValue = label === "COIN" && session?.practiceCoins !== undefined ? session.practiceCoins : value;
   return (
     <View style={[styles.stat, style]}>
       <Text style={styles.statLabel}>{visibleLabel}</Text>
@@ -157,10 +163,7 @@ export function IntroScreen({ eyebrow, title, subtitle, accent, children, onStar
   const session = useGameSession();
   return (
     <Animated.View entering={FadeIn.duration(260)} exiting={FadeOut.duration(180)} style={styles.centerScreen}>
-      {eyebrow ? <Text style={[styles.eyebrow, { color: accent }]}>{eyebrow}</Text> : null}
       <Text style={styles.heroTitle}>{title}</Text>
-      <Text style={styles.heroSubtitle}>{subtitle}</Text>
-      {children}
       <ArcadeButton accent={accent} onPress={() => { session?.onStart(); onStart(); }} style={styles.wideButton}>НАЧАТЬ</ArcadeButton>
     </Animated.View>
   );

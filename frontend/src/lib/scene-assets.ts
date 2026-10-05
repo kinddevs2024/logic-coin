@@ -2,7 +2,7 @@ import type { ImageSourcePropType } from "react-native";
 
 // Native retains the existing supported raster assets.
 export const sceneAssets = {
-  island: require("../../assets/scene/island.webp") as ImageSourcePropType,
+  island: require("../../assets/scene/island-deep.webp") as ImageSourcePropType,
   jars: [require("../../assets/scene/1-Photoroom.webp"),
     require("../../assets/scene/2-Photoroom.webp"),
     require("../../assets/scene/3-Photoroom.webp"),

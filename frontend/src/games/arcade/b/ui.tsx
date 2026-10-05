@@ -54,6 +54,7 @@ type GameScreenProps = PropsWithChildren<{
 }>;
 
 export function GameScreen({ title, accent = B_COLORS.cyan, onExit, right, scroll = false, skin, children }: GameScreenProps) {
+  const session = useGameSession();
   const { width } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
   const drift = useSharedValue(0);
@@ -81,7 +82,7 @@ export function GameScreen({ title, accent = B_COLORS.cyan, onExit, right, scrol
           <ArcadeIcon name="chevron-left" size={25} color={B_COLORS.ink} />
         </Pressable>
         <Text numberOfLines={1} style={[styles.headerTitle, { color: accent }]}>{title}</Text>
-        <View style={styles.headerRight}>{right ?? <View style={styles.headerSpacer} />}</View>
+        <View style={[styles.headerRight, { flexDirection: "row", alignItems: "center", gap: 8 }]}>{right ?? (session?.headerAction ? null : <View style={styles.headerSpacer} />)}{session?.headerAction}</View>
       </View>
       {children}
     </View>
@@ -104,9 +105,9 @@ export function Panel({ children, style }: PropsWithChildren<{ style?: object }>
 }
 
 export function Metric({ label, value, color = B_COLORS.ink }: { label: string; value: string | number; color?: string }) {
-  const coinMetric = /(сч[её]т|очки|очков|score|рекорд|best)/i.test(label);
-  const visibleLabel = coinMetric ? (/(рекорд|best)/i.test(label) ? "ЛУЧШИЙ COIN" : "COIN") : label;
-  const visibleValue = coinMetric && typeof value === "number" ? gameCoinReward(value) : value;
+  const session = useGameSession();
+  const visibleLabel = label;
+  const visibleValue = label === "COIN" && session?.practiceCoins !== undefined ? session.practiceCoins : value;
   return (
     <View style={styles.metric}>
       <Text style={styles.metricLabel}>{visibleLabel}</Text>
@@ -116,10 +117,11 @@ export function Metric({ label, value, color = B_COLORS.ink }: { label: string; 
 }
 
 export function CoinPill({ value }: { value: number }) {
+  const session = useGameSession();
   return (
     <View style={styles.coinPill}>
       <ArcadeIcon name="circle-multiple" size={17} color={B_COLORS.gold} />
-      <Text style={styles.coinText}>{value}</Text>
+      <Text style={styles.coinText}>{session?.practiceCoins ?? value}</Text>
     </View>
   );
 }
@@ -197,15 +199,6 @@ export function StartCard({ icon, title, subtitle, accent, details, options, onS
         <ArcadeIcon name={icon} size={42} color={accent} />
       </View>
       <Text style={[styles.startTitle, { color: accent }]}>{title}</Text>
-      <Text style={styles.startSubtitle}>{subtitle}</Text>
-      <Panel style={styles.rules}>
-        {details.map((detail, index) => (
-          <View key={detail} style={styles.ruleRow}>
-            <Text style={[styles.ruleIndex, { color: accent }]}>{String(index + 1).padStart(2, "0")}</Text>
-            <Text style={styles.ruleText}>{detail}</Text>
-          </View>
-        ))}
-      </Panel>
       {options}
       <GameButton label="ИГРАТЬ" onPress={() => { session?.onStart(); onStart(); }} accent={accent} />
     </Animated.View>

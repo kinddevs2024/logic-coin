@@ -407,7 +407,8 @@ export default function TabsLayout() {
       screenLayout={({ children }) => <NavigationBlurScene>{children}</NavigationBlurScene>}
       screenOptions={{
         headerShown: false,
-        animation: Platform.OS === "web" ? "fade" : "shift",
+        freezeOnBlur: Platform.OS !== "web",
+        animation: Platform.OS === "android" ? "none" : Platform.OS === "web" ? "fade" : "shift",
         tabBarHideOnKeyboard: true,
         sceneStyle: { backgroundColor: "transparent" },
       }}

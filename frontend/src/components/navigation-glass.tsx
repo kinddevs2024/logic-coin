@@ -46,7 +46,6 @@ export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
         styles.rim,
         { borderColor: dark ? lens ? "rgba(147,193,255,0.36)" : "rgba(158,188,231,0.22)" : "rgba(255,255,255,0.82)" },
       ]} />
-      {lens ? <View style={[styles.glint, { backgroundColor: dark ? "rgba(188,217,255,0.18)" : "rgba(255,255,255,0.9)" }]} /> : null}
     </View>
   );
 }
@@ -54,5 +53,4 @@ export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
 const styles = StyleSheet.create({
   surface: { borderRadius: 38, overflow: "hidden" },
   rim: { borderRadius: 38, borderWidth: 1 },
-  glint: { position: "absolute", top: 2, left: "22%", right: "22%", height: 1, borderRadius: 1 },
 });

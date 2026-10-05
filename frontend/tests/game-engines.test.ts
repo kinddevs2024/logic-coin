@@ -1,4 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { strikeSpeed } from "../src/games/arcade/a/strike-rules";
+
+describe("strike practice speed", () => {
+  it("starts gently and never exceeds its playable ceiling", () => {
+    expect(strikeSpeed(1)).toBe(0.35);
+    expect(strikeSpeed(38)).toBe(1.2);
+    expect(strikeSpeed(100000)).toBe(1.2);
+    expect(strikeSpeed(NaN)).toBe(0.35);
+  });
+});
 
 import {
   applyLongcatMove,

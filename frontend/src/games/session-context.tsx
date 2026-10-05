@@ -1,9 +1,11 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 export type GameSessionControls = {
   onStart: () => void;
   onExit: () => void;
   paused: boolean;
+  practiceCoins?: number;
+  headerAction?: ReactNode;
 };
 
 export const GameSessionContext = createContext<GameSessionControls | null>(null);

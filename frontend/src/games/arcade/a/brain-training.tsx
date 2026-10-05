@@ -8,6 +8,7 @@ import { GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, ResultScreen, 
 import type { ArcadeGameProps } from "./types";
 import { randomInt, shuffle, suggestedCoins } from "./utils";
 import { usePauseClock } from "@/games/pause-clock";
+import { useGameProgressStore } from "@/games/progress-store";
 
 const GAME_ID = "brain-training" as const;
 const SESSION_MS = 80_000;
@@ -18,7 +19,7 @@ const PALETTES = [
 ] as const;
 
 type Expression = { label: string; result: number };
-type Bubble = Expression & { id: number; x: number; y: number; vx: number; vy: number; size: number; palette: number };
+type Bubble = Expression & { id: number; x: number; y: number; vx: number; vy: number; size: number; palette: number; minX: number; maxX: number; minY: number; maxY: number };
 
 function generateExpression(): Expression {
   const op = shuffle(["+", "+", "+", "+", "-", "-", "×"])[0]!;
@@ -46,7 +47,8 @@ function makeExpressions(count: number, previousTarget?: number) {
   return { target: correct.result, expressions: shuffle(expressions) };
 }
 
-export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
+export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#C8A96E", "#7EB8F7");
   const sessionDuration = SESSION_MS + Math.max(0, extraTimeSeconds) * 1000;
   const { width, height } = useWindowDimensions();
@@ -75,23 +77,23 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
     const count = elapsed >= 63_000 ? 7 : elapsed >= 50_000 ? 6 : 5;
     const generated = makeExpressions(count, lastTarget.current);
     lastTarget.current = generated.target;
-    const size = Math.max(68, Math.min(88, arenaWidth / 4.2));
     const columns = arenaWidth > 470 ? 4 : 3;
     const rows = Math.ceil(count / columns);
     const xStep = arenaWidth / columns;
     const yStep = arenaHeight / rows;
+    const size = Math.min(88, xStep - 16, yStep - 16);
     const next = generated.expressions.map((expression, index): Bubble => {
       const column = index % columns; const row = Math.floor(index / columns);
       const speed = 0.24 + Math.random() * 0.34;
       const angle = Math.random() * Math.PI * 2;
-      return { ...expression, id: uid.current++, size, x: column * xStep + xStep / 2, y: row * yStep + yStep / 2, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, palette: randomInt(0, PALETTES.length - 1) };
+      return { ...expression, id: uid.current++, size, x: column * xStep + xStep / 2, y: row * yStep + yStep / 2, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, palette: randomInt(0, PALETTES.length - 1), minX: column * xStep + size / 2 + 6, maxX: (column + 1) * xStep - size / 2 - 6, minY: row * yStep + size / 2 + 6, maxY: (row + 1) * yStep - size / 2 - 6 };
     });
     setTarget(generated.target); setBubbles(next); setFlash(null); setRoundRemaining(ROUND_MS); roundDeadline.current = Date.now() + ROUND_MS;
   }, [arenaHeight, arenaWidth]);
 
   const start = useCallback(() => {
     finishing.current = false; lastTarget.current = undefined; gameStartedAt.current = Date.now(); setScore(0); setCombo(0); setMaxCombo(0); setCorrect(0); setWrong(0); setRemainingMs(sessionDuration); setPhase("playing");
-    setTimeout(() => spawnRound(0), 0);
+    spawnRound(0);
   }, [sessionDuration, spawnRound]);
 
   const finish = useCallback(() => {
@@ -107,11 +109,10 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
     const movement = setInterval(() => {
       setBubbles((items) => items.map((bubble) => {
         let x = bubble.x + bubble.vx; let y = bubble.y + bubble.vy; let vx = bubble.vx; let vy = bubble.vy;
-        const radius = bubble.size / 2;
-        if (x < radius) { x = radius; vx = Math.abs(vx); }
-        if (x > arenaWidth - radius) { x = arenaWidth - radius; vx = -Math.abs(vx); }
-        if (y < radius) { y = radius; vy = Math.abs(vy); }
-        if (y > arenaHeight - radius) { y = arenaHeight - radius; vy = -Math.abs(vy); }
+        if (x < bubble.minX) { x = bubble.minX; vx = Math.abs(vx); }
+        if (x > bubble.maxX) { x = bubble.maxX; vx = -Math.abs(vx); }
+        if (y < bubble.minY) { y = bubble.minY; vy = Math.abs(vy); }
+        if (y > bubble.maxY) { y = bubble.maxY; vy = -Math.abs(vy); }
         return { ...bubble, x, y, vx, vy };
       }));
     }, 16);
@@ -125,20 +126,21 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
       const sessionLeft = Math.max(0, sessionDuration - elapsed);
       const promptLeft = Math.max(0, roundDeadline.current - Date.now());
       setRemainingMs(sessionLeft); setRoundRemaining(promptLeft);
-      if (sessionLeft <= 0) { finish(); return; }
+      if (challengeMode && sessionLeft <= 0) { finish(); return; }
       if (promptLeft <= 0 && !flash) {
         setScore((value) => Math.max(0, value - 3)); setCombo(0); setFlash("wrong"); impact("error");
         setTimeout(() => spawnRound(elapsed), 180);
       }
     }, 50);
     return () => clearInterval(timer);
-  }, [finish, flash, paused, phase, sessionDuration, spawnRound]);
+  }, [challengeMode, finish, flash, paused, phase, sessionDuration, spawnRound]);
 
   const choose = (bubble: Bubble) => {
     if (flash) return;
     if (bubble.result === target) {
       const nextCombo = combo + 1;
       const earned = 10 + Math.max(0, nextCombo - 1) * 5;
+      if (!challengeMode) awardCoins("brain-training", Math.floor((score + earned) / 20) - Math.floor(score / 20));
       setScore((value) => value + earned); setCorrect((value) => value + 1); setCombo(nextCombo); setMaxCombo((value) => Math.max(value, nextCombo)); setFlash("correct"); impact("success");
       setBubbles((items) => items.filter((item) => item.id !== bubble.id));
       setTimeout(() => spawnRound(Date.now() - gameStartedAt.current), 260);
@@ -155,8 +157,8 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
   return (
     <GameRoot colors={["#17132E", "#080E1F", "#071323"]} skin={skin}>
       <GameHeader title="МОЗГОВОЙ ШТУРМ" accent={theme.primary} onExit={onExit} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><View style={[styles.targetBox, { borderColor: theme.primary }]}><Text style={styles.targetLabel}>НАЙТИ</Text><Text style={styles.target}>{target}</Text><ProgressBar progress={roundRemaining / ROUND_MS} color={theme.primary} height={3} /></View><HudStat label="Время" value={Math.ceil(remainingMs / 1000)} color={remainingMs <= 10_000 ? "#E05C6A" : "#6EDBA8"} /></View>
-      <ProgressBar progress={remainingMs / sessionDuration} color={remainingMs <= 10_000 ? "#E05C6A" : theme.secondary} />
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><View style={[styles.targetBox, { borderColor: theme.primary }]}><Text style={styles.targetLabel}>НАЙТИ</Text><Text style={styles.target}>{target}</Text><ProgressBar progress={roundRemaining / ROUND_MS} color={theme.primary} height={3} /></View><HudStat label={challengeMode ? "Время" : "Режим"} value={challengeMode ? Math.ceil(remainingMs / 1000) : "∞"} color="#6EDBA8" /></View>
+      {challengeMode ? <ProgressBar progress={remainingMs / sessionDuration} color={theme.secondary} /> : null}
       <View style={[styles.arena, { width: arenaWidth, height: arenaHeight }]}>
         {bubbles.map((bubble) => {
           const palette = PALETTES[bubble.palette]!;

@@ -3,6 +3,14 @@ import { useEffect, useRef } from "react";
 import { useGameProgressStore } from "@/games/progress-store";
 import { gameProgressApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import type { GamesProgress } from "@/games/progress-store";
+
+// Preserve device records from the removed experiment, but don't send keys
+// unsupported by the server. Existing games retain their normal synchronization.
+const removedLocalKeys = new Set(["bottle-flip", "snake", "minesweeper", "mini-sudoku", "fifteen", "tic-tac-toe", "connect-four", "memory-pairs", "simon", "lights-out", "mastermind"]);
+function serverGameProgress(games: GamesProgress): GamesProgress {
+  return Object.fromEntries(Object.entries(games).filter(([key]) => !removedLocalKeys.has(key))) as GamesProgress;
+}
 
 export function useGameProgressSync() {
   const accessToken = useAppStore((state) => state.accessToken);
@@ -30,7 +38,7 @@ export function useGameProgressSync() {
         if (cancelled) return;
         const merged = mergeRemote(remote);
         readyToken.current = accessToken;
-        return gameProgressApi.put(merged, accessToken);
+        return gameProgressApi.put(serverGameProgress(merged), accessToken);
       })
       .catch(() => {
         if (!cancelled) readyToken.current = accessToken;
@@ -43,7 +51,7 @@ export function useGameProgressSync() {
   useEffect(() => {
     if (!accessToken || readyToken.current !== accessToken) return;
     const timeout = setTimeout(() => {
-      gameProgressApi.put(latestGames.current, accessToken).catch(() => undefined);
+      gameProgressApi.put(serverGameProgress(latestGames.current), accessToken).catch(() => undefined);
     }, 700);
     return () => clearTimeout(timeout);
   }, [accessToken, games]);

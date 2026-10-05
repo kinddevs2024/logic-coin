@@ -18,7 +18,18 @@ const CONFIG: Record<VoltDifficulty, { count: number; label: string; columns: nu
 };
 const PALETTES = ["#7C3AED", "#B45309", "#0369A1", "#067A57", "#9D174D", "#1D4ED8", "#B91C1C", "#0F766E", "#7E22CE", "#C2410C"];
 
-export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = false, skin }: ArcadeGameProps) {
+function numberInk(background: string) {
+  const hex = background.replace("#", "");
+  if (!/^[\da-f]{6}$/i.test(hex)) return "#FFFFFF";
+  const channels = [0, 2, 4].map(offset => {
+    const channel = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722;
+  return luminance > 0.179 ? "#101827" : "#FFFFFF";
+}
+
+export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = false, skin, challengeMode = false }: ArcadeGameProps) {
   const { width } = useWindowDimensions();
   const accent = arcadeSkinAccent(skin, B_COLORS.gold);
   const palette = skin && skin.id !== "classic"
@@ -54,7 +65,8 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
     setMistakes(0);
     setElapsed(0);
     setWon(false);
-    setPhase("look");
+    startedAt.current = Date.now();
+    setPhase("play");
   }, [difficulty]);
 
   const activate = useCallback(() => {
@@ -102,9 +114,9 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
       const nextMistakes = mistakes + 1;
       setMistakes(nextMistakes);
       errorTap();
-      if (nextMistakes >= 3) finish(false, nextMistakes, Date.now() - startedAt.current, config.count - remaining.size);
+      if (challengeMode && nextMistakes >= 3) finish(false, nextMistakes, Date.now() - startedAt.current, config.count - remaining.size);
     }
-  }, [activate, config.count, current, finish, mistakes, phase, remaining]);
+  }, [activate, challengeMode, config.count, current, finish, mistakes, phase, remaining]);
 
   const boardWidth = Math.min(460, width - 32);
   const gap = config.columns >= 10 ? 3 : 5;
@@ -151,24 +163,16 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
                     onPress={() => tapNumber(number)}
                     style={({ pressed }) => [styles.ball, { width: ballSize, height: ballSize, borderRadius: ballSize / 2, backgroundColor: phase === "look" && number === config.count ? accent : palette[number % palette.length] }, pressed && styles.ballPressed]}
                   >
-                    <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.ballText, { fontSize: Math.max(10, ballSize * 0.36), color: phase === "look" && number === config.count ? "#261900" : B_COLORS.ink }]}>{number}</Text>
+                    <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.ballText, { fontSize: Math.max(10, ballSize * 0.36), color: numberInk(phase === "look" && number === config.count ? accent : palette[number % palette.length]!) }]}>{number}</Text>
                   </Pressable>
                 </Animated.View>
               ) : <View key={number} style={{ width: ballSize, height: ballSize }} />)}
             </View>
-            {phase === "look" ? (
-              <Animated.View entering={FadeIn.delay(250)} style={styles.memoryBanner}>
-                <ArcadeIcon name="eye-outline" size={38} color={accent} />
-                <Text style={[styles.memoryTitle, { color: accent }]}>ЗАПОМНИ</Text>
-                <Text style={styles.memoryText}>Найди {config.count}, затем числа перемешаются</Text>
-                <GameButton label="ГОТОВ" accent={accent} onPress={activate} />
-              </Animated.View>
-            ) : null}
           </Panel>
-          <View style={styles.mistakeRow}>
+          {challengeMode ? <View style={styles.mistakeRow}>
             {Array.from({ length: 3 }, (_, index) => <View key={index} style={[styles.mistakeDot, index < mistakes && styles.mistakeUsed]} />)}
             <Text style={styles.mistakeText}>ОШИБОК {mistakes}/3</Text>
-          </View>
+          </View> : null}
         </View>
       ) : null}
 

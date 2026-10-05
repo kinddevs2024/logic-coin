@@ -27,7 +27,7 @@ function initialStats(): ShadowStats {
   return { score: 0, lives: 3, combo: 0, maxCombo: 0, correct: 0, wrong: 0, round: 0 };
 }
 
-export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
+export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin, challengeMode = false }: ArcadeGameProps) {
   const accent = arcadeSkinAccent(skin, B_COLORS.green);
   const { width } = useWindowDimensions();
   const sessionDuration = TOTAL_SECONDS + Math.max(0, extraTimeSeconds);
@@ -115,13 +115,13 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
     if (locked || revealing || screen !== "play") return;
     setLocked(true);
     const current = statsRef.current;
-    const next = { ...current, combo: 0, wrong: current.wrong + 1, lives: current.lives - 1 };
+    const next = { ...current, combo: 0, wrong: current.wrong + 1, lives: challengeMode ? current.lives - 1 : current.lives };
     statsRef.current = next;
     setStats(next);
     errorTap();
     if (next.lives <= 0) setTimeout(() => finish(next), 500);
     else setTimeout(nextRound, 700);
-  }, [finish, locked, nextRound, revealing, screen]);
+  }, [challengeMode, finish, locked, nextRound, revealing, screen]);
 
   useEffect(() => {
     if (screen !== "play" || paused) return;
@@ -194,7 +194,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
           <View style={styles.metrics}>
             <Metric label="COIN" value={rewardCoins(stats.score, accuracy >= 65)} color={accent} />
             <Metric label="СЕРИЯ" value={`×${stats.combo}`} color={B_COLORS.gold} />
-            <Metric label="ЖИЗНИ" value={`${stats.lives}/3`} color={B_COLORS.red} />
+            {challengeMode ? <Metric label="ЖИЗНИ" value={`${stats.lives}/3`} color={B_COLORS.red} /> : null}
           </View>
           <ProgressTrack value={1 - elapsed / sessionDuration} color={phase.color} />
           <ProgressTrack value={revealing ? 1 : roundLeft} color={roundLeft < 0.2 ? B_COLORS.red : phase.color} />

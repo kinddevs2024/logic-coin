@@ -8,6 +8,7 @@ import { ArcadeButton, GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, 
 import type { ArcadeGameProps } from "./types";
 import { formatClock, randomInt, shuffle, suggestedCoins } from "./utils";
 import { usePauseClock } from "@/games/pause-clock";
+import { useGameProgressStore } from "@/games/progress-store";
 
 const GAME_ID = "volt-match" as const;
 const TOTAL_ROUNDS = 12;
@@ -31,7 +32,8 @@ type Cell = { id: number; iconIndex: number; target: boolean; removed: boolean }
 
 function roundDuration(round: number) { return Math.max(2, 7 - Math.max(0, round - 6) * 0.3); }
 
-export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
+export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#F5C842", "#C084FC");
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState<"intro" | "playing" | "round" | "result">("intro");
@@ -51,6 +53,7 @@ export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, onEx
   const [roundWon, setRoundWon] = useState(true);
   const [best, setBest] = useState(initialBestScore);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
+  const [feedbackCell, setFeedbackCell] = useState<number | null>(null);
   const deadline = useRef(0);
   const startedAt = useRef(0);
   const canTap = useRef(false);
@@ -61,7 +64,7 @@ export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, onEx
   const buildRound = useCallback((roundNumber: number) => {
     const available = ICONS.map((_, index) => index).filter((index) => !usedTargets.current.slice(-8).includes(index));
     const iconIndex = (available.length ? available : ICONS.map((_, index) => index))[randomInt(0, (available.length ? available : ICONS).length - 1)]!;
-    usedTargets.current.push(iconIndex);
+    usedTargets.current = [...usedTargets.current.slice(-7), iconIndex];
     const copies = 3 + randomInt(0, 1);
     const positions = new Set<number>();
     while (positions.size < copies) positions.add(randomInt(0, 24));
@@ -98,21 +101,23 @@ export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, onEx
 
   const choose = (cell: Cell) => {
     if (!canTap.current || cell.removed) return;
+    setFeedbackCell(cell.id);
     if (cell.target) {
       const nextCombo = combo + 1; const multiplier = Math.min(nextCombo, 6); const speedBonus = Math.round((timeLeft / 7_000) * 20); const points = (15 + speedBonus) * multiplier;
       const nextScore = score + points; const nextRoundScore = roundScore + points; const nextRemaining = remainingTargets - 1; const nextCorrect = correctTaps + 1; const nextMax = Math.max(maxCombo, nextCombo);
+      if (!challengeMode) awardCoins("volt-match", Math.floor(nextScore / 20) - Math.floor(score / 20));
       setCells((items) => items.map((item) => item.id === cell.id ? { ...item, removed: true } : item)); setCombo(nextCombo); setMaxCombo(nextMax); setScore(nextScore); setRoundScore(nextRoundScore); setRemainingTargets(nextRemaining); setCorrectTaps(nextCorrect); setFeedback("correct"); impact("success");
       setTimeout(() => setFeedback(null), 180);
       if (nextRemaining <= 0) { canTap.current = false; setRoundWon(true); setTimeout(() => setPhase("round"), 350); }
     } else {
       const nextMistakes = mistakes + 1; const nextWrong = wrongTaps + 1;
       setMistakes(nextMistakes); setWrongTaps(nextWrong); setCombo(0); setFeedback("wrong"); impact("error"); setTimeout(() => setFeedback(null), 220);
-      if (nextMistakes >= 3) { canTap.current = false; setTimeout(() => finish({ mistakes: nextMistakes, wrong: nextWrong }), 350); }
+      if (challengeMode && nextMistakes >= 3) { canTap.current = false; setTimeout(() => finish({ mistakes: nextMistakes, wrong: nextWrong }), 350); }
     }
   };
 
   const continueGame = () => {
-    if (round >= TOTAL_ROUNDS) finish(); else buildRound(round + 1);
+    if (challengeMode && round >= TOTAL_ROUNDS) finish(); else buildRound(round + 1);
   };
 
   if (phase === "intro") return <GameRoot colors={["#2B1B16", "#100F18", "#08070C"]} skin={skin}><GameHeader title="VOLT" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="SPEED OF THOUGHT" title="VOLT" subtitle="Запомни цель и найди все совпадения. Три ошибки заканчивают игру." accent={theme.primary} onStart={start}><View style={styles.preview}>{ICONS.slice(0, 8).map((icon) => <LinearGradient key={icon.name} colors={icon.colors} style={styles.previewCell}><Ionicons name={icon.icon} color="#FFFFFF" size={22} /></LinearGradient>)}</View><Text style={styles.hardcore}>ХАРДКОР · 5×5 · 12 РАУНДОВ</Text></IntroScreen></GameRoot>;
@@ -127,13 +132,13 @@ export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, onEx
   return (
     <GameRoot colors={["#2B1B16", "#100F18", "#08070C"]} skin={skin}>
       <GameHeader title="VOLT" accent={theme.primary} onExit={onExit} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Раунд" value={`${round}/${TOTAL_ROUNDS}`} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /><HudStat label="Ошибки" value={`${mistakes}/3`} color="#FF5C6C" /></View>
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} />{challengeMode ? <><HudStat label="Раунд" value={`${round}/${TOTAL_ROUNDS}`} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /><HudStat label="Ошибки" value={`${mistakes}/3`} color="#FF5C6C" /></> : <HudStat label="Режим" value="∞" />}</View>
       <View style={[styles.targetStrip, { borderColor: theme.primary }]}><LinearGradient colors={target.colors} style={[styles.targetIcon, { borderColor: theme.primary }]}><Ionicons name={target.icon} color="#FFFFFF" size={29} /></LinearGradient><View style={styles.targetInfo}><Text style={[styles.targetLabel, { color: theme.primary }]}>НАЙДИ ВСЕ</Text><Text style={[styles.targetName, { color: theme.primary }]}>{target.name}</Text><Text style={styles.targetLeft}>осталось · {remainingTargets}</Text></View><View style={styles.targetTimer}><Text style={[styles.time, { color: theme.primary }, timeLeft < duration * 0.3 && { color: "#FF5C6C" }]}>{(timeLeft / 1000).toFixed(1)}</Text><Text style={styles.combo}>КОМБО ×{Math.min(combo, 6)}</Text></View></View>
       <ProgressBar progress={timeLeft / duration} color={timeLeft < duration * 0.3 ? "#FF5C6C" : theme.primary} />
       <View style={styles.gridStage}><View style={[styles.grid, { width: cellSize * 5 + gap * 4, gap }]}>{cells.map((cell) => {
         const icon = ICONS[cell.iconIndex]!;
-        return <Animated.View key={cell.id} entering={FadeInDown.delay(cell.id * 12).duration(180)} exiting={ZoomOut.duration(180)}><Pressable accessibilityRole="button" accessibilityLabel={icon.name} disabled={cell.removed} onPress={() => choose(cell)} style={({ pressed }) => [pressed && styles.cellPressed, cell.removed && styles.cellRemoved]}><LinearGradient colors={icon.colors} style={[styles.cell, { width: cellSize, height: cellSize }]}><View style={styles.cellGloss} /><Ionicons name={icon.icon} color="#FFFFFF" size={cellSize * 0.42} style={styles.cellGlyph} /></LinearGradient></Pressable></Animated.View>;
-      })}</View>{feedback ? <Animated.View pointerEvents="none" entering={ZoomIn.springify()} style={styles.feedback}><Ionicons name={feedback === "correct" ? "checkmark-circle" : "close-circle"} color={feedback === "correct" ? theme.primary : "#FF5C6C"} size={74} /></Animated.View> : null}</View>
+        return <Animated.View key={cell.id} entering={FadeInDown.delay(cell.id * 12).duration(180)} exiting={ZoomOut.duration(180)}><Pressable accessibilityRole="button" accessibilityLabel={icon.name} disabled={cell.removed} onPress={() => choose(cell)} style={({ pressed }) => [pressed && styles.cellPressed, cell.removed && styles.cellRemoved]}><LinearGradient colors={icon.colors} style={[styles.cell, { width: cellSize, height: cellSize }]}><View style={styles.cellGloss} /><Ionicons name={icon.icon} color="#FFFFFF" size={cellSize * 0.42} style={styles.cellGlyph} /></LinearGradient></Pressable>{feedback && feedbackCell === cell.id ? <Animated.View pointerEvents="none" entering={ZoomIn.duration(100)} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}><Ionicons name={feedback === "correct" ? "checkmark-circle" : "close-circle"} color={feedback === "correct" ? theme.primary : "#FF5C6C"} size={cellSize * 0.75} /></Animated.View> : null}</Animated.View>;
+      })}</View></View>
     </GameRoot>
   );
 }

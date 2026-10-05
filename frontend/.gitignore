@@ -40,6 +40,9 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+!certs/update-certificate.pem
+dist-ota-*/
+dist-android-*/
 
 # local env files
 .env*.local

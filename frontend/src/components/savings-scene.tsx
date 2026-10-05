@@ -263,7 +263,6 @@ export function SavingsScene({
     windowWidth >= 1024,
   );
   const [jarOpacity] = useState(() => new Animated.Value(1));
-  const [drift] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     jarOpacity.stopAnimation();
@@ -280,30 +279,6 @@ export function SavingsScene({
     animation.start();
     return () => animation.stop();
   }, [jarOpacity, reduceMotion, stateIndex]);
-
-  useEffect(() => {
-    if (reduceMotion || !isFocused) {
-      drift.stopAnimation();
-      drift.setValue(0);
-      return;
-    }
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(drift, {
-          toValue: 1,
-          duration: 3200,
-          useNativeDriver: Platform.OS !== "web",
-        }),
-        Animated.timing(drift, {
-          toValue: 0,
-          duration: 3200,
-          useNativeDriver: Platform.OS !== "web",
-        }),
-      ]),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [drift, isFocused, reduceMotion]);
 
   return (
     <View
@@ -340,20 +315,6 @@ export function SavingsScene({
             styles.jarGroup,
             {
               opacity: jarOpacity,
-              transform: [
-                {
-                  translateY: drift.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [2, -4],
-                  }),
-                },
-                {
-                  rotate: drift.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ["-0.35deg", "0.35deg"],
-                  }),
-                },
-              ],
             },
           ]}
         >

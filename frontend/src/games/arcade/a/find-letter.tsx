@@ -8,6 +8,8 @@ import { GameHeader, GameRoot, HudStat, IntroScreen, LivesStat, ProgressBar, Res
 import type { ArcadeGameProps } from "./types";
 import { formatClock, shuffle, shuffleAvoidingFirst, suggestedCoins } from "./utils";
 import { usePauseClock } from "@/games/pause-clock";
+import { useGameSession } from "@/games/session-context";
+import { useGameProgressStore } from "@/games/progress-store";
 
 const GAME_ID = "find-letter" as const;
 const LETTERS = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ".split("");
@@ -30,9 +32,12 @@ function makeRound(round: number, previousAnswer?: string) {
   return { answer, letters: shuffle([answer, answer, ...others]) };
 }
 
-export function FindLetterGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
+export function FindLetterGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const practiceCoins = useGameSession()?.practiceCoins;
+  const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#38BDF8", "#FBBF24");
   const { width, height } = useWindowDimensions();
+  const [playArea, setPlayArea] = useState({ width: Math.max(0, width - 40), height: Math.max(0, height - 380) });
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
   const [round, setRound] = useState(0);
   const [puzzle, setPuzzle] = useState(() => makeRound(0));
@@ -74,25 +79,31 @@ export function FindLetterGame({ initialBestScore = 0, paused = false, skin, onE
   }, [correctCount, lives, onComplete, round, score]);
 
   const advance = useCallback((nextRound: number, nextLives: number, finalScore: number, finalCorrect: number) => {
-    if (nextLives <= 0) { finish(false, { score: finalScore, correct: finalCorrect, lives: nextLives, rounds: nextRound }); return; }
-    if (nextRound >= TOTAL_ROUNDS) { finish(true, { score: finalScore, correct: finalCorrect, lives: nextLives, rounds: nextRound }); return; }
+    if (challengeMode && nextLives <= 0) { finish(false, { score: finalScore, correct: finalCorrect, lives: nextLives, rounds: nextRound }); return; }
+    if (challengeMode && nextRound >= TOTAL_ROUNDS) { finish(true, { score: finalScore, correct: finalCorrect, lives: nextLives, rounds: nextRound }); return; }
     prepareRound(nextRound);
-  }, [finish, prepareRound]);
+  }, [challengeMode, finish, prepareRound]);
+
+  useEffect(() => {
+    if (!feedback || paused || phase !== "playing") return;
+    const timer = setTimeout(() => advance(round + 1, lives, score, correctCount), 820);
+    return () => clearTimeout(timer);
+  }, [advance, correctCount, feedback, lives, paused, phase, round, score]);
 
   useEffect(() => {
     if (phase !== "playing" || paused) return;
     const timer = setInterval(() => {
       const next = Math.max(0, deadline.current - Date.now());
-      setTimeLeft(next); setElapsedMs(Date.now() - startedAt.current);
+      setTimeLeft(next);
+      if (challengeMode) setElapsedMs(Date.now() - startedAt.current);
       if (next <= 0 && !busy.current) {
         busy.current = true;
-        const nextLives = lives - 1; const nextRound = round + 1; const nextScore = Math.max(0, score - 50);
+        const nextLives = challengeMode ? lives - 1 : lives; const nextScore = Math.max(0, score - 50);
         setLives(nextLives); setScore(nextScore); setStreak(0); setFeedback({ selected: "", ok: false, timeout: true }); impact("error");
-        setTimeout(() => advance(nextRound, nextLives, nextScore, correctCount), 820);
       }
     }, 100);
     return () => clearInterval(timer);
-  }, [advance, correctCount, lives, paused, phase, round, score]);
+  }, [challengeMode, lives, paused, phase, score]);
 
   const choose = (letter: string) => {
     if (busy.current || phase !== "playing") return;
@@ -103,11 +114,11 @@ export function FindLetterGame({ initialBestScore = 0, paused = false, skin, onE
     if (ok) {
       const nextStreak = streak + 1; const bonus = Math.floor(timeLeft / 1000) * 2; const streakBonus = nextStreak >= 3 ? 50 : 0;
       nextScore += 100 + bonus + streakBonus; nextCorrect += 1; setStreak(nextStreak); setCorrectCount(nextCorrect); impact("success");
+      if (!challengeMode) awardCoins("find-letter", Math.floor((100 + bonus + streakBonus) / 20));
     } else {
-      nextScore = Math.max(0, nextScore - 30); nextLives -= 1; setStreak(0); setLives(nextLives); impact("error");
+      nextScore = Math.max(0, nextScore - 30); if (challengeMode) nextLives -= 1; setStreak(0); setLives(nextLives); impact("error");
     }
     setScore(nextScore); setFeedback({ selected: letter, ok });
-    setTimeout(() => advance(nextRound, nextLives, nextScore, nextCorrect), 820);
   };
 
   if (phase === "intro") return <GameRoot colors={["#123B5F", "#0C1A2E", "#071830"]} skin={skin}><GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="ВНИМАНИЕ" title="НАЙДИ БУКВУ" subtitle="В сетке только одна буква встречается дважды. Найди её раньше, чем закончится время." accent={theme.primary} onStart={start}><Text style={[styles.letterMark, { color: theme.secondary }]}>А А</Text></IntroScreen></GameRoot>;
@@ -116,19 +127,21 @@ export function FindLetterGame({ initialBestScore = 0, paused = false, skin, onE
   const accuracy = playedRounds ? Math.round((correctCount / playedRounds) * 100) : 0;
   if (phase === "result") return <GameRoot colors={["#123B5F", "#0C1A2E", "#071830"]} skin={skin}><GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} /><ResultScreen title={lives > 0 && round >= TOTAL_ROUNDS ? "ПОБЕДА" : "ИГРА ОКОНЧЕНА"} score={score} accent={theme.secondary} onRestart={start} onExit={onExit} stats={[{ label: "Верно", value: correctCount }, { label: "Точность", value: `${accuracy}%` }, { label: "Время", value: formatClock(elapsedMs) }, { label: "Рекорд", value: Math.max(best, score) }]} /></GameRoot>;
 
-  const maxGrid = Math.min(width - 106, height * 0.53, 470);
   const gap = config.columns >= 5 ? 5 : 7;
-  const cellSize = Math.floor((maxGrid - gap * (config.columns - 1)) / config.columns);
+  const rows = Math.ceil(config.total / config.columns);
+  const cellSize = Math.max(1, Math.floor(Math.min(
+    (Math.min(playArea.width, 470) - 22 - gap * (config.columns - 1)) / config.columns,
+    (playArea.height - 68 - 22 - gap * (rows - 1)) / rows,
+  )));
   const remainingRatio = timeLeft / (config.seconds * 1000);
   return (
     <GameRoot colors={["#123B5F", "#0C1A2E", "#071830"]} skin={skin}>
-      <GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} right={<View style={styles.scoreBadge}><Ionicons name="diamond" color={theme.secondary} size={14} /><Text style={[styles.score, { color: theme.secondary }]}>{suggestedCoins(score)}</Text></View>} />
-      <View style={styles.hud}><HudStat label="Раунд" value={`${round + 1}/${TOTAL_ROUNDS}`} /><HudStat label="Верно" value={correctCount} color={theme.primary} /><LivesStat lives={lives} color="#FB7185" /><HudStat label="Время" value={formatClock(elapsedMs)} /></View>
-      <ProgressBar progress={round / TOTAL_ROUNDS} color={theme.secondary} />
+      <GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} right={<View style={styles.scoreBadge}><Ionicons name="diamond" color={theme.secondary} size={14} /><Text style={[styles.score, { color: theme.secondary }]}>{practiceCoins ?? suggestedCoins(score)}</Text></View>} />
+      {challengeMode ? <><View style={styles.hud}><HudStat label="Раунд" value={`${round + 1}/${TOTAL_ROUNDS}`} /><HudStat label="Верно" value={correctCount} color={theme.primary} /><LivesStat lives={lives} color="#FB7185" /><HudStat label="Время" value={formatClock(elapsedMs)} /></View><ProgressBar progress={round / TOTAL_ROUNDS} color={theme.secondary} /></> : null}
       <View style={[styles.question, { borderColor: theme.primary }]}><Text style={styles.questionText}>Какая буква написана <Text style={[styles.highlight, { color: theme.secondary }]}>2 раза</Text>?</Text><Text style={[styles.difficulty, { color: theme.primary }]}>{config.name}</Text></View>
-      <View style={styles.playRow}>
+      <View style={styles.playRow} onLayout={({ nativeEvent: { layout } }) => setPlayArea(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}>
         <View style={styles.timerWrap}><Svg width={58} height={58}><Circle cx={29} cy={29} r={23.5} fill="none" stroke="rgba(125,211,252,0.15)" strokeWidth={4.5} /><Circle cx={29} cy={29} r={23.5} fill="none" stroke={timeLeft <= 4_000 ? "#EF4444" : theme.primary} strokeWidth={4.5} strokeLinecap="round" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={CIRCUMFERENCE * (1 - remainingRatio)} transform="rotate(-90 29 29)" /></Svg><Text style={[styles.timerText, timeLeft <= 4_000 && { color: "#EF4444" }]}>{Math.ceil(timeLeft / 1000)}</Text></View>
-        <View style={[styles.grid, { width: cellSize * config.columns + gap * (config.columns - 1), gap }]}>{puzzle.letters.map((letter, index) => {
+        <View style={[styles.grid, { width: cellSize * config.columns + gap * (config.columns - 1) + 22, gap }]}>{puzzle.letters.map((letter, index) => {
           const reveal = feedback && letter === puzzle.answer; const selectedWrong = feedback && !feedback.ok && feedback.selected === letter;
           return <Pressable key={`${letter}-${index}`} disabled={!!feedback} onPress={() => choose(letter)} style={({ pressed }) => [styles.cell, { width: cellSize, height: cellSize }, reveal && styles.correctCell, selectedWrong && styles.wrongCell, pressed && styles.pressed]}><Text style={[styles.cellText, { fontSize: Math.max(14, cellSize * 0.34) }, reveal && { color: "#86EFAC" }, selectedWrong && { color: "#FCA5A5" }]}>{letter}</Text></Pressable>;
         })}</View>
@@ -147,7 +160,7 @@ const styles = StyleSheet.create({
   questionText: { color: "#FFFFFF", fontSize: 16, fontWeight: "900", textAlign: "center" },
   highlight: { color: "#FBBF24" },
   difficulty: { marginTop: 5, color: "#7DD3FC", fontSize: 9, fontWeight: "900", letterSpacing: 2 },
-  playRow: { flex: 1, flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 10 },
+  playRow: { flex: 1, minHeight: 0, alignItems: "center", justifyContent: "center", gap: 10 },
   timerWrap: { width: 58, height: 58, alignItems: "center", justifyContent: "center" },
   timerText: { position: "absolute", color: "#FFFFFF", fontSize: 15, fontWeight: "900", fontVariant: ["tabular-nums"] },
   grid: { flexDirection: "row", flexWrap: "wrap", padding: 10, borderRadius: 22, backgroundColor: "rgba(7,24,48,0.72)", borderWidth: 1, borderColor: "rgba(125,211,252,0.22)" },

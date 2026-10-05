@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
+import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StatusBar, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { AppText } from "@/components/app-text";
 import { PushNotificationsControl } from "@/components/push-notifications-control";
@@ -68,10 +68,12 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     read(viewableItems.filter(v => v.isViewable && !v.item.read && !seen.current.has(v.item.id)).map(v => v.item.id));
   }, [read]);
   const items = query.data?.pages.flatMap(page => page.items) ?? [];
+  // Android's window measurement excludes the status bar, while this modal draws behind it.
+  const anchorTop = anchor ? anchor.y + (Platform.OS === "android" ? (StatusBar.currentHeight ?? insets.top) : 0) : Math.max(insets.top, 12);
   return <Modal transparent visible hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close} statusBarTranslucent>
-    <View style={[styles.overlay, { paddingTop: anchor ? anchor.y + anchor.height + 12 : Math.max(insets.top, 12) + 64 }]}>
+    <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 12) + 17 }]}>
       <Pressable accessibilityLabel="Закрыть уведомления" accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
-      <View style={[styles.close, anchor ? { position: "absolute", left: anchor.x, top: anchor.y, width: anchor.width, height: anchor.height } : { position: "absolute", right: 20, top: Math.max(insets.top, 12) }]}>
+      <View style={[styles.close, anchor ? { position: "absolute", left: anchor.x, top: anchorTop, width: anchor.width, height: anchor.height } : { position: "absolute", right: 20, top: anchorTop }]}>
         <IconButton name="close" label="Закрыть" onPress={close} />
       </View>
       <Animated.View accessibilityViewIsModal style={[styles.panel, { transform: [{ translateY: offset }] }]}>
@@ -107,7 +109,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
 const styles = StyleSheet.create({
   overlay: { flex: 1, alignItems: "center", backgroundColor: "rgba(4,12,26,0.5)", paddingHorizontal: 18 },
   panel: { flex: 1, minHeight: 0, width: "100%", maxWidth: 560, gap: 12 },
-  close: { alignSelf: "flex-end" },
+  close: { alignSelf: "flex-end", zIndex: 10, elevation: 10 },
   listViewport: { flex: 1, minHeight: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
   list: { gap: 12, paddingBottom: 8 },
   card: { padding: 18, borderRadius: 24, gap: 8 },

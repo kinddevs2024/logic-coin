@@ -8,7 +8,8 @@ export const MIN_GAME_COIN_REWARD = 500;
  * that the result screen previews. Scores are normalized here so malformed or
  * non-finite values can never create an invalid balance.
  */
-export function gameCoinReward(score: number, _won = false): number {
+export function gameCoinReward(score: number, _won = false, gameKey?: string): number {
+  if (gameKey === "bottle-flip") return _won ? 50 : 0;
   const safeScore = Number.isFinite(score) ? Math.max(0, Math.round(score)) : 0;
   const performance = Math.floor(safeScore / 20);
   return Math.min(

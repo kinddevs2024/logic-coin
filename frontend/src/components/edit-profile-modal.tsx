@@ -45,7 +45,8 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const [picking, setPicking] = useState(false);
   const [cropAsset, setCropAsset] = useState<{ uri: string; width: number; height: number; mimeType: string } | null>(null);
   const countryListRef = useRef<FlatList<CountryOption>>(null);
-  const allCountries = useMemo(() => countryOptions(language), [language]);
+  // Sorting every country is only needed after opening the country picker.
+  const allCountries = useMemo(() => countryOpen ? countryOptions(language) : [], [countryOpen, language]);
   const filteredCountries = useMemo(() => {
     const query = countryQuery.trim().toLocaleLowerCase();
     if (!query) return allCountries;
@@ -125,10 +126,10 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-    <Modal transparent visible animationType="none" onRequestClose={onClose}>
-      <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.backdrop}>
+    <Modal transparent visible hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={onClose}>
+      <Animated.View entering={Platform.OS === "android" ? undefined : FadeIn.duration(160)} exiting={Platform.OS === "android" ? undefined : FadeOut.duration(120)} style={styles.backdrop}>
         <Pressable onPress={onClose} style={StyleSheet.absoluteFill} />
-        <Animated.View entering={FadeInUp.springify().damping(20)} style={styles.wrap}>
+        <Animated.View entering={Platform.OS === "android" ? undefined : FadeInUp.springify().damping(20)} style={styles.wrap}>
           <GlassSurface intensity={88} variant="strong" style={styles.card}>
             <View style={styles.top}>
               <AppText style={[styles.title, { color: theme.text }]}>{t("profile.edit")}</AppText>
@@ -146,7 +147,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
               >
                 <Avatar name={name || user.name} avatarUrl={avatarUrl} size={92} />
                 <View pointerEvents="none" style={styles.avatarOverlay}>
-                  {picking ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="camera-outline" size={27} color="rgba(255,255,255,0.85)" />}
+                  {picking ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="camera-outline" size={27} color="rgba(255,255,255,0.45)" />}
                 </View>
               </Pressable>
             </View>
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
   close: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   preview: { alignItems: "center", paddingVertical: 4, gap: 8 },
   avatarButton: { width: 92, height: 92, borderRadius: 46, overflow: "hidden" },
-  avatarOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(4,16,38,0.18)", alignItems: "center", justifyContent: "center", borderRadius: 46 },
+  avatarOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(4,16,38,0.08)", alignItems: "center", justifyContent: "center", borderRadius: 46 },
   field: { gap: 6 },
   countrySearch: { minHeight: 44, borderRadius: 15, borderWidth: 1, paddingHorizontal: 13, fontSize: 14, fontWeight: "600" },
   countryScroll: { maxHeight: 260 },

@@ -1,0 +1,17 @@
+import { execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const frontend = resolve(root, 'frontend');
+const channel = process.argv[2] ?? 'preview';
+if (!['preview', 'production'].includes(channel)) throw new Error('Choose preview or production');
+const env = { ...process.env, LOGIC_UPDATE_CHANNEL: channel };
+const raw = execFileSync(process.execPath, [resolve(root, 'node_modules/expo/bin/cli'), 'config', '--type', 'public', '--json'], { cwd: frontend, env, encoding: 'utf8' });
+const config = JSON.parse(raw);
+const runtime = JSON.parse(execFileSync(process.execPath, [resolve(root, 'node_modules/expo-updates/bin/cli.js'), 'runtimeversion:resolve', '--platform', 'android'], { cwd: frontend, env, encoding: 'utf8' }));
+if (!runtime.runtimeVersion || typeof runtime.runtimeVersion !== 'string') throw new Error('Runtime resolution failed');
+execFileSync(process.execPath, [resolve(root, 'node_modules/expo/bin/cli'), 'export', '--platform', 'android', '--output-dir', `dist-ota-${channel}`], { cwd: frontend, env, stdio: 'inherit' });
+writeFileSync(resolve(frontend, `dist-ota-${channel}`, 'public-config.json'), JSON.stringify(config));
+writeFileSync(resolve(frontend, `dist-ota-${channel}`, 'runtime.json'), JSON.stringify({ runtimeVersion: runtime.runtimeVersion, channel, platform: 'android' }));
+console.log('Export and exact runtime recorded. Ready for trusted-host signing.');
