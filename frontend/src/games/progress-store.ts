@@ -4,11 +4,13 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { gameCoinReward } from "./rewards";
+import { bottleThemeOwnership } from "./bottle-flip/pricing";
 
 export type GameId =
   | "tetris"
   | "chess"
   | "2048"
+  | "bottle-flip"
   | "longcat"
   | "gobble"
   | "loops"
@@ -28,6 +30,7 @@ export type GameId =
   | "shadow";
 
 export type GameProgress = {
+  bottleThemePricingVersion?: number;
   bestScore: number;
   previousScore: number;
   coins: number;
@@ -93,6 +96,7 @@ const DEFAULT_GAME_PROGRESS: Partial<Record<GameId, Readonly<GameProgress>>> = {
   tetris: initialProgress("tetris"),
   chess: initialProgress("chess"),
   "2048": initialProgress("2048"),
+  "bottle-flip": initialProgress("bottle-flip"),
   longcat: initialProgress("longcat"),
   gobble: initialProgress("gobble"),
   loops: initialProgress("loops"),
@@ -126,6 +130,7 @@ function normalizeProgress(value: Partial<GameProgress> | undefined, gameId: Gam
     bestMovesByLevel: value?.bestMovesByLevel ?? {},
     bestTimesByLevel: value?.bestTimesByLevel ?? {},
     hintsUsedByLevel: value?.hintsUsedByLevel ?? {},
+    ...(gameId === "bottle-flip" ? bottleThemeOwnership(value ?? {}) : {}),
   };
 }
 
@@ -133,6 +138,7 @@ type GameProgressState = {
   hydrated: boolean;
   games: GamesProgress;
   setHydrated: (hydrated: boolean) => void;
+  prepareBottleThemePricing: () => void;
   recordScore: (gameId: GameId, score: number, result?: string, won?: boolean) => void;
   completeLevel: (
     gameId: GameId,
@@ -153,10 +159,15 @@ export const useGameProgressStore = create<GameProgressState>()(
       hydrated: false,
       games: {},
       setHydrated: (hydrated) => set({ hydrated }),
+      prepareBottleThemePricing: () => set((state) => {
+        const current = state.games["bottle-flip"];
+        if (!state.hydrated || current?.bottleThemePricingVersion === 1) return state;
+        return { games: { ...state.games, "bottle-flip": normalizeProgress(current, "bottle-flip") } };
+      }),
       recordScore: (gameId, score, result = "", won = false) =>
         set((state) => {
           const current = normalizeProgress(state.games[gameId], gameId);
-          const coinReward = gameCoinReward(score, won);
+          const coinReward = gameCoinReward(score, won, gameId);
           return {
             games: {
               ...state.games,

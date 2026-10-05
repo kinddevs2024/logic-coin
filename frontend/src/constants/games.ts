@@ -20,6 +20,7 @@ const game = (
 });
 
 export const GAME_CATALOG: LocalizedGame[] = [
+  { ...game({ key: "bottle-flip", icon: "water-outline", color: "#0891B2", difficulty: "medium", family: "classic", names: { ru: "Бутылка", en: "Bottle Flip", uz: "Shisha" }, descriptions: { ru: "Подбрось бутылку свайпом вверх", en: "Swipe upward to land upright", uz: "Shishani tepaga surib oting" } }), challengeEnabled: false },
   game({ key: "one-second", icon: "timer-outline", color: "#7C6FFF", difficulty: "hard", family: "arcade-a", names: { ru: "1 секунда", en: "One Second", uz: "Bir soniya" }, descriptions: { ru: "Почувствуйте идеальную секунду", en: "Feel the perfect second", uz: "Mukammal soniyani his qiling" } }),
   game({ key: "tsvet", icon: "color-palette-outline", color: "#EC4899", difficulty: "medium", family: "arcade-a", names: { ru: "Цвет", en: "Color", uz: "Rang" }, descriptions: { ru: "Выбирайте цвет, а не слово", en: "Choose the ink, not the word", uz: "So‘zni emas, rangni tanlang" } }),
   game({ key: "udar", icon: "flash-outline", color: "#FF3B30", difficulty: "medium", family: "arcade-a", names: { ru: "Удар", en: "Strike", uz: "Zarba" }, descriptions: { ru: "Попадите точно в центр", en: "Hit the exact center", uz: "Aniq markazga uring" } }),

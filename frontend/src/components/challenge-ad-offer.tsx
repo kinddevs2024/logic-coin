@@ -1,8 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
+import { notifyManager, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ActivityIndicator, AppState, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -29,7 +29,18 @@ export function ChallengeAdOffer() {
   const copy = COPY[language];
   const client = useQueryClient();
   // Observe the existing WebSocket-fed cache; this does not request /today.
-  const { data: today } = useQuery<TodayChallenges>({ queryKey: ["challenges", "today", token], queryFn: skipToken });
+  const subscribeToday = useCallback((notify: () => void) => {
+    let active = true;
+    const scheduledNotify = notifyManager.batchCalls(() => { if (active) notify(); });
+    const unsubscribe = client.getQueryCache().subscribe(event => {
+      const key = event.query.queryKey;
+      if (key[0] === "challenges" && key[1] === "today" && key[2] === token &&
+          (event.type === "updated" || event.type === "removed")) scheduledNotify();
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [client, token]);
+  const readToday = useCallback(() => client.getQueryData<TodayChallenges>(["challenges", "today", token]), [client, token]);
+  const today = useSyncExternalStore(subscribeToday, readToday, readToday);
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);

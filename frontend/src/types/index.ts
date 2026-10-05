@@ -149,6 +149,8 @@ export type GameCatalogItem = {
   icon: string;
   color: string;
   engine: "native" | "webview";
+  clientPath?: string | null;
+  assetPath?: string | null;
   difficulty: GameDifficulty;
   title: string;
   description: string;

@@ -2,7 +2,7 @@ import type { ImageSourcePropType } from "react-native";
 
 // The classic island and seven jars use PNG; reward particles retain their original assets.
 export const sceneAssets = {
-  island: require("../../assets/scene/island.png") as ImageSourcePropType,
+  island: require("../../assets/scene/island-deep.png") as ImageSourcePropType,
   jars: [require("../../assets/scene/1-Photoroom.png"),
     require("../../assets/scene/2-Photoroom.png"),
     require("../../assets/scene/3-Photoroom.png"),

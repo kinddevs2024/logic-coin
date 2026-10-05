@@ -1,6 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -252,6 +253,11 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
     extrapolate: "clamp",
   });
 
+  const edgeOpacity = nativeScrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: "clamp" });
+  const edgeSolid = theme.mode === "dark" ? "#19273E" : "#FFFFFF";
+  const edgeClear = theme.mode === "dark" ? "rgba(25,39,62,0)" : "rgba(255,255,255,0)";
+  if (!visible) return null;
+
   return (
     <Modal transparent visible={visible} statusBarTranslucent hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close}>
       <View style={styles.modalRoot}>
@@ -282,7 +288,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
             { transform: [{ translateY }], shadowColor: "#000000" },
           ]}
         >
-          <GlassSurface intensity={88} variant="strong" style={styles.sheetGlass}>
+          <View style={[styles.sheetGlass, { backgroundColor: edgeSolid }]}>
             <View
               onLayout={(event) => setFiltersWidth(event.nativeEvent.layout.width)}
               style={[styles.filters, { backgroundColor: theme.primarySoft }]}
@@ -426,13 +432,17 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                 </View>
               )}
 
+              {authenticated && entries.length ? <>
+                <Animated.View pointerEvents="none" style={[styles.fadeTop, { opacity: edgeOpacity }]}><LinearGradient colors={[edgeSolid, edgeSolid, edgeClear]} locations={[0, 0.18, 1]} style={StyleSheet.absoluteFill} /></Animated.View>
+                <LinearGradient pointerEvents="none" colors={[edgeClear, edgeSolid, edgeSolid]} locations={[0, 0.7, 1]} style={styles.fadeBottom} />
+              </> : null}
               {authenticated && self && selfDock ? (
                 <Animated.View pointerEvents="none" style={[styles.meDock,
                   Platform.OS !== "web" && nativeSelfLayout
-                    ? { top: 10, transform: [{ translateY: nativeDockY }] }
+                    ? { top: 0, transform: [{ translateY: nativeDockY }] }
                     : selfDock === "top" ? { top: 10 } : { bottom: 0 },
-                  { backgroundColor: theme.surfaceRaised }]}>
-                  <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: theme.glassBorder }, Platform.OS !== "web" && nativeSelfLayout ? { minHeight: nativeSelfLayout.height } : null]}>
+                  { backgroundColor: "transparent" }]}>
+                  <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: "transparent" }, Platform.OS !== "web" && nativeSelfLayout ? { minHeight: nativeSelfLayout.height } : null]}>
                     <AppText style={[styles.rank, { color: theme.textMuted }]}>{self.rank}</AppText>
                     <Avatar name={self.name} avatarUrl={self.avatarUrl} size={38} />
                     <View style={styles.nameBlock}><AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
@@ -441,7 +451,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                 </Animated.View>
               ) : null}
             </Animated.View>
-          </GlassSurface>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -500,8 +510,10 @@ const styles = StyleSheet.create({
   },
   filterText: { fontSize: 12, lineHeight: 15, fontWeight: "800" },
   content: { flex: 1, minHeight: 0 },
-  list: { flex: 1, minHeight: 0, marginTop: 10 },
-  listContent: { gap: 5, paddingBottom: 6 },
+  fadeTop: { position: "absolute", top: -3, left: 0, right: 0, height: 52 },
+  fadeBottom: { position: "absolute", bottom: 0, left: 0, right: 0, height: 110 },
+  list: { flex: 1, minHeight: 0 },
+  listContent: { gap: 5, paddingTop: 10, paddingBottom: 6 },
   state: { flex: 1, minHeight: 220, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 24 },
   stateText: { textAlign: "center" },
   stateButton: { minHeight: 44, minWidth: 130, borderRadius: 15, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },

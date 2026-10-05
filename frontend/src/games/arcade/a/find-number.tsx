@@ -20,7 +20,7 @@ const LEVELS = [
   { name: "НЕПТУН", columns: 6, count: 36, seconds: 26 },
 ] as const;
 
-export function FindNumberGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
+export function FindNumberGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
   const theme = resolveArcadeSkin(skin, "#00FFE0", "#7B5FFF");
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState<"intro" | "playing" | "level" | "result">("intro");
@@ -85,7 +85,7 @@ export function FindNumberGame({ initialBestScore = 0, paused = false, skin, onE
         setTimeout(() => setPhase("level"), 420);
       }
     } else {
-      const nextLives = lives - 1;
+      const nextLives = challengeMode ? lives - 1 : lives;
       setLives(nextLives); setCombo(0); setFeedback({ value, ok: false }); impact("error");
       setTimeout(() => setFeedback(null), 300);
       if (nextLives <= 0) setTimeout(() => finish(false, score, nextLives), 320);
@@ -109,7 +109,7 @@ export function FindNumberGame({ initialBestScore = 0, paused = false, skin, onE
   return (
     <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}>
       <GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} right={<Text style={[styles.countdown, timeLeft <= 10_000 && styles.danger]}>{Math.ceil(timeLeft / 1000)}</Text>} />
-      <View style={styles.hud}><LivesStat lives={lives} color="#FF5572" /><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /></View>
+      <View style={styles.hud}>{challengeMode ? <LivesStat lives={lives} color="#FF5572" /> : null}<HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /></View>
       <View style={styles.prompt}><Text style={styles.promptLabel}>НАЙДИ ПЛАНЕТУ</Text><Text style={styles.target}>{current}</Text><Text style={styles.levelBadge}>{levelIndex + 1} · {level.name}</Text></View>
       <ProgressBar progress={found.length / level.count} color={theme.primary} />
       <View style={styles.gridStage}>

@@ -141,6 +141,15 @@ router.patch("/games/:gameKey", validateBody(gamePatchSchema), async (request, r
   response.json({ data: { game: serializeGame(game, "ru") } });
 });
 
+// Preserve historical results when a game is taken out of the catalog.
+router.delete("/games/:gameKey", async (request, response) => {
+  const key = z.string().regex(/^[a-z0-9-]{1,80}$/).safeParse(request.params.gameKey);
+  if (!key.success) throw new ApiError(400, "invalid_game_key", "Game key is invalid");
+  const game = await Game.findOneAndUpdate({ key: key.data }, { $set: { enabled: false, practiceEnabled: false, challengeEnabled: false } }, { new: true });
+  if (!game) throw new ApiError(404, "game_not_found", "Game not found");
+  response.json({ data: { game: serializeGame(game, "ru") } });
+});
+
 router.get("/overview", async (request, response) => {
   const parsed = request.query.dayKey
     ? dayKeySchema.safeParse(request.query.dayKey)

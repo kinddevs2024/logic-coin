@@ -8,6 +8,8 @@ node_modules/
 !.env.example
 !**/.env.example
 *.pem
+!frontend/certs/update-certificate.pem
+frontend/dist-ota-*/
 *.key
 *.p12
 *.jks

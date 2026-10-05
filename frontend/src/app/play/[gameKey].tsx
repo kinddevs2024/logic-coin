@@ -151,7 +151,7 @@ function PlayableGameRoute() {
   const sessionId = `${mode}:${gameKey}:${sessionRevision}`;
   const exitSession = useMemo(() => createGameExitSession(sessionId), [sessionId]);
   const activeResult = result?.sessionId === sessionId ? result : null;
-  const gamePaused = giftOpen || exitOpen || Boolean(activeResult);
+  const gamePaused = giftOpen || fortuneVisible || fortuneBusy || exitOpen || Boolean(activeResult);
   const gameTitle = GAME_BY_KEY[gameKey]?.title ?? arcadeA?.title ?? arcadeB?.title ?? "Игра";
   const accent = GAME_BY_KEY[gameKey]?.color ?? arcadeA?.accent ?? arcadeB?.accent ?? "#7C5CFF";
   const selectedSkin = cosmeticFor(progressId, progress?.selectedCosmetic ?? "classic");
@@ -311,7 +311,10 @@ function PlayableGameRoute() {
     exitSession.stay();
   };
   const markGameStarted = useCallback(() => exitSession.start(), [exitSession]);
-  const sessionControls = useMemo(() => ({ onStart: markGameStarted, onExit: exitGame, paused: gamePaused }), [exitGame, gamePaused, markGameStarted]);
+  const giftsAvailable = mode === "challenge" && (!authenticated || challenges.startedGameKey === gameKey);
+  const sessionControls = useMemo(() => ({ onStart: markGameStarted, onExit: exitGame, paused: gamePaused, practiceCoins: mode === "practice" ? progress?.coins ?? 0 : undefined,
+    headerAction: giftsAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Открыть подарки" onPress={() => setGiftOpen(true)} style={({ pressed }) => [styles.giftButton, pressed && styles.pressed]}><Ionicons name="gift" color="#FFFFFF" size={20} /></Pressable> : null,
+  }), [exitGame, gamePaused, giftsAvailable, markGameStarted, mode, progress?.coins]);
 
   const continueChallenge = async () => {
     if (adBusy) return;
@@ -344,6 +347,7 @@ function PlayableGameRoute() {
 
   const playFortune = async () => {
     if (fortuneBusy || fortuneSpinning || !accessToken) return;
+    setGiftNotice("");
     setFortuneBusy(true);
     try {
       const reward = await showVerifiedRewardedAd({
@@ -361,13 +365,13 @@ function PlayableGameRoute() {
       if (!reward.receipt.completed || !reward.verified) throw new Error("rewarded_ad_incomplete");
       if (reward.coinBalance !== undefined) setCoinBalance(reward.coinBalance);
       setGiftNotice(reward.credited ? `Колесо: +${reward.credited} coin` : "Награда колеса получена");
+      setFortuneVisible(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch {
       setGiftNotice("Реклама для колеса сейчас недоступна");
     } finally {
       setFortuneBusy(false);
       setFortuneSpinning(false);
-      setFortuneVisible(false);
     }
   };
 
@@ -436,7 +440,7 @@ function PlayableGameRoute() {
   } else if (arcadeBId) {
     renderedGame = (
       <View key={sessionId} style={styles.embeddedGame}>
-        <ArcadeBRenderer gameId={arcadeBId} gameProps={{ initialBest: progress?.bestScore ?? 0, initialCoins: progress?.coins ?? 0, extraTimeSeconds, paused: gamePaused, skin: selectedSkin, onExit: exitGame, onFinish: onArcadeBComplete }} />
+        <ArcadeBRenderer gameId={arcadeBId} gameProps={{ initialBest: progress?.bestScore ?? 0, initialCoins: progress?.coins ?? 0, extraTimeSeconds, challengeMode: mode === "challenge", paused: gamePaused, skin: selectedSkin, onExit: exitGame, onFinish: onArcadeBComplete }} />
       </View>
     );
   } else if (classic) {
@@ -445,9 +449,6 @@ function PlayableGameRoute() {
   }
 
   const challengeStartSettled = mode !== "challenge" || !authenticated || challenges.startedGameKey === gameKey || challenges.startFailedGameKey === gameKey;
-  const giftsAvailable = mode === "challenge" && (
-    !authenticated || challenges.startedGameKey === gameKey
-  );
 
   if (!challenges.hydrated || !hydrated || !challengeStartSettled) {
     return <LinearGradient colors={["#14192E", "#070A14"]} style={styles.fallback}><ActivityIndicator size="large" color={accent} /><Text style={styles.fallbackTitle}>Запускаем челлендж</Text><Text style={styles.fallbackText}>Подготавливаем игровую сессию</Text><Pressable accessibilityRole="button" onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Назад</Text></Pressable></LinearGradient>;
@@ -462,10 +463,6 @@ function PlayableGameRoute() {
     <View style={styles.host}>
       <View style={styles.embeddedGame} pointerEvents={gamePaused ? "none" : "auto"}>{renderedGame}</View>
       <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        <View pointerEvents="box-none" style={[styles.hostActions, { top: Math.max(insets.top + 8, 14) }]}>
-          {mode === "challenge" ? <View pointerEvents="none" style={styles.modePill}><View style={styles.liveDot} /><Text style={styles.modeText}>ЧЕЛЛЕНДЖ</Text></View> : null}
-          {giftsAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Открыть подарки" onPress={() => setGiftOpen(true)} style={({ pressed }) => [styles.giftButton, pressed && styles.pressed]}><Ionicons name="gift" color="#FFFFFF" size={20} /></Pressable> : null}
-        </View>
         {giftNotice ? <Animated.View entering={FadeInDown.springify()} style={[styles.notice, { top: Math.max(insets.top + 60, 68) }]}><Text style={styles.noticeText}>{giftNotice}</Text></Animated.View> : null}
       </View>
       <GameResultModal
@@ -482,7 +479,7 @@ function PlayableGameRoute() {
         onNext={() => void continueChallenge()}
         onExit={() => router.replace(mode === "challenge" ? "/challenges" as never : "/games" as never)}
       />
-      <FortuneWheelModal visible={fortuneVisible} selected={fortunePrize} spinning={fortuneSpinning} busy={fortuneBusy} onSpin={() => void playFortune()} onSpinEnd={() => { const done = fortuneSpinDone.current; fortuneSpinDone.current = null; done?.(); }} onDismiss={() => setFortuneVisible(false)} />
+      <FortuneWheelModal visible={fortuneVisible} selected={fortunePrize} spinning={fortuneSpinning} busy={fortuneBusy} notice={giftNotice} onSpin={() => void playFortune()} onSpinEnd={() => { const done = fortuneSpinDone.current; fortuneSpinDone.current = null; done?.(); }} onDismiss={() => setFortuneVisible(false)} />
       <GiftInventoryModal visible={giftOpen && mode === "challenge"} sessionReady={giftsAvailable && !activeResult} completed={Boolean(activeResult && !activeResult.saving)} supportsTimeExtension={supportsTimeExtension} gameKey={gameKey} onClose={() => setGiftOpen(false)} onUse={applyGift} />
       <GameExitModal visible={exitOpen} title={gameTitle} onStay={stayInGame} onExit={confirmExit} />
     </View>

@@ -773,6 +773,9 @@ export const adminApi = {
       body: JSON.stringify(input),
     });
   },
+  archiveGame(gameKey: string, token: string) {
+    return request<{ game: AdminGame }>(`/admin/games/${encodeURIComponent(gameKey)}`, { method: "DELETE", token });
+  },
   updateGame(gameKey: string, input: Partial<Omit<AdminGameInput, "key">>, token: string) {
     return request<{ game: AdminGame }>(
       `/admin/games/${encodeURIComponent(gameKey)}`,

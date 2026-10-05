@@ -6,17 +6,18 @@ import { GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, ResultScreen, 
 import type { ArcadeGameProps } from "./types";
 import { nowMs, randomIntExcluding, shuffle, suggestedCoins } from "./utils";
 import { usePauseClock } from "@/games/pause-clock";
+import { useGameProgressStore } from "@/games/progress-store";
 
 const GAME_ID = "color-stroop" as const;
 const DURATION_MS = 60_000;
 const ROUND_MS = 2_400;
 const COLORS = [
-  { name: "КРАСНЫЙ", value: "#EF4444" },
-  { name: "СИНИЙ", value: "#3B82F6" },
-  { name: "ЗЕЛЁНЫЙ", value: "#22C55E" },
-  { name: "ЖЁЛТЫЙ", value: "#EAB308" },
-  { name: "ФИОЛЕТ", value: "#A855F7" },
-  { name: "РОЗОВЫЙ", value: "#EC4899" },
+  { name: "КРАСНЫЙ", hex: "#EF4444" },
+  { name: "СИНИЙ", hex: "#3B82F6" },
+  { name: "ЗЕЛЁНЫЙ", hex: "#22C55E" },
+  { name: "ЖЁЛТЫЙ", hex: "#EAB308" },
+  { name: "ФИОЛЕТ", hex: "#A855F7" },
+  { name: "РОЗОВЫЙ", hex: "#EC4899" },
 ] as const;
 
 type Puzzle = { word: number; ink: number; options: number[]; createdAt: number };
@@ -29,7 +30,8 @@ function createPuzzle(previousInk?: number): Puzzle {
   return { word, ink, options: shuffle([ink, distractor]), createdAt: Date.now() };
 }
 
-export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {
+export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#EAB308", "#FDE68A");
   const sessionDuration = DURATION_MS + Math.max(0, extraTimeSeconds) * 1000;
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
@@ -89,42 +91,47 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, pa
       const promptLeft = Math.max(0, roundDeadline.current - Date.now());
       setRemainingMs(sessionLeft);
       setRoundRemaining(promptLeft);
-      if (sessionLeft <= 0) { finish(); return; }
+      if (challengeMode && sessionLeft <= 0) { finish(); return; }
       if (promptLeft <= 0 && !flash) {
-        const nextLives = lives - 1;
+        const nextLives = challengeMode ? lives - 1 : lives;
         const nextTotal = total + 1;
         setLives(nextLives); setTotal(nextTotal); setStreak(0); setFlash("wrong");
         impact("error");
-        if (nextLives <= 0) setTimeout(() => finish({ lives: nextLives, total: nextTotal }), 320);
-        else setTimeout(nextPuzzle, 260);
       }
     }, 50);
     return () => clearInterval(tick);
-  }, [finish, flash, lives, nextPuzzle, paused, phase, sessionDuration, total]);
+  }, [challengeMode, finish, flash, lives, nextPuzzle, paused, phase, sessionDuration, total]);
+
+  useEffect(() => {
+    if (!flash || paused || phase !== "playing") return;
+    const timer = setTimeout(() => {
+      if (challengeMode && lives <= 0) finish();
+      else nextPuzzle();
+    }, flash === "correct" ? 220 : 320);
+    return () => clearTimeout(timer);
+  }, [challengeMode, finish, flash, lives, nextPuzzle, paused, phase]);
 
   const choose = (index: number) => {
     if (phase !== "playing" || flash) return;
     const reaction = nowMs() - puzzle.createdAt;
     const nextTotal = total + 1;
     setTotal(nextTotal);
-    setReactionTimes((items) => [...items, reaction]);
+    setReactionTimes((items) => [...items, reaction].slice(challengeMode ? 0 : -100));
     if (index === puzzle.ink) {
       const nextCorrect = correct + 1;
       const nextStreak = Math.min(streak + 1, 6);
       const multiplier = [1, 1, 1.5, 2, 3, 4, 5][nextStreak] ?? 5;
       const earned = Math.round(100 * multiplier + Math.max(0, (500 - reaction) / 5));
+      if (!challengeMode) awardCoins("tsvet", Math.floor((score + earned) / 20) - Math.floor(score / 20));
       setCorrect(nextCorrect); setStreak(nextStreak); setMaxStreak((value) => Math.max(value, nextStreak)); setScore((value) => value + earned); setFlash("correct");
       impact("success");
-      setTimeout(nextPuzzle, 220);
     } else {
-      const nextLives = lives - 1;
+      const nextLives = challengeMode ? lives - 1 : lives;
       setLives(nextLives); setStreak(0); setFlash("wrong"); impact("error");
-      if (nextLives <= 0) setTimeout(() => finish({ lives: nextLives, total: nextTotal, reactionTimes: [...reactionTimes, reaction] }), 320);
-      else setTimeout(nextPuzzle, 260);
     }
   };
 
-  if (phase === "intro") return <GameRoot colors={["#17141E", "#09090B", "#09090B"]} skin={skin}><GameHeader title="ЦВЕТ" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="STROOP CHALLENGE" title="ЦВЕТ" subtitle="Смотри только на цвет текста. Само слово будет пытаться тебя запутать." accent={theme.primary} onStart={start}><View style={styles.demo}><Text style={[styles.demoWord, { color: "#3B82F6" }]}>КРАСНЫЙ</Text><Text style={styles.demoCaption}>Какого цвета текст?</Text></View><View style={styles.rules}><Text style={styles.rule}>60 секунд</Text><Text style={styles.rule}>3 жизни</Text><Text style={styles.rule}>Комбо ×5</Text></View></IntroScreen></GameRoot>;
+  if (phase === "intro") return <GameRoot colors={["#17141E", "#09090B", "#09090B"]} skin={skin}><GameHeader title="ЦВЕТ" accent={theme.primary} onExit={onExit} /><IntroScreen title="ЦВЕТ" subtitle="Выбирай цвет текста, а не слово." accent={theme.primary} onStart={start} /></GameRoot>;
 
   const accuracy = total ? Math.round((correct / total) * 100) : 0;
   const avgReaction = reactionTimes.length ? Math.round(reactionTimes.reduce((sum, item) => sum + item, 0) / reactionTimes.length) : 0;
@@ -136,19 +143,18 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, pa
   const multiplier = [1, 1, 1.5, 2, 3, 4, 5][streak] ?? 5;
   return (
     <GameRoot colors={["#17141E", "#09090B", "#09090B"]} skin={skin}>
-      <GameHeader title="ЦВЕТ" accent={theme.primary} onExit={onExit} right={<Text style={styles.timer}>{Math.ceil(remainingMs / 1000)}</Text>} />
+      <GameHeader title="ЦВЕТ" accent={theme.primary} onExit={onExit} right={<Text style={styles.timer}>{challengeMode ? Math.ceil(remainingMs / 1000) : "∞"}</Text>} />
       <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label="Верных" value={correct} /></View>
-      <View style={styles.lifeRow}>{[0, 1, 2].map((index) => <View key={index} style={[styles.life, index >= lives && styles.lifeLost]} />)}</View>
-      <ProgressBar progress={remainingMs / sessionDuration} color={remainingMs < 10_000 ? "#EF4444" : theme.primary} />
+      {challengeMode ? <><View style={styles.lifeRow}>{[0, 1, 2].map((index) => <View key={index} style={[styles.life, index >= lives && styles.lifeLost]} />)}</View><ProgressBar progress={remainingMs / sessionDuration} color={remainingMs < 10_000 ? "#EF4444" : theme.primary} /></> : null}
       <View style={styles.stage}>
         <Animated.View key={`${puzzle.createdAt}-${flash}`} entering={FadeIn.duration(130)} exiting={FadeOut.duration(100)} style={[styles.wordCard, flash === "correct" && styles.correctCard, flash === "wrong" && styles.wrongCard]}>
-          <Text style={[styles.word, { color: COLORS[puzzle.ink].value }]}>{COLORS[puzzle.word].name}</Text>
+          <Text style={[styles.word, { color: COLORS[puzzle.ink].hex }]}>{COLORS[puzzle.word].name}</Text>
           <Text style={styles.instruction}>НАЖМИ ЦВЕТ ТЕКСТА</Text>
-          <ProgressBar progress={roundRemaining / ROUND_MS} color={roundRemaining < 650 ? "#EF4444" : COLORS[puzzle.ink].value} height={4} />
+          <ProgressBar progress={roundRemaining / ROUND_MS} color={roundRemaining < 650 ? "#EF4444" : COLORS[puzzle.ink].hex} height={4} />
         </Animated.View>
         {flash ? <Animated.Text entering={ZoomIn.springify()} style={[styles.flash, { color: flash === "correct" ? "#22C55E" : "#EF4444" }]}>{flash === "correct" ? "ВЕРНО" : "МИМО"}</Animated.Text> : null}
       </View>
-      <View style={styles.answers}>{puzzle.options.map((colorIndex) => <Pressable key={colorIndex} onPress={() => choose(colorIndex)} style={({ pressed }) => [styles.answer, pressed && styles.answerPressed]}><View style={[styles.answerDot, { backgroundColor: COLORS[colorIndex].value }]} /><Text style={styles.answerText}>{COLORS[colorIndex].name}</Text></Pressable>)}</View>
+      <View style={styles.answers}>{puzzle.options.map((colorIndex) => <Pressable key={colorIndex} onPress={() => choose(colorIndex)} style={({ pressed }) => [styles.answer, pressed && styles.answerPressed]}><View style={[styles.answerDot, { backgroundColor: COLORS[colorIndex].hex }]} /><Text style={styles.answerText}>{COLORS[colorIndex].name}</Text></Pressable>)}</View>
     </GameRoot>
   );
 }

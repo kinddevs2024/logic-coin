@@ -1,0 +1,22 @@
+[Unit]
+Description=Logic Coin signed update delivery
+After=network.target
+
+[Service]
+User=deploy
+Group=deploy
+WorkingDirectory=/srv/apps/logic-coin/shared/ota
+Environment=PORT=8099
+Environment=OTA_STORAGE=/srv/apps/logic-coin/shared/ota/storage
+Environment=OTA_CERTIFICATE=/srv/apps/logic-coin/shared/ota/keys/certificate.pem
+ExecStart=/usr/bin/node /srv/apps/logic-coin/shared/ota/app/server.mjs
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/srv/apps/logic-coin/shared/ota
+InaccessiblePaths=/srv/apps/logic-coin/shared/ota/keys/private.pem
+
+[Install]
+WantedBy=multi-user.target

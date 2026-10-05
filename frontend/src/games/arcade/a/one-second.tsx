@@ -9,6 +9,7 @@ import type { ArcadeGameProps, ArcadeGameResult } from "./types";
 import { suggestedCoins } from "./utils";
 import { usePauseClock } from "@/games/pause-clock";
 import { useGameSession } from "@/games/session-context";
+import { useGameProgressStore } from "@/games/progress-store";
 
 const GAME_ID = "one-second" as const;
 const TARGET_MS = 1000;
@@ -51,6 +52,7 @@ function IntroRule({ icon, color, children }: { icon: React.ComponentProps<typeo
 
 export function OneSecondGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
   const markStarted = useGameSession()?.onStart;
+  const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#7C6FFF", "#C9B8FF");
   const resultAccent = skin && skin.id !== "classic" ? theme.primary : "#34D399";
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
@@ -106,12 +108,22 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
   }, [onComplete]);
 
   useEffect(() => {
-    if (phase !== "playing" || paused) return;
+    if (!challengeMode || phase !== "playing" || paused) return;
     const timer = setInterval(() => {
       if (Date.now() - gameStartedAt.current >= 180_000) finish(attempts);
     }, 250);
     return () => clearInterval(timer);
-  }, [attempts, finish, paused, phase]);
+  }, [attempts, challengeMode, finish, paused, phase]);
+
+  useEffect(() => {
+    if (!feedback || paused || phase !== "playing") return;
+    const timer = setTimeout(() => {
+      setFeedback(null);
+      setHoldMs(0);
+      if (challengeMode && attempts.length >= challengeAttempts) finish(attempts);
+    }, 780);
+    return () => clearTimeout(timer);
+  }, [attempts, challengeAttempts, challengeMode, feedback, finish, paused, phase]);
 
   const pressIn = () => {
     if (feedback || holding) return;
@@ -128,18 +140,14 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
     const deviation = Math.abs(elapsed - TARGET_MS);
     const kind = classify(deviation);
     const nextAttempt = { elapsed, deviation, points: pointsFor(deviation), kind };
-    const next = [...attempts, nextAttempt];
+    const next = [...attempts, nextAttempt].slice(challengeMode ? 0 : -40);
+    if (!challengeMode) awardCoins("one-second", Math.floor(nextAttempt.points / 20));
     setHolding(false);
     setHoldMs(elapsed);
     setFeedback(nextAttempt);
     setAttempts(next);
     scale.set(withSpring(1, { damping: 14, stiffness: 240 }));
     impact(kind === "perfect" ? "success" : kind === "bad" ? "error" : "medium");
-    setTimeout(() => {
-      setFeedback(null);
-      setHoldMs(0);
-      if (next.length >= challengeAttempts) finish(next);
-    }, 780);
   };
 
   if (phase === "intro") {
@@ -156,7 +164,7 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
             <View style={styles.introDivider} />
             <IntroRule icon="radio-button-on" color="#FF5572">Нажми и <Text style={styles.introStrong}>держи</Text> кнопку</IntroRule>
             <IntroRule icon="stop" color={theme.secondary}>Отпусти ровно через <Text style={styles.introStrong}>1 секунду</Text></IntroRule>
-            <IntroRule icon="repeat" color="#5CA8FF"><Text style={styles.introStrong}>{challengeAttempts} попыток · до 3 минут</Text> — среднее отклонение решает</IntroRule>
+            {challengeMode ? <IntroRule icon="repeat" color="#5CA8FF"><Text style={styles.introStrong}>{challengeAttempts} попыток · до 3 минут</Text> — среднее отклонение решает</IntroRule> : null}
             <IntroRule icon="trophy" color="#F5B800">Меньше <Text style={styles.introStrong}>30 мс</Text> — уровень мастера</IntroRule>
           </GlassPanel>
           <View style={styles.introStats}>
@@ -179,8 +187,8 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
   const progress = Math.min(holdMs / TARGET_MS, 1);
   return (
     <GameRoot colors={["#121020", "#060608", "#06100E"]} skin={skin}>
-      <GameHeader title="1 СЕКУНДА" accent={theme.primary} onExit={onExit} right={<Text style={styles.best}>COIN {bestScore ? suggestedCoins(bestScore) : "—"}</Text>} />
-      <View style={styles.hud}><HudStat label="Попытка" value={`${attempts.length + (feedback ? 0 : 1)}/${challengeAttempts}`} /><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Среднее" value={attempts.length ? `${average}мс` : "—"} /></View>
+      <GameHeader title="1 СЕКУНДА" accent={theme.primary} onExit={onExit} />
+      <View style={styles.hud}><HudStat label={challengeMode ? "Попытка" : "Режим"} value={challengeMode ? `${attempts.length + (feedback ? 0 : 1)}/${challengeAttempts}` : "∞"} /><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Среднее" value={attempts.length ? `${average}мс` : "—"} /></View>
       <View style={styles.game}>
         <Text style={[styles.phase, { color: activeColor }]}>{feedback ? hitLabel[feedback.kind] : holding ? "ОТПУСТИ ЧЕРЕЗ 1 СЕКУНДУ" : "НАЖМИ И ДЕРЖИ"}</Text>
         <Pressable onPressIn={pressIn} onPressOut={pressOut} accessibilityRole="button" accessibilityLabel="Зажмите и отпустите через одну секунду">
@@ -192,14 +200,13 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
             <View style={[styles.circle, { borderColor: `${activeColor}55` }]}>
               <Text style={[styles.circleLabel, { color: activeColor }]}>{feedback ? `${feedback.elapsed >= TARGET_MS ? "+" : "−"}${feedback.deviation}мс` : holding ? "ДЕРЖИ" : "СТАРТ"}</Text>
               <Text style={styles.circleValue}>{feedback ? (feedback.elapsed / 1000).toFixed(3) : "1.0"}</Text>
-              {feedback ? <Animated.Text entering={FadeIn} style={[styles.points, { color: activeColor }]}>{suggestedCoins(score)} coin</Animated.Text> : null}
+              {feedback ? <Animated.Text entering={FadeIn} style={[styles.points, { color: activeColor }]}>{feedback.points} очков</Animated.Text> : null}
             </View>
           </Animated.View>
         </Pressable>
         <View style={styles.deviation}><Text style={styles.deviationLabel}>−500 мс</Text><View style={styles.deviationLine}><View style={styles.deviationCenter} /></View><Text style={styles.deviationLabel}>+500 мс</Text></View>
       </View>
-      <ProgressBar progress={attempts.length / challengeAttempts} color={theme.primary} height={6} />
-      {!challengeMode && attempts.length > 0 && !holding ? <ArcadeButton accent={theme.primary} onPress={() => finish(attempts)} style={styles.finishButton}>ЗАВЕРШИТЬ</ArcadeButton> : null}
+      {challengeMode ? <ProgressBar progress={attempts.length / challengeAttempts} color={theme.primary} height={6} /> : null}
     </GameRoot>
   );
 }

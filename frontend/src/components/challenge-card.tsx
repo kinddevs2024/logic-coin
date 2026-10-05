@@ -63,15 +63,8 @@ export function ChallengeCard({
           </View>
           <View style={styles.copy}>
             <View style={styles.titleRow}>
-              <AppText variant="label" numberOfLines={1} style={styles.title}>{game.title}</AppText>
-              {completed ? (
-                <View style={[styles.doneBadge, { backgroundColor: `${String(theme.success)}14` }]}>
-                  <Ionicons name="checkmark-circle" size={13} color={String(theme.success)} />
-                  <AppText style={[styles.doneText, { color: String(theme.success) }]}>готово</AppText>
-                </View>
-              ) : null}
+              <AppText variant="label" style={styles.title}>{game.title}</AppText>
             </View>
-            {compact ? null : <AppText variant="caption" muted numberOfLines={1}>{game.description}</AppText>}
           </View>
           {completed ? (
             <View style={styles.reward}>
@@ -93,8 +86,8 @@ export function ChallengeCard({
 }
 
 const styles = StyleSheet.create({
-  card: { minHeight: 92, borderRadius: radii.xl, borderWidth: 1, padding: 14, flexDirection: "row", alignItems: "center", gap: 12, overflow: "hidden" },
-  cardCompact: { minHeight: 72, paddingVertical: 10, paddingHorizontal: 11 },
+  card: { minHeight: 70, borderRadius: radii.xl, borderWidth: 1, padding: 8, flexDirection: "row", alignItems: "center", gap: 12, overflow: "hidden" },
+  cardCompact: { minHeight: 59, padding: 7 },
   pressed: { opacity: 0.88, transform: [{ scale: 0.988 }] },
   icon: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   iconCompact: { width: 43, height: 43, borderRadius: 22 },

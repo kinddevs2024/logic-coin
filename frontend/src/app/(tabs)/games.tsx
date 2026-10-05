@@ -7,6 +7,7 @@ import { FlatList, Image, Platform, Pressable, StyleSheet, View, type ListRender
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { GameEconomyModal } from "@/components/game-economy";
+import { BottleThemes } from "@/games/bottle-flip/themes";
 import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
 import { gameCoverFor } from "@/constants/game-covers";
@@ -99,7 +100,7 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
   const cover = gameCoverFor(game.key);
   const accent = readableAccent(game.color, theme.mode);
   const playForeground = accentForeground(game.color, theme.mode);
-  const play = () => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never);
+  const play = () => router.push(game.key === "bottle-flip" ? "/practice/bottle-flip" as never : { pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never);
 
   return (
     <View collapsable={false} style={[styles.cell, wide && styles.cellWide]}>
@@ -109,10 +110,10 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
             {cover ? <Image source={cover} resizeMode="cover" {...androidImageProps} style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} color={accent} size={28} />}
           </View>
           <View style={styles.copy}>
-            <AppText style={[styles.title, { color: theme.text }]} numberOfLines={1}>{game.title}</AppText>
+            <AppText style={[styles.title, { color: theme.text }]} numberOfLines={2}>{game.title}</AppText>
             <View style={styles.bestRow}>
               <Ionicons name="diamond-outline" size={13} color={accent} />
-              <AppText style={[styles.best, { color: accent }]}>{c.best} {Math.min(1000, coins)}</AppText>
+              <AppText style={[styles.best, { color: accent }]}>{c.best} {coins}</AppText>
             </View>
           </View>
         </Pressable>
@@ -163,7 +164,8 @@ export default function GamesScreen() {
           .map(mapServerGame)
           .filter((entry): entry is LocalizedGame => entry !== null)
       : GAME_CATALOG;
-    return catalog.map((entry) => localizeGame(entry, language));
+    const complete = catalog.some((entry) => entry.key === "bottle-flip") ? catalog : [...catalog, GAME_BY_KEY["bottle-flip"]!];
+    return complete.filter((entry) => entry.key !== "fact").map((entry) => localizeGame(entry, language));
   }, [authenticated, language, query.data, query.isSuccess]);
   const rows = useMemo(() => {
     const result: GameCatalogItem[][] = [];
@@ -197,7 +199,7 @@ export default function GamesScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       />
-      {economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
+      {economyGameId === "bottle-flip" ? <BottleThemes visible onClose={() => setEconomyGameId(null)} /> : economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
     </>
   );
 
@@ -211,7 +213,7 @@ export default function GamesScreen() {
             <View style={[styles.grid, wide && styles.gridWide]}>
               {games.map((game) => <GameCard key={game.key} game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId} />)}
             </View>
-            {economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
+            {economyGameId === "bottle-flip" ? <BottleThemes visible onClose={() => setEconomyGameId(null)} /> : economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
           </>
         ) : null}
       </AppFrame>
@@ -232,15 +234,15 @@ const styles = StyleSheet.create({
   cellWide: { width: "49%", minWidth: 330, flexGrow: 1 },
   playArea: { flex: 1, minWidth: 0, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 13, borderRadius: 22 },
   pressed: { opacity: 0.87, transform: [{ scale: 0.99 }] },
-  card: { minHeight: 106, borderRadius: 28, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, overflow: "hidden", ...(Platform.OS === "android" ? { elevation: 2, shadowOpacity: 0 } : {}) },
-  icon: { width: 62, height: 62, borderRadius: 31, borderWidth: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  cover: { width: "100%", height: "100%", borderRadius: 31 },
+  card: { minHeight: 74, borderRadius: 999, padding: 8, flexDirection: "row", alignItems: "center", gap: 8, overflow: "hidden", ...(Platform.OS === "android" ? { elevation: 2, shadowOpacity: 0 } : {}) },
+  icon: { width: 54, height: 54, borderRadius: 27, borderWidth: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  cover: { width: "100%", height: "100%", borderRadius: 27 },
   copy: { flex: 1, gap: 2, minWidth: 0 },
   title: { fontSize: 17, lineHeight: 22, fontWeight: "900" },
   bestRow: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 4 },
   best: { fontSize: 10, lineHeight: 13, fontWeight: "900" },
-  cardActions: { alignItems: "center", gap: 7 },
-  skinButton: { width: 34, height: 34, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  cardActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  skinButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   playButton: { minWidth: 82, minHeight: 42, borderRadius: 21, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   playText: { color: "#FFFFFF", fontSize: 11, lineHeight: 14, fontWeight: "900" },
 });

@@ -6,7 +6,8 @@ import Animated, { ZoomIn, useAnimatedStyle, useSharedValue, withSequence, withT
 import { GameHeader, GameRoot, HudStat, IntroScreen, ProgressBar, ResultScreen, impact, resolveArcadeSkin } from "./primitives";
 import type { ArcadeGameProps } from "./types";
 import { suggestedCoins } from "./utils";
-import { strikeRules } from "./strike-rules";
+import { strikeRules, strikeSpeed } from "./strike-rules";
+import { useGameProgressStore } from "@/games/progress-store";
 import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "strike" as const;
@@ -15,14 +16,6 @@ const COLORS: Record<Hit, string> = { perfect: "#20E67A", good: "#FFD43B", ok: "
 const LABELS: Record<Hit, string> = { perfect: "PERFECT", good: "GOOD", ok: "OK", miss: "MISS" };
 const BASE_POINTS: Record<Hit, number> = { perfect: 1000, good: 500, ok: 150, miss: 0 };
 const MULTIPLIERS = [1, 1, 1.5, 2, 2.5, 3];
-
-function speedFor(attempt: number) {
-  if (attempt <= 6) return 0.35 + 0.2 * ((attempt - 1) / 5);
-  if (attempt <= 14) return 0.55 + 0.55 * ((attempt - 6) / 8);
-  if (attempt <= 23) return 1.1 + 0.1 * ((attempt - 14) / 9);
-  if (attempt <= 32) return 1.2 + 0.5 * ((attempt - 23) / 9);
-  return 1.7 + 0.3 * ((attempt - 32) / 6);
-}
 
 function classify(position: number): Hit {
   const distance = Math.abs(position - 0.5);
@@ -50,11 +43,12 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
   const gameStartedAt = useRef(0);
   const canTap = useRef(false);
   const finishing = useRef(false);
+  const awardCoins = useGameProgressStore((state) => state.awardCoins);
   usePauseClock(paused, [lastFrame, gameStartedAt]);
   const buttonScale = useSharedValue(1);
   const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: buttonScale.value }] }));
 
-  const currentSpeed = speedFor(hits.length + 1);
+  const currentSpeed = strikeSpeed(hits.length + 1);
   useEffect(() => {
     if (phase !== "playing" || paused) return;
     lastFrame.current = Date.now();
@@ -88,12 +82,22 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
   }, [onComplete, winningHits]);
 
   useEffect(() => {
-    if (phase !== "playing" || paused) return;
+    if (!challengeMode || phase !== "playing" || paused) return;
     const timer = setInterval(() => {
       if (Date.now() - gameStartedAt.current >= 180_000) finish(hits, score, maxCombo);
     }, 250);
     return () => clearInterval(timer);
-  }, [finish, hits, maxCombo, paused, phase, score]);
+  }, [challengeMode, finish, hits, maxCombo, paused, phase, score]);
+
+  useEffect(() => {
+    if (!feedback || paused || phase !== "playing") return;
+    const timer = setTimeout(() => {
+      setFeedback(null);
+      if (challengeMode && hits.length >= attemptLimit) finish(hits, score, maxCombo);
+      else canTap.current = true;
+    }, 520);
+    return () => clearTimeout(timer);
+  }, [attemptLimit, challengeMode, feedback, finish, hits, maxCombo, paused, phase, score]);
 
   const tap = () => {
     if (!canTap.current || feedback) return;
@@ -104,15 +108,11 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
     const multiplier = MULTIPLIERS[Math.min(nextCombo, MULTIPLIERS.length - 1)] ?? 3;
     const points = Math.round(BASE_POINTS[hit] * multiplier);
     const nextScore = score + points;
-    const nextHits = [...hits, hit];
+    const nextHits = [...hits, hit].slice(challengeMode ? 0 : -38);
+    if (!challengeMode) awardCoins("udar", Math.floor(nextScore / 20) - Math.floor(score / 20));
     setHits(nextHits); setScore(nextScore); setCombo(nextCombo); setMaxCombo(nextMax); setFeedback({ hit, points });
     buttonScale.set(withSequence(withTiming(0.94, { duration: 70 }), withTiming(1, { duration: 150 })));
     impact(hit === "perfect" ? "success" : hit === "miss" ? "error" : "medium");
-    setTimeout(() => {
-      setFeedback(null);
-      if (nextHits.length >= attemptLimit) finish(nextHits, nextScore, nextMax);
-      else canTap.current = true;
-    }, 520);
   };
 
   if (phase === "intro") return <GameRoot colors={["#160D0D", "#080808", "#0B0B0B"]} skin={skin}><GameHeader title="УДАР" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="TIMING IS EVERYTHING" title="УДАР" subtitle="Останови стрелку в самом центре. Скорость будет расти после каждого удара." accent={tapAccent} onStart={start}><View style={styles.zoneLegend}>{(["perfect", "good", "ok", "miss"] as Hit[]).map((hit) => <View key={hit} style={[styles.legendChip, { borderColor: COLORS[hit] }]}><Text style={[styles.legendText, { color: COLORS[hit] }]}>{LABELS[hit]}</Text></View>)}</View></IntroScreen></GameRoot>;
@@ -127,8 +127,8 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
   return (
     <GameRoot colors={["#160D0D", "#080808", "#0B0B0B"]} skin={skin}>
       <GameHeader title="УДАР" accent={theme.primary} onExit={onExit} right={<Text style={[styles.speed, { color: theme.secondary }]}>×{currentSpeed.toFixed(1)}</Text>} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.secondary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label="Попытка" value={`${Math.min(attemptLimit, hits.length + (feedback ? 0 : 1))}/${attemptLimit}`} /></View>
-      <View style={styles.attempts}>{Array.from({ length: attemptLimit }, (_, index) => <View key={index} style={[styles.attempt, hits[index] && { backgroundColor: COLORS[hits[index]!] }]} />)}</View>
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.secondary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label={challengeMode ? "Попытка" : "Режим"} value={challengeMode ? `${Math.min(attemptLimit, hits.length + (feedback ? 0 : 1))}/${attemptLimit}` : "∞"} /></View>
+      {challengeMode ? <View style={styles.attempts}>{Array.from({ length: attemptLimit }, (_, index) => <View key={index} style={[styles.attempt, hits[index] && { backgroundColor: COLORS[hits[index]!] }]} />)}</View> : null}
       <View style={styles.stage}>
         <Text style={[styles.status, feedback && { color: COLORS[feedback.hit] }]}>{feedback ? LABELS[feedback.hit] : "НАЖМИ В НУЖНЫЙ МОМЕНТ"}</Text>
         <View style={styles.track}>
@@ -154,7 +154,7 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
         </View>
         <View style={styles.trackLabels}><Text style={styles.trackLabel}>MISS</Text><Text style={[styles.trackLabel, { color: theme.secondary }]}>PERFECT</Text><Text style={styles.trackLabel}>MISS</Text></View>
         {feedback ? <Animated.View entering={ZoomIn.springify()} style={styles.scorePop}><Text style={[styles.scorePopText, { color: COLORS[feedback.hit] }]}>+{feedback.points}</Text></Animated.View> : <Text style={styles.bigScore}>{score}</Text>}
-        <View style={styles.multiplierRow}><Text style={styles.multLabel}>СКОРОСТЬ</Text><ProgressBar progress={(currentSpeed - 0.35) / 1.65} color={theme.primary} /><Text style={styles.multLabel}>×{currentSpeed.toFixed(1)}</Text></View>
+        <View style={styles.multiplierRow}><Text style={styles.multLabel}>СКОРОСТЬ</Text><View style={{ flex: 1, minWidth: 0 }}><ProgressBar progress={(currentSpeed - 0.35) / 0.85} color={theme.primary} /></View><Text style={styles.multLabel}>×{currentSpeed.toFixed(1)}</Text></View>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel="Удар" onPress={tap} style={styles.tapWrap}><Animated.View style={[styles.tapButton, { backgroundColor: tapAccent, shadowColor: theme.primary }, buttonStyle]}><Text style={styles.tapText}>УДАР</Text></Animated.View></Pressable>
     </GameRoot>

@@ -16,11 +16,12 @@ function polar(angle: number, radius: number) {
   return { x: WHEEL_CENTER + radius * Math.cos(radians), y: WHEEL_CENTER + radius * Math.sin(radians) };
 }
 
-export function FortuneWheelModal({ visible, selected, spinning, busy, onSpin, onSpinEnd, onDismiss }: {
+export function FortuneWheelModal({ visible, selected, spinning, busy, notice, onSpin, onSpinEnd, onDismiss }: {
   visible: boolean;
   selected: string | null;
   spinning: boolean;
   busy: boolean;
+  notice?: string;
   onSpin: () => void;
   onSpinEnd: () => void;
   onDismiss: () => void;
@@ -42,7 +43,6 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, onSpin, o
   return <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => { if (!busy && !spinning) onDismiss(); }}>
     <View style={styles.backdrop}><View style={styles.card}>
       <Text style={styles.title}>КОЛЕСО ФОРТУНЫ</Text>
-      <Text style={styles.copy}>Колесо выберет бонус. Досмотрите рекламу, чтобы получить его. Бонус идёт сверх 6000 базовых коинов.</Text>
       <View style={styles.pointer} accessibilityLabel="Указатель колеса"><View style={styles.pointerTip} /></View>
       <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }] }]}>
         <Image source={require("../../assets/images/fortune-wheel-v2.png")} resizeMode="contain" style={styles.wheelArtwork} />
@@ -52,6 +52,7 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, onSpin, o
         <View style={styles.hub}><Image source={require("../../assets/brand/logo-mark.png")} resizeMode="contain" style={styles.hubImage} /></View>
       </Animated.View>
       {selected && !spinning ? <Text style={styles.selected}>Выпало {selected} coin</Text> : null}
+      {notice ? <Text accessibilityRole="alert" style={styles.copy}>{notice}</Text> : null}
       <Pressable disabled={busy || spinning} onPress={onSpin} style={[styles.spinButton, (busy || spinning) && styles.disabled]}>{busy || spinning ? <ActivityIndicator color="#07101E" /> : <Text style={styles.spinText}>{selected ? "РЕКЛАМА → ЗАБРАТЬ ПРИЗ" : "КРУТИТЬ КОЛЕСО"}</Text>}</Pressable>
       {!spinning && !busy ? <Pressable onPress={onDismiss} style={styles.dismiss}><Text style={styles.dismissText}>Не сейчас</Text></Pressable> : null}
     </View></View>

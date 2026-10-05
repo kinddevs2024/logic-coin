@@ -67,6 +67,7 @@ export function GameShell({
       <View style={[styles.meta, variant !== "app" && styles.metaGame]}>
         {meta}
         {gameId ? <GameEconomyHud gameId={gameId} tone={variant === "app" && theme.mode === "dark" ? "light" : "dark"} onOpen={() => setEconomyOpen(true)} /> : null}
+        {session?.headerAction}
       </View>
     </View>
   );
