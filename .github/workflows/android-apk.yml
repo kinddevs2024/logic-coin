@@ -2,6 +2,12 @@ name: Android APK and AAB
 
 on:
   workflow_dispatch:
+    inputs:
+      build_only:
+        description: 'Build test APK without lint/tests (not a verified release)'
+        type: boolean
+        required: false
+        default: false
   push:
     tags:
       - "v*"
@@ -78,9 +84,15 @@ jobs:
       - name: Install frontend workspace
         run: npm ci --workspace frontend --include=dev
 
+      - name: Verify installed SDK dependency compatibility
+        working-directory: frontend
+        env:
+          EXPO_OFFLINE: "1"
+        run: npx expo install --check
+
       - name: Check types and regression tests before Gradle
+        if: ${{ !inputs.build_only }}
         run: |
-          cd frontend && npx expo install --check && cd ..
           npm run lint --workspace frontend
           npm run typecheck --workspace frontend
           npm test --workspace frontend

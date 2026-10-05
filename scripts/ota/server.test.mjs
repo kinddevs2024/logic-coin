@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { generateKeyPairSync, sign, randomUUID } from 'node:crypto';
+import { generateKeyPairSync, sign, randomUUID, createHash } from 'node:crypto';
 import { updateServer } from './server.mjs';
 
 test('signed updates are isolated by runtime and channel; tampering is rejected', async () => {
@@ -32,6 +32,18 @@ test('signed updates are isolated by runtime and channel; tampering is rejected'
     assert.equal((await fetch(url, { headers: { ...headers, 'expo-runtime-version': 'other' } })).status, 204);
     assert.equal((await fetch(url, { headers: { ...headers, 'expo-runtime-version': '../private' } })).status, 400);
     assert.equal((await fetch(`${url}/assets/not-a-hash`)).status, 404);
+    assert.equal((await fetch(url, { method: 'POST', headers })).status, 405);
+    const bytes = Buffer.from('test asset');
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    await mkdir(join(root, 'assets'), { recursive: true });
+    await writeFile(join(root, 'assets', hash), bytes);
+    await writeFile(join(root, 'assets', `${hash}.mime`), 'image/png');
+    const assetResponse = await fetch(`${url}/assets/${hash}`);
+    assert.equal(assetResponse.status, 200);
+    assert.equal(assetResponse.headers.get('content-type'), 'image/png');
+    assert.equal(await assetResponse.text(), bytes.toString());
+    await writeFile(join(root, 'assets', hash), 'tampered');
+    assert.equal((await fetch(`${url}/assets/${hash}`)).status, 503);
     await writeFile(join(release, 'manifest.json'), body + ' ');
     assert.equal((await fetch(url, { headers })).status, 503);
   } finally {

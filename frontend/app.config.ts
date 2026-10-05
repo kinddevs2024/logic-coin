@@ -6,6 +6,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: config.name ?? "Logic Coin",
   slug: config.slug ?? "logic-coin",
+  plugins: (config.plugins ?? []).some(plugin => (typeof plugin === "string" ? plugin : plugin[0]) === "expo-web-browser")
+    ? config.plugins
+    : [...(config.plugins ?? []), "expo-web-browser"],
   runtimeVersion: { policy: "fingerprint" },
   updates: {
     ...config.updates,
