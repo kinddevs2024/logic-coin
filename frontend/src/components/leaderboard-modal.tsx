@@ -254,8 +254,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   });
 
   const edgeOpacity = nativeScrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: "clamp" });
-  const edgeClear = "rgba(255,255,255,0)";
-  const edgeSolid = "#FFFFFF";
+  const edgeSolid = theme.mode === "dark" ? "#19273E" : "#FFFFFF";
+  const edgeClear = theme.mode === "dark" ? "rgba(25,39,62,0)" : "rgba(255,255,255,0)";
   if (!visible) return null;
 
   return (
@@ -288,7 +288,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
             { transform: [{ translateY }], shadowColor: "#000000" },
           ]}
         >
-          <View style={[styles.sheetGlass, { backgroundColor: theme.mode === "dark" ? "#19273E" : "#FFFFFF" }]}>
+          <View style={[styles.sheetGlass, { backgroundColor: edgeSolid }]}>
             <View
               onLayout={(event) => setFiltersWidth(event.nativeEvent.layout.width)}
               style={[styles.filters, { backgroundColor: theme.primarySoft }]}
