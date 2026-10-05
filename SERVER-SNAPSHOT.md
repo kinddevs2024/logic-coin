@@ -6,7 +6,7 @@ Backup archive SHA-256: `ab3b96e6391b7a42d465fe7eed3240520e0ef65b573995d0014bbcb
 
 Only Logic Coin application source, public assets, package metadata, and source tests/configuration are included. Database dumps, user records, environment files, credentials, private keys, dependency folders, built output, and server configuration are excluded.
 
-The original complete confidential backup remains local. Later Expo Go / APK preview edits are held separately in `.codex-apk-update` and are not represented as production server changes here.
+The original complete confidential backup remains local. The latest local Expo Go / APK preview edits from `.codex-apk-update` were overlaid on this snapshot on 2026-10-05 for publication to main. These edits are not represented as already deployed production server changes.
 
 Extraction verified the archived `current` link points to `/srv/apps/logic-coin/staging/release-7cc0ccbad61cfa4ee57f055d0903c192e62379a5`. All 556 selected files matched the extracted backup byte-for-byte before Git line-ending normalization. Sensitive-path and common credential-pattern checks passed for the selected publication files.
 

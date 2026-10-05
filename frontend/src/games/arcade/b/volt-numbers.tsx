@@ -37,7 +37,7 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
 
   const config = CONFIG[difficulty];
   const okTaps = config.count - remaining.size;
-  const score = won ? Math.max(100, Math.round(10000 - elapsed * 48 - mistakes * 400)) : okTaps * 20;
+  const score = won ? Math.max(100, Math.round(10000 - elapsed / 1000 * 48 - mistakes * 400)) : okTaps * 20;
   const coins = rewardCoins(score, won);
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
   }, []);
 
   const finish = useCallback((didWin: boolean, finalMistakes: number, finalElapsed: number, finalOk: number) => {
-    const finalScore = didWin ? Math.max(100, Math.round(10000 - finalElapsed * 48 - finalMistakes * 400)) : finalOk * 20;
+    const finalScore = didWin ? Math.max(100, Math.round(10000 - finalElapsed / 1000 * 48 - finalMistakes * 400)) : finalOk * 20;
     setWon(didWin);
     setElapsed(finalElapsed);
     setPhase("result");
@@ -79,6 +79,10 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
       details: { difficulty, correct: finalOk, mistakes: finalMistakes, total: CONFIG[difficulty].count },
     });
   }, [difficulty, onFinish]);
+
+  useEffect(() => {
+    if (phase === "play" && elapsed >= 180_000 && !paused) finish(false, mistakes, elapsed, okTaps);
+  }, [elapsed, finish, mistakes, okTaps, paused, phase]);
 
   const tapNumber = useCallback((number: number) => {
     if (phase === "look") {

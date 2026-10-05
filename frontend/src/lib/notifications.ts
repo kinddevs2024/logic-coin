@@ -4,6 +4,7 @@ import { devicesApi } from "@/lib/api";
 import { getDeviceId } from "@/lib/device-id";
 import type { Language } from "@/types";
 import { setPushStatus } from "@/lib/push-status";
+import { isExpoGo } from "@/lib/native-runtime";
 
 const contentByLanguage: Record<
   Language,
@@ -31,6 +32,9 @@ export async function configureDailyReminder(
   if (Platform.OS === "web") {
     return true;
   }
+  // Importing the package itself starts push-token registration in Android Expo Go.
+  // Keep the entire module unloaded in the preview; APK behavior is unchanged.
+  if (isExpoGo) return !enabled;
 
   const Notifications = await import("expo-notifications");
   await Notifications.cancelAllScheduledNotificationsAsync();
@@ -87,6 +91,10 @@ export async function syncPushNotifications(input: {
   requestPermission?: boolean;
 }) {
   if (Platform.OS === "web") return false;
+  if (isExpoGo) {
+    setPushStatus("setup_required");
+    return false;
+  }
 
   const deviceId = await getDeviceId();
   const Notifications = await import("expo-notifications");
@@ -139,6 +147,7 @@ export async function syncPushNotifications(input: {
 }
 
 export async function installNotificationHandlers(onOpen: () => void, onTokenChange: () => void) {
+  if (Platform.OS === "web" || isExpoGo) return () => {};
   const Notifications = await import("expo-notifications");
   Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }) });
   const response = Notifications.addNotificationResponseReceivedListener(onOpen);

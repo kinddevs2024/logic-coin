@@ -51,7 +51,8 @@ const DIFFICULTIES: { id: GeoDifficulty; label: string }[] = [
   { id: "hard", label: "ХАРД" },
 ];
 const ROUND_LENGTH = 12;
-const TIMER_BY_DIFFICULTY: Record<GeoDifficulty, number> = { easy: 30, medium: 25, hard: 20 };
+// Twelve questions fit within three minutes, excluding deliberate pause/gifts.
+const TIMER_BY_DIFFICULTY: Record<GeoDifficulty, number> = { easy: 12, medium: 10, hard: 8 };
 
 export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
   const accent = arcadeSkinAccent(skin, B_COLORS.cyan);

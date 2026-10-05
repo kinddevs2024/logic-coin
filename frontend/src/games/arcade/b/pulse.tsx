@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePauseClock } from "@/games/pause-clock";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
 
@@ -111,7 +112,7 @@ function pulseSolutionLength(source: Cell[]): number {
   return moves;
 }
 
-export function PulseGame({ onExit, onFinish, initialCoins = 0, skin }: ArcadeGameProps) {
+export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = false }: ArcadeGameProps) {
   const { width } = useWindowDimensions();
   const accent = arcadeSkinAccent(skin, B_COLORS.violet);
   const cellColors = useMemo(
@@ -131,6 +132,21 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin }: ArcadeGa
   const [burst, setBurst] = useState<Set<number>>(new Set());
   const [lastLevelPoints, setLastLevelPoints] = useState(0);
   const startedAt = useRef(0);
+  usePauseClock(paused, [startedAt]);
+  const [secondsLeft, setSecondsLeft] = useState(180);
+  useEffect(() => {
+    if (screen !== "play" || status !== "playing" || paused) return;
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - startedAt.current;
+      setSecondsLeft(Math.max(0, Math.ceil((180_000 - elapsed) / 1000)));
+      if (elapsed >= 180_000) {
+        clearInterval(timer);
+        setStatus("lost");
+        onFinish?.({ gameId: "pulse", score: levelScore, coins: rewardCoins(levelScore, false), won: false, durationMs: elapsed, details: { level: level + 1, timedOut: true } });
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  }, [level, levelScore, onFinish, paused, screen, status]);
 
   const alive = useMemo(() => grid.reduce((sum, cell) => sum + (cell ? 1 : 0), 0), [grid]);
 
@@ -147,6 +163,7 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin }: ArcadeGa
     setStatus("playing");
     setBurst(new Set());
     startedAt.current = Date.now();
+    setSecondsLeft(180);
   }, [totalScore]);
 
   const start = useCallback(() => {
@@ -163,6 +180,7 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin }: ArcadeGa
     setStatus("playing");
     setBurst(new Set());
     startedAt.current = Date.now();
+    setSecondsLeft(180);
   }, [snapshot]);
 
   const pressCell = useCallback((index: number) => {
@@ -207,6 +225,7 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin }: ArcadeGa
       {screen === "menu" ? <StartCard icon="access-point" title="PULSE" subtitle="Цепная реакция" accent={accent} details={["Тап заряжает клетку и соседей", "Четыре заряда запускают взрыв", "Очисти поле за лимит ходов"]} onStart={start} /> : null}
       {screen === "play" ? (
         <View style={styles.play}>
+          <Metric label="ВРЕМЯ" value={`${secondsLeft}с`} color={accent} />
           <View style={styles.metrics}>
             <Metric label="УРОВЕНЬ" value={level + 1} color={accent} />
             <Metric label="ПОПЫТКА" value={attempt} color={attempt === 1 ? B_COLORS.green : B_COLORS.gold} />

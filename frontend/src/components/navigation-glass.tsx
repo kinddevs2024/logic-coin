@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 
 import { NativeGlassLayer } from "@/components/native-glass-layer";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -26,7 +26,7 @@ export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
         {
           backgroundColor: dark
             ? lens ? "rgba(93,158,244,0.20)" : "rgba(17,30,50,0.88)"
-            : `rgba(245,251,255,${lens ? 0.18 : 0.48})`,
+            : `rgba(245,251,255,${lens ? 0.18 : Platform.OS === "android" ? 0.92 : 0.48})`,
         },
       ]}
     >

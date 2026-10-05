@@ -8,7 +8,7 @@ import {
   rankContestStandings
 } from "../src/lib/contest.js";
 import { pickSeededSubset } from "../src/lib/seeded-random.js";
-import { challengeCoinsForScore } from "../src/services/challenge-attempt.service.js";
+import { challengeCoinsForScore, remainingBaseChallengeCoins } from "../src/services/challenge-attempt.service.js";
 import { calculateReferralPrizeShare } from "../src/services/referral.service.js";
 
 describe("daily challenge selection", () => {
@@ -24,9 +24,15 @@ describe("daily challenge selection", () => {
 });
 
 describe("challenge coin rules", () => {
+  it("cannot credit base rewards beyond 6000 daily coins", () => {
+    expect(remainingBaseChallengeCoins(1000, 0)).toBe(1000);
+    expect(remainingBaseChallengeCoins(1000, 5750)).toBe(250);
+    expect(remainingBaseChallengeCoins(500, 6000)).toBe(0);
+    expect(remainingBaseChallengeCoins(1000, 6500)).toBe(0);
+  });
   it("caps one game at 1000 coins while preserving the raw score contract", () => {
-    expect(challengeCoinsForScore(0)).toBe(25);
-    expect(challengeCoinsForScore(499)).toBe(49);
+    expect(challengeCoinsForScore(0)).toBe(500);
+    expect(challengeCoinsForScore(499)).toBe(524);
     expect(challengeCoinsForScore(50_000)).toBe(1_000);
   });
 

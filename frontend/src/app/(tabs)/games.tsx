@@ -189,10 +189,11 @@ export default function GamesScreen() {
         renderItem={renderRow}
         ListHeaderComponent={GamesHeader}
         ItemSeparatorComponent={CatalogRowSeparator}
-        initialNumToRender={6}
-        maxToRenderPerBatch={3}
+        initialNumToRender={4}
+        maxToRenderPerBatch={2}
+        updateCellsBatchingPeriod={50}
         windowSize={3}
-        removeClippedSubviews={false}
+        removeClippedSubviews
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       />
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
   cellWide: { width: "49%", minWidth: 330, flexGrow: 1 },
   playArea: { flex: 1, minWidth: 0, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 13, borderRadius: 22 },
   pressed: { opacity: 0.87, transform: [{ scale: 0.99 }] },
-  card: { minHeight: 106, borderRadius: 28, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, overflow: "hidden" },
+  card: { minHeight: 106, borderRadius: 28, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, overflow: "hidden", ...(Platform.OS === "android" ? { elevation: 2, shadowOpacity: 0 } : {}) },
   icon: { width: 62, height: 62, borderRadius: 31, borderWidth: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   cover: { width: "100%", height: "100%", borderRadius: 31 },
   copy: { flex: 1, gap: 2, minWidth: 0 },

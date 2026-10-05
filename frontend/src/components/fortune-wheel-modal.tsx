@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 const WHEEL_SIZE = 272;
 const WHEEL_CENTER = WHEEL_SIZE / 2;
 const PRIZES = [
-  { label: "×2", caption: "ДЖЕКПОТ" },
-  { label: "×1.5", caption: "БОНУС" },
+  { label: "+1000", caption: "ДЖЕКПОТ" },
+  { label: "+500", caption: "БОНУС" },
   { label: "+200", caption: "COIN" },
-  { label: "+100", caption: "COIN" },
+  { label: "+150", caption: "COIN" },
   { label: "+50", caption: "COIN" },
 ] as const;
 
@@ -26,17 +26,23 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, onSpin, o
   onDismiss: () => void;
 }) {
   const [rotation] = useState(() => new Animated.Value(0));
+  const onEnd = useRef(onSpinEnd);
+  useEffect(() => { onEnd.current = onSpinEnd; }, [onSpinEnd]);
+  const prizeIndex = Math.max(0, PRIZES.findIndex(prize => prize.label === selected));
+  const finalAngle = 1440 + (360 - (prizeIndex * 72 + 36));
   const prizePositions = useMemo(() => PRIZES.map((_, index) => polar(index * 72 + 36, 88)), []);
   useEffect(() => {
     if (!spinning) return;
     rotation.setValue(0);
-    Animated.timing(rotation, { toValue: 1, duration: 1500, useNativeDriver: true }).start(() => onSpinEnd());
-  }, [onSpinEnd, rotation, spinning]);
-  const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "1440deg"] });
-  return <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+    const animation = Animated.timing(rotation, { toValue: 1, duration: 1500, useNativeDriver: true });
+    animation.start(({ finished }) => { if (finished) onEnd.current(); });
+    return () => animation.stop();
+  }, [rotation, spinning]);
+  const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", `${finalAngle}deg`] });
+  return <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => { if (!busy && !spinning) onDismiss(); }}>
     <View style={styles.backdrop}><View style={styles.card}>
       <Text style={styles.title}>КОЛЕСО ФОРТУНЫ</Text>
-      <Text style={styles.copy}>Крутите колесо, затем досмотрите рекламу, чтобы получить приз.</Text>
+      <Text style={styles.copy}>Колесо выберет бонус. Досмотрите рекламу, чтобы получить его. Бонус идёт сверх 6000 базовых коинов.</Text>
       <View style={styles.pointer} accessibilityLabel="Указатель колеса"><View style={styles.pointerTip} /></View>
       <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }] }]}>
         <Image source={require("../../assets/images/fortune-wheel-v2.png")} resizeMode="contain" style={styles.wheelArtwork} />

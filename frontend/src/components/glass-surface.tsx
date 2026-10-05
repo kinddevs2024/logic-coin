@@ -66,7 +66,12 @@ export function GlassSurface({
       style={[
         styles.surface,
         {
-          backgroundColor: fill,
+          // Without native blur, Android must not composite a translucent
+          // elevated background independently behind each flattened child.
+          // An opaque tinted base keeps the whole card one continuous surface.
+          backgroundColor: Platform.OS === "android"
+            ? dark ? "#19273E" : variant === "strong" ? "#F3FAFF" : "#E7F5FD"
+            : fill,
           borderColor: theme.glassBorder,
           shadowColor: theme.glassShadow,
           ...(dark ? { shadowOpacity: 0.18, elevation: 3 } : {}),

@@ -1,4 +1,6 @@
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { isExpoGo } from "@/lib/native-runtime";
+import type { GoogleSignin as GoogleSigninType } from "@react-native-google-signin/google-signin";
+const GoogleSignin: typeof GoogleSigninType | null = isExpoGo ? null : require("@react-native-google-signin/google-signin").GoogleSignin;
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
@@ -20,11 +22,12 @@ export function GoogleSignInButton({
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId || !GoogleSignin) return;
     GoogleSignin.configure({ webClientId: clientId, offlineAccess: false });
   }, [clientId]);
 
   const signIn = async () => {
+    if (!GoogleSignin) { Alert.alert("Google", "Для проверки Google-входа нужна APK или development-сборка. Expo Go не содержит Google Sign-In SDK."); return; }
     if (!clientId || busy || disabled) return;
     setBusy(true);
     try {

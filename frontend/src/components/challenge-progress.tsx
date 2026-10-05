@@ -75,6 +75,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   const focused = useIsFocused();
   const c = copy[language];
   const [info, setInfo] = useState(false);
+  const [details, setDetails] = useState(false);
   const client = useQueryClient();
   const queryKey = ["challenges", "progress-scroll", token, today?.dayKey, today?.revision, today?.totalCoinsToday, today?.completedCount];
   const query = useInfiniteQuery({
@@ -88,6 +89,16 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   });
   const pages = query.data?.pages ?? [];
   const progress = pages[0];
+  const snapshot = progress?.previous?.snapshot ?? progress?.next?.snapshot;
+  const ranking = useInfiniteQuery({
+    queryKey: ["challenges", "details-ranking", token, today?.dayKey, snapshot],
+    initialPageParam: snapshot ? { snapshot, offset: 0 } as Cursor : undefined,
+    queryFn: ({ pageParam }) => challengesApi.progress(token!, pageParam),
+    getNextPageParam: page => page.next ?? undefined,
+    enabled: Boolean(details && token && today?.available),
+    retry: 1,
+  });
+  const detailRows = ranking.data?.pages.flatMap(page => page.neighbors) ?? [];
   const rows = pages.flatMap(page => page.neighbors);
   const list = useRef<ScrollView>(null);
   const position = useRef({ firstRank: 0, y: 0, initialized: false, programmatic: false });
@@ -113,7 +124,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
     position.current = { firstRank: 0, y: 0, initialized: false, programmatic: false };
     void client.resetQueries({ queryKey, exact: true });
   };
-  return <GlassSurface variant="strong" intensity={76} style={styles.card}>
+  return <><Pressable accessibilityRole="button" accessibilityLabel={c.info} onPress={() => setDetails(true)}><GlassSurface variant="strong" intensity={76} style={styles.card}>
     <View style={styles.metrics}>
       <View style={styles.score}>
         <Ionicons name="diamond-outline" size={22} color={String(theme.primary)} />
@@ -122,7 +133,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
       <View style={styles.money}>
         <Ionicons name="cash-outline" size={19} color={String(theme.primary)} />
         <AppText variant="heading" style={{ flexShrink: 1 }}>{today?.prizes ? formatMoney(today.prizes.poolUnits) : "—"}</AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel={c.info} hitSlop={8} onPress={() => setInfo(true)} style={styles.infoButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={c.info} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
           <Ionicons name="help-circle-outline" size={20} color={String(theme.textMuted)} />
         </Pressable>
       </View>
@@ -148,8 +159,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
           {rows.map(row => <View key={row.userId} style={[styles.row, row.isSelf && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}>
             <Avatar name={row.name} avatarUrl={row.avatarUrl} size={26} />
             <View style={styles.person}>
-              <AppText variant="caption" numberOfLines={1}>{row.rank} · {row.isSelf ? c.you : row.name}</AppText>
-              <AppText variant="label" numberOfLines={1}>{row.totalCoins.toLocaleString(language)}</AppText>
+              <AppText variant="caption" numberOfLines={2}>{row.rank} · {row.name}</AppText>
             </View>
           </View>)}
         </ScrollView>
@@ -157,6 +167,23 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         {query.isError ? <Pressable onPress={refresh}><AppText variant="caption">{c.retry}</AppText></Pressable> : null}
       </>}
     </View>
+    </GlassSurface></Pressable>
+    <Modal visible={details} transparent animationType="slide" onRequestClose={() => setDetails(false)}>
+      <View style={styles.backdrop}><GlassSurface variant="strong" style={[styles.explanation, { maxHeight: "90%" }]}>
+        <Pressable accessibilityRole="button" onPress={() => setDetails(false)}><AppText variant="label">{c.close}</AppText></Pressable>
+        <ScrollView>
+          <AppText variant="heading">{(progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language)} coin</AppText>
+          <AppText variant="label">{formatMoney(today?.prizes?.poolUnits ?? 0)}</AppText>
+          <AppText variant="caption" muted>{c.hint}</AppText>
+          <AppText variant="label">{today?.completedCount ?? 0}/{today?.totalCount ?? 0} {c.completed}</AppText>
+          {(today?.games ?? []).map(game => <View key={game.key} style={{ paddingVertical: 8, flexDirection: "row", justifyContent: "space-between" }}><AppText style={{ flex: 1 }}>{game.title}</AppText><AppText>+{game.state.coinsAwarded} coin</AppText></View>)}
+          {ranking.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
+          {detailRows.map(row => <View key={row.userId} style={[styles.row, row.isSelf && { backgroundColor: theme.primarySoft }]}><Avatar name={row.name} avatarUrl={row.avatarUrl} size={26} /><AppText style={{ flex: 1 }}>{row.rank} · {row.name}</AppText><AppText>{row.totalCoins}</AppText></View>)}
+          {ranking.isError ? <Pressable onPress={() => void ranking.refetch()}><AppText>{c.retry}</AppText></Pressable> : null}
+          {ranking.hasNextPage ? <Pressable disabled={ranking.isFetchingNextPage} onPress={() => void ranking.fetchNextPage()}><AppText variant="label">{language === "ru" ? "Показать ещё" : language === "uz" ? "Yana ko‘rsatish" : "Show more"}</AppText></Pressable> : null}
+        </ScrollView>
+      </GlassSurface></View>
+    </Modal>
     <Modal visible={info} transparent animationType="fade" onRequestClose={() => setInfo(false)}>
       <View style={styles.backdrop}>
         <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={() => setInfo(false)} />
@@ -166,7 +193,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         </GlassSurface>
       </View>
     </Modal>
-  </GlassSurface>;
+  </>;
 }
 const styles = StyleSheet.create({
   ready: { borderRadius: 30, padding: 24, minHeight: 216, alignItems: "center", justifyContent: "center", gap: 6 },

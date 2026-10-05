@@ -20,13 +20,11 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
 import { configureDailyReminder, syncPushNotifications } from "@/lib/notifications";
-import { PushNotificationsControl } from "@/components/push-notifications-control";
 import { useAppStore } from "@/store/app-store";
 import type { Language } from "@/types";
 
 const themeModes: ThemePreference[] = ["auto", "light", "sky", "dark"];
 const languages: Language[] = ["ru", "uz", "en"];
-const times = ["09:00", "19:00", "21:00"];
 
 const legalCopy = {
   ru: {
@@ -56,7 +54,6 @@ export default function SettingsScreen() {
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
   const setNotifications = useAppStore((state) => state.setNotifications);
-  const setNotificationTime = useAppStore((state) => state.setNotificationTime);
   const mode = useAppStore((state) => state.theme);
   const setTheme = useAppStore((state) => state.setTheme);
   const setLanguage = useAppStore((state) => state.setLanguage);
@@ -101,13 +98,6 @@ export default function SettingsScreen() {
       Alert.alert(t("settings.notifications"), t("settings.permissionDenied"));
     } finally {
       setBusy(false);
-    }
-  };
-
-  const changeTime = async (time: string) => {
-    setNotificationTime(time);
-    if (notificationsEnabled) {
-      void configureDailyReminder(true, time, language).catch(() => {});
     }
   };
 
@@ -157,9 +147,6 @@ export default function SettingsScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <AppText variant="label">{t("settings.notifications")}</AppText>
-            <AppText variant="caption" muted>
-              {t("settings.notificationBody")}
-            </AppText>
           </View>
           <GlassSwitch
             accessibilityLabel={t("settings.notifications")}
@@ -167,23 +154,6 @@ export default function SettingsScreen() {
             disabled={busy}
             onValueChange={(value) => void toggleNotifications(value)}
           />
-        </View>
-        <PushNotificationsControl />
-        <View style={[styles.divider, { backgroundColor: theme.border }]} />
-        <View>
-          <AppText variant="caption" muted style={{ marginBottom: 10 }}>
-            {t("settings.time")}
-          </AppText>
-          <View style={styles.chips}>
-            {times.map((time) => (
-              <ChoiceChip
-                key={time}
-                label={time}
-                selected={notificationTime === time}
-                onPress={() => void changeTime(time)}
-              />
-            ))}
-          </View>
         </View>
         </GlassSurface>
 
@@ -245,6 +215,10 @@ export default function SettingsScreen() {
                   <AppText
                     variant="caption"
                     color={String(palette.text)}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                    style={styles.themeLabelText}
                   >
                     {t(`settings.theme.${themeMode}`)}
                   </AppText>
@@ -253,6 +227,7 @@ export default function SettingsScreen() {
                       name="checkmark-circle"
                       color={String(theme.primary)}
                       size={18}
+                      style={styles.themeSelectedBadge}
                     />
                   ) : null}
                 </View>
@@ -463,6 +438,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 2,
   },
+  themeLabelText: { flex: 1, minWidth: 0, textAlign: "center" },
+  themeSelectedBadge: { position: "absolute", right: 0, top: -72 },
   sectionTitle: {
     flexDirection: "row",
     alignItems: "center",

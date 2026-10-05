@@ -18,7 +18,7 @@ import { useReducedMotion } from "react-native-reanimated";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { CountryFlagBadge } from "@/components/country-flag";
-import { useGlassBlurTarget } from "@/components/glass-blur-target";
+import { useModalBlurTarget } from "@/components/glass-blur-target";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -69,7 +69,7 @@ function EntryValue({ entry, metric }: { entry: LeaderboardEntry; metric: Leader
 
 export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useAppTheme();
-  const blurTarget = useGlassBlurTarget();
+  const blurTarget = useModalBlurTarget();
   const router = useRouter();
   const { language } = useTranslation();
   const c = copy[language];
@@ -87,6 +87,9 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   const scrollRef = useRef<ScrollView>(null);
   const meOffset = useRef<{ y: number; height: number } | null>(null);
   const scrollY = useRef(0);
+  const [nativeScrollY] = useState(() => new Animated.Value(0));
+  const [nativeSelfLayout, setNativeSelfLayout] = useState<{ y: number; height: number } | null>(null);
+  const [nativeViewportHeight, setNativeViewportHeight] = useState(0);
   const viewportHeight = useRef(0);
   const contentHeight = useRef(0);
   const touchY = useRef<number | null>(null);
@@ -147,12 +150,15 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   }, [visible, authenticated, entries.length, requestNextPage]);
 
   const updateSelfVisibility = (offset: number, height: number) => {
+    if (Platform.OS !== "web") return;
     setSelfDock(self ? getSelfDock(meOffset.current, offset, height) : null);
   };
 
   useEffect(() => {
     if (!visible) return;
     closing.current = false;
+    scrollY.current = 0;
+    nativeScrollY.setValue(0);
     translateY.setValue(900);
     backdrop.setValue(0);
     const entrance = reduceMotion
@@ -176,7 +182,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
         useNativeDriver: Platform.OS !== "web",
       }),
     ]).start();
-  }, [backdrop, reduceMotion, translateY, visible]);
+  }, [backdrop, nativeScrollY, reduceMotion, translateY, visible]);
 
   const closeWithAction = (afterClose?: () => void) => {
     if (closing.current) return;
@@ -212,6 +218,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
     const nextIndex = metrics.indexOf(nextMetric);
     setContentDirection(nextIndex > currentIndex ? 1 : -1);
     meOffset.current = null;
+    setNativeSelfLayout(null);
+    nativeScrollY.setValue(0);
     setSelfDock("bottom");
     scrollY.current = 0;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -237,9 +245,15 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
     inputRange: [0, 1],
     outputRange: [contentDirection * 14, 0],
   });
+  const nativeDockTravel = Math.max(1, nativeViewportHeight - (nativeSelfLayout?.height ?? 58));
+  const nativeDockY = Animated.subtract(nativeSelfLayout?.y ?? 0, nativeScrollY).interpolate({
+    inputRange: [0, nativeDockTravel],
+    outputRange: [0, nativeDockTravel],
+    extrapolate: "clamp",
+  });
 
   return (
-    <Modal transparent visible={visible} statusBarTranslucent animationType="none" onRequestClose={close}>
+    <Modal transparent visible={visible} statusBarTranslucent hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close}>
       <View style={styles.modalRoot}>
         <Animated.View
           style={[
@@ -253,7 +267,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
             tint={theme.mode === "dark" ? "dark" : "light"}
             {...(Platform.OS === "android" && blurTarget
               ? {
-                  blurMethod: "dimezisBlurViewSdk31Plus" as const,
+                  blurMethod: "dimezisBlurView" as const,
                   blurTarget,
                 }
               : {})}
@@ -345,32 +359,37 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                   </Pressable>
                 </View>
               ) : entries.length ? (
-                <ScrollView
+                <Animated.ScrollView
                   ref={scrollRef}
                   testID="leaderboard-scroll"
                   onContentSizeChange={(_width, height) => { contentHeight.current = height; }}
                   style={styles.list}
                   contentContainerStyle={styles.listContent}
                   showsVerticalScrollIndicator={false}
-                  scrollEventThrottle={100}
+                  scrollEventThrottle={16}
                   onLayout={(event) => {
                     viewportHeight.current = event.nativeEvent.layout.height;
+                    setNativeViewportHeight(event.nativeEvent.layout.height);
                     updateSelfVisibility(scrollY.current, viewportHeight.current);
                   }}
-                  onScroll={(event) => {
+                  onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: nativeScrollY } } }], {
+                    useNativeDriver: Platform.OS !== "web",
+                    listener: (event: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
                     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
                     const movingDown = contentOffset.y > scrollY.current;
                     scrollY.current = contentOffset.y;
                     viewportHeight.current = layoutMeasurement.height;
                     updateSelfVisibility(contentOffset.y, layoutMeasurement.height);
                     if (movingDown) requestNextPage(contentOffset.y, layoutMeasurement.height, contentSize.height);
-                  }}
+                    },
+                  })}
                 >
                   {entries.map((entry) => (
                     <View
                       key={`${metric}-${entry.rank}-${entry.userId}`}
                       onLayout={entry.isCurrentUser ? (event) => {
                         meOffset.current = event.nativeEvent.layout;
+                        setNativeSelfLayout({ y: event.nativeEvent.layout.y, height: event.nativeEvent.layout.height });
                         updateSelfVisibility(scrollY.current, viewportHeight.current);
                       } : undefined}
                       style={[
@@ -399,7 +418,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                   {query.isFetchingNextPage ? (
                     <View style={styles.moreLoading}><ActivityIndicator size="small" color={String(theme.primary)} /><AppText muted style={styles.moreText}>{c.more}</AppText></View>
                   ) : null}
-                </ScrollView>
+                </Animated.ScrollView>
               ) : (
                 <View style={styles.state}>
                   <Ionicons name="podium-outline" size={36} color={String(theme.textMuted)} />
@@ -408,14 +427,18 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
               )}
 
               {authenticated && self && selfDock ? (
-                <View style={[styles.meDock, selfDock === "top" ? { top: 10 } : { bottom: 0 }, { backgroundColor: theme.surfaceRaised }]}>
-                  <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: theme.glassBorder }]}>
+                <Animated.View pointerEvents="none" style={[styles.meDock,
+                  Platform.OS !== "web" && nativeSelfLayout
+                    ? { top: 10, transform: [{ translateY: nativeDockY }] }
+                    : selfDock === "top" ? { top: 10 } : { bottom: 0 },
+                  { backgroundColor: theme.surfaceRaised }]}>
+                  <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: theme.glassBorder }, Platform.OS !== "web" && nativeSelfLayout ? { minHeight: nativeSelfLayout.height } : null]}>
                     <AppText style={[styles.rank, { color: theme.textMuted }]}>{self.rank}</AppText>
                     <Avatar name={self.name} avatarUrl={self.avatarUrl} size={38} />
                     <View style={styles.nameBlock}><AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
                     <EntryValue entry={self} metric={metric} />
                   </View>
-                </View>
+                </Animated.View>
               ) : null}
             </Animated.View>
           </GlassSurface>

@@ -1,7 +1,9 @@
-import { AppodealBanner } from "react-native-appodeal";
+import { isExpoGo } from "@/lib/native-runtime";
+const AppodealBanner = isExpoGo ? null : require("react-native-appodeal").AppodealBanner;
 import { StyleSheet, View } from "react-native";
 
 export function AppodealBannerSlot({ placement }: { placement: string }) {
+  if (!AppodealBanner) return null;
   return (
     <View accessibilityLabel="Реклама" style={styles.slot}>
       <AppodealBanner adSize="phone" placement={placement} style={styles.banner} />

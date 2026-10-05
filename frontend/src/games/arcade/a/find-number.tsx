@@ -10,14 +10,14 @@ import { usePauseClock } from "@/games/pause-clock";
 
 const GAME_ID = "find-number" as const;
 const LEVELS = [
-  { name: "МЕРКУРИЙ", columns: 4, count: 16, seconds: 58 },
-  { name: "ВЕНЕРА", columns: 4, count: 16, seconds: 49 },
-  { name: "ЗЕМЛЯ", columns: 4, count: 16, seconds: 39 },
-  { name: "МАРС", columns: 4, count: 16, seconds: 32 },
-  { name: "ЮПИТЕР", columns: 5, count: 25, seconds: 51 },
-  { name: "САТУРН", columns: 5, count: 25, seconds: 42 },
-  { name: "УРАН", columns: 5, count: 25, seconds: 32 },
-  { name: "НЕПТУН", columns: 6, count: 36, seconds: 71 },
+  { name: "МЕРКУРИЙ", columns: 4, count: 16, seconds: 20 },
+  { name: "ВЕНЕРА", columns: 4, count: 16, seconds: 20 },
+  { name: "ЗЕМЛЯ", columns: 4, count: 16, seconds: 20 },
+  { name: "МАРС", columns: 4, count: 16, seconds: 18 },
+  { name: "ЮПИТЕР", columns: 5, count: 25, seconds: 24 },
+  { name: "САТУРН", columns: 5, count: 25, seconds: 24 },
+  { name: "УРАН", columns: 5, count: 25, seconds: 22 },
+  { name: "НЕПТУН", columns: 6, count: 36, seconds: 26 },
 ] as const;
 
 export function FindNumberGame({ initialBestScore = 0, paused = false, skin, onExit, onComplete }: ArcadeGameProps) {

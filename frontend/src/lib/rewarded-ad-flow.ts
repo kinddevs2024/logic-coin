@@ -1,4 +1,5 @@
 import { adsApi } from "@/lib/api";
+import { isExpoGo } from "./native-runtime";
 import {
   rewardedAds,
   type RewardedAdPlacement,
@@ -26,6 +27,9 @@ export async function showVerifiedRewardedAd(input: {
   claimCoins?: boolean;
   beforeShow?: (session: RewardedAdSessionDto) => Promise<void> | void;
 }): Promise<VerifiedRewardedAdResult> {
+  if (isExpoGo) {
+    return { receipt: await rewardedAds.show(input.placement), sessionId: null, verified: false, credited: 0 };
+  }
   const session = input.accessToken
     ? await adsApi.startRewarded(input.placement, input.accessToken)
     : null;

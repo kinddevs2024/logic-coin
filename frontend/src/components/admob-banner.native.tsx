@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
+import { isExpoGo } from "@/lib/native-runtime";
+const sdk = isExpoGo ? null : require("react-native-google-mobile-ads");
+const BannerAd = sdk?.BannerAd;
+const BannerAdSize = sdk?.BannerAdSize;
 
 import { admob } from "@/lib/admob";
 
@@ -8,7 +11,7 @@ export function AdmobBannerSlot() {
   const [unitId] = useState(() => admob.bannerUnitId());
   const [failed, setFailed] = useState(false);
 
-  if (!unitId || failed) return null;
+  if (!BannerAd || !unitId || failed) return null;
 
   return (
     <View accessibilityLabel="Реклама" style={styles.slot}>

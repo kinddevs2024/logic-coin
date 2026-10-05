@@ -34,10 +34,10 @@ const COIN_REWARDS: Partial<Record<RewardedAdPlacement, number>> = {
 };
 
 const FORTUNE_REWARDS = [
-  { coins: 200, label: "×2", weight: 1 },
-  { coins: 150, label: "×1.5", weight: 3 },
+  { coins: 1000, label: "+1000", weight: 1 },
+  { coins: 500, label: "+500", weight: 3 },
   { coins: 200, label: "+200", weight: 7 },
-  { coins: 100, label: "+100", weight: 19 },
+  { coins: 150, label: "+150", weight: 19 },
   { coins: 50, label: "+50", weight: 70 }
 ] as const;
 

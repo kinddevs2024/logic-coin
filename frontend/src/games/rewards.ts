@@ -1,5 +1,5 @@
 export const MAX_GAME_COIN_REWARD = 1_000;
-export const MIN_GAME_COIN_REWARD = 25;
+export const MIN_GAME_COIN_REWARD = 500;
 
 /**
  * The single reward contract shared by game UIs and persisted progress.

@@ -143,7 +143,6 @@ function PlayableGameRoute() {
   const [fortuneSpinning, setFortuneSpinning] = useState(false);
   const [fortuneBusy, setFortuneBusy] = useState(false);
   const [fortunePrize, setFortunePrize] = useState<string | null>(null);
-  const fortuneDone = useRef<(() => void) | null>(null);
   const fortuneSpinDone = useRef<(() => void) | null>(null);
   const completionGuard = useRef(false);
   const challengeStartGuard = useRef("");
@@ -151,8 +150,8 @@ function PlayableGameRoute() {
   const classicBaseline = useRef<{ key: string; progress: Readonly<GameProgress> } | null>(null);
   const sessionId = `${mode}:${gameKey}:${sessionRevision}`;
   const exitSession = useMemo(() => createGameExitSession(sessionId), [sessionId]);
-  const gamePaused = giftOpen || exitOpen;
   const activeResult = result?.sessionId === sessionId ? result : null;
+  const gamePaused = giftOpen || exitOpen || Boolean(activeResult);
   const gameTitle = GAME_BY_KEY[gameKey]?.title ?? arcadeA?.title ?? arcadeB?.title ?? "Игра";
   const accent = GAME_BY_KEY[gameKey]?.color ?? arcadeA?.accent ?? arcadeB?.accent ?? "#7C5CFF";
   const selectedSkin = cosmeticFor(progressId, progress?.selectedCosmetic ?? "classic");
@@ -175,7 +174,11 @@ function PlayableGameRoute() {
 
   useEffect(() => {
     exitSession.activate();
-    return () => exitSession.discard();
+    return () => {
+      exitSession.discard();
+      fortuneSpinDone.current?.();
+      fortuneSpinDone.current = null;
+    };
   }, [exitSession]);
 
   useEffect(() => navigation.addListener("beforeRemove", (event) => {
@@ -216,19 +219,24 @@ function PlayableGameRoute() {
     const completedAfterThisGame =
       (challenges.today?.completedCount ?? 0) + (isNewChallenge ? 1 : 0);
     const syncsPractice = mode === "practice" && authenticated && Boolean(accessToken);
-    await rewardedAds.showInterstitial("game-complete").catch(() => false);
-    if (authenticated && accessToken) {
-      await new Promise<void>((resolve) => {
-        fortuneDone.current = resolve;
-        setFortunePrize(null);
-        setFortuneVisible(true);
-      });
-    }
+    const showCompletionAds = async () => {
+      if (exitSession.isDiscarded()) return;
+      setAdBusy(true);
+      try {
+        await rewardedAds.showInterstitial("game-complete").catch(() => false);
+        if (authenticated && accessToken && !exitSession.isDiscarded()) {
+          setFortunePrize(null);
+          setFortuneVisible(true);
+        }
+      } finally {
+        if (!exitSession.isDiscarded()) setAdBusy(false);
+      }
+    };
     setResult({ sessionId, score: gameResult.score, coins: mode === "practice" ? previewCoins : 0, previous: before.previousScore, best: Math.max(before.bestScore, gameResult.score), won: gameResult.won, saving: mode === "challenge" || syncsPractice, message: mode === "challenge" ? "Сохраняем результат" : syncsPractice ? "Начисляем награду" : "Прогресс сохранён", checkpointReward: mode === "challenge" && isNewChallenge && completedAfterThisGame === 3, firstReplayAvailable: mode === "challenge" && isNewChallenge && currentChallengeIndex === 0 });
 
     setExtraTimeSeconds(0);
     if (mode === "practice") {
-      if (!authenticated || !accessToken) return;
+      if (!authenticated || !accessToken) { await showCompletionAds(); return; }
       try {
         const completed = await challengesApi.completePractice(gameKey, { score: gameResult.score, durationMs: gameResult.durationMs }, accessToken);
         if (completed.coins) setCoinBalance(completed.coins.balance);
@@ -236,12 +244,14 @@ function PlayableGameRoute() {
       } catch {
         setResult((current) => current?.sessionId === sessionId ? { ...current, saving: false, message: "Результат сохранён на устройстве. Награда аккаунта не начислена." } : current);
       }
+      await showCompletionAds();
       return;
     }
     try {
       const completed = await challenges.complete({ gameKey, score: gameResult.score, durationMs: gameResult.durationMs });
       useChallengeAdGate.setState({ resultReady: true });
       setResult((current) => current?.sessionId === sessionId ? { ...current, coins: completed.attempt.coinsAwarded, saving: false, message: "" } : current);
+      await showCompletionAds();
     } catch {
       completionGuard.current = false;
       setResult((current) => current?.sessionId === sessionId ? { ...current, saving: false, message: "Результат сохранён локально. Синхронизацию можно повторить." } : current);
@@ -304,6 +314,7 @@ function PlayableGameRoute() {
   const sessionControls = useMemo(() => ({ onStart: markGameStarted, onExit: exitGame, paused: gamePaused }), [exitGame, gamePaused, markGameStarted]);
 
   const continueChallenge = async () => {
+    if (adBusy) return;
     setResult(null);
     if (nextChallengeGame) {
       router.replace({ pathname: "/play/[gameKey]", params: { gameKey: nextChallengeGame.key, mode: "challenge" } } as never);
@@ -337,11 +348,15 @@ function PlayableGameRoute() {
     try {
       const reward = await showVerifiedRewardedAd({
         placement: "fortune-wheel", accessToken, claimCoins: true,
-        beforeShow: (session) => new Promise<void>((resolve) => {
-          setFortunePrize(session.rewardLabel ?? `+${session.rewardCoins}`);
-          fortuneSpinDone.current = resolve;
-          setFortuneSpinning(true);
-        }),
+        beforeShow: async (session) => {
+          if (exitSession.isDiscarded()) throw new Error("session_closed");
+          await new Promise<void>((resolve) => {
+            setFortunePrize(`+${session.rewardCoins}`);
+            fortuneSpinDone.current = resolve;
+            setFortuneSpinning(true);
+          });
+          if (exitSession.isDiscarded()) throw new Error("session_closed");
+        },
       });
       if (!reward.receipt.completed || !reward.verified) throw new Error("rewarded_ad_incomplete");
       if (reward.coinBalance !== undefined) setCoinBalance(reward.coinBalance);
@@ -353,7 +368,6 @@ function PlayableGameRoute() {
       setFortuneBusy(false);
       setFortuneSpinning(false);
       setFortuneVisible(false);
-      const done = fortuneDone.current; fortuneDone.current = null; done?.();
     }
   };
 
@@ -468,7 +482,7 @@ function PlayableGameRoute() {
         onNext={() => void continueChallenge()}
         onExit={() => router.replace(mode === "challenge" ? "/challenges" as never : "/games" as never)}
       />
-      <FortuneWheelModal visible={fortuneVisible} selected={fortunePrize} spinning={fortuneSpinning} busy={fortuneBusy} onSpin={() => void playFortune()} onSpinEnd={() => { const done = fortuneSpinDone.current; fortuneSpinDone.current = null; done?.(); }} onDismiss={() => { setFortuneVisible(false); const done = fortuneDone.current; fortuneDone.current = null; done?.(); }} />
+      <FortuneWheelModal visible={fortuneVisible} selected={fortunePrize} spinning={fortuneSpinning} busy={fortuneBusy} onSpin={() => void playFortune()} onSpinEnd={() => { const done = fortuneSpinDone.current; fortuneSpinDone.current = null; done?.(); }} onDismiss={() => setFortuneVisible(false)} />
       <GiftInventoryModal visible={giftOpen && mode === "challenge"} sessionReady={giftsAvailable && !activeResult} completed={Boolean(activeResult && !activeResult.saving)} supportsTimeExtension={supportsTimeExtension} gameKey={gameKey} onClose={() => setGiftOpen(false)} onUse={applyGift} />
       <GameExitModal visible={exitOpen} title={gameTitle} onStay={stayInGame} onExit={confirmExit} />
     </View>

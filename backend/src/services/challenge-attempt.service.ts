@@ -7,6 +7,7 @@ import {
 } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
+import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
 import { User } from "../models/User.js";
 import { creditCoins } from "./coin.service.js";
 import { challengeDayKey, getDailyChallengeSet } from "./daily-challenge.service.js";
@@ -58,11 +59,15 @@ export function challengeCoinsForScore(score: number, maxCoins = MAX_GAME_COINS)
   // One authoritative formula is shared by challenge and practice modes.
   // Outcome flags are intentionally ignored because the client must not be
   // able to increase an economy reward by claiming a win.
-  return Math.min(maxCoins, 25 + Math.floor(score / 20));
+  return Math.min(maxCoins, 500 + Math.floor(score / 20));
 }
 
 function cappedGameCoins(amount: number) {
   return Math.min(MAX_GAME_COINS, Math.max(0, Math.round(amount)));
+}
+
+export function remainingBaseChallengeCoins(requested: number, alreadyEarned: number) {
+  return Math.min(cappedGameCoins(requested), Math.max(0, 6000 - Math.max(0, alreadyEarned)));
 }
 
 export async function startChallengeAttempt(input: {
@@ -155,7 +160,7 @@ export async function completeChallengeAttempt(input: {
   const dayKey = challengeDayKey();
   const { game } = await dailyGame({ gameKey: input.gameKey, dayKey, completingUserId: input.userId });
   const maxCoins = Math.min(MAX_GAME_COINS, game.scoring?.maxCoins ?? MAX_GAME_COINS);
-  const coinsAwarded = challengeCoinsForScore(input.score, maxCoins);
+  const requestedCoins = challengeCoinsForScore(input.score, maxCoins);
 
   const session = await mongoose.startSession();
   let attemptResult:
@@ -171,6 +176,15 @@ export async function completeChallengeAttempt(input: {
     | undefined;
   try {
     await session.withTransaction(async () => {
+      const started = await ChallengeAttempt.findOne({ userId: input.userId, dayKey, gameId: game._id, mode: "challenge", status: "started" }).session(session);
+      const replayCount = Math.max(0, Number((started?.metadata as { replayCount?: number } | undefined)?.replayCount ?? 0));
+      const earned = replayCount > 0 ? [] : await CoinLedgerEntry.aggregate<{ total: number }>([
+        { $match: { userId: input.userId, type: "challenge_coin_reward", "metadata.dayKey": dayKey, "metadata.kind": "base" } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]).session(session);
+      // Credits share the user document in this transaction: concurrent results
+      // conflict and retry, so neither can spend the same remaining allowance.
+      const coinsAwarded = replayCount > 0 ? requestedCoins : remainingBaseChallengeCoins(requestedCoins, earned[0]?.total ?? 0);
       const attempt = await ChallengeAttempt.findOneAndUpdate(
         {
           userId: input.userId,
@@ -225,7 +239,7 @@ export async function completeChallengeAttempt(input: {
             type: "challenge_coin_reward",
             sourceId: rewardSourceId,
             description: `Challenge reward: ${game.key}`,
-            metadata: { dayKey, gameKey: game.key, kind: "base" }
+            metadata: { dayKey, gameKey: game.key, kind: replayCount > 0 ? "replay-bonus" : "base" }
           },
           session
         );

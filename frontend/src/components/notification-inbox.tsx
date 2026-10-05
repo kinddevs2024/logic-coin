@@ -16,7 +16,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const config = { itemVisiblePercentThreshold: 70, minimumViewTime: 800 };
 
-export function NotificationInbox({ onClose }: { onClose: () => void }) {
+export function NotificationInbox({ onClose, anchor }: { onClose: () => void; anchor?: { x: number; y: number; width: number; height: number } }) {
+  const closeAction = useRef(onClose);
+  useEffect(() => { closeAction.current = onClose; }, [onClose]);
   const token = useAppStore(s => s.accessToken);
   const theme = useAppTheme();
   const { language } = useTranslation();
@@ -35,6 +37,7 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
   const [readError, setReadError] = useState(false);
   const seen = useRef(new Set<string>());
   const failed = useRef(new Set<string>());
+  const scrolled = useRef(false);
   const [offset] = useState(() => new Animated.Value(-height));
   const query = useInfiniteQuery({
     queryKey: ["inbox", token, true],
@@ -43,13 +46,15 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
     getNextPageParam: page => page.next ?? undefined,
     enabled: Boolean(token),
     refetchOnWindowFocus: false,
-    gcTime: 0,
+    staleTime: 60_000,
+    gcTime: 300_000,
+    refetchOnMount: false,
   });
   useEffect(() => {
     const animation = Animated.timing(offset, { toValue: closing ? -height : 0, duration: reduced ? 0 : 320, useNativeDriver: Platform.OS !== "web" });
-    animation.start(({ finished }) => { if (finished && closing) onClose(); });
+    animation.start(({ finished }) => { if (finished && closing) closeAction.current(); });
     return () => animation.stop();
-  }, [offset, reduced, closing, height, onClose]);
+  }, [offset, reduced, closing, height]);
   const read = useCallback((ids: string[]) => {
     if (!token || !ids.length) return;
     ids.forEach(id => seen.current.add(id));
@@ -63,22 +68,24 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
     read(viewableItems.filter(v => v.isViewable && !v.item.read && !seen.current.has(v.item.id)).map(v => v.item.id));
   }, [read]);
   const items = query.data?.pages.flatMap(page => page.items) ?? [];
-  return <Modal transparent visible animationType="none" onRequestClose={close} statusBarTranslucent>
-    <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 12) }]}>
+  return <Modal transparent visible hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close} statusBarTranslucent>
+    <View style={[styles.overlay, { paddingTop: anchor ? anchor.y + anchor.height + 12 : Math.max(insets.top, 12) + 64 }]}>
       <Pressable accessibilityLabel="Закрыть уведомления" accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
+      <View style={[styles.close, anchor ? { position: "absolute", left: anchor.x, top: anchor.y, width: anchor.width, height: anchor.height } : { position: "absolute", right: 20, top: Math.max(insets.top, 12) }]}>
+        <IconButton name="close" label="Закрыть" onPress={close} />
+      </View>
       <Animated.View accessibilityViewIsModal style={[styles.panel, { transform: [{ translateY: offset }] }]}>
-        <View style={styles.close}>
-          <IconButton name="close" label="Закрыть" onPress={close} />
-        </View>
         {!token ? <GlassSurface style={styles.card}><AppText>Войдите, чтобы увидеть уведомления</AppText></GlassSurface> : null}
         {token && query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
         {query.error ? <Pressable onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())}><AppText color={String(theme.danger)}>Не удалось загрузить. Нажмите, чтобы повторить.</AppText></Pressable> : null}
         {readError ? <Pressable onPress={() => read([...failed.current])}><AppText color={String(theme.danger)}>Не удалось сохранить просмотр. Повторить</AppText></Pressable> : null}
         <View style={styles.listViewport}>
         <FlatList data={items} keyExtractor={item => item.id} style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 12) }]}
-          onEndReachedThreshold={0.3}
+          initialNumToRender={4} maxToRenderPerBatch={2} windowSize={3} removeClippedSubviews={Platform.OS === "android"}
+          onScrollBeginDrag={() => { scrolled.current = true; }}
+          onEndReachedThreshold={0.15}
           onEndReached={() => {
-            if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
+            if (scrolled.current && query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
           }}
           onViewableItemsChanged={viewable} viewabilityConfig={config}
           renderItem={({ item }) => <GlassSurface style={styles.card} variant="strong">

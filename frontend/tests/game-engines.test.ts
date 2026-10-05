@@ -135,13 +135,13 @@ describe("challenge exit confirmation", () => {
 });
 
 describe("Strike challenge rules", () => {
-  it("always finishes challenge rounds after seven hits", () => {
+  it("uses the full short sequence for challenge rounds", () => {
     const rules = strikeRules(true);
-    expect(rules.attemptLimit).toBe(7);
-    for (let completedHits = 0; completedHits < 7; completedHits += 1) {
+    expect(rules.attemptLimit).toBe(38);
+    for (let completedHits = 0; completedHits < 38; completedHits += 1) {
       expect(completedHits >= rules.attemptLimit).toBe(false);
     }
-    expect(7 >= rules.attemptLimit).toBe(true);
+    expect(38 >= rules.attemptLimit).toBe(true);
   });
 
   it("keeps all practice defaults and result thresholds unchanged", () => {
@@ -150,18 +150,18 @@ describe("Strike challenge rules", () => {
     expect(strikeRules(false)).toEqual(practice);
   });
 
-  it("uses reachable, proportional win and grade thresholds for seven hits", () => {
+  it("uses reachable, proportional win and grade thresholds", () => {
     expect(strikeRules(true)).toEqual({
-      attemptLimit: 7,
-      winningHits: 6,
-      perfectGradeHits: 6,
-      excellentGradeHits: 5,
+      attemptLimit: 38,
+      winningHits: 28,
+      perfectGradeHits: 30,
+      excellentGradeHits: 22,
     });
   });
 
   it("does not carry a previous mode's rules into a replay or the next challenge", () => {
     expect([true, true, false, true, false, true].map((challengeMode) => strikeRules(challengeMode).attemptLimit))
-      .toEqual([7, 7, 38, 7, 38, 7]);
+      .toEqual([38, 38, 38, 38, 38, 38]);
   });
 });
 
@@ -319,8 +319,8 @@ describe("brain tricks engine", () => {
 describe("game reward contract", () => {
   it("is deterministic and shared-result safe", () => {
     expect(gameCoinReward(2_400, true)).toBe(gameCoinReward(2_400, true));
-    expect(gameCoinReward(2_400, true)).toBe(145);
-    expect(gameCoinReward(2_400, false)).toBe(145);
+    expect(gameCoinReward(2_400, true)).toBe(620);
+    expect(gameCoinReward(2_400, false)).toBe(620);
     expect(suggestedCoins(2_400, true)).toBe(gameCoinReward(2_400, true));
     expect(rewardCoins(2_400, false)).toBe(gameCoinReward(2_400, false));
   });

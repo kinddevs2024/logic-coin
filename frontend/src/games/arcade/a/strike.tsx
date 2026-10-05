@@ -87,6 +87,14 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
     onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: Date.now() - gameStartedAt.current, suggestedCoins: suggestedCoins(finalScore, won), stats: { perfect, maxCombo: finalMaxCombo, attempts: finalHits.length } });
   }, [onComplete, winningHits]);
 
+  useEffect(() => {
+    if (phase !== "playing" || paused) return;
+    const timer = setInterval(() => {
+      if (Date.now() - gameStartedAt.current >= 180_000) finish(hits, score, maxCombo);
+    }, 250);
+    return () => clearInterval(timer);
+  }, [finish, hits, maxCombo, paused, phase, score]);
+
   const tap = () => {
     if (!canTap.current || feedback) return;
     canTap.current = false;

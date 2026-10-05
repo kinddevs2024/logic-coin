@@ -12,11 +12,11 @@ import { usePauseClock } from "@/games/pause-clock";
 const GAME_ID = "find-letter" as const;
 const LETTERS = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ".split("");
 const LEVELS = [
-  { name: "ЛЁГКИЙ", columns: 3, total: 9, seconds: 34 },
-  { name: "СРЕДНИЙ", columns: 3, total: 12, seconds: 31 },
-  { name: "СЛОЖНЫЙ", columns: 4, total: 16, seconds: 28 },
-  { name: "ЭКСПЕРТ", columns: 4, total: 20, seconds: 23 },
-  { name: "МАСТЕР", columns: 5, total: 25, seconds: 20 },
+  { name: "ЛЁГКИЙ", columns: 3, total: 9, seconds: 12 },
+  { name: "СРЕДНИЙ", columns: 3, total: 12, seconds: 11 },
+  { name: "СЛОЖНЫЙ", columns: 4, total: 16, seconds: 10 },
+  { name: "ЭКСПЕРТ", columns: 4, total: 20, seconds: 9 },
+  { name: "МАСТЕР", columns: 5, total: 25, seconds: 8 },
 ] as const;
 const TOTAL_ROUNDS = 12;
 const CIRCUMFERENCE = 147.65;

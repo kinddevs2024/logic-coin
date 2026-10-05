@@ -1,8 +1,6 @@
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
 
-import { useGlassBlurTarget } from "@/components/glass-blur-target";
-
 export function NativeGlassLayer({
   intensity,
   dark,
@@ -10,19 +8,16 @@ export function NativeGlassLayer({
   intensity: number;
   dark: boolean;
 }) {
-  const blurTarget = useGlassBlurTarget();
+  // Android live backdrop captures are repeated for every visible surface.
+  // Parent surfaces already provide the tint, gradient and rim; use those
+  // lightweight layers instead of continuously re-blurring the scene.
+  if (Platform.OS === "android") return null;
 
   return (
     <BlurView
       pointerEvents="none"
       intensity={intensity}
       tint={dark ? "dark" : "systemUltraThinMaterialLight"}
-      {...(Platform.OS === "android" && blurTarget
-        ? {
-            blurMethod: "dimezisBlurViewSdk31Plus" as const,
-            blurTarget,
-          }
-        : {})}
       style={StyleSheet.absoluteFill}
     />
   );

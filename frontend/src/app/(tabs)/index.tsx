@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RankingPreview } from "@/components/ranking-preview";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -24,6 +24,7 @@ import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
+import { inboxApi } from "@/lib/api";
 
 function ProgressDonut({ value, progress, color, accessibilityLabel }: { value: string; progress: number; color: string; accessibilityLabel: string }) {
   const size = 64;
@@ -50,8 +51,20 @@ export default function HomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const inboxButton = useRef<View>(null);
+  const [inboxAnchor, setInboxAnchor] = useState<{ x: number; y: number; width: number; height: number }>();
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
+  const inboxToken = useAppStore(state => state.accessToken);
+  useEffect(() => {
+    if (!inboxToken) return;
+    void queryClient.prefetchInfiniteQuery({
+      queryKey: ["inbox", inboxToken, true],
+      initialPageParam: null as { date: string; id: string } | null,
+      queryFn: ({ pageParam }) => inboxApi.list(inboxToken, true, pageParam),
+      staleTime: 60_000,
+    });
+  }, [inboxToken, queryClient]);
   const refreshHome = async () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -72,11 +85,16 @@ export default function HomeScreen() {
         </View>
         <RankingPreview metric="wealth" onPress={() => setLeaderboardOpen(true)} />
         <View style={[styles.headerSide, styles.headerSideEnd]}>
-          <IconButton
+          <View ref={inboxButton} collapsable={false}><IconButton
             name="notifications-outline"
             label="Уведомления"
-            onPress={() => setInboxOpen(true)}
-          />
+            onPress={() => {
+              inboxButton.current?.measureInWindow((x, y, width, height) => {
+                setInboxAnchor({ x, y, width, height });
+                setInboxOpen(true);
+              });
+            }}
+          /></View>
         </View>
       </View>
 
@@ -186,7 +204,7 @@ export default function HomeScreen() {
         onInvite={() => router.push("/invite")}
       />
       {leaderboardOpen ? <LeaderboardModal visible onClose={() => setLeaderboardOpen(false)} /> : null}
-      {inboxOpen ? <NotificationInbox onClose={() => setInboxOpen(false)} /> : null}
+      {inboxOpen ? <NotificationInbox anchor={inboxAnchor} onClose={() => setInboxOpen(false)} /> : null}
     </AppFrame>
   );
 }

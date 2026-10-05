@@ -34,7 +34,7 @@ function AmbientOrbs() {
   const isFocused = useIsFocused();
 
   useEffect(() => {
-    if (reduceMotion || !isFocused) {
+    if (Platform.OS === "android" || reduceMotion || !isFocused) {
       drift.stopAnimation();
       drift.setValue(0);
       return;
