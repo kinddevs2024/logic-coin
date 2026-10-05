@@ -1,4 +1,6 @@
 import { Router } from "express";
+import adminWithdrawalRoutes from "./admin-withdrawals.routes.js";
+import { getManualContestPrizes, saveManualContestPrizes } from "../services/manual-contest-prizes.service.js";
 import { z } from "zod";
 import { addDays, daysBetween, parseDayKey } from "../lib/date.js";
 import { ApiError } from "../lib/api-error.js";
@@ -24,6 +26,7 @@ import { challengeDayKey } from "../services/daily-challenge.service.js";
 import { serializeGame } from "../services/serialization.service.js";
 import { listBannedDevices, resetDevice, unbanDevice } from "../services/device-security.service.js";
 
+import adminUsersRoutes from "./admin-users.routes.js";
 const router = Router();
 
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
@@ -35,7 +38,23 @@ const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   }
 }, "Invalid calendar day");
 
+router.use("/withdrawals", adminWithdrawalRoutes);
 router.use(requireAuth, requireAdmin);
+router.use("/users", adminUsersRoutes);
+
+router.get("/daily-challenges/:dayKey/prizes", async (request, response) => {
+  const dayKey = dayKeySchema.safeParse(request.params.dayKey);
+  if (!dayKey.success) throw new ApiError(400, "invalid_day_key", "Некорректная дата.");
+  response.json({ data: await getManualContestPrizes(dayKey.data) });
+});
+router.put("/daily-challenges/:dayKey/prizes", validateBody(z.object({
+  mode: z.enum(["automatic", "manual"]), revision: z.number().int().min(0),
+  prizes: z.array(z.object({ userId: z.string().regex(/^[a-f0-9]{24}$/), cashUnits: z.number().int().min(0).max(1_000_000_000) }).strict()).max(10_000),
+}).strict()), async (request, response) => {
+  const dayKey = dayKeySchema.safeParse(request.params.dayKey);
+  if (!dayKey.success) throw new ApiError(400, "invalid_day_key", "Некорректная дата.");
+  response.json({ data: await saveManualContestPrizes({ ...request.body, dayKey: dayKey.data, adminSubject: request.auth!.userId.toString() }) });
+});
 
 const localizedTextSchema = z
   .object({
@@ -158,7 +177,7 @@ const dailyChallengeSchema = z
     cashPrizeMinUnits: z.number().int().min(0).max(100_000_000),
     cashPrizeMaxUnits: z.number().int().min(0).max(100_000_000),
     prizePoolUnits: z.number().int().min(0).max(1_000_000_000),
-    coinPrizeAmounts: z.array(z.number().int().min(0).max(1_000_000)).length(6).default([0, 0, 0, 0, 0, 0]),
+    coinPrizeAmounts: z.array(z.number().int().min(0).max(1_000_000)).length(6).default([100, 100, 100, 100, 100, 100]),
     maxAttemptsPerGame: z.number().int().min(1).max(100).optional(),
     oneSecondAttemptLimit: z.number().int().min(1).max(100).optional(),
     publish: z.boolean().default(false)

@@ -51,6 +51,7 @@ describe("challenge routes", () => {
   });
 
   beforeEach(() => {
+    vi.clearAllMocks();
     challengeMocks.getTodayChallengeOverview.mockResolvedValue({
       dayKey: "2026-08-20",
       totalCount: 6,
@@ -89,15 +90,16 @@ describe("challenge routes", () => {
   });
 
   it("starts a challenge and validates score limits before completion", async () => {
-    await request(app).post("/tetris/start").expect(201);
+    await request(app).post("/tetris/start").set("User-Agent", "okhttp/4.12.0").expect(201);
     expect(challengeMocks.startChallengeAttempt).toHaveBeenCalledWith({ userId, gameKey: "tetris" });
-    await request(app).post("/tetris/complete").send({ score: 1_000_000_001 }).expect(400);
+    await request(app).post("/tetris/complete").set("User-Agent", "okhttp/4.12.0").send({ score: 1_000_000_001 }).expect(400);
     expect(challengeMocks.completeChallengeAttempt).not.toHaveBeenCalled();
   });
 
   it("keeps the rewarded-ad placeholder explicit in the double contract", async () => {
     await request(app)
       .post("/double")
+      .set("User-Agent", "okhttp/4.12.0")
       .send({ scope: "game", ad: { provider: "demo", receiptId: "demo-receipt" } })
       .expect(201);
     expect(challengeMocks.doubleChallengeCoins).toHaveBeenCalledWith({
@@ -112,5 +114,19 @@ describe("challenge routes", () => {
     const resultId = new Types.ObjectId().toString();
     await request(app).post(`/rewards/${resultId}/claim`).expect(200);
     expect(challengeMocks.claimContestReward).toHaveBeenCalledWith(resultId, userId);
+  });
+
+  it.each(["/tetris/start", "/tetris/complete", "/double"])("blocks browser mutations at %s before calling services", async path => {
+    const result = await request(app).post(path).set("User-Agent", "Mozilla/5.0 (Android 14)").set("Origin", "https://logic-coin.online").send({ score: 10 });
+    expect(result.status).toBe(403);
+    expect(result.body.error.code).toBe("challenge_app_required");
+    expect(challengeMocks.startChallengeAttempt).not.toHaveBeenCalled();
+    expect(challengeMocks.completeChallengeAttempt).not.toHaveBeenCalled();
+    expect(challengeMocks.doubleChallengeCoins).not.toHaveBeenCalled();
+  });
+
+  it("preserves ordinary web games", async () => {
+    await request(app).post("/practice/tetris/complete").set("User-Agent", "Mozilla/5.0").send({ score: 10 }).expect(201);
+    expect(challengeMocks.completePracticeAttempt).toHaveBeenCalledWith({ userId, gameKey: "tetris", score: 10 });
   });
 });

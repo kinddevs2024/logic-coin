@@ -2,13 +2,13 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import { useState } from "react";
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeInUp, FadeOut } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
-import { CountryFlagBadge, countryName, countryOptions } from "@/components/country-flag";
+import { CountryFlagBadge, countryName, countryOptions, type CountryOption } from "@/components/country-flag";
 import { GlassSurface } from "@/components/glass-surface";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -44,6 +44,15 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState("");
   const [picking, setPicking] = useState(false);
   const [cropAsset, setCropAsset] = useState<{ uri: string; width: number; height: number; mimeType: string } | null>(null);
+  const countryListRef = useRef<FlatList<CountryOption>>(null);
+  const allCountries = useMemo(() => countryOptions(language), [language]);
+  const filteredCountries = useMemo(() => {
+    const query = countryQuery.trim().toLocaleLowerCase();
+    if (!query) return allCountries;
+    return allCountries.filter(({ name, code }) =>
+      `${name} ${code}`.toLocaleLowerCase().includes(query),
+    );
+  }, [allCountries, countryQuery]);
   const queryClient = useQueryClient();
   const avatarUrl = avatarDraft === undefined ? user.avatarUrl ?? null : avatarDraft;
   const avatarChanged = avatarDraft !== undefined;
@@ -161,22 +170,37 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                 <>
                   <TextInput
                     value={countryQuery}
-                    onChangeText={setCountryQuery}
+                    onChangeText={(value) => {
+                      setCountryQuery(value);
+                      countryListRef.current?.scrollToOffset({ offset: 0, animated: false });
+                    }}
                     autoFocus
                     placeholder="Поиск страны"
                     placeholderTextColor={String(theme.textMuted)}
                     style={[styles.countrySearch, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
                   />
-                  <ScrollView style={styles.countryScroll} contentContainerStyle={styles.countryOptions} nestedScrollEnabled showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
-                    {countryOptions(language)
-                      .filter(({ name, code }) => !countryQuery.trim() || `${name} ${code}`.toLocaleLowerCase().includes(countryQuery.trim().toLocaleLowerCase()))
-                      .map(({ code }) => (
-                        <Pressable key={code} accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => { setCountryCode(code); setCountryOpen(false); setCountryQuery(""); }} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
-                          <CountryFlagBadge countryCode={code} size={22} />
-                          <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
-                        </Pressable>
-                      ))}
-                  </ScrollView>
+                  <FlatList
+                    ref={countryListRef}
+                    style={styles.countryScroll}
+                    contentContainerStyle={styles.countryOptions}
+                    data={filteredCountries}
+                    keyExtractor={(item) => item.code}
+                    initialNumToRender={6}
+                    maxToRenderPerBatch={6}
+                    windowSize={2}
+                    updateCellsBatchingPeriod={50}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    showsHorizontalScrollIndicator={false}
+                    getItemLayout={(_, index) => ({ length: 52, offset: 59 * index, index })}
+                    renderItem={({ item: { code } }) => (
+                      <Pressable accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => { setCountryCode(code); setCountryOpen(false); setCountryQuery(""); }} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
+                        <CountryFlagBadge countryCode={code} size={22} />
+                        <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
+                      </Pressable>
+                    )}
+                  />
                 </>
               ) : null}
             </View>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { AppText } from "@/components/app-text";
+import { PushNotificationsControl } from "@/components/push-notifications-control";
 import { IconButton } from "@/components/buttons";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -87,6 +88,7 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
             </View>
             <AppText>{item.body}</AppText>
           </GlassSurface>}
+          ListHeaderComponent={<GlassSurface style={styles.card}><PushNotificationsControl /></GlassSurface>}
           ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>Уведомлений пока нет</AppText></GlassSurface> : null}
           ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null}
         />

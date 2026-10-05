@@ -83,22 +83,7 @@ export async function processReferralSignupReward(
     return;
   }
 
-  if (env.REFERRAL_SIGNUP_REWARD_UNITS === 0) {
-    return;
-  }
-
-  const { creditReward } = await import("./wallet.service.js");
-  await creditReward(
-    {
-      userId: user.referredBy,
-      amountUnits: env.REFERRAL_SIGNUP_REWARD_UNITS,
-      type: "referral_bonus",
-      sourceId: userId.toString(),
-      description: "Verified friend referral",
-      referralReward: true
-    },
-    session
-  );
+  // Registration links the friends only. Cash shares are paid on actual wins.
   const notification = await NotificationEvent.create([{
     eventKey: `referral-signup:${userId.toString()}`,
     type: "referral_signup",
@@ -107,7 +92,7 @@ export async function processReferralSignupReward(
     payload: {
       userIds: [user.referredBy.toString()],
       title: "Новый друг по вашей ссылке",
-      body: `${user.name} присоединился к Logic Coin. +5 LS уже на вашем счёте.`
+      body: `${user.name} присоединился к Logic Coin по вашей ссылке.`
     }
   }], { session });
   // Run after the transaction yields back to the event loop, so the push

@@ -1,3 +1,4 @@
+import { broadcastDailyChallengeUpdate } from "./live-updates.service.js";
 import { randomUUID } from "node:crypto";
 import type { Types } from "mongoose";
 import { env } from "../config/env.js";
@@ -24,7 +25,9 @@ import { dispatchNotificationEvent } from "./notification.service.js";
 // This game is always seven attempts in a daily challenge. Do not take this
 // value from an older DailyChallengeSet or an administration request.
 const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 7;
-import { settleExpiredDailyContests } from "./contest.service.js";
+import { collectContestStandings, settleExpiredDailyContests } from "./contest.service.js";
+import { contestCashPlan } from "../lib/contest-cash-plan.js";
+import { validateManualCashPrizes } from "../lib/manual-contest-prizes.js";
 
 type ChallengeStatus = "draft" | "published" | "settled";
 type ChallengeSelectionMode = "manual" | "random";
@@ -189,14 +192,11 @@ export async function configureDailyChallenge(input: {
   oneSecondAttemptLimit?: number;
   publish: boolean;
 }) {
-  if (input.cashPrizeMaxUnits < input.cashPrizeMinUnits) {
-    throw new ApiError(400, "invalid_prize_range", "Maximum prize must be at least the minimum");
-  }
-  if (input.prizePoolUnits < input.cashPrizeMaxUnits) {
-    throw new ApiError(400, "invalid_prize_pool", "Prize pool must cover at least the first prize");
-  }
   const maxAttemptsPerGame = input.maxAttemptsPerGame ?? 1;
+  contestCashPlan(Math.max(1, (await collectContestStandings(input.dayKey)).length), input.cashPrizeMinUnits, input.cashPrizeMaxUnits, input.prizePoolUnits);
   const existing = await DailyChallengeSet.findOne({ dayKey: input.dayKey });
+  if (existing?.prizesLocked) throw new ApiError(409, "prizes_locked", "Итоги уже рассчитываются; настройки заблокированы.");
+  if (existing?.manualCashPrizes != null) validateManualCashPrizes(existing.manualCashPrizes, input.prizePoolUnits);
   // Saving an active day updates it in place, never takes it offline.
   const publish = input.publish || existing?.status === "published";
   const oneSecondAttemptLimit = ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT;
@@ -271,11 +271,17 @@ export async function configureDailyChallenge(input: {
       ? { $unset: { publishedAt: 1, endsAt: 1, publishedBy: 1, publishedBySubject: 1 } }
       : {})
   };
-  await DailyChallengeSet.findOneAndUpdate({ dayKey: input.dayKey }, update, {
-    upsert: true,
+  const saved = await DailyChallengeSet.findOneAndUpdate(existing ? {
+    _id: existing._id, updatedAt: existing.updatedAt, status: { $ne: "settled" }, prizesLocked: { $ne: true },
+    ...((existing.manualPrizeRevision ?? 0) === 0 ? { $or: [{ manualPrizeRevision: 0 }, { manualPrizeRevision: { $exists: false } }] } : { manualPrizeRevision: existing.manualPrizeRevision }),
+  } : { dayKey: input.dayKey }, update, {
+    upsert: !existing,
     new: true,
     runValidators: true
   });
+  if (!saved) throw new ApiError(409, "challenge_changed", "Челлендж изменился или начался расчёт. Обновите страницу.");
+
+  if (input.dayKey === challengeDayKey()) broadcastDailyChallengeUpdate(input.dayKey);
 
   let notificationEvent = null;
   if (isFirstPublication) {

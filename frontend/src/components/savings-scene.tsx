@@ -1,7 +1,8 @@
 import { useIsFocused } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   Animated,
+  AppState,
   Image,
   Platform,
   StyleSheet,
@@ -18,17 +19,11 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
 import { androidImageProps } from "@/lib/android-image";
 import { useAppStore } from "@/store/app-store";
+import { sceneAssets } from "@/lib/scene-assets";
+import { getSavingsSceneLayout } from "@/lib/savings-scene-layout";
+import { pendingSavingsCash } from "@/lib/savings-cash-animation";
 
-const islandSource = require("../../assets/scene/island.webp");
-const jarStateSources: ImageSourcePropType[] = [
-  require("../../assets/scene/1-Photoroom.webp"),
-  require("../../assets/scene/2-Photoroom.webp"),
-  require("../../assets/scene/3-Photoroom.webp"),
-  require("../../assets/scene/4-Photoroom.webp"),
-  require("../../assets/scene/5-Photoroom.webp"),
-  require("../../assets/scene/6-Photoroom.webp"),
-  require("../../assets/scene/7-Photoroom.webp"),
-];
+const jarStateSources = sceneAssets.jars;
 
 const moneyDrops: {
   source: ImageSourcePropType;
@@ -40,7 +35,7 @@ const moneyDrops: {
   delay: number;
 }[] = [
   {
-    source: require("../../assets/scene/coin-angle.webp"),
+    source: sceneAssets.coins[0],
     size: 48,
     startX: -150,
     startY: -44,
@@ -49,7 +44,7 @@ const moneyDrops: {
     delay: 0,
   },
   {
-    source: require("../../assets/scene/bill-1.png"),
+    source: sceneAssets.bills[0],
     size: 64,
     startX: 144,
     startY: -92,
@@ -58,7 +53,7 @@ const moneyDrops: {
     delay: 110,
   },
   {
-    source: require("../../assets/scene/coin-gold-a.webp"),
+    source: sceneAssets.coins[1],
     size: 44,
     startX: 92,
     startY: -64,
@@ -67,7 +62,7 @@ const moneyDrops: {
     delay: 220,
   },
   {
-    source: require("../../assets/scene/bill-10.png"),
+    source: sceneAssets.bills[2],
     size: 58,
     startX: -92,
     startY: -122,
@@ -76,7 +71,7 @@ const moneyDrops: {
     delay: 320,
   },
   {
-    source: require("../../assets/scene/coin-silver.webp"),
+    source: sceneAssets.coins[3],
     size: 40,
     startX: 174,
     startY: -20,
@@ -200,6 +195,7 @@ function MoneyLayer({
 }) {
   return (
     <View
+      testID={`savings-money-${phase}`}
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
@@ -224,24 +220,47 @@ function MoneyLayer({
 export function SavingsScene({
   balance,
   goal,
+  children,
 }: {
   balance: number;
   goal: number;
+  children?: ReactNode;
 }) {
   const theme = useAppTheme();
   const isFocused = useIsFocused();
-  const { width: windowWidth } = useWindowDimensions();
-  const rewardEventId = useAppStore((state) => state.rewardEventId);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const [sceneWidth, setSceneWidth] = useState(0);
+  const accountId = useAppStore((state) => state.user.id);
+  const rewardEventId = useAppStore((state) =>
+    state.hydrated && state.cashBalanceReady && state.authMode === "authenticated"
+      ? pendingSavingsCash(state.savingsCash, state.user.id)
+      : null,
+  );
+  const acknowledgeCash = useAppStore((state) => state.acknowledgeSavingsCash);
+  const [active, setActive] = useState(AppState.currentState === "active");
   const reduceMotion = useReducedMotion();
-  const [completedRewardEventId, setCompletedRewardEventId] = useState<number | null>(null);
-  // Preserve the entrance/reward effect, then release its ten transparent image
-  // views. The next reward mounts the same animation again from its first frame.
-  const showMoney = !reduceMotion && completedRewardEventId !== rewardEventId;
+  const completeCashAnimation = useCallback((eventId: number) => {
+    if (accountId) acknowledgeCash(accountId, eventId);
+  }, [accountId, acknowledgeCash]);
+  // Keep an unseen credit pending until Home is actually visible.
+  const showMoney = isFocused && active && !reduceMotion && rewardEventId !== null;
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => setActive(state === "active"));
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (isFocused && active && reduceMotion && rewardEventId !== null) {
+      completeCashAnimation(rewardEventId);
+    }
+  }, [isFocused, active, reduceMotion, rewardEventId, completeCashAnimation]);
   const progress = Math.max(0, Math.min(1, balance / Math.max(goal, 1)));
   const stateIndex = jarIndex(progress);
-  const stageScale = Math.min(
-    1,
-    Math.max(0.62, (windowWidth - 32) / 372),
+  const layout = getSavingsSceneLayout(
+    sceneWidth || Math.max(1, windowWidth - 40),
+    windowHeight,
+    windowWidth >= 1024,
   );
   const [jarOpacity] = useState(() => new Animated.Value(1));
   const [drift] = useState(() => new Animated.Value(0));
@@ -288,7 +307,8 @@ export function SavingsScene({
 
   return (
     <View
-      style={[styles.scene, { height: 370 * stageScale }]}
+      style={[styles.scene, { height: layout.height }]}
+      onLayout={(event) => setSceneWidth(event.nativeEvent.layout.width)}
       accessibilityRole="summary"
       accessibilityLabel={`${formatMoney(balance)}, ${Math.round(progress * 100)}%`}
     >
@@ -296,8 +316,8 @@ export function SavingsScene({
         style={[
           styles.stage,
           {
-            top: (370 * stageScale - 370) / 2,
-            transform: [{ scale: stageScale }],
+            top: layout.stageTop,
+            transform: [{ scale: layout.scale }],
           },
         ]}
       >
@@ -309,7 +329,7 @@ export function SavingsScene({
         </View>
         <Image
           {...androidImageProps}
-          source={islandSource}
+          source={sceneAssets.island}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
           style={styles.island}
@@ -351,13 +371,24 @@ export function SavingsScene({
             </AppText>
           </View>
         </Animated.View>
-        {showMoney ? <MoneyLayer eventId={rewardEventId} phase="front" onComplete={setCompletedRewardEventId} /> : null}
+        {showMoney ? <MoneyLayer eventId={rewardEventId} phase="front" onComplete={completeCashAnimation} /> : null}
       </View>
+      {children ? (
+        <View pointerEvents="box-none" style={[styles.actionsOverlay, { top: layout.actionsTop }]}>
+          {children}
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  actionsOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    zIndex: 12,
+  },
   scene: {
     width: "100%",
     alignItems: "center",
@@ -392,7 +423,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 340,
     height: 340,
-    top: -22,
+    top: -20,
     borderRadius: 170,
     zIndex: 4,
   },

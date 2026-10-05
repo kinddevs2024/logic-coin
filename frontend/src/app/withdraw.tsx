@@ -21,7 +21,7 @@ import { detectCardBrand, digitsOnly, isValidCardNumber, isValidExpiration } fro
 import { useAppStore } from "@/store/app-store";
 import type { Withdrawal } from "@/types";
 
-const MINIMUM = 200;
+const MINIMUM = 1_000;
 
 function statusLabel(status: string) {
   if (status === "pending_review" || status === "sandbox_pending") return "На проверке";

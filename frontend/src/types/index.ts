@@ -1,4 +1,4 @@
-import type { ThemeMode } from "@/constants/theme";
+import type { ThemePreference } from "@/constants/theme";
 
 export type Language = "ru" | "uz" | "en";
 export type AuthMode = "guest" | "authenticated" | null;
@@ -24,7 +24,7 @@ export type CoinWallet = {
 
 export type UserPreferences = {
   language: Language;
-  theme: ThemeMode;
+  theme: ThemePreference;
   savingsGoalCents: number;
   notificationsEnabled: boolean;
   dailyReminderEnabled: boolean;
@@ -312,4 +312,11 @@ export type LogicTask = {
   available?: boolean;
   remainingToday?: number;
   cooldownRemainingSeconds?: number;
+};
+
+export type LeaderboardPage = {
+  total: number;
+  offset: number;
+  limit: number;
+  leaderboards: Record<LeaderboardMetric, LeaderboardPayload>;
 };

@@ -1,4 +1,6 @@
 import { Router, type Request } from "express";
+import { isNativeAppClient } from "../lib/native-client.js";
+import { serveAppReturnPage } from "../lib/app-return-page.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { z } from "zod";
@@ -312,11 +314,13 @@ router.post("/email/complete", (_request, _response) => {
   );
 });
 
+router.get("/app/open", serveAppReturnPage);
+
 router.post("/telegram/start", authLimiter, async (request, response) => {
   const parsed = z.object({ deviceId: deviceIdSchema, referralCode: z.string().trim().regex(/^[A-Za-z0-9-]{4,32}$/).optional() }).strict().safeParse(request.body ?? {});
   if (!parsed.success) throw new ApiError(400, "validation_error", "Telegram login data is invalid");
   await assertDeviceNotBanned(parsed.data.deviceId);
-  response.status(201).json({ data: await createTelegramLogin(parsed.data.referralCode, parsed.data.deviceId) });
+  response.status(201).json({ data: await createTelegramLogin(parsed.data.referralCode, parsed.data.deviceId, isNativeAppClient(request.headers) ? "app" : "web") });
 });
 
 router.post("/telegram/status", authLimiter, async (request, response) => {

@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable inside gesture worklets. */
 import Ionicons from "@expo/vector-icons/Ionicons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, Redirect, Tabs, useRouter } from "expo-router";
 import {
   useCallback,
@@ -14,11 +13,9 @@ import {
 import {
   Platform,
   ActivityIndicator,
-  Modal,
   Pressable,
   Image,
   StyleSheet,
-  Text,
   View,
   type ViewStyle,
 } from "react-native";
@@ -45,7 +42,6 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { ApiError, bootstrapApi } from "@/lib/api";
-import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
 import { useAppStore } from "@/store/app-store";
 
 type LogicTabBarProps = Parameters<
@@ -54,12 +50,6 @@ type LogicTabBarProps = Parameters<
 
 const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.kinddevs.logiccoin";
-const NAV_AD_COUNTER_KEY = "logic-coin:appodeal-navigation-counter:v1";
-
-function nextAdThreshold() {
-  return 10 + Math.floor(Math.random() * 26);
-}
-
 const tabMeta: Record<
   string,
   {
@@ -110,10 +100,6 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
     visibleRoutes.findIndex((route) => route.key === focusedRouteKey),
   );
   const [barSize, setBarSize] = useState({ width: 0, height: 0 });
-  const [rewardOfferVisible, setRewardOfferVisible] = useState(false);
-  const [rewardAdBusy, setRewardAdBusy] = useState(false);
-  const accessToken = useAppStore((store) => store.accessToken);
-  const queryClient = useQueryClient();
   const lensPosition = useSharedValue(activeIndex);
   const lensMorph = useSharedValue(0);
   const dragOrigin = useSharedValue(activeIndex);
@@ -136,40 +122,9 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
       if (!focused && !event.defaultPrevented) {
         navigation.navigate(route.name, route.params);
       }
-      if (Platform.OS === "android" && accessToken) {
-        void AsyncStorage.getItem(NAV_AD_COUNTER_KEY).then(async (stored) => {
-          const parsed = stored ? JSON.parse(stored) as { count?: number; threshold?: number } : {};
-          const count = (parsed.count ?? 0) + 1;
-          const threshold = parsed.threshold ?? nextAdThreshold();
-          if (count >= threshold) {
-            await AsyncStorage.setItem(NAV_AD_COUNTER_KEY, JSON.stringify({ count: 0, threshold: nextAdThreshold() }));
-            setRewardOfferVisible(true);
-          } else {
-            await AsyncStorage.setItem(NAV_AD_COUNTER_KEY, JSON.stringify({ count, threshold }));
-          }
-        }).catch(() => undefined);
-      }
     },
-    [accessToken, focusedRouteKey, navigation, visibleRoutes],
+    [focusedRouteKey, navigation, visibleRoutes],
   );
-
-  const watchNavigationReward = useCallback(async () => {
-    if (rewardAdBusy) return;
-    setRewardAdBusy(true);
-    try {
-      const reward = await showVerifiedRewardedAd({
-        placement: "navigation-frequency",
-        accessToken,
-        claimCoins: true,
-      });
-      if (reward.receipt.completed && reward.verified) {
-        await queryClient.invalidateQueries({ queryKey: ["challenges"] });
-        setRewardOfferVisible(false);
-      }
-    } finally {
-      setRewardAdBusy(false);
-    }
-  }, [accessToken, rewardAdBusy, queryClient]);
 
   const clearPointerFocus = useCallback(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
@@ -393,19 +348,6 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
           </Pressable>
         </Link>
       ) : null}
-      <Modal visible={rewardOfferVisible} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.adOfferBackdrop}>
-          <GlassSurface intensity={76} variant="strong" style={styles.adOfferCard}>
-            <View style={styles.adOfferIcon}><Ionicons name="play" size={26} color="#FFFFFF" /></View>
-            <Text style={styles.adOfferTitle}>Получить 45 коинов в челлендж?</Text>
-            <Text style={styles.adOfferText}>После полного просмотра — 45 коинов в текущий челлендж. Если он закончился, в следующий. Общий баланс не изменится.</Text>
-            <Pressable disabled={rewardAdBusy} onPress={() => void watchNavigationReward()} style={({ pressed }) => [styles.adOfferPrimary, pressed && styles.playStoreLinkPressed]}>
-              {rewardAdBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle" size={21} color="#FFFFFF" /><Text style={styles.adOfferPrimaryText}>Смотреть</Text></>}
-            </Pressable>
-            <Pressable disabled={rewardAdBusy} onPress={() => setRewardOfferVisible(false)} style={styles.adOfferSkip}><Text style={styles.adOfferSkipText}>Не сейчас</Text></Pressable>
-          </GlassSurface>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -415,12 +357,16 @@ export default function TabsLayout() {
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
+  const user = useAppStore((state) => state.user);
+  const postAuthLanguageUserId = useAppStore((state) => state.postAuthLanguageUserId);
   const syncBootstrap = useAppStore((state) => state.syncBootstrap);
   const logout = useAppStore((state) => state.logout);
   const bootstrap = useQuery({
     queryKey: ["bootstrap", accessToken],
-    enabled: authMode === "authenticated" && Boolean(accessToken),
-    staleTime: 60_000,
+    enabled: authMode === "authenticated" && Boolean(accessToken) && (user.role === "admin" || Boolean(user.countryCode)),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: () => bootstrapApi.get(accessToken!),
   });
 
@@ -449,6 +395,9 @@ export default function TabsLayout() {
   }
   if (authMode !== "authenticated" || !accessToken) {
     return <Redirect href="/login" />;
+  }
+  if (user.role !== "admin" && !user.countryCode) {
+    return <Redirect href={postAuthLanguageUserId === user.id ? "/country" : "/language"} />;
   }
 
   return (

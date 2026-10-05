@@ -20,6 +20,8 @@ import {
 import { creditCoins, getCoinBalance } from "./coin.service.js";
 import { challengeDayKey } from "./daily-challenge.service.js";
 import { invalidateContestProgress } from "./contest-progress.service.js";
+import { User } from "../models/User.js";
+import { CHALLENGE_AD_COOLDOWN_MS, requireChallengeAdOffer } from "./challenge-ad-offer.service.js";
 
 export type RewardedAdPlacement = (typeof REWARDED_AD_PLACEMENTS)[number];
 export type RewardedAdProvider = "yandex" | "appodeal";
@@ -31,12 +33,31 @@ const COIN_REWARDS: Partial<Record<RewardedAdPlacement, number>> = {
   "navigation-frequency": NAVIGATION_CHALLENGE_REWARD
 };
 
+const FORTUNE_REWARDS = [
+  { coins: 200, label: "×2", weight: 1 },
+  { coins: 150, label: "×1.5", weight: 3 },
+  { coins: 200, label: "+200", weight: 7 },
+  { coins: 100, label: "+100", weight: 19 },
+  { coins: 50, label: "+50", weight: 70 }
+] as const;
+
+function fortuneReward() {
+  const total = FORTUNE_REWARDS.reduce((sum, reward) => sum + reward.weight, 0);
+  let cursor = Math.floor(Math.random() * total);
+  for (const reward of FORTUNE_REWARDS) {
+    cursor -= reward.weight;
+    if (cursor < 0) return reward;
+  }
+  return FORTUNE_REWARDS[FORTUNE_REWARDS.length - 1]!;
+}
+
 function serializeSession(session: {
   sessionId: string;
   provider: string;
   placement: string;
   status: string;
   rewardCoins: number;
+  rewardLabel?: string | null;
   expiresAt: Date;
 }) {
   return {
@@ -45,6 +66,7 @@ function serializeSession(session: {
     placement: session.placement,
     status: session.status,
     rewardCoins: session.rewardCoins,
+    ...(session.rewardLabel ? { rewardLabel: session.rewardLabel } : {}),
     expiresAt: session.expiresAt.toISOString()
   };
 }
@@ -56,16 +78,20 @@ export async function startRewardedAdSession(
 ) {
   // Keep only one pending session per user so a delayed callback can never
   // complete a different reward flow.
+  const offer = placement === "navigation-frequency" ? await requireChallengeAdOffer(userId) : null;
   await RewardedAdSession.updateMany(
     { userId, status: "started" },
     { $set: { status: "expired", expiresAt: new Date() } }
   );
+  const fortune = placement === "fortune-wheel" ? fortuneReward() : null;
   const session = await RewardedAdSession.create({
     sessionId: randomUUID(),
     userId,
     provider,
     placement,
-    rewardCoins: COIN_REWARDS[placement] ?? 0,
+    rewardCoins: fortune?.coins ?? COIN_REWARDS[placement] ?? 0,
+    rewardLabel: fortune?.label,
+    ...(offer?.challengeSetId ? { challengeSetId: offer.challengeSetId } : {}),
     expiresAt: new Date(Date.now() + SESSION_TTL_MS)
   });
   return serializeSession(session);
@@ -171,6 +197,12 @@ export async function claimRewardedAdCoins(input: {
       }
       if (adSession.placement === "navigation-frequency") {
         const now = new Date();
+        await requireChallengeAdOffer(input.userId, now, databaseSession, adSession.challengeSetId?.toString());
+        // One atomic user-level lock protects simultaneous claims on different devices.
+        const locked = await User.updateOne({ _id: input.userId, $or: [
+          { challengeAdAvailableAt: { $exists: false } }, { challengeAdAvailableAt: null }, { challengeAdAvailableAt: { $lte: now } },
+        ] }, { $set: { challengeAdAvailableAt: new Date(now.getTime() + CHALLENGE_AD_COOLDOWN_MS) } }, { session: databaseSession });
+        if (locked.modifiedCount !== 1) throw new ApiError(429, "challenge_ad_cooldown", "Награда уже получена. Подождите 5 минут.");
         const today = challengeDayKey(now);
         const set = await DailyChallengeSet.findOne({ dayKey: today }).session(databaseSession);
         challengeDay = challengeAdRewardDay(today, set, now);

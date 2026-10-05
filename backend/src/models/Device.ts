@@ -6,6 +6,13 @@ const deviceSchema = new Schema(
     deviceId: { type: String, required: true, maxlength: 160 },
     platform: { type: String, enum: ["android", "ios", "web"], required: true },
     pushToken: { type: String, maxlength: 4_096 },
+    webPush: {
+      type: new Schema({
+        endpoint: { type: String, required: true, maxlength: 2048 },
+        keys: { p256dh: { type: String, required: true }, auth: { type: String, required: true } }
+      }, { _id: false }),
+      required: false
+    },
     notificationsEnabled: { type: Boolean, default: true },
     dailyReminderEnabled: { type: Boolean, default: true },
     reminderTime: { type: String, default: "19:00" },

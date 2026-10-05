@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, View } from "react-native";
 import { Avatar } from "@/components/avatar";
@@ -11,8 +11,16 @@ import type { LeaderboardMetric } from "@/types";
 export function RankingPreview({ metric, onPress }: { metric: LeaderboardMetric; onPress: () => void }) {
   const token = useAppStore(s => s.accessToken);
   const theme = useAppTheme();
-  const query = useQuery({ queryKey: ["leaderboard", metric, token], queryFn: () => leaderboardApi.get(metric, token!), enabled: !!token, staleTime: 30_000 });
-  const leaders = [...(query.data?.entries ?? [])].sort((a, b) => a.rank - b.rank).slice(0, 3);
+  const query = useInfiniteQuery({
+    queryKey: ["leaderboard", token],
+    queryFn: ({ pageParam, signal }) => leaderboardApi.getPage(pageParam, 10, token!, signal),
+    enabled: !!token,
+    initialPageParam: 0,
+    getNextPageParam: page => page.offset + page.limit < page.total ? page.offset + page.limit : undefined,
+    staleTime: 60_000,
+    refetchOnMount: false,
+  });
+  const leaders = (query.data?.pages[0]?.leaderboards[metric].entries ?? []).slice(0, 3);
   return <Pressable accessibilityRole="button" accessibilityLabel={metric === "wealth" ? "Рейтинг" : metric === "wallet" ? "Рейтинг по деньгам" : "Рейтинг по коинам"} onPress={onPress}>
     <GlassSurface intensity={66} variant="strong" style={{ minHeight: 48, borderRadius: 24, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4 }}>
       {leaders.length ? <View style={{ flexDirection: "row" }}>{leaders.map((entry, index) => <View key={entry.userId} style={{ marginLeft: index ? -8 : 0, zIndex: 3 - index }} accessible accessibilityLabel={`${entry.rank} место: ${entry.name}`}><Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={24} /></View>)}</View> : null}

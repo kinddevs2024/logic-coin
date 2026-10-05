@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
-import { CountryFlagBadge } from "@/components/country-flag";
 import { GlassSurface } from "@/components/glass-surface";
 import { LogicCoinLogo } from "@/components/logo";
 import { radii } from "@/constants/theme";
@@ -15,25 +14,30 @@ import type { Language } from "@/types";
 
 const choices: {
   id: Language;
-  country: "RU" | "UZ" | "US";
   nativeName: string;
   helper: string;
 }[] = [
-  { id: "ru", country: "RU", nativeName: "Русский", helper: "Русский язык" },
-  { id: "uz", country: "UZ", nativeName: "O‘zbekcha", helper: "O‘zbek tili" },
-  { id: "en", country: "US", nativeName: "English", helper: "English language" },
+  { id: "ru", nativeName: "Русский", helper: "Русский язык" },
+  { id: "uz", nativeName: "O‘zbekcha", helper: "O‘zbek tili" },
+  { id: "en", nativeName: "English", helper: "English language" },
 ];
 
 export default function LanguageScreen() {
   const theme = useAppTheme();
   const { t } = useTranslation();
   const setLanguage = useAppStore((state) => state.setLanguage);
-  const updateUser = useAppStore((state) => state.updateUser);
+  const authMode = useAppStore((state) => state.authMode);
+  const userId = useAppStore((state) => state.user.id);
+  const setPostAuthLanguageUserId = useAppStore((state) => state.setPostAuthLanguageUserId);
   const router = useRouter();
 
-  const select = (language: Language, countryCode: "RU" | "UZ" | "US") => {
+  const select = (language: Language) => {
     setLanguage(language);
-    updateUser({ countryCode });
+    if (authMode === "authenticated" && userId) {
+      setPostAuthLanguageUserId(userId);
+      router.replace("/country");
+      return;
+    }
     router.replace("/onboarding");
   };
 
@@ -61,7 +65,7 @@ export default function LanguageScreen() {
                 key={choice.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${choice.nativeName}. ${choice.helper}`}
-                onPress={() => select(choice.id, choice.country)}
+                onPress={() => select(choice.id)}
                 style={({ pressed }) => [
                   styles.choice,
                   {
@@ -72,7 +76,9 @@ export default function LanguageScreen() {
                   },
                 ]}
               >
-                <CountryFlagBadge countryCode={choice.country} size={36} />
+                <View style={[styles.languageBadge, { backgroundColor: theme.primarySoft }]}>
+                  <Ionicons name="language-outline" size={21} color={String(theme.primary)} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <AppText variant="heading">{choice.nativeName}</AppText>
                   <AppText variant="caption" muted>
@@ -131,6 +137,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 13,
   },
+  languageBadge: { width: 42, height: 42, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   arrow: {
     width: 36,
     height: 36,

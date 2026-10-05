@@ -11,6 +11,7 @@ import type {
   Language,
   LeaderboardMetric,
   LeaderboardPayload,
+  LeaderboardPage,
   LogicTask,
   ReferralOverview,
   TodayChallenges,
@@ -21,7 +22,7 @@ import type {
   Withdrawal,
   WithdrawalOverview,
 } from "@/types";
-import type { ThemeMode } from "@/constants/theme";
+import type { ThemePreference } from "@/constants/theme";
 import { registrationReferralCode } from "./referral-attribution";
 import type { GameId, GamesProgress } from "@/games/progress-store";
 import { useAppStore } from "@/store/app-store";
@@ -133,7 +134,7 @@ export type AuthResult = {
 
 let refreshPromise: Promise<AuthResult> | null = null;
 
-async function refreshAccessToken(expiredToken: string): Promise<string> {
+export async function refreshAccessToken(expiredToken: string): Promise<string> {
   const state = useAppStore.getState();
   if (state.accessToken && state.accessToken !== expiredToken) {
     return state.accessToken;
@@ -195,7 +196,6 @@ export const authApi = {
   async startEmail(email: string) {
     const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
-    const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<
       | { email: string; mode: "password" }
       | {
@@ -206,7 +206,7 @@ export const authApi = {
         }
     >("/auth/email/start", {
       method: "POST",
-      body: JSON.stringify({ email, deviceId, countryCode, ...(referralCode ? { referralCode } : {}) }),
+      body: JSON.stringify({ email, deviceId, ...(referralCode ? { referralCode } : {}) }),
     });
   },
   async verifyEmailCode(input: { email: string; code: string; flowToken: string }) {
@@ -226,7 +226,6 @@ export const authApi = {
   async register(input: { name: string; email: string; password: string }) {
     const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
-    const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<{
       userId: string;
       email: string;
@@ -234,7 +233,7 @@ export const authApi = {
       verification?: { expiresAt?: string };
     }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ ...input, deviceId, countryCode, ...(referralCode ? { referralCode } : {}) }),
+      body: JSON.stringify({ ...input, deviceId, ...(referralCode ? { referralCode } : {}) }),
     });
   },
   async login(input: { email: string; password: string }) {
@@ -272,10 +271,9 @@ export const authApi = {
   async google(idToken: string) {
     const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
-    const countryCode = useAppStore.getState().user.countryCode ?? undefined;
     return request<AuthResult>("/auth/google", {
       method: "POST",
-      body: JSON.stringify({ idToken, deviceId, countryCode, ...(referralCode ? { referralCode } : {}) }),
+      body: JSON.stringify({ idToken, deviceId, ...(referralCode ? { referralCode } : {}) }),
     });
   },
   async telegramStart() {
@@ -410,81 +408,52 @@ export const challengesApi = {
       neighbors: { userId: string; rank: number; totalCoins: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
     }>(`/challenges/progress${cursor ? `?snapshot=${encodeURIComponent(cursor.snapshot)}&offset=${cursor.offset}${cursor.end !== undefined ? `&end=${cursor.end}` : ""}` : ""}`, { token });
   },
-  async today(token: string) {
+
+  async today(token: string, signal?: AbortSignal) {
     const payload = await request<{ today: TodayChallenges }>(
       "/challenges/today",
-      { token },
+      { token, signal },
     );
     return payload.today;
   },
   start(gameKey: string, token: string) {
-    return request<ChallengeStartResult>(`/challenges/${encodeURIComponent(gameKey)}/start`, {
-      method: "POST",
-      token,
-    });
+    return import("./challenge-live-updates").then(({ liveCommand }) => liveCommand<ChallengeStartResult>(token, "start", { gameKey }));
   },
   complete(
     gameKey: string,
     input: { score: number; durationMs?: number },
     token: string,
   ) {
-    return request<ChallengeCompleteResult>(
-      `/challenges/${encodeURIComponent(gameKey)}/complete`,
-      {
-        method: "POST",
-        token,
-        body: JSON.stringify(input),
-      },
-    );
+    return import("./challenge-live-updates").then(({ liveCommand }) => liveCommand<ChallengeCompleteResult>(token, "complete", { gameKey, ...input }));
   },
   completePractice(
     gameKey: string,
     input: { score: number; durationMs?: number },
     token: string,
   ) {
-    return request<ChallengeCompleteResult>(
-      `/challenges/practice/${encodeURIComponent(gameKey)}/complete`,
-      {
-        method: "POST",
-        token,
-        body: JSON.stringify(input),
-      },
-    );
+    return import("./challenge-live-updates").then(({ liveCommand }) => liveCommand<ChallengeCompleteResult>(token, "completePractice", { gameKey, ...input }));
   },
   double(
     scope: "game" | "day",
     token: string,
     ad?: { provider: "yandex" | "appodeal" | "demo"; receiptId: string },
   ) {
-    return request<{
+    return import("./challenge-live-updates").then(({ liveCommand }) => liveCommand<{
       scope: "game" | "day";
       credited: number;
       coins: CoinWallet;
-    }>("/challenges/double", {
-      method: "POST",
-      token,
-      body: JSON.stringify({
-        scope,
-        ad,
-      }),
-    });
+    }>(token, "double", { scope, ad }));
   },
   async pendingReward(token: string) {
-    const payload = await request<{ reward: PendingContestReward | null }>(
-      "/challenges/rewards/pending",
-      { token },
-    );
-    return payload.reward;
+    const { liveCommand } = await import("./challenge-live-updates");
+    return liveCommand<PendingContestReward | null>(token, "pendingReward");
   },
   claimReward(resultId: string, token: string) {
-    return request<{
+    return import("./challenge-live-updates").then(({ liveCommand }) => liveCommand<{
       result: ContestRewardResult;
       wallet: Wallet | null;
       coins: CoinWallet | null;
-    }>(`/challenges/rewards/${encodeURIComponent(resultId)}/claim`, {
-      method: "POST",
-      token,
-    });
+    }>(token, "claimReward", { resultId }));
   },
 };
 
@@ -494,10 +463,14 @@ export type RewardedAdSessionDto = {
   placement: string;
   status: "started" | "completed" | "claimed" | "expired";
   rewardCoins: number;
+  rewardLabel?: string;
   expiresAt: string;
 };
 
 export const adsApi = {
+  challengeOffer(token: string) {
+    return request<{ eligible: boolean; available: boolean; challengeSetId: string | null; dayKey: string | null; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
+  },
   async startRewarded(placement: string, token: string) {
     const payload = await request<{ session: RewardedAdSessionDto }>(
       "/ads/rewarded/start",
@@ -564,66 +537,66 @@ export const giftsApi = {
 };
 
 export const leaderboardApi = {
-  async get(metric: LeaderboardMetric, token: string): Promise<LeaderboardPayload> {
+  async getPage(offset: number, limit: number, token: string, signal?: AbortSignal): Promise<LeaderboardPage> {
     const payload = await request<{
-      metric: string;
-      entries: {
-        rank: number;
-        userId: string;
-        name: string;
-        avatarUrl: string | null;
-        countryCode: string | null;
-        walletBalanceUnits: number;
-        coinBalance: number;
-        lifetimeEarnedUnits: number;
-      }[];
-      self: {
-        rank: number;
-        userId: string;
-        name: string;
-        avatarUrl: string | null;
-        countryCode: string | null;
-        walletBalanceUnits: number;
-        coinBalance: number;
-        lifetimeEarnedUnits: number;
-      } | null;
+      total: number;
+      offset: number;
+      limit: number;
+      leaderboards: Record<LeaderboardMetric, {
+        metric: LeaderboardMetric;
+        entries: {
+          rank: number;
+          userId: string;
+          name: string;
+          avatarUrl: string | null;
+          countryCode: string | null;
+          walletBalanceUnits: number;
+          coinBalance: number;
+          lifetimeEarnedUnits: number;
+        }[];
+        self: {
+          rank: number;
+          userId: string;
+          name: string;
+          avatarUrl: string | null;
+          countryCode: string | null;
+          walletBalanceUnits: number;
+          coinBalance: number;
+          lifetimeEarnedUnits: number;
+        } | null;
+      }>;
     }>(
-      `/leaderboard?metric=${encodeURIComponent(metric)}&limit=50`,
-      { token },
+      `/leaderboard?metric=all&limit=${limit}&offset=${offset}`,
+      { token, signal },
     );
-    const valueOf = (entry: { walletBalanceUnits: number; coinBalance: number }) =>
-      metric === "coins" ? entry.coinBalance : entry.walletBalanceUnits;
-    const entries: LeaderboardPayload["entries"] = payload.entries.map((entry) => ({
-      rank: entry.rank,
-      userId: entry.userId,
-      name: entry.name,
-      avatarUrl: entry.avatarUrl,
-      countryCode: entry.countryCode,
-      value: valueOf(entry),
-      walletBalanceUnits: entry.walletBalanceUnits,
-      coinBalance: entry.coinBalance,
-      isCurrentUser: entry.userId === payload.self?.userId,
-    }));
-    const me: LeaderboardPayload["me"] = payload.self
-      ? {
-          rank: payload.self.rank,
-          userId: payload.self.userId,
-          name: payload.self.name,
-          avatarUrl: payload.self.avatarUrl,
-          countryCode: payload.self.countryCode,
-          value: valueOf(payload.self),
-          walletBalanceUnits: payload.self.walletBalanceUnits,
-          coinBalance: payload.self.coinBalance,
-          isCurrentUser: true,
-        }
-      : null;
-    const entriesWithSelf = me && !entries.some((entry) => entry.userId === me.userId)
-      ? [...entries, me]
-      : entries;
+    const leaderboards = Object.fromEntries(
+      (Object.keys(payload.leaderboards) as LeaderboardMetric[]).map((metric) => {
+        const source = payload.leaderboards[metric];
+        const valueOf = (entry: { walletBalanceUnits: number; coinBalance: number }) =>
+          metric === "coins" ? entry.coinBalance : entry.walletBalanceUnits;
+        const mapEntry = (entry: (typeof source.entries)[number]) => ({
+          rank: entry.rank,
+          userId: entry.userId,
+          name: entry.name,
+          avatarUrl: entry.avatarUrl,
+          countryCode: entry.countryCode,
+          value: valueOf(entry),
+          walletBalanceUnits: entry.walletBalanceUnits,
+          coinBalance: entry.coinBalance,
+          isCurrentUser: entry.userId === source.self?.userId,
+        });
+        return [metric, {
+          metric,
+          entries: source.entries.map(mapEntry),
+          me: source.self ? { ...mapEntry(source.self), isCurrentUser: true } : null,
+        } satisfies LeaderboardPayload];
+      }),
+    ) as LeaderboardPage["leaderboards"];
     return {
-      metric,
-      entries: entriesWithSelf,
-      me,
+      total: payload.total,
+      offset: payload.offset,
+      limit: payload.limit,
+      leaderboards,
     };
   },
 };
@@ -755,7 +728,38 @@ export type AdminBlockedDevice = {
   users: { id: string; name: string; email: string }[];
 };
 
+export type AdminPrizePlan = {
+  dayKey: string; mode: "automatic" | "manual"; revision: number; locked: boolean;
+  prizePoolUnits: number; allocatedUnits: number; remainingUnits: number;
+  participants: { userId: string; name: string; rank: number; totalCoins: number; cashUnits: number }[];
+};
+
+export type AdminWithdrawal = {
+  id: string; user: { id: string; name: string; email: string | null; referralCode: string | null };
+  amountCents: number; status: string; method: string; accountLabel: string | null; cardHolder: string | null;
+  requestedAt: string; processedAt: string | null; reviewVersion: number; reviewNote: string | null;
+  paymentReference: string | null; reviewedAt: string | null;
+  reviewHistory: { action: string; adminId: string; at: string; note: string | null; paymentReference: string | null }[];
+};
+export type AdminWithdrawalPage = { withdrawals: AdminWithdrawal[]; nextCursor: string | null; summary: { status: string; count: number; amountCents: number }[] };
+
 export const adminApi = {
+ users(q:string,page:number,token:string){return request<{users:any[];total:number}>(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`,{token});},
+ editUser(id:string,input:any,token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}`,{method:"PATCH",token,body:JSON.stringify(input)});},
+ resetBalances(input:{kind:"money"|"coins";confirmation:string;reason:string;operationId:string},token:string){return request<{count:number}>("/admin/users/reset-balances",{method:"POST",token,body:JSON.stringify(input)});},
+  withdrawals(input: { status?: string; before?: string }, token: string) {
+    const params = new URLSearchParams({ limit: "20", ...(input.status ? { status: input.status } : {}), ...(input.before ? { before: input.before } : {}) });
+    return request<AdminWithdrawalPage>(`/admin/withdrawals?${params}`, { token });
+  },
+  reviewWithdrawal(id: string, input: { action: "approve" | "reject" | "mark_paid"; expectedVersion: number; note?: string; paymentReference?: string; paymentConfirmed?: boolean }, token: string) {
+    return request<{ id: string; status: string }>(`/admin/withdrawals/${encodeURIComponent(id)}/review`, { method: "POST", token, body: JSON.stringify(input) });
+  },
+  challengePrizes(dayKey: string, token: string) {
+    return request<AdminPrizePlan>(`/admin/daily-challenges/${encodeURIComponent(dayKey)}/prizes`, { token });
+  },
+  saveChallengePrizes(dayKey: string, input: { mode: "automatic" | "manual"; revision: number; prizes: { userId: string; cashUnits: number }[] }, token: string) {
+    return request<AdminPrizePlan>(`/admin/daily-challenges/${encodeURIComponent(dayKey)}/prizes`, { method: "PUT", token, body: JSON.stringify(input) });
+  },
   async games(token: string) {
     const payload = await request<{ games: AdminGame[] }>("/admin/games", {
       token,
@@ -1012,7 +1016,7 @@ export const meApi = {
   async updatePreferences(
     input: {
       language?: Language;
-      theme?: ThemeMode;
+      theme?: ThemePreference;
       notificationsEnabled?: boolean;
       dailyReminderEnabled?: boolean;
       timezone?: string;
@@ -1032,11 +1036,15 @@ export const meApi = {
 };
 
 export const devicesApi = {
+  pushConfig(token: string) {
+    return request<{ publicKey: string | null }>("/devices/push-config", { token });
+  },
   updatePreferences(
     deviceId: string,
     input: {
       platform: "android" | "ios" | "web";
-      pushToken: string | null;
+      pushToken?: string | null;
+      webPush?: { endpoint: string; keys: { p256dh: string; auth: string } } | null;
       notificationsEnabled: boolean;
       dailyReminderEnabled: boolean;
       reminderTime: string;

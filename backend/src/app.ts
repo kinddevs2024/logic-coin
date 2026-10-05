@@ -1,4 +1,5 @@
 import express from "express";
+import { legacyThemeCompatibility } from "./middleware/legacy-theme.js";
 import cors from "cors";
 import helmet from "helmet";
 import { API_PREFIX } from "./config/constants.js";
@@ -60,6 +61,7 @@ app.use(express.json({ limit: "14mb" }));
 app.use(globalLimiter);
 
 const api = express.Router();
+api.use(legacyThemeCompatibility);
 api.use("/health", healthRoutes);
 api.use("/share", shareRoutes);
 api.use(requireDatabase);

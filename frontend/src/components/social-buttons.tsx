@@ -59,6 +59,7 @@ export function SocialButtons({
   const { t } = useTranslation();
   const router = useRouter();
   const authenticate = useAppStore((state) => state.authenticate);
+  const postAuthLanguageUserId = useAppStore((state) => state.postAuthLanguageUserId);
   const [busy, setBusy] = useState<"google" | "telegram" | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleInFlightRef = useRef(false);
@@ -74,8 +75,13 @@ export function SocialButtons({
       refreshToken: result.tokens.refreshToken,
       balanceUnits: result.user.wallet?.availableUnits,
     });
-    router.replace("/(tabs)");
-  }, [authenticate, onAuthenticated, router]);
+    const destination = result.user.role === "admin"
+      ? "/admin"
+      : !result.user.countryCode
+        ? postAuthLanguageUserId === result.user.id ? "/country" : "/language"
+        : "/(tabs)";
+    router.replace(destination as never);
+  }, [authenticate, onAuthenticated, postAuthLanguageUserId, router]);
 
   useEffect(() => {
     if (!telegramFlow) return;

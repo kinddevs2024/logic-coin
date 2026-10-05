@@ -4,13 +4,15 @@ import { Platform } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
+import { acknowledgeSavingsCash, observeSavingsCash, type SavingsCashSnapshot } from "@/lib/savings-cash-animation";
+
 import type {
   AuthMode,
   BootstrapPayload,
   Language,
   User,
 } from "@/types";
-import type { ThemeMode } from "@/constants/theme";
+import type { ThemePreference } from "@/constants/theme";
 
 export type RememberedWithdrawalCard = {
   brand: "visa" | "mastercard" | "other";
@@ -22,6 +24,7 @@ export type RememberedWithdrawalCard = {
 type AppState = {
   hydrated: boolean;
   language: Language | null;
+  postAuthLanguageUserId: string | null;
   onboardingDone: boolean;
   authMode: AuthMode;
   accessToken: string | null;
@@ -30,6 +33,9 @@ type AppState = {
   pendingPasswordSetupToken: string | null;
   user: User;
   balanceUnits: number;
+  savingsCash: SavingsCashSnapshot | null;
+  cashBalanceReady: boolean;
+  acknowledgeSavingsCash: (accountId: string, eventId: number) => void;
   coinBalance: number;
   rememberedWithdrawalCard: RememberedWithdrawalCard | null;
   todayChallengesCompleted: number;
@@ -41,7 +47,7 @@ type AppState = {
   goalUnits: number;
   streak: number;
   activeDays: number;
-  theme: ThemeMode;
+  theme: ThemePreference;
   notificationsEnabled: boolean;
   notificationTime: string;
   taskCounts: Record<string, number>;
@@ -49,6 +55,7 @@ type AppState = {
   latestReward: { amount: number; id: number } | null;
   setHydrated: (hydrated: boolean) => void;
   setLanguage: (language: Language) => void;
+  setPostAuthLanguageUserId: (userId: string | null) => void;
   finishOnboarding: () => void;
   setPendingRegistrationToken: (token: string | null) => void;
   setPendingPasswordSetupToken: (token: string | null) => void;
@@ -72,7 +79,7 @@ type AppState = {
   applyGuestChallengeDouble: (scope: "game" | "day", firstGameKey?: string) => number;
   clearLatestReward: () => void;
   setGoal: (units: number) => void;
-  setTheme: (theme: ThemeMode) => void;
+  setTheme: (theme: ThemePreference) => void;
   setNotifications: (enabled: boolean) => void;
   setNotificationTime: (time: string) => void;
   updateUser: (input: Partial<User>) => void;
@@ -106,6 +113,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       hydrated: false,
       language: null,
+      postAuthLanguageUserId: null,
       onboardingDone: false,
       authMode: null,
       accessToken: null,
@@ -114,6 +122,11 @@ export const useAppStore = create<AppState>()(
       pendingPasswordSetupToken: null,
       user: { name: "Alex" },
       balanceUnits: 640,
+      savingsCash: null,
+      cashBalanceReady: false,
+      acknowledgeSavingsCash: (accountId, eventId) => set((state) => ({
+        savingsCash: acknowledgeSavingsCash(state.savingsCash, accountId, eventId),
+      })),
       coinBalance: 0,
       rememberedWithdrawalCard: null,
       todayChallengesCompleted: 0,
@@ -125,7 +138,7 @@ export const useAppStore = create<AppState>()(
       goalUnits: 1000,
       streak: 8,
       activeDays: 34,
-      theme: "light",
+      theme: "auto",
       notificationsEnabled: true,
       notificationTime: "19:00",
       taskCounts: {},
@@ -133,6 +146,7 @@ export const useAppStore = create<AppState>()(
       latestReward: null,
       setHydrated: (hydrated) => set({ hydrated }),
       setLanguage: (language) => set({ language }),
+      setPostAuthLanguageUserId: (postAuthLanguageUserId) => set({ postAuthLanguageUserId }),
       finishOnboarding: () => set({ onboardingDone: true }),
       setPendingRegistrationToken: (pendingRegistrationToken) =>
         set({ pendingRegistrationToken }),
@@ -141,6 +155,7 @@ export const useAppStore = create<AppState>()(
       continueAsGuest: () =>
         set({
           authMode: "guest",
+          cashBalanceReady: false,
           user: { name: "Alex", referralCode: "LOGIC-7Q2M" },
         }),
       authenticate: ({ user, accessToken, refreshToken, balanceUnits }) =>
@@ -152,11 +167,15 @@ export const useAppStore = create<AppState>()(
           pendingRegistrationToken: null,
           pendingPasswordSetupToken: null,
           balanceUnits: balanceUnits ?? state.balanceUnits,
+          cashBalanceReady: balanceUnits !== undefined && Number.isFinite(balanceUnits),
+          savingsCash: observeSavingsCash(state.savingsCash, user.id, balanceUnits),
         })),
       syncBootstrap: (payload) =>
-        set({
+        set((state) => ({
           user: payload.user,
           balanceUnits: payload.user.wallet.availableUnits,
+          cashBalanceReady: true,
+          savingsCash: observeSavingsCash(state.savingsCash, payload.user.id, payload.user.wallet.availableUnits),
           coinBalance:
             payload.todayChallenges?.coins.balance ??
             payload.user.coins?.balance ??
@@ -177,10 +196,11 @@ export const useAppStore = create<AppState>()(
           notificationsEnabled:
             payload.user.preferences.notificationsEnabled &&
             payload.user.preferences.dailyReminderEnabled,
-        }),
+        })),
       logout: () =>
         set({
           authMode: null,
+          cashBalanceReady: false,
           accessToken: null,
           refreshToken: null,
           pendingRegistrationToken: null,
@@ -205,6 +225,7 @@ export const useAppStore = create<AppState>()(
           const rewardEventId = state.rewardEventId + 1;
           return {
             balanceUnits: state.balanceUnits + units,
+            savingsCash: observeSavingsCash(state.savingsCash, state.authMode === "authenticated" ? state.user.id : undefined, state.balanceUnits + units),
             rewardEventId,
             latestReward: { amount: units, id: rewardEventId },
             taskCounts: {
@@ -220,6 +241,7 @@ export const useAppStore = create<AppState>()(
           const rewardEventId = state.rewardEventId + 1;
           return {
             balanceUnits: state.balanceUnits + safeUnits,
+            savingsCash: observeSavingsCash(state.savingsCash, state.authMode === "authenticated" ? state.user.id : undefined, state.balanceUnits + safeUnits),
             rewardEventId,
             latestReward: { amount: safeUnits, id: rewardEventId },
             taskCounts: {
@@ -228,7 +250,11 @@ export const useAppStore = create<AppState>()(
             },
           };
         }),
-      setBalance: (balanceUnits) => set({ balanceUnits }),
+      setBalance: (balanceUnits) => set((state) => ({
+        balanceUnits,
+        cashBalanceReady: Number.isFinite(balanceUnits),
+        savingsCash: observeSavingsCash(state.savingsCash, state.authMode === "authenticated" ? state.user.id : undefined, balanceUnits),
+      })),
       setCoinBalance: (coinBalance) => set({ coinBalance: Math.max(0, Math.round(coinBalance)) }),
       setRememberedWithdrawalCard: (rememberedWithdrawalCard) => set({ rememberedWithdrawalCard }),
       setTodayChallengeProgress: (todayChallengesCompleted, todayChallengesTotal) =>
@@ -296,7 +322,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "logic-coin-state-v1",
-      version: 2,
+      version: 3,
       migrate: (persistedState) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as AppState;
@@ -304,12 +330,18 @@ export const useAppStore = create<AppState>()(
         const next = { ...(persistedState as Record<string, unknown>) };
         delete next.selectedPiggy;
         delete next.selectPiggy;
+        // Preserve the last real balance on upgrade to detect offline credits.
+        const old = next as Partial<AppState>;
+        next.savingsCash = old.savingsCash ?? observeSavingsCash(null,
+          old.authMode === "authenticated" ? old.user?.id : undefined, old.balanceUnits);
+        next.cashBalanceReady = false;
         return next as AppState;
       },
       storage: createJSONStorage(() => secureStorage),
       skipHydration: Platform.OS === "web",
       partialize: ({
         hydrated: _hydrated,
+        cashBalanceReady: _cashBalanceReady,
         rewardEventId: _rewardEventId,
         latestReward: _latestReward,
         ...state

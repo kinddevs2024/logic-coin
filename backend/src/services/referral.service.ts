@@ -37,7 +37,7 @@ export async function getReferralOverview(userId: Types.ObjectId) {
     verifiedInvitedCount: friends.filter((friend) => Boolean(friend.emailVerifiedAt)).length,
     earnedUnits,
     earnedCents: unitsToCents(earnedUnits),
-    signupRewardUnits: env.REFERRAL_SIGNUP_REWARD_UNITS,
+    signupRewardUnits: 0,
     friends: friends.map((friend) => ({
       id: friend._id.toString(),
       name: friend.name,

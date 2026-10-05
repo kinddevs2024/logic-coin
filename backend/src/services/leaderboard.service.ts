@@ -88,11 +88,14 @@ export async function getLeaderboard(input: {
   userId: Types.ObjectId;
   metric: LeaderboardMetric;
   limit: number;
+  offset?: number;
 }) {
+  const offset = input.offset ?? 0;
   const [users, self, total] = await Promise.all([
     User.find()
       .select("name avatarUrl countryCode wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
       .sort(sortFor(input.metric))
+      .skip(offset)
       .limit(input.limit)
       .lean<LeanUser[]>(),
     User.findById(input.userId)
@@ -107,7 +110,51 @@ export async function getLeaderboard(input: {
   return {
     metric: input.metric,
     total,
-    entries: users.map((user, index) => serializeEntry(user, index + 1)),
+    offset,
+    entries: users.map((user, index) => serializeEntry(user, offset + index + 1)),
     self: serializeEntry(self, selfRank)
+  };
+}
+
+export async function getLeaderboards(input: {
+  userId: Types.ObjectId;
+  limit: number;
+  offset: number;
+}) {
+  const metrics: LeaderboardMetric[] = ["wealth", "wallet", "coins"];
+  const [self, total] = await Promise.all([
+    User.findById(input.userId)
+      .select("name avatarUrl countryCode wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
+      .lean<LeanUser | null>(),
+    User.countDocuments(),
+  ]);
+  if (!self) {
+    throw new ApiError(404, "user_not_found", "User not found");
+  }
+  const results = await Promise.all(metrics.map(async (metric) => {
+    const [users, selfRank] = await Promise.all([
+      User.find()
+        .select("name avatarUrl countryCode wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
+        .sort(sortFor(metric))
+        .skip(input.offset)
+        .limit(input.limit)
+        .lean<LeanUser[]>(),
+      User.countDocuments(aheadFilter(self, metric)),
+    ]);
+    return {
+      metric,
+      total,
+      offset: input.offset,
+      entries: users.map((user, index) => serializeEntry(user, input.offset + index + 1)),
+      self: serializeEntry(self, selfRank + 1),
+    };
+  }));
+  return {
+    total,
+    offset: input.offset,
+    limit: input.limit,
+    leaderboards: Object.fromEntries(
+      results.map((result) => [result.metric, result]),
+    ) as Record<LeaderboardMetric, (typeof results)[number]>,
   };
 }

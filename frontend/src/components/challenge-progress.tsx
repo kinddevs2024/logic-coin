@@ -15,9 +15,9 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const copy = {
-  ru: { completed: "пройдено", hint: "Сумма по текущему месту. Приз будет определён после завершения челленджа. Для получения приза необходимо участвовать в челлендже.", you: "Вы", login: "Войдите, чтобы увидеть рейтинг", retry: "Обновить рейтинг", close: "Закрыть", info: "О денежном призе" },
-  en: { completed: "completed", hint: "Based on your current rank. The final prize is determined when the challenge ends. You must participate in the challenge to earn a prize.", you: "You", login: "Sign in to see the ranking", retry: "Refresh ranking", close: "Close", info: "About the cash prize" },
-  uz: { completed: "bajarildi", hint: "Joriy o‘ringa asoslangan. Yakuniy mukofot sinov tugagach aniqlanadi. Mukofot uchun sinovda qatnashish kerak.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Pul mukofoti haqida" },
+  ru: { completed: "пройдено", hint: "Здесь показан общий призовой фонд челленджа за этот день, а не ваш заработок. После завершения челленджа фонд распределяется между участниками по результатам или назначениям администратора.", you: "Вы", login: "Войдите, чтобы увидеть рейтинг", retry: "Обновить рейтинг", close: "Закрыть", info: "О призовом фонде" },
+  en: { completed: "completed", hint: "This is the total prize pool for this day’s challenge, not your earnings. After the challenge ends, prizes are allocated by results or the administrator’s assignments.", you: "You", login: "Sign in to see the ranking", retry: "Refresh ranking", close: "Close", info: "About the prize pool" },
+  uz: { completed: "bajarildi", hint: "Bu sizning daromadingiz emas, shu kunning sinovi uchun umumiy mukofot jamg‘armasi. Sinov tugagach mukofotlar natijalar yoki administrator belgilagan summalar bo‘yicha taqsimlanadi.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Mukofot jamg‘armasi haqida" },
 };
 type Cursor = { snapshot: string; offset: number; end?: number };
 const ROW = 46;
@@ -121,9 +121,9 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
       </View>
       <View style={styles.money}>
         <Ionicons name="cash-outline" size={19} color={String(theme.primary)} />
-        <AppText variant="heading" style={{ flexShrink: 1 }}>{progress ? formatMoney(progress.projectedCashUnits) : "—"}</AppText>
+        <AppText variant="heading" style={{ flexShrink: 1 }}>{today?.prizes ? formatMoney(today.prizes.poolUnits) : "—"}</AppText>
         <Pressable accessibilityRole="button" accessibilityLabel={c.info} hitSlop={8} onPress={() => setInfo(true)} style={styles.infoButton}>
-          <Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} />
+          <Ionicons name="help-circle-outline" size={20} color={String(theme.textMuted)} />
         </Pressable>
       </View>
       <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>

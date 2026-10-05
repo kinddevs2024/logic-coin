@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import { devicesApi } from "@/lib/api";
 import { getDeviceId } from "@/lib/device-id";
 import type { Language } from "@/types";
+import { setPushStatus } from "@/lib/push-status";
 
 const contentByLanguage: Record<
   Language,
@@ -38,11 +39,6 @@ export async function configureDailyReminder(
     return true;
   }
 
-  const permission = await Notifications.requestPermissionsAsync();
-  if (permission.status !== "granted") {
-    return false;
-  }
-
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("daily-reminders", {
       name: "Daily reminders",
@@ -51,6 +47,9 @@ export async function configureDailyReminder(
       lightColor: "#0866FF",
     });
   }
+
+  const permission = await Notifications.getPermissionsAsync();
+  if (permission.status !== "granted") return false;
 
   const [hour, minute] = time.split(":").map(Number);
   await Notifications.scheduleNotificationAsync({
@@ -79,46 +78,55 @@ function currentTimeZone() {
 
 /**
  * Keeps the server's Expo token in sync with the user's notification choice.
- * Web keeps its own service-worker path; only native devices receive Expo push.
+ * Browser registration is implemented in notifications.web.ts.
  */
 export async function syncPushNotifications(input: {
   accessToken: string;
   enabled: boolean;
   reminderTime: string;
+  requestPermission?: boolean;
 }) {
   if (Platform.OS === "web") return false;
 
   const deviceId = await getDeviceId();
   const Notifications = await import("expo-notifications");
-  let pushToken: string | null = null;
+  // Undefined preserves an existing token on transient network/provider failure.
+  let pushToken: string | null | undefined = input.enabled ? undefined : null;
 
   if (input.enabled) {
     try {
-      const permission = await Notifications.getPermissionsAsync();
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("messages", { name: "Logic Coin", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 180, 100, 180], lightColor: "#0866FF" });
+      }
+      let permission = await Notifications.getPermissionsAsync();
+      if (permission.status !== "granted" && input.requestPermission) permission = await Notifications.requestPermissionsAsync();
       if (permission.status === "granted") {
         const Constants = (await import("expo-constants")).default;
         const projectId =
           Constants.easConfig?.projectId ??
           Constants.expoConfig?.extra?.eas?.projectId ??
           process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
-        const response = await Notifications.getExpoPushTokenAsync(
-          projectId ? { projectId } : undefined,
-        );
-        pushToken = response.data || null;
+        if (!projectId) { setPushStatus("setup_required"); }
+        else {
+          const response = await Notifications.getExpoPushTokenAsync({ projectId });
+          pushToken = response.data || undefined;
+          if (!pushToken) setPushStatus("error");
+        }
+      } else {
+        pushToken = null;
+        setPushStatus(permission.canAskAgain ? "permission" : "denied");
       }
     } catch {
-      // A token is not available in simulators and unconfigured development builds.
-      // The server still receives `null`, preventing delivery to a stale device token.
-      pushToken = null;
+      setPushStatus("error");
     }
-  }
+  } else setPushStatus("disabled");
 
   await devicesApi.updatePreferences(
     deviceId,
     {
       platform: platformForDevice(),
       pushToken,
-      notificationsEnabled: input.enabled && Boolean(pushToken),
+      notificationsEnabled: input.enabled && pushToken !== null,
       dailyReminderEnabled: input.enabled,
       reminderTime: input.reminderTime,
       timezone: currentTimeZone(),
@@ -126,5 +134,17 @@ export async function syncPushNotifications(input: {
     input.accessToken,
   );
 
+  if (pushToken) setPushStatus("ready");
   return Boolean(pushToken);
+}
+
+export async function installNotificationHandlers(onOpen: () => void, onTokenChange: () => void) {
+  const Notifications = await import("expo-notifications");
+  Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }) });
+  const response = Notifications.addNotificationResponseReceivedListener(onOpen);
+  const tokens = Notifications.addPushTokenListener(onTokenChange);
+  if (await Notifications.getLastNotificationResponseAsync()) {
+    onOpen(); await Notifications.clearLastNotificationResponseAsync();
+  }
+  return () => { response.remove(); tokens.remove(); };
 }

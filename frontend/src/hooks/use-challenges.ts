@@ -6,7 +6,8 @@ import { Platform } from "react-native";
 import { demoTodayGames } from "@/constants/games";
 import { gameCoinReward } from "@/games/rewards";
 import { useTranslation } from "@/hooks/use-translation";
-import { challengesApi } from "@/lib/api";
+import { bootstrapApi, challengesApi } from "@/lib/api";
+import { liveCommand, subscribeToChallengeUpdates } from "@/lib/challenge-live-updates";
 import { localDayKey } from "@/lib/date";
 import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
 import { useAppStore } from "@/store/app-store";
@@ -82,15 +83,31 @@ export function useChallenges() {
 
   const query = useQuery({
     queryKey: ["challenges", "today", accessToken],
-    queryFn: () => challengesApi.today(accessToken!),
-    // All four tabs stay mounted. Only the visible native screen should poll;
-    // every observer still receives the same shared cache when it opens.
+    queryFn: async ({ signal }) => {
+      const queryKey = ["challenges", "today", accessToken] as const;
+      if (!queryClient.getQueryData<TodayChallenges>(queryKey)) {
+        const bootstrap = await queryClient.ensureQueryData({
+          queryKey: ["bootstrap", accessToken],
+          queryFn: () => bootstrapApi.get(accessToken!),
+          staleTime: Infinity,
+        });
+        if (bootstrap.todayChallenges) return bootstrap.todayChallenges;
+      }
+      return liveCommand<TodayChallenges>(accessToken!, "today");
+    },
     enabled: authenticated,
-    subscribed: Platform.OS === "web" || focused,
-    staleTime: 15_000,
-    refetchInterval: 15_000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: 1,
   });
+
+  useEffect(() => {
+    if (!authenticated || !accessToken) return;
+    return subscribeToChallengeUpdates(accessToken, (state) => {
+      if (state.today) queryClient.setQueryData(["challenges", "today", accessToken], state.today);
+    });
+  }, [accessToken, authenticated, queryClient]);
 
   const guestToday = useMemo(
     () => buildGuestToday(language, results, gameDoubled, dayDoubled, coinBalance),
@@ -130,7 +147,7 @@ export function useChallenges() {
       };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["challenges"] });
+      void queryClient.invalidateQueries({ queryKey: ["challenges", "today", accessToken] });
     },
   });
 
@@ -149,7 +166,7 @@ export function useChallenges() {
     },
     onSuccess: (result) => {
       if (result.coins) setCoinBalance(result.coins.balance);
-      void queryClient.invalidateQueries({ queryKey: ["challenges"] });
+      void queryClient.invalidateQueries({ queryKey: ["challenges", "today", accessToken] });
     },
   });
 
@@ -173,7 +190,7 @@ export function useChallenges() {
     },
     onSuccess: (result) => {
       if (result.coins) setCoinBalance(result.coins.balance);
-      void queryClient.invalidateQueries({ queryKey: ["challenges"] });
+      void queryClient.invalidateQueries({ queryKey: ["challenges", "today", accessToken] });
     },
   });
 

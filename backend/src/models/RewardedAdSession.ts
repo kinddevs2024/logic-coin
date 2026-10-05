@@ -6,7 +6,8 @@ export const REWARDED_AD_PLACEMENTS = [
   "challenge-third-game",
   "challenge-day-complete",
   "navigation-frequency",
-  "practice-replay"
+  "practice-replay",
+  "fortune-wheel"
 ] as const;
 
 const rewardedAdSessionSchema = new Schema(
@@ -22,6 +23,8 @@ const rewardedAdSessionSchema = new Schema(
       required: true
     },
     rewardCoins: { type: Number, min: 0, max: 1_000, default: 0, required: true },
+    rewardLabel: { type: String, maxlength: 40 },
+    challengeSetId: { type: Schema.Types.ObjectId, ref: "DailyChallengeSet" },
     clientReceiptId: { type: String, maxlength: 180 },
     impressionId: { type: String, maxlength: 180 },
     completedAt: { type: Date },

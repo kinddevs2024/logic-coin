@@ -4,6 +4,7 @@ import {
   type RewardedAdPlacement,
   type RewardedAdReceipt,
 } from "@/lib/rewarded-ad";
+import type { RewardedAdSessionDto } from "@/lib/api";
 
 const S2S_POLL_DELAYS_MS = [350, 700, 1_200, 2_000, 3_000];
 
@@ -23,10 +24,12 @@ export async function showVerifiedRewardedAd(input: {
   placement: RewardedAdPlacement;
   accessToken?: string | null;
   claimCoins?: boolean;
+  beforeShow?: (session: RewardedAdSessionDto) => Promise<void> | void;
 }): Promise<VerifiedRewardedAdResult> {
   const session = input.accessToken
     ? await adsApi.startRewarded(input.placement, input.accessToken)
     : null;
+  if (session && input.beforeShow) await input.beforeShow(session);
   const receipt = await rewardedAds.show(input.placement);
   if (!receipt.completed) {
     return { receipt, sessionId: session?.sessionId ?? null, verified: false, credited: 0 };

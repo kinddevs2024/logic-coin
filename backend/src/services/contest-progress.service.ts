@@ -62,7 +62,7 @@ export async function getContestProgress(userId: Types.ObjectId, cursor?: Progre
   const users = await User.find({ _id: { $in: rows.map(row => new Types.ObjectId(row.userId)) } }).select("name avatarUrl").lean();
   const byId = new Map(users.map(user => [user._id.toString(), user]));
   // Idle accounts appear in the display, but do not change cash settlement rules.
-  const reward = snapshot.set ? contestNeighborhood(snapshot.standings, userId.toString(), snapshot.set.cashPrizeMinUnits, snapshot.set.cashPrizeMaxUnits) : null;
+  const reward = snapshot.set ? contestNeighborhood(snapshot.standings, userId.toString(), snapshot.set.cashPrizeMinUnits, snapshot.set.cashPrizeMaxUnits, snapshot.set.prizePoolUnits, snapshot.set.manualCashPrizes) : null;
   return {
     dayKey, participantCount: snapshot.ranked.length,
     self: self ? { rank: self.rank, totalCoins: self.totalCoins, completedGamesCount: self.completedGamesCount } : null,

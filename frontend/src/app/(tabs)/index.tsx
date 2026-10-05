@@ -7,6 +7,7 @@ import Svg, { Circle } from "react-native-svg";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
+import { HomeDesktopAds } from "@/components/home-desktop-ads";
 import { AppButton, IconButton } from "@/components/buttons";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
@@ -81,28 +82,29 @@ export default function HomeScreen() {
 
       {refreshing ? <AppText accessibilityLiveRegion="polite" muted>Обновляем…</AppText> : null}
 
+      <HomeDesktopAds position="top" />
       <View style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
         <View style={[styles.hero, isDesktop && styles.heroDesktop]}>
-          <SavingsScene balance={balance} goal={goal} />
-
-          <View style={styles.actions}>
-            <AppButton
-              variant="secondary"
-              icon="flash"
-              onPress={() => router.push("/challenges" as never)}
-              style={styles.action}
-            >
-              {t("home.earn")}
-            </AppButton>
-            <AppButton
-              icon="wallet"
-              onPress={() => router.push("/withdraw")}
-              glow
-              style={styles.action}
-            >
-              {t("home.withdraw")}
-            </AppButton>
-          </View>
+          <SavingsScene balance={balance} goal={goal}>
+            <View style={styles.actions}>
+              <AppButton
+                variant="secondary"
+                icon="flash"
+                onPress={() => router.push("/challenges" as never)}
+                style={styles.action}
+              >
+                {t("home.earn")}
+              </AppButton>
+              <AppButton
+                icon="wallet"
+                onPress={() => router.push("/withdraw")}
+                glow
+                style={styles.action}
+              >
+                {t("home.withdraw")}
+              </AppButton>
+            </View>
+          </SavingsScene>
         </View>
 
         <GlassSurface
@@ -175,6 +177,8 @@ export default function HomeScreen() {
         </GlassSurface>
       </View>
 
+      <HomeDesktopAds position="bottom" />
+
       <ProfileDrawer
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -204,7 +208,6 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     gap: 10,
-    marginTop: -34,
     zIndex: 12,
   },
   dashboard: {

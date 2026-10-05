@@ -134,8 +134,8 @@ export function interpolateCashPrize(
   }
   const clampedRank = Math.min(rank, cashWinners);
   return Math.round(
-    maxUnits - ((maxUnits - minUnits) * (clampedRank - 1)) / (cashWinners - 1)
-  );
+    (maxUnits - ((maxUnits - minUnits) * (clampedRank - 1)) / (cashWinners - 1)) / 50
+  ) * 50;
 }
 
 export function buildCashPrizeLadder(

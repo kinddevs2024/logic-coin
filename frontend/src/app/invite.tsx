@@ -2,6 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { InviteQr } from "@/components/invite-qr";
+import { InviteAvatarBubbles } from "@/components/invite-avatar-bubbles";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -49,29 +50,7 @@ export default function InviteScreen() {
       />
 
       <GlassSurface intensity={84} variant="strong" style={styles.hero}>
-        <View style={styles.people}>
-          {friends.slice(0, 3).map((friend, index) => (
-            <View
-              key={friend.id}
-              style={[
-                {
-                  marginLeft: index ? -12 : 0,
-                },
-              ]}
-            >
-              <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={48} />
-            </View>
-          ))}
-          <View
-            style={[
-              styles.person,
-              styles.addPerson,
-              { backgroundColor: theme.primary },
-            ]}
-          >
-            <Ionicons name="add" color={String(theme.onPrimary)} size={20} />
-          </View>
-        </View>
+        <InviteAvatarBubbles friends={friends} />
         <AppText
           variant="title"
           color={String(theme.primary)}
@@ -150,7 +129,7 @@ export default function InviteScreen() {
         </View>
         <AppText variant="caption" muted style={{ flex: 1 }}>
           15% денежного приза друга начисляются вам; от приза друга второго
-          уровня — ещё 5%. Баланс победителя не уменьшается.
+          уровня — ещё 5%. За само приглашение бонуса нет. Баланс победителя не уменьшается.
         </AppText>
       </GlassSurface>
     </AppFrame>
@@ -163,23 +142,6 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: "center",
     gap: 8,
-  },
-  people: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  person: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addPerson: {
-    marginLeft: -12,
   },
   codeCard: {
     marginTop: 16,

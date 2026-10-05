@@ -35,7 +35,13 @@ export default function SetPasswordScreen() {
         refreshToken: result.tokens.refreshToken,
         balanceUnits: result.user.wallet?.availableUnits,
       });
-      router.replace(result.user.role === "admin" ? "/admin" : "/(tabs)");
+      const setupUserId = useAppStore.getState().postAuthLanguageUserId;
+      const destination = result.user.role === "admin"
+        ? "/admin"
+        : !result.user.countryCode
+          ? setupUserId === result.user.id ? "/country" : "/language"
+          : "/(tabs)";
+      router.replace(destination as never);
     },
   });
 

@@ -8,21 +8,8 @@
   --font-serif: Georgia, 'Times New Roman', serif;
 }
 
-@font-face {
-  font-family: "Ionicons";
-  src: url("/fonts/Ionicons.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-}
-
-@font-face {
-  font-family: "MaterialCommunityIcons";
-  src: url("/fonts/MaterialCommunityIcons.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-}
+/* Expo vector-icons registers its hashed fonts on demand. A second @font-face
+   with a different URL downloads the same font twice on a cold visit. */
 
 html,
 body,

@@ -7,7 +7,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AppState, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -16,10 +16,13 @@ import { AppearanceTransition } from "@/components/appearance-transition";
 import { AdRuntime } from "@/components/ad-runtime";
 import { RewardBurst } from "@/components/reward-burst";
 import { ContestRewardModal } from "@/components/contest-reward-modal";
+import { ChallengeAdOffer } from "@/components/challenge-ad-offer";
 import { WebAnalytics } from "@/components/web-analytics";
 import { useGameProgressStore } from "@/games/progress-store";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { configureDailyReminder, syncPushNotifications } from "@/lib/notifications";
+import { configureDailyReminder, syncPushNotifications, installNotificationHandlers } from "@/lib/notifications";
+import { setPushStatus } from "@/lib/push-status";
+import { NotificationInbox } from "@/components/notification-inbox";
 import { useAppStore } from "@/store/app-store";
 
 void SplashScreen.preventAutoHideAsync();
@@ -43,6 +46,24 @@ export default function RootLayout() {
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
   const language = useAppStore((state) => state.language) ?? "ru";
+  const [pushInbox, setPushInbox] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated || authMode !== "authenticated") return;
+    if (Platform.OS === "web" && new URLSearchParams(window.location.search).get("notifications") === "1") {
+      setPushInbox(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("notifications");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    }
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    void installNotificationHandlers(() => setPushInbox(true), () => {
+      const state = useAppStore.getState();
+      if (state.accessToken) void syncPushNotifications({ accessToken: state.accessToken, enabled: state.notificationsEnabled, reminderTime: state.notificationTime }).catch(() => setPushStatus("error"));
+    }).then(stop => { if (disposed) stop(); else cleanup = stop; }).catch(() => setPushStatus("error"));
+    return () => { disposed = true; cleanup?.(); };
+  }, [hydrated, authMode]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -80,19 +101,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
-    let timeout = 0;
-    const rehydrate = () => {
-      timeout = window.setTimeout(() => {
-        void useAppStore.persist.rehydrate();
-        void useGameProgressStore.persist.rehydrate();
-      }, 1500);
-    };
-    if (document.readyState === "complete") rehydrate();
-    else window.addEventListener("load", rehydrate, { once: true });
-    return () => {
-      window.removeEventListener("load", rehydrate);
-      window.clearTimeout(timeout);
-    };
+    // Restore the session as soon as React mounts. Images/fonts and third-party
+    // scripts must not hold the entire app behind window.load or a fixed timer.
+    void useAppStore.persist.rehydrate();
+    void useGameProgressStore.persist.rehydrate();
   }, []);
 
   useEffect(() => {
@@ -148,7 +160,10 @@ export default function RootLayout() {
     void navigator.serviceWorker
       .getRegistrations()
       .then(async (registrations) => {
-        await Promise.all(registrations.map((registration) => registration.unregister()));
+        await Promise.all(registrations.filter(registration => {
+          const script = registration.active?.scriptURL || registration.waiting?.scriptURL || registration.installing?.scriptURL;
+          return script && new URL(script).pathname !== "/push-sw.js";
+        }).map((registration) => registration.unregister()));
         if ("caches" in globalThis) {
           const keys = await caches.keys();
           await Promise.all(
@@ -164,7 +179,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (!hydrated || !authMode) return;
     void (async () => {
-      const localReady = await configureDailyReminder(
+      await configureDailyReminder(
         notificationsEnabled,
         notificationTime,
         language,
@@ -172,11 +187,11 @@ export default function RootLayout() {
       if (authMode === "authenticated" && accessToken) {
         await syncPushNotifications({
           accessToken,
-          enabled: notificationsEnabled && localReady,
+          enabled: notificationsEnabled,
           reminderTime: notificationTime,
         });
       }
-    })().catch(() => {});
+    })().catch(() => setPushStatus("error"));
   }, [
     accessToken,
     authMode,
@@ -203,6 +218,8 @@ export default function RootLayout() {
           <AdRuntime />
           <RewardBurst />
           <ContestRewardModal />
+          <ChallengeAdOffer />
+          {pushInbox && authMode === "authenticated" ? <NotificationInbox onClose={() => setPushInbox(false)} /> : null}
           <WebAnalytics />
         </QueryClientProvider>
       </SafeAreaProvider>

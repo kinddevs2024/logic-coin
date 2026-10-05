@@ -11,7 +11,7 @@ import { StyledInput } from "@/components/styled-input";
 import { SocialButtons } from "@/components/social-buttons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
-import { ApiError, authApi, meApi, type AuthResult } from "@/lib/api";
+import { ApiError, authApi, type AuthResult } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 type TelegramWindow = Window & {
@@ -27,8 +27,8 @@ export default function LoginScreen() {
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
-  const selectedCountryCode = useAppStore((state) => state.user.countryCode);
-  const updateUser = useAppStore((state) => state.updateUser);
+  const user = useAppStore((state) => state.user);
+  const postAuthLanguageUserId = useAppStore((state) => state.postAuthLanguageUserId);
   const setPendingRegistrationToken = useAppStore(
     (state) => state.setPendingRegistrationToken,
   );
@@ -41,6 +41,7 @@ export default function LoginScreen() {
   useEffect(() => {
     if (
       !hydrated ||
+      Boolean(params.telegram_token) ||
       authMode !== "authenticated" ||
       !accessToken ||
       redirectedAuthenticatedUser.current
@@ -49,11 +50,13 @@ export default function LoginScreen() {
     }
     redirectedAuthenticatedUser.current = true;
     const next = params.next;
-    const destination = next && next.startsWith("/") && next !== "/login"
-      ? next
-      : "/(tabs)";
+    const destination = user.role === "admin"
+      ? "/admin"
+      : !user.countryCode
+        ? postAuthLanguageUserId === user.id ? "/country" : "/language"
+        : next && next.startsWith("/") && next !== "/login" ? next : "/(tabs)";
     router.replace(destination as never);
-  }, [accessToken, authMode, hydrated, params.next, router]);
+  }, [accessToken, authMode, hydrated, params.next, params.telegram_token, postAuthLanguageUserId, router, user]);
 
   const complete = useCallback((result: AuthResult) => {
     authenticate({
@@ -62,13 +65,14 @@ export default function LoginScreen() {
       refreshToken: result.tokens.refreshToken,
       balanceUnits: result.user.wallet?.availableUnits,
     });
-    if (!result.user.countryCode && selectedCountryCode) {
-      void meApi.updateProfile({ countryCode: selectedCountryCode }, result.tokens.accessToken)
-        .then((user) => updateUser(user))
-        .catch(() => {});
-    }
-    router.replace(result.user.role === "admin" ? "/admin" : "/(tabs)");
-  }, [authenticate, router, selectedCountryCode, updateUser]);
+    const setupUserId = useAppStore.getState().postAuthLanguageUserId;
+    const destination = result.user.role === "admin"
+      ? "/admin"
+      : !result.user.countryCode
+        ? setupUserId === result.user.id ? "/country" : "/language"
+        : "/(tabs)";
+    router.replace(destination as never);
+  }, [authenticate, router]);
 
   const emailFlow = useMutation({
     mutationFn: () => authApi.startEmail(email.trim()),
@@ -105,7 +109,7 @@ export default function LoginScreen() {
   });
 
   useEffect(() => {
-    if (telegramStarted.current) return;
+    if (!hydrated || telegramStarted.current) return;
     const resumeToken = params.telegram_token;
     const webApp =
       Platform.OS === "web"
@@ -120,7 +124,7 @@ export default function LoginScreen() {
       ...(resumeToken ? { resumeToken } : {}),
       ...(!resumeToken && initData ? { initData } : {}),
     });
-  }, [params.telegram_token, telegramFlow]);
+  }, [hydrated, params.telegram_token, telegramFlow]);
 
   const error = emailFlow.error ?? passwordFlow.error ?? telegramFlow.error;
   const valid = /^\S+@\S+\.\S+$/.test(email.trim());
@@ -130,7 +134,7 @@ export default function LoginScreen() {
       ? error.message
       : t("auth.invalid");
 
-  if (!hydrated || (authMode === "authenticated" && accessToken)) {
+  if (!hydrated || (authMode === "authenticated" && accessToken && !params.telegram_token)) {
     return (
       <View style={styles.loadingScreen}>
         <ActivityIndicator color={String(theme.primary)} />

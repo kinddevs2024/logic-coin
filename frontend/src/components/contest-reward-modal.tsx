@@ -21,6 +21,7 @@ import { CountryFlagBadge } from "@/components/country-flag";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { challengesApi } from "@/lib/api";
+import { subscribeToChallengeUpdates } from "@/lib/challenge-live-updates";
 import { formatMoney } from "@/lib/format";
 import { useAppStore } from "@/store/app-store";
 import type {
@@ -127,9 +128,17 @@ export function ContestRewardModal() {
     queryKey: ["contest-reward", "pending", accessToken],
     queryFn: () => challengesApi.pendingReward(accessToken!),
     enabled: authenticated,
-    staleTime: 15_000,
-    refetchOnWindowFocus: true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
+  useEffect(() => {
+    if (!authenticated || !accessToken) return;
+    return subscribeToChallengeUpdates(accessToken, (state) => {
+      if ("reward" in state) queryClient.setQueryData(["contest-reward", "pending", accessToken], state.reward);
+      if (state.today) queryClient.setQueryData(["challenges", "today", accessToken], state.today);
+    });
+  }, [authenticated, accessToken, queryClient]);
   const reward = query.data;
   const visible = Boolean(reward);
   const result =
@@ -224,7 +233,6 @@ export function ContestRewardModal() {
       if (!finished) return;
       queryClient.setQueryData(["contest-reward", "pending", accessToken], null);
       void queryClient.invalidateQueries({ queryKey: ["gifts"] });
-      void queryClient.invalidateQueries({ queryKey: ["challenges"] });
       void queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     });
   };
@@ -317,7 +325,7 @@ export function ContestRewardModal() {
               onPress={() => claim.mutate()}
               style={({ pressed }) => [styles.claimButton, { backgroundColor: theme.primary }, pressed && styles.pressed, (claim.isPending || showResult) && styles.disabled]}
             >
-              {claim.isPending ? <ActivityIndicator color={String(theme.onPrimary)} /> : <><Ionicons name="gift" size={20} color={String(theme.onPrimary)} /><AppText color={String(theme.onPrimary)} variant="label">Забрать</AppText></>}
+              {claim.isPending ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="gift" size={20} color="#FFFFFF" /><AppText color="#FFFFFF" variant="label">Забрать</AppText></>}
             </Pressable>
             {claim.isError ? <AppText style={styles.error}>Не удалось забрать приз. Попробуйте ещё раз.</AppText> : null}
           </GlassSurface>

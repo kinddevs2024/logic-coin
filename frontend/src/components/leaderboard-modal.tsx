@@ -1,8 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -18,19 +18,21 @@ import { useReducedMotion } from "react-native-reanimated";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { CountryFlagBadge } from "@/components/country-flag";
-import { GlassBlurTargetContext, useModalBlurTarget } from "@/components/glass-blur-target";
+import { useGlassBlurTarget } from "@/components/glass-blur-target";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { leaderboardApi } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { shouldLoadLeaderboardPage } from "@/lib/leaderboard-pagination";
+import { getSelfDock, type SelfDock } from "@/lib/leaderboard-dock";
 import { useAppStore } from "@/store/app-store";
 import type { LeaderboardEntry, LeaderboardMetric } from "@/types";
 
 const copy = {
-  ru: { wealth: "Все", wallet: "Деньги", coins: "Coin", me: "Показать меня", close: "Закрыть", login: "Войти", loginHint: "Войдите, чтобы увидеть рейтинг", empty: "В рейтинге пока никого нет", error: "Не удалось загрузить рейтинг", retry: "Повторить" },
-  en: { wealth: "All", wallet: "Money", coins: "Coin", me: "Show me", close: "Close", login: "Sign in", loginHint: "Sign in to view the ranking", empty: "The ranking is empty", error: "Could not load the ranking", retry: "Try again" },
-  uz: { wealth: "Barchasi", wallet: "Pul", coins: "Coin", me: "Meni ko‘rsat", close: "Yopish", login: "Kirish", loginHint: "Reytingni ko‘rish uchun kiring", empty: "Reyting hozircha bo‘sh", error: "Reyting yuklanmadi", retry: "Qayta urinish" },
+  ru: { wealth: "Все", wallet: "Деньги", coins: "Coin", me: "Мой аккаунт", close: "Закрыть", login: "Войти", loginHint: "Войдите, чтобы увидеть рейтинг", empty: "В рейтинге пока никого нет", error: "Не удалось загрузить рейтинг", retry: "Повторить", more: "Загружаем ещё…" },
+  en: { wealth: "All", wallet: "Money", coins: "Coin", me: "My account", close: "Close", login: "Sign in", loginHint: "Sign in to view the ranking", empty: "The ranking is empty", error: "Could not load the ranking", retry: "Try again", more: "Loading more…" },
+  uz: { wealth: "Barchasi", wallet: "Pul", coins: "Coin", me: "Mening akkauntim", close: "Yopish", login: "Kirish", loginHint: "Reytingni ko‘rish uchun kiring", empty: "Reyting hozircha bo‘sh", error: "Reyting yuklanmadi", retry: "Qayta urinish", more: "Yana yuklanmoqda…" },
 } as const;
 
 const metrics: LeaderboardMetric[] = ["wealth", "wallet", "coins"];
@@ -65,9 +67,9 @@ function EntryValue({ entry, metric }: { entry: LeaderboardEntry; metric: Leader
   );
 }
 
-export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }: { visible: boolean; onClose: () => void; initialMetric?: LeaderboardMetric }) {
+export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useAppTheme();
-  const blurTarget = useModalBlurTarget();
+  const blurTarget = useGlassBlurTarget();
   const router = useRouter();
   const { language } = useTranslation();
   const c = copy[language];
@@ -75,7 +77,7 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
-  const [metric, setMetric] = useState<LeaderboardMetric>(initialMetric);
+  const [metric, setMetric] = useState<LeaderboardMetric>("wealth");
   const [filtersWidth, setFiltersWidth] = useState(0);
   const [contentDirection, setContentDirection] = useState(1);
   const [translateY] = useState(() => new Animated.Value(900));
@@ -83,16 +85,70 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
   const [activeFilter] = useState(() => new Animated.Value(0));
   const [contentProgress] = useState(() => new Animated.Value(1));
   const scrollRef = useRef<ScrollView>(null);
-  const meOffset = useRef<number | null>(null);
+  const meOffset = useRef<{ y: number; height: number } | null>(null);
+  const scrollY = useRef(0);
+  const viewportHeight = useRef(0);
+  const contentHeight = useRef(0);
+  const touchY = useRef<number | null>(null);
+  const nextPageInFlight = useRef(false);
+  const paginationRegion = useRef<View>(null);
   const closing = useRef(false);
-  const query = useQuery({
-    queryKey: ["leaderboard", metric, accessToken],
-    queryFn: () => leaderboardApi.get(metric, accessToken!),
+  const [selfDock, setSelfDock] = useState<SelfDock>("bottom");
+  const pageSize = 10;
+  const query = useInfiniteQuery({
+    queryKey: ["leaderboard", accessToken],
+    queryFn: ({ pageParam, signal }) => leaderboardApi.getPage(pageParam, pageSize, accessToken!, signal),
     enabled: visible && authenticated,
-    staleTime: 30_000,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.offset + lastPage.limit < lastPage.total
+        ? lastPage.offset + lastPage.limit
+        : undefined,
+    staleTime: 60_000,
+    refetchOnMount: false,
   });
-  const entries = query.data?.entries ?? [];
-  const hasMe = entries.some((entry) => entry.isCurrentUser || entry.userId === query.data?.me?.userId);
+  const pages = query.data?.pages ?? [];
+  const selectedBoard = pages[0]?.leaderboards[metric];
+  const entries = pages.flatMap((page) => page.leaderboards[metric].entries);
+  const self = selectedBoard?.me ?? null;
+
+  const requestNextPage = useCallback((
+    offset = scrollY.current,
+    height = viewportHeight.current,
+    content = contentHeight.current,
+  ) => {
+    if (!visible || !authenticated || nextPageInFlight.current || !shouldLoadLeaderboardPage({
+      offset, viewportHeight: height, contentHeight: content,
+      hasNextPage: Boolean(query.hasNextPage), fetching: query.isFetching,
+    })) return;
+    nextPageInFlight.current = true;
+    void query.fetchNextPage({ cancelRefetch: false }).finally(() => {
+      nextPageInFlight.current = false;
+    });
+  }, [visible, authenticated, query.hasNextPage, query.isFetching, query.fetchNextPage]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || !visible || !authenticated || !entries.length) return;
+    const region = paginationRegion.current as unknown as HTMLElement | null;
+    const scroller = scrollRef.current?.getScrollableNode() as HTMLElement | undefined;
+    if (!region || !scroller) return;
+    const loadFromGesture = () => requestNextPage(scroller.scrollTop, scroller.clientHeight, scroller.scrollHeight);
+    // onScroll alone never fires when the first page fits entirely.
+    const onWheel = (event: WheelEvent) => { if (event.deltaY > 0) loadFromGesture(); };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.shiftKey && ["ArrowDown", "PageDown", "End", " "].includes(event.key)) loadFromGesture();
+    };
+    region.addEventListener("wheel", onWheel, { passive: true });
+    region.addEventListener("keydown", onKeyDown);
+    return () => {
+      region.removeEventListener("wheel", onWheel);
+      region.removeEventListener("keydown", onKeyDown);
+    };
+  }, [visible, authenticated, entries.length, requestNextPage]);
+
+  const updateSelfVisibility = (offset: number, height: number) => {
+    setSelfDock(self ? getSelfDock(meOffset.current, offset, height) : null);
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -148,11 +204,6 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
 
   const close = () => closeWithAction();
 
-  const showMe = () => {
-    if (meOffset.current === null) return;
-    scrollRef.current?.scrollTo({ y: Math.max(0, meOffset.current - 8), animated: true });
-  };
-
   const signIn = () => closeWithAction(() => router.push("/login"));
 
   const selectMetric = (nextMetric: LeaderboardMetric) => {
@@ -161,6 +212,9 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
     const nextIndex = metrics.indexOf(nextMetric);
     setContentDirection(nextIndex > currentIndex ? 1 : -1);
     meOffset.current = null;
+    setSelfDock("bottom");
+    scrollY.current = 0;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
 
     Animated.spring(activeFilter, {
       toValue: nextIndex,
@@ -185,8 +239,7 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
   });
 
   return (
-    <Modal transparent visible={visible} statusBarTranslucent hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close}>
-      <GlassBlurTargetContext.Provider value={blurTarget}>
+    <Modal transparent visible={visible} statusBarTranslucent animationType="none" onRequestClose={close}>
       <View style={styles.modalRoot}>
         <Animated.View
           style={[
@@ -200,7 +253,7 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
             tint={theme.mode === "dark" ? "dark" : "light"}
             {...(Platform.OS === "android" && blurTarget
               ? {
-                  blurMethod: "dimezisBlurView" as const,
+                  blurMethod: "dimezisBlurViewSdk31Plus" as const,
                   blurTarget,
                 }
               : {})}
@@ -260,6 +313,14 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
             </View>
 
             <Animated.View
+              ref={paginationRegion}
+              onTouchStart={(event) => { touchY.current = event.nativeEvent.pageY; }}
+              onTouchMove={(event) => {
+                const nextY = event.nativeEvent.pageY;
+                if (touchY.current !== null && touchY.current - nextY > 4) requestNextPage();
+                touchY.current = nextY;
+              }}
+              onTouchEnd={() => { touchY.current = null; }}
               style={[
                 styles.content,
                 { opacity: contentProgress, transform: [{ translateX: contentTranslateX }] },
@@ -270,42 +331,74 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
                   <Ionicons name="person-circle-outline" size={38} color={String(theme.primary)} />
                   <AppText muted style={styles.stateText}>{c.loginHint}</AppText>
                   <Pressable onPress={signIn} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color={String(theme.onPrimary)} variant="label">{c.login}</AppText>
+                    <AppText color="#FFFFFF" variant="label">{c.login}</AppText>
                   </Pressable>
                 </View>
               ) : query.isLoading ? (
                 <View style={styles.state}><ActivityIndicator color={String(theme.primary)} /></View>
-              ) : query.isError ? (
+              ) : query.isError && !entries.length ? (
                 <View style={styles.state}>
                   <Ionicons name="cloud-offline-outline" size={36} color={String(theme.textMuted)} />
                   <AppText muted style={styles.stateText}>{c.error}</AppText>
                   <Pressable onPress={() => void query.refetch()} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color={String(theme.onPrimary)} variant="label">{c.retry}</AppText>
+                    <AppText color="#FFFFFF" variant="label">{c.retry}</AppText>
                   </Pressable>
                 </View>
               ) : entries.length ? (
-                <ScrollView ref={scrollRef} style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  ref={scrollRef}
+                  testID="leaderboard-scroll"
+                  onContentSizeChange={(_width, height) => { contentHeight.current = height; }}
+                  style={styles.list}
+                  contentContainerStyle={styles.listContent}
+                  showsVerticalScrollIndicator={false}
+                  scrollEventThrottle={100}
+                  onLayout={(event) => {
+                    viewportHeight.current = event.nativeEvent.layout.height;
+                    updateSelfVisibility(scrollY.current, viewportHeight.current);
+                  }}
+                  onScroll={(event) => {
+                    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                    const movingDown = contentOffset.y > scrollY.current;
+                    scrollY.current = contentOffset.y;
+                    viewportHeight.current = layoutMeasurement.height;
+                    updateSelfVisibility(contentOffset.y, layoutMeasurement.height);
+                    if (movingDown) requestNextPage(contentOffset.y, layoutMeasurement.height, contentSize.height);
+                  }}
+                >
                   {entries.map((entry) => (
                     <View
-                      key={`${entry.rank}-${entry.userId}`}
-                      onLayout={entry.isCurrentUser ? (event) => { meOffset.current = event.nativeEvent.layout.y; } : undefined}
+                      key={`${metric}-${entry.rank}-${entry.userId}`}
+                      onLayout={entry.isCurrentUser ? (event) => {
+                        meOffset.current = event.nativeEvent.layout;
+                        updateSelfVisibility(scrollY.current, viewportHeight.current);
+                      } : undefined}
                       style={[
                         styles.row,
                         entry.isCurrentUser && {
                           backgroundColor: theme.primarySoft,
                           borderColor: theme.glassBorder,
+                          opacity: selfDock ? 0 : 1,
                         },
                       ]}
                     >
                       <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F5A623" : theme.textMuted }]}>{entry.rank}</AppText>
                       <Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={38} />
                       <View style={styles.nameBlock}>
-                        <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{entry.name}</AppText>
+                        <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{entry.isCurrentUser ? `${language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: ` : ""}{entry.name}</AppText>
                         {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={15} /> : null}
                       </View>
                       <EntryValue entry={entry} metric={metric} />
                     </View>
                   ))}
+                  {query.isFetchNextPageError ? (
+                    <Pressable accessibilityRole="button" onPress={() => requestNextPage()} style={styles.moreLoading}>
+                      <AppText muted>{c.error} · {c.retry}</AppText>
+                    </Pressable>
+                  ) : null}
+                  {query.isFetchingNextPage ? (
+                    <View style={styles.moreLoading}><ActivityIndicator size="small" color={String(theme.primary)} /><AppText muted style={styles.moreText}>{c.more}</AppText></View>
+                  ) : null}
                 </ScrollView>
               ) : (
                 <View style={styles.state}>
@@ -314,17 +407,20 @@ export function LeaderboardModal({ visible, onClose, initialMetric = "wealth" }:
                 </View>
               )}
 
-              {authenticated && hasMe ? (
-                <Pressable onPress={showMe} style={[styles.meButton, { backgroundColor: theme.primary }]}>
-                  <Ionicons name="locate" size={18} color={String(theme.onPrimary)} />
-                  <AppText color={String(theme.onPrimary)} variant="label">{c.me}</AppText>
-                </Pressable>
+              {authenticated && self && selfDock ? (
+                <View style={[styles.meDock, selfDock === "top" ? { top: 10 } : { bottom: 0 }, { backgroundColor: theme.surfaceRaised }]}>
+                  <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: theme.glassBorder }]}>
+                    <AppText style={[styles.rank, { color: theme.textMuted }]}>{self.rank}</AppText>
+                    <Avatar name={self.name} avatarUrl={self.avatarUrl} size={38} />
+                    <View style={styles.nameBlock}><AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
+                    <EntryValue entry={self} metric={metric} />
+                  </View>
+                </View>
               ) : null}
             </Animated.View>
           </GlassSurface>
         </Animated.View>
       </View>
-      </GlassBlurTargetContext.Provider>
     </Modal>
   );
 }
@@ -380,8 +476,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   filterText: { fontSize: 12, lineHeight: 15, fontWeight: "800" },
-  content: { flex: 1 },
-  list: { flex: 1, marginTop: 10 },
+  content: { flex: 1, minHeight: 0 },
+  list: { flex: 1, minHeight: 0, marginTop: 10 },
   listContent: { gap: 5, paddingBottom: 6 },
   state: { flex: 1, minHeight: 220, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 24 },
   stateText: { textAlign: "center" },
@@ -393,5 +489,8 @@ const styles = StyleSheet.create({
   combinedValue: { alignItems: "flex-end", gap: 2 },
   valueLine: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 },
   valueText: { fontSize: 12, lineHeight: 15, fontWeight: "900" },
-  meButton: { minHeight: 50, borderRadius: 18, marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  moreLoading: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  moreText: { fontSize: 12, fontWeight: "700" },
+  meDock: { position: "absolute", left: 0, right: 0, borderRadius: 18, zIndex: 2 },
+  meRow: { minHeight: 54 },
 });

@@ -38,20 +38,12 @@ export default function RootHtml({ children }: { children: ReactNode }) {
         <meta name="twitter:image" content="https://www.logic-coin.online/share/logic-coin-guide-v2.jpg" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="preload" href="/fonts/Ionicons.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
-        <link rel="preload" href="/fonts/MaterialCommunityIcons.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         <ScrollViewStyleReset />
         {headNodes}
       </head>
       <body {...bodyAttributes}>
         {children}
         {bodyNodes}
-        <script
-          defer
-          src="/_vercel/insights/script.js"
-          data-sdkn="@vercel/analytics/react"
-          data-sdkv="2.0.1"
-        ></script>
         <script
           defer
           src="https://cloud.umami.is/script.js"

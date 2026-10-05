@@ -10,7 +10,8 @@ const notificationEventSchema = new Schema(
         "daily_contest_settled",
         "referral_signup",
         "admin_broadcast",
-        "new_game_available"
+        "new_game_available",
+        "gift_received"
       ],
       required: true
     },
@@ -22,7 +23,7 @@ const notificationEventSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["queued", "processing", "sent", "failed"],
+      enum: ["queued", "processing", "sent", "failed", "no_devices"],
       default: "queued",
       required: true
     },

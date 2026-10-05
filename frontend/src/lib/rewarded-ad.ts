@@ -4,11 +4,13 @@ export type RewardedAdPlacement =
   | "challenge-third-game"
   | "challenge-day-complete"
   | "navigation-frequency"
-  | "practice-replay";
+  | "practice-replay"
+  | "fortune-wheel";
 
 export type InterstitialAdPlacement =
   | "challenge-checkpoint"
-  | "navigation-frequency";
+  | "navigation-frequency"
+  | "game-complete";
 
 export type RewardedAdReceipt = {
   provider: "yandex" | "appodeal" | "demo";

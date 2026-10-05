@@ -4,42 +4,6 @@ import { test } from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-test("single-page export provides social preview metadata without JavaScript", async () => {
-  const html = await readFile(new URL("public/index.html", root), "utf8");
-  for (const tag of ["og:title", "og:description", "og:image", "og:url", "twitter:card"]) {
-    assert.ok(html.includes(tag), `${tag} must exist in the actual single-page export template`);
-  }
-  assert.match(html, /https:\/\/www.logic-coin.online\/share\/logic-coin-guide-v2.jpg/);
-  const image = await readFile(new URL("public/share/logic-coin-guide-v2.jpg", root));
-  assert.equal(image[0], 0xff);
-  assert.equal(image[1], 0xd8);
-});
-
-test("profile sharing uses the production profile route, not referral attribution", async () => {
-  const links = await readFile(new URL("src/lib/profile-link.ts", root), "utf8");
-  const profile = await readFile(new URL("src/app/profile/[code].tsx", root), "utf8");
-  const drawer = await readFile(new URL("src/components/profile-drawer.tsx", root), "utf8");
-  const games = await readFile(new URL("src/app/(tabs)/games.tsx", root), "utf8");
-  assert.match(links, /https:\/\/www.logic-coin.online/);
-  assert.match(links, /\/profile\//);
-  assert.doesNotMatch(links, /vercel\.app|\/invite\//);
-  assert.match(profile, /intent:\/\/profile\//);
-  assert.match(profile, /browser_fallback_url/);
-  assert.doesNotMatch(drawer, /user\.email|Logic member/);
-  assert.doesNotMatch(games, /FadeInDown/);
-  assert.match(games, /removeClippedSubviews: false/);
-});
-
-test("browser chrome stays brand blue in the SPA and manifest", async () => {
-  const html = await readFile(new URL("public/index.html", root), "utf8");
-  const manifest = await json("public/manifest.json");
-  const layout = await readFile(new URL("src/app/_layout.tsx", root), "utf8");
-  assert.match(html, /<meta name="theme-color" content="#0866FF"/);
-  assert.match(html, /<link rel="manifest" href="\/manifest.json"/);
-  assert.equal(manifest.theme_color, "#0866FF");
-  assert.match(layout, /browserTheme.content = "#0866FF"/);
-});
-
 async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }

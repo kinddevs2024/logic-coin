@@ -5,6 +5,7 @@ import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
 import { generateRefreshToken, hashOpaqueToken } from "../lib/crypto.js";
 import { RefreshSession } from "../models/RefreshSession.js";
+import { Device } from "../models/Device.js";
 import { assertDeviceAccess } from "./device-security.service.js";
 
 export interface SessionContext {
@@ -294,6 +295,8 @@ export async function rotateRefreshToken(refreshToken: string, context: SessionC
 }
 
 export async function revokeRefreshToken(refreshToken: string): Promise<void> {
+  const current = await RefreshSession.findOne({ tokenHash: hashOpaqueToken(refreshToken) }).select("userId deviceId").lean();
+  if (current?.deviceId) await Device.updateMany({ userId: current.userId, deviceId: current.deviceId }, { $unset: { pushToken: 1, webPush: 1 }, $set: { notificationsEnabled: false } });
   await RefreshSession.updateOne(
     { tokenHash: hashOpaqueToken(refreshToken), revokedAt: { $exists: false } },
     { $set: { revokedAt: new Date(), revokeReason: "logout" } }
@@ -301,6 +304,7 @@ export async function revokeRefreshToken(refreshToken: string): Promise<void> {
 }
 
 export async function revokeAllUserSessions(userId: Types.ObjectId): Promise<void> {
+  await Device.updateMany({ userId }, { $unset: { pushToken: 1, webPush: 1 }, $set: { notificationsEnabled: false } });
   await RefreshSession.updateMany(
     { userId, revokedAt: { $exists: false } },
     { $set: { revokedAt: new Date(), revokeReason: "logout_all" } }
@@ -308,6 +312,8 @@ export async function revokeAllUserSessions(userId: Types.ObjectId): Promise<voi
 }
 
 export async function revokeSessionById(sessionId: string, userId: Types.ObjectId): Promise<void> {
+  const current = await RefreshSession.findOne({ _id: sessionId, userId }).select("deviceId").lean();
+  if (current?.deviceId) await Device.updateMany({ userId, deviceId: current.deviceId }, { $unset: { pushToken: 1, webPush: 1 }, $set: { notificationsEnabled: false } });
   await RefreshSession.updateOne(
     { _id: sessionId, userId, revokedAt: { $exists: false } },
     { $set: { revokedAt: new Date(), revokeReason: "logout" } }

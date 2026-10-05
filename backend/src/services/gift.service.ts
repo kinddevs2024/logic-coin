@@ -2,6 +2,7 @@ import mongoose, { Types, type ClientSession } from "mongoose";
 import { ApiError } from "../lib/api-error.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { GiftItem } from "../models/GiftItem.js";
+import { NotificationEvent } from "../models/NotificationEvent.js";
 import { creditCoins } from "./coin.service.js";
 import { findActiveGameByKey } from "./game.service.js";
 
@@ -50,6 +51,10 @@ export async function grantGift(input: GrantGiftInput, session: ClientSession) {
     return { gift: existing, granted: false };
   }
   const [gift] = await GiftItem.create([input], { session });
+  await NotificationEvent.create([{
+    eventKey: `gift:${gift!._id}`, type: "gift_received", audience: "specific_users", status: "queued",
+    payload: { userIds: [input.userId.toString()], title: "Вы получили подарок", body: input.description }
+  }], { session });
   return { gift, granted: true };
 }
 

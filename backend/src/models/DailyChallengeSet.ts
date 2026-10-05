@@ -53,13 +53,25 @@ const dailyChallengeSetSchema = new Schema(
     },
     coinPrizeAmounts: {
       type: [Number],
-      default: () => [0, 0, 0, 0, 0, 0],
+      default: () => [100, 100, 100, 100, 100, 100],
       validate: {
         validator: (value: number[]) => value.length === 6 && value.every((amount) => Number.isInteger(amount) && amount >= 0),
         message: "Coin prizes must contain six non-negative integers"
       },
       required: true
     },
+    // null = automatic payouts; [] = manual mode with no cash assigned yet.
+    manualCashPrizes: {
+      type: [new Schema({
+        userId: { type: String, required: true, match: /^[a-f0-9]{24}$/ },
+        cashUnits: { type: Number, required: true, min: 0, validate: Number.isSafeInteger }
+      }, { _id: false })],
+      default: null
+    },
+    manualPrizeRevision: { type: Number, default: 0 },
+    manualPrizesUpdatedBy: { type: String },
+    manualPrizesUpdatedAt: { type: Date },
+    prizesLocked: { type: Boolean, default: false },
     publishedAt: { type: Date },
     endsAt: { type: Date },
     publishedBy: { type: Schema.Types.ObjectId, ref: "User" },

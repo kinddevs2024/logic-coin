@@ -14,16 +14,17 @@ import { ChoiceChip } from "@/components/choice-chip";
 import { GlassSwitch } from "@/components/glass-switch";
 import { GlassSurface } from "@/components/glass-surface";
 import { ScreenHeader } from "@/components/screen-header";
-import { radii, themes, type ThemeMode } from "@/constants/theme";
+import { radii, themes, type ThemePreference } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
-import { configureDailyReminder } from "@/lib/notifications";
+import { configureDailyReminder, syncPushNotifications } from "@/lib/notifications";
+import { PushNotificationsControl } from "@/components/push-notifications-control";
 import { useAppStore } from "@/store/app-store";
 import type { Language } from "@/types";
 
-const themeModes: ThemeMode[] = ["light", "sky", "dark"];
+const themeModes: ThemePreference[] = ["auto", "light", "sky", "dark"];
 const languages: Language[] = ["ru", "uz", "en"];
 const times = ["09:00", "19:00", "21:00"];
 
@@ -80,6 +81,7 @@ export default function SettingsScreen() {
   const toggleNotifications = async (enabled: boolean) => {
     setBusy(true);
     try {
+      if (accessToken) await syncPushNotifications({ accessToken, enabled, reminderTime: notificationTime, requestPermission: enabled });
       const allowed = await configureDailyReminder(
         enabled,
         notificationTime,
@@ -109,7 +111,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const changeTheme = (nextTheme: ThemeMode) => {
+  const changeTheme = (nextTheme: ThemePreference) => {
     setTheme(nextTheme);
     patchPreferences({ theme: nextTheme });
   };
@@ -166,6 +168,7 @@ export default function SettingsScreen() {
             onValueChange={(value) => void toggleNotifications(value)}
           />
         </View>
+        <PushNotificationsControl />
         <View style={[styles.divider, { backgroundColor: theme.border }]} />
         <View>
           <AppText variant="caption" muted style={{ marginBottom: 10 }}>
@@ -195,7 +198,7 @@ export default function SettingsScreen() {
         <AppText variant="heading">{t("settings.theme")}</AppText>
         <View style={styles.themeGrid}>
           {themeModes.map((themeMode) => {
-            const palette = themes[themeMode];
+            const palette = themeMode === "auto" ? theme : themes[themeMode];
             const selected = mode === themeMode;
             return (
               <Pressable

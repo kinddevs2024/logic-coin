@@ -43,12 +43,16 @@ const rawEnvSchema = z.object({
   YANDEX_CLIENT_SECRET: z.string().optional(),
   YANDEX_REDIRECT_URIS: z.string().default(""),
   UNIT_VALUE_CENTS: z.coerce.number().int().min(1).max(100).default(1),
-  MIN_WITHDRAWAL_CENTS: z.coerce.number().int().min(200).default(200),
+  MIN_WITHDRAWAL_CENTS: z.coerce.number().int().min(1_000).default(1_000),
   // Five LS = $0.05 when one unit represents one cent.
-  REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(5),
+  // Retained for old deployments; signup rewards have been discontinued.
+  REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(0),
   ADMIN_EMAILS: z.string().default(""),
   EXPO_PUSH_API_URL: z.string().url().default("https://exp.host/--/api/v2/push/send"),
   EXPO_PUSH_ACCESS_TOKEN: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+  WEB_PUSH_PUBLIC_KEY: z.string().optional(),
+  WEB_PUSH_PRIVATE_KEY: z.string().optional(),
+  WEB_PUSH_SUBJECT: z.string().default("https://www.logic-coin.online"),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().optional(),

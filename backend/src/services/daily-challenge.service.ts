@@ -62,7 +62,8 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
   );
   const gamesByKey = new Map(eligibleGames.map((game) => [game.key, game]));
   const gameIds = pickedKeys.map((key) => gamesByKey.get(key)!._id);
-  const publishedAt = new Date();
+  // Automatic challenges share fixed daily boundaries, independent of visits.
+  const { from: publishedAt, to: endsAt } = dayBoundsInTimeZone(dayKey, env.DEFAULT_TIMEZONE);
 
   const set = await DailyChallengeSet.findOneAndUpdate(
     { dayKey },
@@ -77,11 +78,11 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         cashPrizeMinUnits: DEFAULT_DAILY_PRIZE_MIN_UNITS,
         cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
-        coinPrizeAmounts: [0, 0, 0, 0, 0, 0],
+        coinPrizeAmounts: [100, 100, 100, 100, 100, 100],
         maxAttemptsPerGame: 1,
         oneSecondAttemptLimit: ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT,
         publishedAt,
-        endsAt: new Date(publishedAt.getTime() + 24 * 60 * 60 * 1_000),
+        endsAt,
         publishedBySubject: "auto-daily"
       }
     },

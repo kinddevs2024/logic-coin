@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { rewardLimiter } from "../middleware/rate-limits.js";
 import { validateBody } from "../middleware/validate.js";
 import { REWARDED_AD_PLACEMENTS } from "../models/RewardedAdSession.js";
+import { getChallengeAdOffer } from "../services/challenge-ad-offer.service.js";
 import {
   claimFirstChallengeReplay,
   claimRewardedAdCoins,
@@ -29,6 +30,11 @@ router.get("/appodeal/reward", async (request, response) => {
 });
 
 router.use(requireAuth);
+
+router.get("/rewarded/offer", async (request, response) => {
+  response.setHeader("Cache-Control", "no-store");
+  response.json({ data: await getChallengeAdOffer(request.auth!.userId) });
+});
 
 router.post(
   "/rewarded/start",

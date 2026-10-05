@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import mongoose, { type Types } from "mongoose";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
+import { appReturnUrl } from "../lib/app-return-page.js";
 import { hashOpaqueToken, opaqueTokenMatches } from "../lib/crypto.js";
 import { TelegramLoginChallenge } from "../models/TelegramLoginChallenge.js";
 import { User } from "../models/User.js";
@@ -223,7 +224,7 @@ async function resolveBotUsername(): Promise<string> {
   return cachedBotUsername;
 }
 
-export async function createTelegramLogin(referralCode?: string, deviceId?: string) {
+export async function createTelegramLogin(referralCode?: string, deviceId?: string, returnTarget: "app" | "web" = "web") {
   requireBotToken();
   await ensureTelegramWebhook();
   const flowId = randomBytes(16).toString("base64url");
@@ -233,6 +234,7 @@ export async function createTelegramLogin(referralCode?: string, deviceId?: stri
     ...(deviceId ? { deviceId } : {}),
     flowId,
     pollTokenHash: hashOpaqueToken(pollToken),
+    returnTarget,
     ...(referralCode ? { referralCode: referralCode.trim().toUpperCase() } : {}),
     expiresAt
   });
@@ -270,8 +272,16 @@ function parseStartIdentity(update: TelegramMessageUpdate): {
   };
 }
 
-async function sendBotReturnLink(chatId: string, resumeToken: string) {
-  const returnUrl = buildTelegramReturnUrl(resumeToken);
+export function telegramReturnButtons(resumeToken: string, returnTarget: "app" | "web", invited = false) {
+  if (returnTarget === "app") return [[{ text: "📱 Вернуться в приложение Logic Coin", url: appReturnUrl(env.APP_PUBLIC_URL, resumeToken) }]];
+  const browserUrl = new URL(buildTelegramReturnUrl(resumeToken));
+  browserUrl.searchParams.set("target", "web");
+  const url = browserUrl.toString();
+  const authorize = [{ text: "🔑 Авторизовать текущую сессию", url }];
+  return invited ? [authorize] : [[{ text: "🎮 Открыть Logic Coin", web_app: { url } }], authorize];
+}
+
+async function sendBotReturnLink(chatId: string, resumeToken: string, returnTarget: "app" | "web", invited = false) {
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
   await fetch(botUrl, {
     method: "POST",
@@ -288,12 +298,9 @@ async function sendBotReturnLink(chatId: string, resumeToken: string) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: "Откройте Logic Coin для продолжения:",
+      text: returnTarget === "app" ? "Вход подтверждён. Нажмите кнопку, чтобы вернуться в установленное приложение. Если Telegram блокирует открытие, вернитесь в APK вручную — вход уже подтверждён." : "Откройте Logic Coin для продолжения:",
       reply_markup: {
-        inline_keyboard: [
-          [{ text: "🎮 Открыть Logic Coin", web_app: { url: returnUrl } }],
-          [{ text: "🔑 Авторизовать текущую сессию", url: returnUrl }]
-        ]
+        inline_keyboard: telegramReturnButtons(resumeToken, returnTarget, invited)
       }
     }),
     signal: AbortSignal.timeout(5_000)
@@ -359,7 +366,7 @@ export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
     { new: true }
   );
   if (!challenge) return { accepted: true, matched: false };
-  await sendBotReturnLink(parsed.chatId, resumeToken);
+  await sendBotReturnLink(parsed.chatId, resumeToken, challenge.returnTarget === "app" ? "app" : "web", Boolean(challenge.referralCode));
   return { accepted: true, matched: true };
 }
 

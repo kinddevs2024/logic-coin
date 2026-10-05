@@ -13,6 +13,18 @@ const withdrawalSchema = new Schema(
     cardHolder: { type: String, trim: true, maxlength: 80 },
     cardExpiration: { type: String, match: /^(0[1-9]|1[0-2])\/\d{2}$/ },
     agreementVersion: { type: String, maxlength: 40 },
+    reviewVersion: { type: Number, default: 0, min: 0 },
+    reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    reviewedAt: { type: Date },
+    reviewNote: { type: String, maxlength: 400 },
+    paymentReference: { type: String, maxlength: 160 },
+    reviewHistory: { type: [new Schema({
+      action: { type: String, enum: ["approve", "reject", "mark_paid"], required: true },
+      adminId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+      at: { type: Date, required: true },
+      note: { type: String, maxlength: 400 },
+      paymentReference: { type: String, maxlength: 160 },
+    }, { _id: false })], default: [] },
     status: {
       type: String,
       enum: ["sandbox_pending", "sandbox_completed", "pending_review", "approved", "paid", "rejected"],

@@ -12,6 +12,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { adminApi, type AdminChallengeSelectionMode } from "@/lib/api";
 import { localDayKey } from "@/lib/date";
+import { ManualPrizes } from "@/components/admin/manual-prizes";
 
 type Draft = {
   selectionMode: AdminChallengeSelectionMode;
@@ -27,7 +28,7 @@ type Draft = {
 // Defaults for a new challenge day. Money values mirror the backend
 // DEFAULT_DAILY_PRIZE_* constants so a fresh day is publishable in one tap.
 function emptyDraft(): Draft {
-  return { selectionMode: "random", selected: [], minimum: "500", maximum: "10000", pool: "100000", coins: "0,0,0,0,0,0", maxAttempts: "1", oneSecondAttempts: "7" };
+  return { selectionMode: "random", selected: [], minimum: "500", maximum: "1000", pool: "1000", coins: "100,100,100,100,100,100", maxAttempts: "1", oneSecondAttempts: "7" };
 }
 
 function offsetDayKey(offset: number) {
@@ -51,6 +52,7 @@ export default function AdminChallengesScreen() {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [notice, setNotice] = useState("");
   const [confirmSettlement, setConfirmSettlement] = useState(false);
+  const [hasUnsavedPrizes, setHasUnsavedPrizes] = useState(false);
 
   const range = useMemo(() => ({ from: offsetDayKey(-30), to: offsetDayKey(7) }), []);
   const historyQuery = useQuery({
@@ -90,6 +92,7 @@ export default function AdminChallengesScreen() {
   const selectDay = (nextDayKey: string) => {
     setDayKey(nextDayKey);
     setNotice("");
+    setConfirmSettlement(false);
   };
 
   const save = useMutation({
@@ -129,11 +132,11 @@ export default function AdminChallengesScreen() {
     onError: (error) => setNotice(error instanceof Error ? error.message : "Не удалось рассчитать результаты"),
   });
 
-  const numericValues = [draft.minimum, draft.maximum, draft.pool].map(Number);
+  const poolValue = Number(draft.pool);
   const validAttempts = /^\d+$/.test(draft.maxAttempts) && Number(draft.maxAttempts) >= 1 && Number(draft.maxAttempts) <= 100;
   const coinPrizes = draft.coins.split(",").map((value) => Number(value.trim()));
   const validCoinPrizes = coinPrizes.length === 6 && coinPrizes.every((value) => Number.isInteger(value) && value >= 0);
-  const validMoney = draft.minimum !== "" && draft.maximum !== "" && draft.pool !== "" && numericValues.every((value) => Number.isFinite(value) && value >= 0) && numericValues[1] >= numericValues[0] && numericValues[2] >= numericValues[1];
+  const validMoney = draft.pool !== "" && Number.isSafeInteger(poolValue) && poolValue >= 0;
   const validGames = draft.selectionMode === "random" || draft.selected.length === 6;
   const canSave = /^\d{4}-\d{2}-\d{2}$/.test(dayKey) && validMoney && validGames && validAttempts && validCoinPrizes && !save.isPending;
 
@@ -218,10 +221,8 @@ export default function AdminChallengesScreen() {
               )}
 
               <View style={styles.moneyFields}>
-                {([[
-                  "Минимальный приз", "minimum", draft.minimum,
-                ], ["Максимальный приз", "maximum", draft.maximum], ["Призовой фонд", "pool", draft.pool]] as const).map(([label, key, value]) => (
-                  <View key={key} style={styles.moneyField}><AppText variant="caption" muted>{label}</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={value} onChangeText={(next) => updateNumber(key, next)} placeholder="0" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>LC</AppText></View></View>
+                {([["Призовой фонд (центы USD)", "pool", draft.pool]] as const).map(([label, key, value]) => (
+                  <View key={key} style={styles.moneyField}><AppText variant="caption" muted>{label}</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={value} onChangeText={(next) => updateNumber(key, next)} placeholder="0" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>¢</AppText></View></View>
                 ))}
               </View>
               <View style={styles.moneyFields}>
@@ -229,20 +230,23 @@ export default function AdminChallengesScreen() {
                 <View style={styles.moneyField}><AppText variant="caption" muted>Повторных прохождений игры</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={draft.maxAttempts} onChangeText={(value) => setDraft((current) => ({ ...current, maxAttempts: value.replace(/[^0-9]/g, "") }))} placeholder="1" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>раз</AppText></View></View>
                 <View style={styles.moneyField}><AppText variant="caption" muted>Попыток внутри «1 Секунды»</AppText><View accessibilityLabel="В челлендже всегда семь попыток" style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><AppText style={[styles.numberInput, { color: theme.text }]}>7</AppText><AppText variant="caption" muted>раз</AppText></View></View>
               </View>
-              {!validMoney && (draft.minimum || draft.maximum || draft.pool) ? <AppText variant="caption" color={String(theme.danger)}>Фонд должен покрывать максимальный приз, а максимум — минимальный.</AppText> : null}
+              <AppText variant="caption" muted>В автоматическом режиме денежные призы распределяются по рейтингу. В блоке «Призы участников» можно заменить этот расчёт ручными суммами. В обоих режимах выплаты ограничены фондом.</AppText>
+              {!validMoney && (draft.minimum || draft.maximum || draft.pool) ? <AppText variant="caption" color={String(theme.danger)}>Фонд должен быть неотрицательной целой суммой в центах.</AppText> : null}
               {notice ? <View style={[styles.notice, { backgroundColor: notice.includes("не удалось") || notice.includes("cannot") ? `${String(theme.danger)}12` : `${String(theme.success)}12` }]}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /><AppText variant="caption" style={styles.noticeCopy}>{notice}</AppText></View> : null}
 
               <View style={styles.actions}>
                 <AppButton variant="secondary" icon="save-outline" disabled={!canSave} loading={save.isPending && save.variables === false} onPress={() => save.mutate(false)} style={[styles.action, !isDesktop && styles.actionMobile]}>Сохранить</AppButton>
                 <AppButton icon="paper-plane-outline" disabled={!canSave} loading={save.isPending && save.variables === true} onPress={() => save.mutate(true)} style={[styles.action, !isDesktop && styles.actionMobile]}>Опубликовать</AppButton>
               </View>
-              {challenge?.status === "published" ? <AppButton variant="ghost" icon="trophy-outline" loading={settle.isPending} onPress={() => setConfirmSettlement(true)} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать итоги сейчас</AppButton> : null}
+              {challenge?.status === "published" ? <AppButton variant="ghost" icon="trophy-outline" disabled={hasUnsavedPrizes} loading={settle.isPending} onPress={() => setConfirmSettlement(true)} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать итоги сейчас</AppButton> : null}
+              {hasUnsavedPrizes ? <AppText muted>Сначала сохраните или отмените изменения призов.</AppText> : null}
+              {challenge ? <ManualPrizes key={dayKey} dayKey={dayKey} onDirtyChange={setHasUnsavedPrizes} /> : null}
               {confirmSettlement ? (
                 <View style={[styles.settlementConfirm, { backgroundColor: theme.primarySoft, borderColor: theme.border }]}>
-                  <View style={styles.settlementCopy}><AppText variant="label">Завершить челлендж?</AppText><AppText variant="caption" muted>Рейтинг будет зафиксирован, а деньги, подарки и coin сразу начислятся участникам.</AppText></View>
+                  <View style={styles.settlementCopy}><AppText variant="label">Завершить челлендж?</AppText><AppText variant="caption" muted>Рейтинг и сохранённые призы будут зафиксированы. Участники смогут забрать награды. Изменить суммы после расчёта нельзя.</AppText></View>
                   <View style={[styles.settlementActions, !isDesktop && styles.settlementActionsMobile]}>
                     <AppButton variant="secondary" compact onPress={() => setConfirmSettlement(false)} style={!isDesktop ? styles.actionMobile : undefined}>Отмена</AppButton>
-                    <AppButton compact icon="checkmark-circle-outline" loading={settle.isPending} onPress={() => settle.mutate()} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать</AppButton>
+                    <AppButton compact icon="checkmark-circle-outline" disabled={hasUnsavedPrizes} loading={settle.isPending} onPress={() => settle.mutate()} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать</AppButton>
                   </View>
                 </View>
               ) : null}

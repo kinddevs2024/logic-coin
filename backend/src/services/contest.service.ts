@@ -1,21 +1,16 @@
 import mongoose, { Types } from "mongoose";
 import {
-  CONTEST_CASE_PERCENT,
-  CONTEST_CASH_TOP_PERCENT,
   CONTEST_CONSOLATION_COINS,
-  CONTEST_RANDOM_PERCENT,
   CONTEST_STANDARD_CASE_KIND,
 } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import {
-  buildCashPrizeLadder,
   buildContestGiftBundle,
   buildContestRandomReward,
-  computeContestBands,
-  rankContestStandings,
   type ContestStandingInput
 } from "../lib/contest.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
+import { contestPrizePlan } from "../lib/manual-contest-prizes.js";
 import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { DailyContestResult } from "../models/DailyContestResult.js";
@@ -124,29 +119,6 @@ export async function settleDailyContest(dayKey: string) {
     throw new ApiError(409, "daily_challenge_not_published", "Daily challenge is not published");
   }
 
-  const standings = await collectContestStandings(dayKey);
-  const bands = computeContestBands(
-    standings.length,
-    CONTEST_CASH_TOP_PERCENT,
-    CONTEST_CASE_PERCENT,
-    CONTEST_RANDOM_PERCENT
-  );
-  const ranked = rankContestStandings(standings, bands);
-  const cashLadder = buildCashPrizeLadder(
-    bands.cashWinners,
-    set.cashPrizeMinUnits,
-    set.cashPrizeMaxUnits
-  );
-  const cashDistributedUnits = cashLadder.reduce((sum, amount) => sum + amount, 0);
-  if (cashDistributedUnits > set.prizePoolUnits) {
-    throw new ApiError(
-      409,
-      "prize_pool_too_small",
-      "Prize pool is smaller than the configured cash ladder",
-      { requiredUnits: cashDistributedUnits, configuredUnits: set.prizePoolUnits }
-    );
-  }
-
   const claim = await claimSettlement(dayKey);
   if (claim.alreadySettled) {
     return { settlement: claim.settlement, alreadySettled: true };
@@ -154,11 +126,24 @@ export async function settleDailyContest(dayKey: string) {
 
   const settledAt = new Date();
   const session = await mongoose.startSession();
+  let ownsPrizeLock = false;
+  let participantCount = 0;
   try {
+    // Lock the same document edited by administrators before reading payouts.
+    // A concurrent manual/budget save either completes first or is rejected.
+    const payoutSet = await DailyChallengeSet.findOneAndUpdate(
+      { _id: set._id, status: "published", prizesLocked: { $ne: true } },
+      { $set: { prizesLocked: true } }, { new: true }
+    ).lean();
+    if (!payoutSet) throw new ApiError(409, "prizes_locked", "План призов недоступен для расчёта.");
+    ownsPrizeLock = true;
+    const standings = await collectContestStandings(dayKey);
+    const { bands, ranked, distributedUnits: cashDistributedUnits } = contestPrizePlan(standings, payoutSet);
+    participantCount = bands.participantCount;
     await session.withTransaction(async () => {
       for (const standing of ranked) {
         const userId = new Types.ObjectId(standing.userId);
-        const cashUnits = standing.rewardType === "cash" ? cashLadder[standing.rank - 1]! : 0;
+        const cashUnits = standing.cashUnits;
         const box =
           standing.rewardType === "box"
             ? buildContestGiftBundle(dayKey, standing.userId)
@@ -177,7 +162,7 @@ export async function settleDailyContest(dayKey: string) {
               rank: standing.rank,
               rewardType: standing.rewardType,
               ...(standing.rewardType === "cash" ? { cashUnits } : {}),
-              coinAmount: set.coinPrizeAmounts?.[standing.rank - 1] ?? 0,
+              coinAmount: payoutSet.coinPrizeAmounts?.[standing.rank - 1] ?? 0,
               ...(standing.rewardType === "box"
                 ? {
                     caseKind: CONTEST_STANDARD_CASE_KIND,
@@ -220,7 +205,7 @@ export async function settleDailyContest(dayKey: string) {
             caseWinnersCount: bands.caseWinners,
             randomWinnersCount: bands.randomWinners,
             coinWinnersCount: bands.coinWinners,
-            prizePoolUnits: set.prizePoolUnits,
+            prizePoolUnits: payoutSet.prizePoolUnits,
             cashDistributedUnits,
             settledAt
           }
@@ -234,6 +219,9 @@ export async function settleDailyContest(dayKey: string) {
       );
     });
   } catch (error) {
+    if (ownsPrizeLock) await DailyChallengeSet.updateOne(
+      { _id: set._id, status: { $ne: "settled" } }, { $set: { prizesLocked: false } }
+    );
     await DailyContestSettlement.updateOne(
       { dayKey, status: "settling" },
       {
@@ -255,7 +243,7 @@ export async function settleDailyContest(dayKey: string) {
         type: "daily_contest_settled",
         audience: "contest_participants",
         status: "queued",
-        targetCount: bands.participantCount,
+        targetCount: participantCount,
         payload: {
           dayKey,
           title: "Итоги челленджа готовы",
@@ -268,6 +256,8 @@ export async function settleDailyContest(dayKey: string) {
   if (notificationEvent.status === "queued") {
     await dispatchNotificationEvent(notificationEvent._id);
   }
+  const { broadcastDailyChallengeUpdate } = await import("./live-updates.service.js");
+  broadcastDailyChallengeUpdate(dayKey);
 
   return {
     settlement: await DailyContestSettlement.findOne({ dayKey }),

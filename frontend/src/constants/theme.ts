@@ -1,6 +1,7 @@
 import type { ColorValue } from "react-native";
 
 export type ThemeMode = "light" | "sky" | "dark";
+export type ThemePreference = ThemeMode | "auto";
 
 export type ThemeTokens = {
   mode: ThemeMode;

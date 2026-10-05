@@ -13,7 +13,7 @@ const providerSchema = new Schema(
 const preferencesSchema = new Schema(
   {
     language: { type: String, enum: SUPPORTED_LANGUAGES, default: "ru", required: true },
-    theme: { type: String, enum: THEMES, default: "light", required: true },
+    theme: { type: String, enum: THEMES, default: "auto", required: true },
     savingsGoalCents: { type: Number, min: 0, default: 1_000, required: true },
     notificationsEnabled: { type: Boolean, default: true, required: true },
     dailyReminderEnabled: { type: Boolean, default: true, required: true },
@@ -56,6 +56,7 @@ const userSchema = new Schema(
     referralCode: { type: String, required: true, uppercase: true },
     referredBy: { type: Schema.Types.ObjectId, ref: "User" },
     referralRewardProcessedAt: { type: Date },
+    challengeAdAvailableAt: { type: Date },
     preferences: { type: preferencesSchema, required: true, default: () => ({}) },
     wallet: { type: walletSchema, required: true, default: () => ({}) },
     coins: { type: coinsSchema, required: true, default: () => ({}) },

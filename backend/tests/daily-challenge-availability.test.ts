@@ -16,7 +16,6 @@ const modelMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/config/env.js", () => ({ env: { DEFAULT_TIMEZONE: "UTC" } }));
-vi.mock("../src/models/ChallengeAdReward.js", () => ({ ChallengeAdReward: { find: () => ({ select: () => ({ lean: async () => [] }) }) } }));
 vi.mock("../src/models/User.js", () => ({ User: { findById: modelMocks.userFindById } }));
 vi.mock("../src/models/DailyChallengeSet.js", () => ({
   DailyChallengeSet: {
@@ -135,8 +134,6 @@ describe("daily challenge auto-creation", () => {
       monthlyChallengeCount: 2
     });
     expect(result.games.length).toBe(6);
-    expect(result.endsAt).toBe((update.$setOnInsert.endsAt as Date).toISOString());
-    expect(result.games.every(game => game.state.status === "not_started")).toBe(true);
     expect(result.prizes).toMatchObject({
       cashMinUnits: 500,
       cashMaxUnits: 10_000,

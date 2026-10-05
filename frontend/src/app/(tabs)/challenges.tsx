@@ -1,12 +1,13 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { ChallengeCard } from "@/components/challenge-card";
+import { ChallengeAppRequired } from "@/components/challenge-app-required";
 import { ChallengeProgress } from "@/components/challenge-progress";
 import { IconButton } from "@/components/buttons";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
@@ -53,6 +54,8 @@ export default function ChallengesScreen() {
       <Animated.View entering={FadeIn.duration(350)}>
         <ChallengeProgress today={today} />
       </Animated.View>
+
+      {Platform.OS === "web" ? <View style={{ marginTop: 16 }}><ChallengeAppRequired /></View> : null}
 
       {isLoading ? (
         <View style={styles.loading}><ActivityIndicator color={String(theme.primary)} /><AppText muted>{c.empty}</AppText></View>
