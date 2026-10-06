@@ -29,7 +29,7 @@ export function GoogleSignInButton({
 }) {
   const hostRef = useRef<View>(null);
   const { language } = useTranslation();
-  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
   const [failed, setFailed] = useState(!clientId);
   const [retry, setRetry] = useState(0);
   const callbackRef = useRef(onCredential);
