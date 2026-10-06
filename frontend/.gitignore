@@ -43,6 +43,7 @@ yarn-error.*
 !certs/update-certificate.pem
 dist-ota-*/
 dist-android-*/
+dist-web-*/
 
 # local env files
 .env*.local
