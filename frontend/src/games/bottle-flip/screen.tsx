@@ -32,7 +32,7 @@ export default function BottleFlipScreen() {
   const [sceneHeight, setSceneHeight] = useState(440);
   const trail = useRef<{ x: number; y: number; time: number }[]>([]);
   const restartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flight = useRef(new Animated.Value(0)).current; const settle = useRef(new Animated.Value(0)).current; const drag = useRef(new Animated.Value(0)).current;
+  const [flight] = useState(() => new Animated.Value(0)); const [settle] = useState(() => new Animated.Value(0)); const [drag] = useState(() => new Animated.Value(0));
   const recordScore = useGameProgressStore((state) => state.recordScore);
   const change = useCallback((value: Phase) => { mode.current = value; setPhase(value); }, []);
   const reset = useCallback(() => {
@@ -58,6 +58,8 @@ export default function BottleFlipScreen() {
       });
     });
   }, [change, drag, flight, settle, recordScore, reset]);
+  // PanResponder stores these callbacks; it does not execute them while rendering.
+  /* eslint-disable react-hooks/refs, react-hooks/purity */
   const responder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => mode.current === "ready",
     onPanResponderGrant: (_, g) => { trail.current = [{ x: g.x0, y: g.y0, time: performance.now() }]; change("dragging"); },
@@ -77,6 +79,7 @@ export default function BottleFlipScreen() {
     },
     onPanResponderTerminate: reset, onPanResponderTerminationRequest: () => false,
   }), [change, drag, reset, toss]);
+  /* eslint-enable react-hooks/refs, react-hooks/purity */
   const finalAngle = result.landed ? 360 : Math.round(result.rotation / 360) * 360 + 90;
   const airborneY = flight.interpolate({ inputRange: steps, outputRange: steps.map((t) => -4 * result.peak * t * (1 - t)) });
   const rotation = Animated.add(flight.interpolate({ inputRange: [0, 1], outputRange: [0, result.rotation] }), settle.interpolate({ inputRange: [0, 1], outputRange: [0, finalAngle - result.rotation] })).interpolate({ inputRange: [0, 1440], outputRange: ["0deg", "1440deg"] });

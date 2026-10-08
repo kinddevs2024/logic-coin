@@ -26,6 +26,7 @@ vi.mock("../src/services/notification.service.js", () => ({
   dispatchNotificationEvent: mocks.dispatchNotificationEvent
 }));
 vi.mock("../src/services/contest.service.js", () => ({
+  collectContestStandings: vi.fn().mockResolvedValue([]),
   settleExpiredDailyContests: vi.fn()
 }));
 

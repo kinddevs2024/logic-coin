@@ -119,7 +119,7 @@ export default function ProfileScreen() {
               },
               {
                 icon: "calendar-outline" as const,
-                label: "Челленджей за месяц",
+                label: "Чемпионатов за месяц",
                 value: String(monthlyChallengeCount),
                 color: String(theme.success),
               },

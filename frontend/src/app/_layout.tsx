@@ -46,12 +46,11 @@ export default function RootLayout() {
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
   const language = useAppStore((state) => state.language) ?? "ru";
-  const [pushInbox, setPushInbox] = useState(false);
+  const [pushInbox, setPushInbox] = useState(() => Platform.OS === "web" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("notifications") === "1");
 
   useEffect(() => {
     if (!hydrated || authMode !== "authenticated") return;
     if (Platform.OS === "web" && new URLSearchParams(window.location.search).get("notifications") === "1") {
-      setPushInbox(true);
       const url = new URL(window.location.href);
       url.searchParams.delete("notifications");
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);

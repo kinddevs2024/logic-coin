@@ -74,7 +74,7 @@ export function AppButton({
       ) : (
         <>
           {icon ? <Ionicons name={icon} size={19} color={foreground} /> : null}
-          <AppText variant="label" color={foreground}>
+          <AppText variant="label" color={foreground} style={{ flexShrink: 1, textAlign: "center" }}>
             {children}
           </AppText>
         </>

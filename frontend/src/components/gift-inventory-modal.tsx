@@ -48,15 +48,15 @@ function giftPresentation(gift: GiftItem) {
     return {
       icon: "cash-outline" as const,
       title: `+${gift.coinAmount ?? 0} coin`,
-      fallback: nextChallenge ? "Автоматически активируются в следующем челлендже" : "Монеты сразу поступят на баланс",
-      accessibility: nextChallenge ? `${gift.coinAmount ?? 0} coin на следующий челлендж` : `Получить ${gift.coinAmount ?? 0} coin`,
+      fallback: nextChallenge ? "Автоматически активируются в следующем чемпионате" : "Монеты сразу поступят на баланс",
+      accessibility: nextChallenge ? `${gift.coinAmount ?? 0} coin на следующий чемпионат` : `Получить ${gift.coinAmount ?? 0} coin`,
     };
   }
   if (gift.kind === "replay") {
     return {
       icon: "refresh" as const,
       title: `Повтор ×${gift.replayCount ?? 1}`,
-      fallback: "Ещё одна попытка в завершённом челлендже",
+      fallback: "Ещё одна попытка в завершённом чемпионате",
       accessibility: "Использовать подарок для повтора игры",
     };
   }
@@ -70,7 +70,7 @@ function giftPresentation(gift: GiftItem) {
 
 function giftActionLabel(gift: GiftItem, usable: boolean, context: GiftContext) {
   if (gift.status === "used") return "Готово";
-  if (gift.activationMode === "next_challenge") return "Следующий челлендж";
+  if (gift.activationMode === "next_challenge") return "Следующий чемпионат";
   if (usable) return gift.kind === "coin" ? "Получить" : "Применить";
   if (gift.kind === "replay") return "После игры";
   if (isTimeGift(gift) && !context.supportsTimeExtension) return "Игра без таймера";

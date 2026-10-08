@@ -93,8 +93,11 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
   }, [difficulty, onFinish]);
 
   useEffect(() => {
-    if (phase === "play" && elapsed >= 180_000 && !paused) finish(false, mistakes, elapsed, okTaps);
-  }, [elapsed, finish, mistakes, okTaps, paused, phase]);
+    if (phase !== "play" || elapsed < 180_000 || paused || !challengeMode) return;
+    // Run expiry as a timer callback, not a synchronous cascading effect update.
+    const timeout = setTimeout(() => finish(false, mistakes, elapsed, okTaps), 0);
+    return () => clearTimeout(timeout);
+  }, [challengeMode, elapsed, finish, mistakes, okTaps, paused, phase]);
 
   const tapNumber = useCallback((number: number) => {
     if (phase === "look") {

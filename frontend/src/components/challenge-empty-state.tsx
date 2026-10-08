@@ -7,9 +7,9 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 
 const copy = {
-  ru: { eyebrow: "Следующий челлендж", title: "Скоро новые игры", text: "Новый челлендж появится автоматически", waiting: "До запуска" },
+  ru: { eyebrow: "Следующий чемпионат", title: "Скоро новые игры", text: "Новый чемпионат появится автоматически", waiting: "До запуска" },
   en: { eyebrow: "Next challenge", title: "New games coming soon", text: "The next challenge will appear automatically", waiting: "Until launch" },
-  uz: { eyebrow: "Keyingi sinov", title: "Tez orada yangi o‘yinlar", text: "Yangi sinov avtomatik paydo bo‘ladi", waiting: "Boshlanishigacha" },
+  uz: { eyebrow: "Keyingi chempionat", title: "Tez orada yangi o‘yinlar", text: "Yangi chempionat avtomatik paydo bo‘ladi", waiting: "Boshlanishigacha" },
 } as const;
 
 function millisecondsToNextMidnight() {

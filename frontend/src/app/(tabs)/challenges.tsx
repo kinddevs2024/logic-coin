@@ -20,9 +20,9 @@ import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
 
 const copy = {
-  ru: { title: "Челленджи", daily: "Сегодня", complete: "пройдено", earned: "Заработано", empty: "Готовим игры дня", refresh: "Обновить", pool: "Призовой фонд" },
+  ru: { title: "Чемпионаты", daily: "Сегодня", complete: "пройдено", earned: "Заработано", empty: "Готовим игры дня", refresh: "Обновить", pool: "Призовой фонд" },
   en: { title: "Challenges", daily: "Today", complete: "complete", earned: "Earned", empty: "Preparing today’s games", refresh: "Refresh", pool: "Prize pool" },
-  uz: { title: "Sinovlar", daily: "Bugun", complete: "bajarildi", earned: "Yig‘ildi", empty: "Bugungi o‘yinlar tayyorlanmoqda", refresh: "Yangilash", pool: "Mukofot jamg‘armasi" },
+  uz: { title: "Chempionatlar", daily: "Bugun", complete: "bajarildi", earned: "Yig‘ildi", empty: "Bugungi o‘yinlar tayyorlanmoqda", refresh: "Yangilash", pool: "Mukofot jamg‘armasi" },
 } as const;
 
 export default function ChallengesScreen() {

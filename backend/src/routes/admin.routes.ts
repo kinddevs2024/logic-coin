@@ -27,6 +27,7 @@ import { serializeGame } from "../services/serialization.service.js";
 import { listBannedDevices, resetDevice, unbanDevice } from "../services/device-security.service.js";
 
 import adminUsersRoutes from "./admin-users.routes.js";
+import { HomeContent } from "../models/HomeContent.js";
 const router = Router();
 
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
@@ -40,6 +41,15 @@ const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 
 router.use("/withdrawals", adminWithdrawalRoutes);
 router.use(requireAuth, requireAdmin);
+const socialUrl = (host: string) => z.string().max(500).refine(value => {
+  if (!value) return true;
+  try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password && (url.hostname === host || url.hostname === `www.${host}`); } catch { return false; }
+}, "Invalid social URL");
+const homeContentSchema = z.object({ rules: z.string().max(12000), weeklyDetails: z.string().max(12000), monthlyDetails: z.string().max(12000), instagramUrl: socialUrl("instagram.com"), telegramUrl: socialUrl("t.me") }).strict();
+router.get("/home-content", async (_req, res) => { res.json({ data: await HomeContent.findOne({ key: "home" }).lean() ?? { rules: "", weeklyDetails: "", monthlyDetails: "", instagramUrl: "", telegramUrl: "" } }); });
+router.put("/home-content", validateBody(homeContentSchema), async (req, res) => {
+  res.json({ data: await HomeContent.findOneAndUpdate({ key: "home" }, { $set: req.body }, { upsert: true, new: true, runValidators: true }).lean() });
+});
 router.use("/users", adminUsersRoutes);
 
 router.get("/daily-challenges/:dayKey/prizes", async (request, response) => {
