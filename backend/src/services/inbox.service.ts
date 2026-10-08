@@ -49,13 +49,6 @@ export async function listInbox(userId: Types.ObjectId, all: boolean, before?: {
   return { items, next: rows.length > 10 && last ? { date: last.createdAt, id: last.id } : null };
 }
 
-export async function countUnreadInbox(userId: Types.ObjectId) {
-  const stages = await pipeline(userId);
-  stages.push({ $match: { read: false } }, { $count: "count" });
-  const rows = await NotificationEvent.aggregate<{ count: number }>(stages);
-  return rows[0]?.count ?? 0;
-}
-
 export async function markInboxRead(userId: Types.ObjectId, ids: string[]) {
   // Validate ownership through the same audience rules; never accept arbitrary IDs.
   const stages = await pipeline(userId);

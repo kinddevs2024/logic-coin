@@ -111,16 +111,16 @@ export default function AdminChallengesScreen() {
     onSuccess: (result, publish) => {
       setDrafts(current => { const next = { ...current }; delete next[dayKey]; return next; });
       setNotice(
-        challenge?.status === "published" ? "Изменения опубликованы. Чемпионат обновится у пользователей автоматически." : publish
+        challenge?.status === "published" ? "Изменения опубликованы. Челлендж обновится у пользователей автоматически." : publish
           ? result.notificationEvent
-            ? `Чемпионат опубликован. Уведомление создано для ${result.notificationEvent.targetCount} пользователей.`
-            : "Чемпионат опубликован. Активных устройств для уведомления пока нет."
+            ? `Челлендж опубликован. Уведомление создано для ${result.notificationEvent.targetCount} пользователей.`
+            : "Челлендж опубликован. Активных устройств для уведомления пока нет."
           : "Черновик сохранён.",
       );
       void queryClient.invalidateQueries({ queryKey: ["admin"] });
       void queryClient.invalidateQueries({ queryKey: ["challenges"] });
     },
-    onError: (error) => setNotice(error instanceof Error ? error.message : "Не удалось сохранить чемпионат"),
+    onError: (error) => setNotice(error instanceof Error ? error.message : "Не удалось сохранить челлендж"),
   });
   const settle = useMutation({
     mutationFn: () => adminApi.settle(dayKey, adminToken),
@@ -158,7 +158,7 @@ export default function AdminChallengesScreen() {
 
   return (
     <View style={styles.page}>
-      <AdminPageHeader title="Чемпионати" description="История, настройка и публикация ежедневных игр" />
+      <AdminPageHeader title="Челленджи" description="История, настройка и публикация ежедневных игр" />
       <View style={[styles.columns, isDesktop && styles.columnsDesktop]}>
         <GlassSurface intensity={68} variant="strong" style={[styles.panel, styles.historyPanel]}>
           <View style={styles.panelHeader}>
@@ -184,7 +184,7 @@ export default function AdminChallengesScreen() {
 
         <GlassSurface intensity={72} variant="strong" style={[styles.panel, styles.editorPanel]}>
           <View style={styles.panelHeader}>
-            <View><AppText variant="heading">Редактор дня</AppText><AppText variant="caption" muted>{challenge ? statusLabel(challenge.status) : "Новый чемпионат"}</AppText></View>
+            <View><AppText variant="heading">Редактор дня</AppText><AppText variant="caption" muted>{challenge ? statusLabel(challenge.status) : "Новый челлендж"}</AppText></View>
             {challenge ? <View style={[styles.statusPill, { backgroundColor: theme.primarySoft }]}><AppText style={[styles.statusText, { color: theme.primary }]}>{challenge.selectionMode === "random" ? "RANDOM" : "MANUAL"}</AppText></View> : null}
           </View>
           <AdminDataState loading={challengeQuery.isPending} error={challengeQuery.error} onRetry={() => void challengeQuery.refetch()} />
@@ -217,7 +217,7 @@ export default function AdminChallengesScreen() {
                   </View>
                 </View>
               ) : (
-                <View style={[styles.randomNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shuffle" size={21} color={String(theme.primary)} /><View style={styles.randomCopy}><AppText variant="label" color={String(theme.primary)}>Шесть игр выберет сервер</AppText><AppText variant="caption" color={String(theme.textMuted)}>Только активные игры, доступные для чемпионата</AppText></View></View>
+                <View style={[styles.randomNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shuffle" size={21} color={String(theme.primary)} /><View style={styles.randomCopy}><AppText variant="label" color={String(theme.primary)}>Шесть игр выберет сервер</AppText><AppText variant="caption" color={String(theme.textMuted)}>Только активные игры, доступные для челленджа</AppText></View></View>
               )}
 
               <View style={styles.moneyFields}>
@@ -228,7 +228,7 @@ export default function AdminChallengesScreen() {
               <View style={styles.moneyFields}>
                 <View style={styles.moneyField}><AppText variant="caption" muted>Coin по местам (1–6, через запятую)</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="numbers-and-punctuation" value={draft.coins} onChangeText={(value) => setDraft((current) => ({ ...current, coins: value }))} placeholder="100,50,25,10,5,1" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>coin</AppText></View></View>
                 <View style={styles.moneyField}><AppText variant="caption" muted>Повторных прохождений игры</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={draft.maxAttempts} onChangeText={(value) => setDraft((current) => ({ ...current, maxAttempts: value.replace(/[^0-9]/g, "") }))} placeholder="1" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>раз</AppText></View></View>
-                <View style={styles.moneyField}><AppText variant="caption" muted>Попыток внутри «1 Секунды»</AppText><View accessibilityLabel="В чемпионате всегда семь попыток" style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><AppText style={[styles.numberInput, { color: theme.text }]}>7</AppText><AppText variant="caption" muted>раз</AppText></View></View>
+                <View style={styles.moneyField}><AppText variant="caption" muted>Попыток внутри «1 Секунды»</AppText><View accessibilityLabel="В челлендже всегда семь попыток" style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><AppText style={[styles.numberInput, { color: theme.text }]}>7</AppText><AppText variant="caption" muted>раз</AppText></View></View>
               </View>
               <AppText variant="caption" muted>В автоматическом режиме денежные призы распределяются по рейтингу. В блоке «Призы участников» можно заменить этот расчёт ручными суммами. В обоих режимах выплаты ограничены фондом.</AppText>
               {!validMoney && (draft.minimum || draft.maximum || draft.pool) ? <AppText variant="caption" color={String(theme.danger)}>Фонд должен быть неотрицательной целой суммой в центах.</AppText> : null}
@@ -243,7 +243,7 @@ export default function AdminChallengesScreen() {
               {challenge ? <ManualPrizes key={dayKey} dayKey={dayKey} onDirtyChange={setHasUnsavedPrizes} /> : null}
               {confirmSettlement ? (
                 <View style={[styles.settlementConfirm, { backgroundColor: theme.primarySoft, borderColor: theme.border }]}>
-                  <View style={styles.settlementCopy}><AppText variant="label">Завершить чемпионат?</AppText><AppText variant="caption" muted>Рейтинг и сохранённые призы будут зафиксированы. Участники смогут забрать награды. Изменить суммы после расчёта нельзя.</AppText></View>
+                  <View style={styles.settlementCopy}><AppText variant="label">Завершить челлендж?</AppText><AppText variant="caption" muted>Рейтинг и сохранённые призы будут зафиксированы. Участники смогут забрать награды. Изменить суммы после расчёта нельзя.</AppText></View>
                   <View style={[styles.settlementActions, !isDesktop && styles.settlementActionsMobile]}>
                     <AppButton variant="secondary" compact onPress={() => setConfirmSettlement(false)} style={!isDesktop ? styles.actionMobile : undefined}>Отмена</AppButton>
                     <AppButton compact icon="checkmark-circle-outline" disabled={hasUnsavedPrizes} loading={settle.isPending} onPress={() => settle.mutate()} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать</AppButton>

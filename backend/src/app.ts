@@ -29,7 +29,6 @@ import publicProfileRoutes from "./routes/public-profile.routes.js";
 import adsRoutes from "./routes/ads.routes.js";
 import notificationsRoutes from "./routes/notifications.routes.js";
 import shareRoutes from "./routes/share.routes.js";
-import homeRoutes from "./routes/home.routes.js";
 
 export const app = express();
 
@@ -71,7 +70,6 @@ api.use("/admin", adminRoutes);
 api.use("/profile", publicProfileRoutes);
 api.use("/ads", adsRoutes);
 api.use(requireAuth);
-api.use("/home", homeRoutes);
 api.use("/notifications", notificationsRoutes);
 api.use("/bootstrap", bootstrapRoutes);
 api.use("/me", meRoutes);

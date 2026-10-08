@@ -289,7 +289,6 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
           ]}
         >
           <View style={[styles.sheetGlass, { backgroundColor: edgeSolid }]}>
-            <AppText accessibilityRole="header" style={{ fontSize: 16, fontWeight: "800", textAlign: "center", paddingBottom: 10 }}>{language === "uz" ? "Umumiy natijalar reytingi" : language === "ru" ? "Рейтинг общих результатов" : "Overall results ranking"}</AppText>
             <View
               onLayout={(event) => setFiltersWidth(event.nativeEvent.layout.width)}
               style={[styles.filters, { backgroundColor: theme.primarySoft }]}
@@ -379,10 +378,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                     setNativeViewportHeight(event.nativeEvent.layout.height);
                     updateSelfVisibility(scrollY.current, viewportHeight.current);
                   }}
-                  onScroll={
-                    // Animated.event registers the listener; refs below are read only on scroll.
-                    // eslint-disable-next-line react-hooks/refs
-                    Animated.event([{ nativeEvent: { contentOffset: { y: nativeScrollY } } }], {
+                  onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: nativeScrollY } } }], {
                     useNativeDriver: Platform.OS !== "web",
                     listener: (event: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
                     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;

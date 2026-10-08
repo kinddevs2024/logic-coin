@@ -866,7 +866,6 @@ export const adminApi = {
 
 export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
 export const inboxApi = {
-  unreadCount(token: string) { return request<{ count: number }>("/notifications/unread-count", { token }); },
   list(token: string, all: boolean, cursor: { date: string; id: string } | null) {
     const query = new URLSearchParams({ all: String(all), ...(cursor ?? {}) });
     return request<{ items: InboxNotification[]; next: { date: string; id: string } | null }>(`/notifications?${query}`, { token });
@@ -874,19 +873,6 @@ export const inboxApi = {
   read(token: string, ids: string[]) {
     return request<{ marked: number }>("/notifications/read", { method: "POST", token, body: JSON.stringify({ ids }) });
   },
-};
-
-export type HomeOverview = {
-  serverNow: string;
-  content: { rules: string; weeklyDetails: string; monthlyDetails: string; instagramUrl: string; telegramUrl: string };
-  weekly: { from: string; to: string; completed: number; total: number };
-  monthly: { from: string; to: string; completed: number; total: number };
-  championship: { dayKey: string; endsAt: string | null; resultsPublished: boolean } | null;
-};
-export const homeApi = {
-  get(token: string) { return request<HomeOverview>("/home", { token }); },
-  saveContent(token: string, content: HomeOverview["content"]) { return request<HomeOverview["content"]>("/admin/home-content", { method: "PUT", token, body: JSON.stringify(content) }); },
-  content(token: string) { return request<HomeOverview["content"]>("/admin/home-content", { token }); },
 };
 
 export const activityApi = {

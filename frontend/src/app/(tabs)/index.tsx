@@ -1,14 +1,14 @@
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { HomeChampionshipStatus, HomePeriods, HomeSocialRules, useHomeOverview } from "@/components/home-championship";
-import { HomeBell } from "@/components/home-bell";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RankingPreview } from "@/components/ranking-preview";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import Svg, { Circle } from "react-native-svg";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { HomeDesktopAds } from "@/components/home-desktop-ads";
-import { AppButton } from "@/components/buttons";
+import { AppButton, IconButton } from "@/components/buttons";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { ChallengeCard } from "@/components/challenge-card";
@@ -18,12 +18,30 @@ import { LeaderboardModal } from "@/components/leaderboard-modal";
 import { NotificationInbox } from "@/components/notification-inbox";
 import { ProfileDrawer } from "@/components/profile-drawer";
 import { SavingsScene } from "@/components/savings-scene";
+import { SectionHeader } from "@/components/section-header";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppStore } from "@/store/app-store";
 import { inboxApi } from "@/lib/api";
+
+function ProgressDonut({ value, progress, color, accessibilityLabel }: { value: string; progress: number; color: string; accessibilityLabel: string }) {
+  const size = 64;
+  const strokeWidth = 7;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dash = Math.max(0, Math.min(1, progress)) * circumference;
+  return (
+    <View accessible accessibilityLabel={accessibilityLabel} style={styles.donut}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(116,154,200,0.18)" strokeWidth={strokeWidth} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${circumference - dash}`} rotation="-90" origin={`${size / 2}, ${size / 2}`} />
+      </Svg>
+      <AppText style={[styles.donutValue, { color }]}>{value}</AppText>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const theme = useAppTheme();
@@ -51,16 +69,13 @@ export default function HomeScreen() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.all(["bootstrap", "challenges", "leaderboard", "home", "home-ad-offer", "unread-count"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["bootstrap", "challenges", "leaderboard"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
     } finally { setRefreshing(false); }
   };
   const balance = useAppStore((state) => state.balanceUnits);
   const goal = useAppStore((state) => state.goalUnits);
   const user = useAppStore((state) => state.user);
   const { today, pendingGameKey } = useChallenges();
-  const home = useHomeOverview();
-  const { refetch: refetchHome } = home;
-  const refreshOverview = useCallback(() => { void refetchHome(); }, [refetchHome]);
 
   return (
     <AppFrame wide desktopNavigationInset contentStyle={styles.content} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={drawerOpen || leaderboardOpen || inboxOpen}>
@@ -70,7 +85,9 @@ export default function HomeScreen() {
         </View>
         <RankingPreview metric="wealth" onPress={() => setLeaderboardOpen(true)} />
         <View style={[styles.headerSide, styles.headerSideEnd]}>
-          <View ref={inboxButton} collapsable={false}><HomeBell
+          <View ref={inboxButton} collapsable={false}><IconButton
+            name="notifications-outline"
+            label="Уведомления"
             onPress={() => {
               inboxButton.current?.measureInWindow((x, y, width, height) => {
                 setInboxAnchor({ x, y, width, height });
@@ -86,7 +103,6 @@ export default function HomeScreen() {
       <HomeDesktopAds position="top" />
       <View style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
         <View style={[styles.hero, isDesktop && styles.heroDesktop]}>
-          <View pointerEvents="box-none" style={{ position: "absolute", top: 16, left: 0, right: 0, zIndex: 15 }}><HomeSocialRules data={home.data} /></View>
           <SavingsScene balance={balance} goal={goal}>
             <View style={styles.actions}>
               <AppButton
@@ -118,8 +134,11 @@ export default function HomeScreen() {
             { borderColor: theme.glassBorder },
           ]}
         >
-          {home.data ? <HomeChampionshipStatus data={home.data} receivedAt={home.dataUpdatedAt} refresh={refreshOverview} /> : <AppText muted>{home.isError ? "Не удалось загрузить" : "…"}</AppText>}
-          {home.isError ? <Pressable accessibilityRole="button" onPress={refreshOverview}><AppText>Повторить</AppText></Pressable> : null}
+          <SectionHeader
+            title={t("home.today")}
+            action={`${today?.completedCount ?? 0}/${today?.totalCount ?? 0} · ${t("home.allChallenges")}`}
+            onAction={() => router.push("/challenges" as never)}
+          />
           <View style={styles.taskList}>
             {(today?.games ?? []).map((game, index) => (
               <ChallengeCard
@@ -139,7 +158,25 @@ export default function HomeScreen() {
             variant="soft"
             style={[styles.activityStrip, { borderColor: theme.glassBorder }]}
           >
-            {home.data ? <HomePeriods data={home.data} /> : null}
+            <View style={styles.activityItem}>
+              <AppText style={styles.activityTitle}>Игры на сегодня</AppText>
+              <ProgressDonut
+                value={`${today?.gamesCompletedToday ?? today?.completedCount ?? 0} / ${today?.totalCount ?? 0}`}
+                progress={(today?.totalCount ?? 0) > 0 ? (today?.gamesCompletedToday ?? today?.completedCount ?? 0) / (today?.totalCount ?? 1) : 0}
+                color={String(theme.primary)}
+                accessibilityLabel="Прогресс игр сегодня"
+              />
+            </View>
+            <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
+            <View style={styles.activityItem}>
+              <AppText style={styles.activityTitle}>Челленджей за месяц</AppText>
+              <ProgressDonut
+                value={String(today?.monthlyChallengeCount ?? 0)}
+                progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
+                color={theme.mode === "dark" ? "#B9A5FF" : "#7A5AF8"}
+                accessibilityLabel="Челленджи за месяц"
+              />
+            </View>
           </GlassSurface>
         </GlassSurface>
       </View>

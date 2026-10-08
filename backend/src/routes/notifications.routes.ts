@@ -1,13 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { countUnreadInbox, listInbox, markInboxRead } from "../services/inbox.service.js";
+import { listInbox, markInboxRead } from "../services/inbox.service.js";
 import { validateBody } from "../middleware/validate.js";
 import { ApiError } from "../lib/api-error.js";
 const router = Router();
-router.get("/unread-count", async (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  res.json({ data: { count: await countUnreadInbox(req.auth!.userId) } });
-});
 const id = z.string().regex(/^(event|gift|result):[a-f\d]{24}$/i);
 router.get("/", async (req, res) => {
   const query = z.object({ all: z.enum(["true", "false"]).optional(), date: z.string().datetime().optional(), id: id.optional() }).safeParse(req.query);

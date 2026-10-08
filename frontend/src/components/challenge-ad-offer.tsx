@@ -13,9 +13,9 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const COPY = {
-  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг чемпионата.\nПовторить можно через 5 минут.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
+  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг челленджа.\nПовторить можно через 5 минут.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
   en: { title: "+45 coins for a video", body: "Watch the full ad to earn 45 coins.\nThey count toward the challenge ranking.\nAnother reward is available in 5 minutes.", watch: "Watch ad · +45 coins", skip: "Not now", error: "No reward received. Please try again later." },
-  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar chempionat reytingiga qo‘shiladi.\nYana 5 daqiqadan keyin olish mumkin.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
+  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar sinov reytingiga qo‘shiladi.\nYana 5 daqiqadan keyin olish mumkin.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
 };
 
 export function ChallengeAdOffer() {

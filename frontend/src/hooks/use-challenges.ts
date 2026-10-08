@@ -166,8 +166,6 @@ export function useChallenges() {
     },
     onSuccess: (result) => {
       if (result.coins) setCoinBalance(result.coins.balance);
-      void queryClient.invalidateQueries({ queryKey: ["home", accessToken] });
-      void queryClient.invalidateQueries({ queryKey: ["home-ad-offer", accessToken] });
       void queryClient.invalidateQueries({ queryKey: ["challenges", "today", accessToken] });
     },
   });

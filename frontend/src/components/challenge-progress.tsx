@@ -18,9 +18,9 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const copy = {
-  ru: { completed: "пройдено", hint: "Здесь показан общий призовой фонд чемпионата за этот день, а не ваш заработок. После завершения чемпионата фонд распределяется между участниками по результатам или назначениям администратора.", you: "Вы", login: "Войдите, чтобы увидеть рейтинг", retry: "Обновить рейтинг", close: "Закрыть", info: "О призовом фонде" },
+  ru: { completed: "пройдено", hint: "Здесь показан общий призовой фонд челленджа за этот день, а не ваш заработок. После завершения челленджа фонд распределяется между участниками по результатам или назначениям администратора.", you: "Вы", login: "Войдите, чтобы увидеть рейтинг", retry: "Обновить рейтинг", close: "Закрыть", info: "О призовом фонде" },
   en: { completed: "completed", hint: "This is the total prize pool for this day’s challenge, not your earnings. After the challenge ends, prizes are allocated by results or the administrator’s assignments.", you: "You", login: "Sign in to see the ranking", retry: "Refresh ranking", close: "Close", info: "About the prize pool" },
-  uz: { completed: "bajarildi", hint: "Bu sizning daromadingiz emas, shu kunning chempionati uchun umumiy mukofot jamg‘armasi. Chempionat tugagach mukofotlar natijalar yoki administrator belgilagan summalar bo‘yicha taqsimlanadi.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Mukofot jamg‘armasi haqida" },
+  uz: { completed: "bajarildi", hint: "Bu sizning daromadingiz emas, shu kunning sinovi uchun umumiy mukofot jamg‘armasi. Sinov tugagach mukofotlar natijalar yoki administrator belgilagan summalar bo‘yicha taqsimlanadi.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Mukofot jamg‘armasi haqida" },
 };
 type Cursor = { snapshot: string; offset: number; end?: number };
 const ROW = 46;
@@ -53,12 +53,12 @@ function ChallengeReadyClock({ today, focused }: { today: TodayChallenges; focus
   const seconds = Number.isFinite(end) ? Math.max(0, Math.floor((end - now) / 1000)) : 0;
   const countdown = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, "0")).join(":");
   const labels = {
-    ru: { until: "До окончания чемпионата", pool: "Призовой фонд" },
+    ru: { until: "До окончания челленджа", pool: "Призовой фонд" },
     en: { until: "Until the challenge ends", pool: "Prize pool" },
-    uz: { until: "Chempionat tugashigacha", pool: "Mukofot jamg‘armasi" },
+    uz: { until: "Sinov tugashigacha", pool: "Mukofot jamg‘armasi" },
   }[language];
   const firstGame = today.games[0];
-  return <Pressable accessibilityRole="button" accessibilityLabel={language === "ru" ? "Начать чемпионат с первой игры" : language === "uz" ? "Chempionatni birinchi o‘yindan boshlash" : "Start challenge from the first game"} disabled={!firstGame || seconds === 0} onPress={() => {
+  return <Pressable accessibilityRole="button" accessibilityLabel={language === "ru" ? "Начать челлендж с первой игры" : language === "uz" ? "Sinovni birinchi o‘yindan boshlash" : "Start challenge from the first game"} disabled={!firstGame || seconds === 0} onPress={() => {
     if (firstGame) router.push({ pathname: "/play/[gameKey]", params: { gameKey: firstGame.key, mode: "challenge" } } as never);
   }}><GlassSurface variant="strong" intensity={76} style={styles.ready}>
     <AppText style={styles.countdown} numberOfLines={1} adjustsFontSizeToFit>{countdown}</AppText>

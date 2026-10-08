@@ -36,7 +36,7 @@ describe("leaderboard route", () => {
       self: { rank: 42, userId: userId.toString() }
     });
     const response = await request(app).get("/?metric=coins&limit=20").expect(200);
-    expect(leaderboardMock).toHaveBeenCalledWith({ userId, metric: "coins", limit: 20, offset: 0 });
+    expect(leaderboardMock).toHaveBeenCalledWith({ userId, metric: "coins", limit: 20 });
     expect(response.body.data.self.rank).toBe(42);
   });
 

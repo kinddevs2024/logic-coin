@@ -26,7 +26,7 @@ const ru = {
   "country.error": "Не удалось сохранить страну. Попробуйте ещё раз.",
   "onboarding.one.title": "Копилка, которая растёт",
   "onboarding.one.body": "Logic Coin превращает небольшие действия в видимый прогресс к вашей цели.",
-  "onboarding.two.title": "Шесть игр в ежедневном чемпионате",
+  "onboarding.two.title": "Шесть челленджей каждый день",
   "onboarding.two.body": "Играйте в общий набор дня, собирайте coins и поднимайтесь в рейтинге.",
   "onboarding.three.title": "Возвращайтесь каждый день",
   "onboarding.three.body": "Серия активности, календарь и бонусы помогают не терять темп.",
@@ -200,8 +200,5 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
 };
 
 export function translate(language: Language | null, key: TranslationKey) {
-  if (key === "home.earn") return language === "uz" ? "Chempionatda qatnashish" : language === "en" ? "Join championship" : "Участвовать в чемпионате";
-  if (key === "tabs.challenges") return language === "uz" ? "Chempionatlar" : language === "en" ? "Championships" : "Чемпионаты";
-  if (key === "home.allChallenges") return language === "uz" ? "Barcha chempionatlar" : language === "en" ? "All championships" : "Все чемпионаты";
   return translations[language ?? "ru"][key] ?? ru[key];
 }
