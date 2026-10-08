@@ -62,6 +62,9 @@ jobs:
           npm run typecheck --workspace frontend
           npm test --workspace frontend
           node --test scripts/ota/server.test.mjs
+      - name: Generate the same native configuration used by the APK fingerprint
+        working-directory: frontend
+        run: npx expo prebuild --platform android --no-install
       - name: Verify exact APK compatibility
         env:
           BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
@@ -80,6 +83,7 @@ jobs:
           cd "$RUNNER_TEMP/logic-ota-baseline"
           npm ci --workspace frontend --include=dev
           cd frontend
+          npx expo prebuild --platform android --no-install
           npx expo export --platform android --output-dir "$GITHUB_WORKSPACE/artifacts/ota-baseline" --max-workers 2
           npx expo config --type public --json > "$GITHUB_WORKSPACE/artifacts/ota-baseline/public-config.json"
           cp "$GITHUB_WORKSPACE/artifacts/ota-target/runtime.json" "$GITHUB_WORKSPACE/artifacts/ota-baseline/runtime.json"
