@@ -5,6 +5,7 @@ export type GameSessionControls = {
   onExit: () => void;
   paused: boolean;
   practiceCoins?: number;
+  gameKey?: string;
   headerAction?: ReactNode;
 };
 

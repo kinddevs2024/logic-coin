@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, AppState, Easing, Image, PanResponder, Pressable, StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,6 +22,8 @@ export default function BottleFlipScreen() {
   const [phase, setPhase] = useState<Phase>("ready"); const mode = useRef<Phase>("ready");
   const [result, setResult] = useState<Result>(initial);
   const score = useGameProgressStore((state) => state.games["bottle-flip"]?.coins ?? 0);
+  const attempts = useGameProgressStore((state) => state.games["bottle-flip"]?.plays ?? 0);
+  const attemptsLabel = language === "uz" ? "Urinishlar" : language === "en" ? "Throws" : "Броски";
   const selectedTheme = useGameProgressStore((state) => state.games["bottle-flip"]?.selectedCosmetic ?? "classic");
   const hydrated = useGameProgressStore((state) => state.hydrated);
   const preparePricing = useGameProgressStore((state) => state.prepareBottleThemePricing);
@@ -32,7 +34,7 @@ export default function BottleFlipScreen() {
   const [sceneHeight, setSceneHeight] = useState(440);
   const trail = useRef<{ x: number; y: number; time: number }[]>([]);
   const restartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flight = useRef(new Animated.Value(0)).current; const settle = useRef(new Animated.Value(0)).current; const drag = useRef(new Animated.Value(0)).current;
+  const [flight] = useState(() => new Animated.Value(0)); const [settle] = useState(() => new Animated.Value(0)); const [drag] = useState(() => new Animated.Value(0));
   const recordScore = useGameProgressStore((state) => state.recordScore);
   const change = useCallback((value: Phase) => { mode.current = value; setPhase(value); }, []);
   const reset = useCallback(() => {
@@ -52,13 +54,15 @@ export default function BottleFlipScreen() {
       if (!finished || mode.current !== "flying") return;
       Animated.timing(settle, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(({ finished: done }) => {
         if (!done || mode.current !== "flying") return;
-        if (next.landed) recordScore("bottle-flip", 100, "Bottle flip", true);
+        recordScore("bottle-flip", next.landed ? 100 : 0, "Bottle flip", next.landed);
         change("result");
         restartTimer.current = setTimeout(reset, 900);
       });
     });
   }, [change, drag, flight, settle, recordScore, reset]);
-  const responder = useMemo(() => PanResponder.create({
+  // PanResponder registers callbacks; these refs are read only during gestures.
+  // eslint-disable-next-line react-hooks/refs
+  const [responder] = useState(() => PanResponder.create({
     onStartShouldSetPanResponder: () => mode.current === "ready",
     onPanResponderGrant: (_, g) => { trail.current = [{ x: g.x0, y: g.y0, time: performance.now() }]; change("dragging"); },
     onPanResponderMove: (_, g) => {
@@ -76,7 +80,7 @@ export default function BottleFlipScreen() {
       toss(g.moveX - first.x, g.moveY - first.y, now - first.time);
     },
     onPanResponderTerminate: reset, onPanResponderTerminationRequest: () => false,
-  }), [change, drag, reset, toss]);
+  }));
   const finalAngle = result.landed ? 360 : Math.round(result.rotation / 360) * 360 + 90;
   const airborneY = flight.interpolate({ inputRange: steps, outputRange: steps.map((t) => -4 * result.peak * t * (1 - t)) });
   const rotation = Animated.add(flight.interpolate({ inputRange: [0, 1], outputRange: [0, result.rotation] }), settle.interpolate({ inputRange: [0, 1], outputRange: [0, finalAngle - result.rotation] })).interpolate({ inputRange: [0, 1440], outputRange: ["0deg", "1440deg"] });
@@ -97,7 +101,7 @@ export default function BottleFlipScreen() {
         { translateY: Animated.add(Animated.add(airborneY, drag), settle.interpolate({ inputRange: [0, 1], outputRange: [0, result.landed ? 0 : 50] })) }, { rotate: rotation },
       ] }]}><Image source={art.bottle} style={styles.bottleArt} resizeMode="contain" /></Animated.View>
     </View>
-    <AppText style={[styles.hint, { color: phase === "result" && result.landed ? art.success : art.foreground }]}>{phase === "result" ? c[result.verdict] : c.hint}</AppText>
+    <AppText style={[styles.hint, { color: phase === "result" && result.landed ? art.success : art.foreground }]}>{attemptsLabel}: {attempts} · {phase === "result" ? c[result.verdict] : c.hint}</AppText>
     <BottleThemes visible={themesOpen} onClose={() => setThemesOpen(false)} />
   </SafeAreaView>;
 }

@@ -51,7 +51,7 @@ function validateDuration(durationMs?: number) {
   }
 }
 
-export function challengeCoinsForScore(score: number, maxCoins = MAX_GAME_COINS): number {
+export function challengeCoinsForScore(score: number, maxCoins = MAX_GAME_COINS, gameKey = ""): number {
   validateScore(score);
   if (!Number.isSafeInteger(maxCoins) || maxCoins < 1 || maxCoins > MAX_GAME_COINS) {
     throw new ApiError(500, "invalid_game_coin_cap", "Game coin cap is invalid");
@@ -59,15 +59,28 @@ export function challengeCoinsForScore(score: number, maxCoins = MAX_GAME_COINS)
   // One authoritative formula is shared by challenge and practice modes.
   // Outcome flags are intentionally ignored because the client must not be
   // able to increase an economy reward by claiming a win.
-  return Math.min(maxCoins, 500 + Math.floor(score / 20));
+  // Use the same soft progression as the client. maxCoins remains a legacy
+  // validated catalog field, not a ceiling on the earned result.
+  if (score === 0) return 0;
+  const targets: Record<string, number> = {
+    "one-second": 40_000, udar: 60_000, strike: 60_000, "reflex-hit": 60_000,
+    tsvet: 6_000, "color-stroop": 6_000, "color-focus": 6_000,
+    "volt-match": 6_000, "find-letter": 3_000, "brain-training": 1_000,
+    "space-find-number": 10_000, "find-number": 10_000,
+    "geography-quiz": 2_000, "geo-master": 2_000, "volt-numbers": 10_000,
+    "math-quiz": 1_000, "math-duel": 2_000, shadow: 2_000, "shadow-match": 2_000,
+    "2048": 5_000, tetris: 10_000,
+  };
+  const normalized = score * 1000 / (targets[gameKey] ?? 1000);
+  return Math.round(normalized <= 1000 ? normalized : 1000 + 200 * Math.log2(normalized / 1000));
 }
 
 function cappedGameCoins(amount: number) {
-  return Math.min(MAX_GAME_COINS, Math.max(0, Math.round(amount)));
+  return Math.max(0, Math.round(amount));
 }
 
-export function remainingBaseChallengeCoins(requested: number, alreadyEarned: number) {
-  return Math.min(cappedGameCoins(requested), Math.max(0, 6000 - Math.max(0, alreadyEarned)));
+export function remainingBaseChallengeCoins(requested: number, _alreadyEarned: number) {
+  return cappedGameCoins(requested);
 }
 
 export async function startChallengeAttempt(input: {
@@ -160,7 +173,7 @@ export async function completeChallengeAttempt(input: {
   const dayKey = challengeDayKey();
   const { game } = await dailyGame({ gameKey: input.gameKey, dayKey, completingUserId: input.userId });
   const maxCoins = Math.min(MAX_GAME_COINS, game.scoring?.maxCoins ?? MAX_GAME_COINS);
-  const requestedCoins = challengeCoinsForScore(input.score, maxCoins);
+  const requestedCoins = challengeCoinsForScore(input.score, maxCoins, input.gameKey);
 
   const session = await mongoose.startSession();
   let attemptResult:
@@ -277,7 +290,7 @@ export async function completePracticeAttempt(input: {
     throw new ApiError(409, "practice_disabled", "Practice mode is disabled for this game");
   }
   const maxCoins = Math.min(MAX_GAME_COINS, game.scoring?.maxCoins ?? MAX_GAME_COINS);
-  const coinsAwarded = challengeCoinsForScore(input.score, maxCoins);
+  const coinsAwarded = challengeCoinsForScore(input.score, maxCoins, input.gameKey);
   const now = new Date();
   const session = await mongoose.startSession();
   let attempt:
@@ -395,7 +408,7 @@ export async function doubleChallengeCoins(input: {
           idempotentReplay = true;
           return;
         }
-        const doubleCredit = Math.max(0, MAX_GAME_COINS - cappedGameCoins(attempt.coinsAwarded!));
+        const doubleCredit = cappedGameCoins(attempt.coinsAwarded!);
         if (doubleCredit === 0) {
           idempotentReplay = true;
           return;
@@ -430,7 +443,7 @@ export async function doubleChallengeCoins(input: {
         throw new ApiError(409, "day_not_completed", "Complete all today's challenges before doubling");
       }
       const baseTotal = attempts.reduce(
-        (sum, attempt) => sum + Math.max(0, MAX_GAME_COINS - cappedGameCoins(attempt.coinsAwarded ?? 0)),
+        (sum, attempt) => sum + cappedGameCoins(attempt.coinsAwarded ?? 0),
         0,
       );
       if (baseTotal <= 0) {

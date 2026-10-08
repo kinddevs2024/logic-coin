@@ -188,7 +188,7 @@ export const useGameProgressStore = create<GameProgressState>()(
       completeLevel: (gameId, level, stats = {}) => {
         const current = normalizeProgress(get().games[gameId], gameId);
         const firstCompletion = !current.completedLevels.includes(level);
-        const coinReward = firstCompletion ? 25 + Math.min(25, level) : 5;
+        const coinReward = gameCoinReward(stats.score ?? level * 100, true, gameId);
         const newlyUnlocked: string[] = [];
         const completedLevels = Array.from(
           new Set([...current.completedLevels, level]),

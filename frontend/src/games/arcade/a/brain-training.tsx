@@ -101,7 +101,7 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
     finishing.current = true;
     const won = correct > wrong;
     setBest((value) => Math.max(value, score)); setPhase("result");
-    onComplete?.({ gameId: GAME_ID, score, won, durationMs: Date.now() - gameStartedAt.current, suggestedCoins: suggestedCoins(score, won), stats: { correct, wrong, maxCombo } });
+    onComplete?.({ gameId: GAME_ID, score, won, durationMs: Date.now() - gameStartedAt.current, suggestedCoins: suggestedCoins(score, won, "brain-training"), stats: { correct, wrong, maxCombo } });
   }, [correct, maxCombo, onComplete, score, wrong]);
 
   useEffect(() => {
@@ -140,7 +140,7 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
     if (bubble.result === target) {
       const nextCombo = combo + 1;
       const earned = 10 + Math.max(0, nextCombo - 1) * 5;
-      if (!challengeMode) awardCoins("brain-training", Math.floor((score + earned) / 20) - Math.floor(score / 20));
+      if (!challengeMode) awardCoins("brain-training", suggestedCoins(score + earned, true, "brain-training") - suggestedCoins(score, true, "brain-training"));
       setScore((value) => value + earned); setCorrect((value) => value + 1); setCombo(nextCombo); setMaxCombo((value) => Math.max(value, nextCombo)); setFlash("correct"); impact("success");
       setBubbles((items) => items.filter((item) => item.id !== bubble.id));
       setTimeout(() => spawnRound(Date.now() - gameStartedAt.current), 260);
@@ -157,7 +157,7 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
   return (
     <GameRoot colors={["#17132E", "#080E1F", "#071323"]} skin={skin}>
       <GameHeader title="МОЗГОВОЙ ШТУРМ" accent={theme.primary} onExit={onExit} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><View style={[styles.targetBox, { borderColor: theme.primary }]}><Text style={styles.targetLabel}>НАЙТИ</Text><Text style={styles.target}>{target}</Text><ProgressBar progress={roundRemaining / ROUND_MS} color={theme.primary} height={3} /></View><HudStat label={challengeMode ? "Время" : "Режим"} value={challengeMode ? Math.ceil(remainingMs / 1000) : "∞"} color="#6EDBA8" /></View>
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score, true, "brain-training")} color={theme.primary} /><View style={[styles.targetBox, { borderColor: theme.primary }]}><Text style={styles.targetLabel}>НАЙТИ</Text><Text style={styles.target}>{target}</Text><ProgressBar progress={roundRemaining / ROUND_MS} color={theme.primary} height={3} /></View><HudStat label={challengeMode ? "Время" : "Режим"} value={challengeMode ? Math.ceil(remainingMs / 1000) : "∞"} color="#6EDBA8" /></View>
       {challengeMode ? <ProgressBar progress={remainingMs / sessionDuration} color={theme.secondary} /> : null}
       <View style={[styles.arena, { width: arenaWidth, height: arenaHeight }]}>
         {bubbles.map((bubble) => {

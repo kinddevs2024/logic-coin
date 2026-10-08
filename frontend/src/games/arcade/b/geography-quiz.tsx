@@ -75,7 +75,7 @@ export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTim
   usePauseClock(paused, [startedAt, deadline]);
 
   const finish = useCallback((finalScore: number, finalCorrect: number, finalStreak: number) => {
-    const coins = rewardCoins(finalScore, finalCorrect >= 6);
+    const coins = rewardCoins(finalScore, finalCorrect >= 6, "geography-quiz");
     const durationMs = Date.now() - startedAt.current;
     setScreen("result");
     onFinish?.({
@@ -166,7 +166,7 @@ export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTim
   }, [advance, correct, index, maxStreak, round, score, selected, streak, timeLeft, timedOut]);
 
   const current = round[index];
-  const earnedCoins = useMemo(() => rewardCoins(score, correct >= 6), [correct, score]);
+  const earnedCoins = useMemo(() => rewardCoins(score, correct >= 6, "geography-quiz"), [correct, score]);
 
   return (
     <GameScreen title="ГЕО МАСТЕР" accent={accent} skin={skin} onExit={onExit} right={<CoinPill value={initialCoins + earnedCoins} />}>
@@ -188,7 +188,7 @@ export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTim
             <Metric label="ВОПРОС" value={`${index + 1}/${ROUND_LENGTH}`} color={accent} />
             <Metric label="СЕРИЯ" value={`×${streak}`} color={B_COLORS.gold} />
             <Metric label="ВРЕМЯ" value={Math.ceil(timeLeft)} color={timeLeft <= 5 ? B_COLORS.red : accent} />
-            <Metric label="COIN" value={rewardCoins(score, correct >= 6)} color={B_COLORS.gold} />
+            <Metric label="COIN" value={rewardCoins(score, correct >= 6, "geography-quiz")} color={B_COLORS.gold} />
           </View>
           <ProgressTrack value={(index + 1) / ROUND_LENGTH} color={accent} />
           <Animated.View key={`${index}-${current.prompt}`} entering={FadeInDown.duration(260)} style={styles.questionArea}>

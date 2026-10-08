@@ -22,6 +22,7 @@ import { challengeDayKey } from "./daily-challenge.service.js";
 import { invalidateContestProgress } from "./contest-progress.service.js";
 import { User } from "../models/User.js";
 import { CHALLENGE_AD_COOLDOWN_MS, requireChallengeAdOffer } from "./challenge-ad-offer.service.js";
+import { requireHomeGiftAdFlow } from "./home-gift.service.js";
 
 export type RewardedAdPlacement = (typeof REWARDED_AD_PLACEMENTS)[number];
 export type RewardedAdProvider = "yandex" | "appodeal";
@@ -79,6 +80,7 @@ export async function startRewardedAdSession(
   // Keep only one pending session per user so a delayed callback can never
   // complete a different reward flow.
   const offer = placement === "navigation-frequency" ? await requireChallengeAdOffer(userId) : null;
+  const homeGift = placement === "home-gift" ? await requireHomeGiftAdFlow(userId) : null;
   await RewardedAdSession.updateMany(
     { userId, status: "started" },
     { $set: { status: "expired", expiresAt: new Date() } }
@@ -92,6 +94,7 @@ export async function startRewardedAdSession(
     rewardCoins: fortune?.coins ?? COIN_REWARDS[placement] ?? 0,
     rewardLabel: fortune?.label,
     ...(offer?.challengeSetId ? { challengeSetId: offer.challengeSetId } : {}),
+    ...(homeGift?.cycleId ? { homeGiftCycleId: homeGift.cycleId } : {}),
     expiresAt: new Date(Date.now() + SESSION_TTL_MS)
   });
   return serializeSession(session);

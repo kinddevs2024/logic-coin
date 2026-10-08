@@ -39,7 +39,7 @@ describe("authoritative practice rewards", () => {
         _id: attemptId,
         gameKey: "tetris",
         score: 50_000,
-        coinsAwarded: 1_000,
+        coinsAwarded: 1_464,
         completedAt: new Date("2026-08-20T10:00:00.000Z")
       }
     ]);
@@ -51,19 +51,19 @@ describe("authoritative practice rewards", () => {
     });
   });
 
-  it("credits and returns the same capped amount shown for the completed game", async () => {
+  it("credits and returns the same zero-based reward without a hard 1000 cap", async () => {
     const userId = new Types.ObjectId();
     const result = await completePracticeAttempt({ userId, gameKey: "tetris", score: 50_000 });
     expect(mocks.creditCoins).toHaveBeenCalledWith(
       expect.objectContaining({
         userId,
-        amount: 1_000,
+        amount: 1_464,
         type: "practice_coin_reward",
         countTowardsChallengeBalance: false
       }),
       expect.anything()
     );
-    expect(result.attempt.coinsAwarded).toBe(1_000);
+    expect(result.attempt.coinsAwarded).toBe(1_464);
     expect(result.coins.balance).toBe(1_250);
   });
 });

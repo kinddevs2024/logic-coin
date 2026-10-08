@@ -160,7 +160,7 @@ export function useChallenges() {
           accessToken,
         );
       }
-      const coinsAwarded = gameCoinReward(input.score);
+      const coinsAwarded = gameCoinReward(input.score, false, input.gameKey);
       recordGuestChallenge(input.gameKey, input.score, coinsAwarded);
       return { attempt: { id: `guest-${input.gameKey}`, gameKey: input.gameKey, score: input.score, coinsAwarded, completedAt: new Date().toISOString() } };
     },

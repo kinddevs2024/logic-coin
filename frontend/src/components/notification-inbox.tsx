@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StatusBar, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
@@ -20,6 +20,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
   const closeAction = useRef(onClose);
   useEffect(() => { closeAction.current = onClose; }, [onClose]);
   const token = useAppStore(s => s.accessToken);
+  const client = useQueryClient();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const [calendar] = useCalendars();
@@ -59,10 +60,11 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     if (!token || !ids.length) return;
     ids.forEach(id => seen.current.add(id));
     void inboxApi.read(token, ids).then(() => {
+      void client.invalidateQueries({ queryKey: ["unread-count", token] });
       ids.forEach(id => failed.current.delete(id));
       setReadError(failed.current.size > 0);
     }).catch(() => { ids.forEach(id => failed.current.add(id)); setReadError(true); });
-  }, [token]);
+  }, [token, client]);
   const viewable = useCallback(({ viewableItems }: { viewableItems: ViewToken<InboxNotification>[] }) => {
     if (AppState.currentState !== "active" || (Platform.OS === "web" && document.visibilityState === "hidden")) return;
     read(viewableItems.filter(v => v.isViewable && !v.item.read && !seen.current.has(v.item.id)).map(v => v.item.id));

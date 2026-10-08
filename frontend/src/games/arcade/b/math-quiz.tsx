@@ -7,6 +7,7 @@ import type { ArcadeGameProps } from "./types";
 import { AnswerButton, arcadeSkinAccent, B_COLORS, CoinPill, errorTap, GameScreen, Metric, Panel, ProgressTrack, ResultCard, StartCard, successTap } from "./ui";
 import { randomInt, rewardCoins, shuffle } from "./utils";
 import { usePauseClock } from "@/games/pause-clock";
+import { questionRewardScore } from "@/games/rewards";
 
 type MathQuestion = { expression: string; answer: number; op: "+" | "−" | "×" | "÷"; double: boolean; hard: boolean; options: number[] };
 
@@ -95,7 +96,7 @@ export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
     onFinish?.({
       gameId: "math-quiz",
       score: finalScore,
-      coins: rewardCoins(finalScore, won),
+      coins: rewardCoins(finalScore, won, "math-quiz"),
       won,
       durationMs,
       details: { correct: finalCorrect, wrong: finalWrong, timeouts: finalTimeouts, streak: finalMaxStreak },
@@ -162,10 +163,7 @@ export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
     if (!question || selected !== null || timedOut) return;
     setSelected(value);
     if (value === question.answer) {
-      const timeBonus = Math.ceil(timeLeft / duration * 10);
-      const streakBonus = Math.min(streak, 5) * 5;
-      const points = 10 + timeBonus + streakBonus;
-      const nextScore = score + points;
+      const nextScore = questionRewardScore(correct + 1, TOTAL);
       const nextStreak = streak + 1;
       const nextCorrect = correct + 1;
       const nextMax = Math.max(maxStreak, nextStreak);
@@ -192,7 +190,7 @@ export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
   }, [question, selected, timedOut]);
 
   const accuracy = Math.round(correct / TOTAL * 100);
-  const coins = useMemo(() => rewardCoins(score, correct >= 8), [correct, score]);
+  const coins = useMemo(() => rewardCoins(score, correct >= 8, "math-quiz"), [correct, score]);
 
   return (
     <GameScreen title="МАТЕМ" accent={accent} skin={skin} onExit={onExit} right={<CoinPill value={initialCoins + coins} />}>
@@ -202,7 +200,7 @@ export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
           <View style={styles.topRow}>
             <Metric label="ВОПРОС" value={`${index + 1}/${TOTAL}`} color={accent} />
             <Metric label="СЕРИЯ" value={`×${streak}`} color="#FF9D45" />
-            <Metric label="COIN" value={rewardCoins(score, correct >= 8)} color={accent} />
+            <Metric label="COIN" value={rewardCoins(score, correct >= 8, "math-quiz")} color={accent} />
           </View>
           <ProgressTrack value={(index + 1) / TOTAL} color={accent} />
           <View style={styles.timerWrap}>

@@ -12,7 +12,7 @@ describe("bottle swipe", () => {
   it("earns 50 practice coins only for landing upright", () => {
     expect(gameCoinReward(100, true, "bottle-flip")).toBe(50);
     expect(gameCoinReward(100, false, "bottle-flip")).toBe(0);
-    expect(gameCoinReward(100, true, "2048")).toBe(505);
+    expect(gameCoinReward(100, true, "2048")).toBe(20);
   });
   it("uses swipe speed", () => {
     expect(evaluateSwipe(gesture)?.landed).toBe(true);

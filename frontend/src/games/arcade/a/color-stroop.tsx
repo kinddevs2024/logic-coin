@@ -65,7 +65,7 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, pa
     const averageReaction = times.length ? Math.round(times.reduce((sum, item) => sum + item, 0) / times.length) : 0;
     setBest((value) => Math.max(value, finalScore));
     setPhase("result");
-    onComplete?.({ gameId: GAME_ID, score: finalScore, won: accuracy >= 50 && finalCorrect > 0, durationMs: Date.now() - gameStartedAt.current, suggestedCoins: suggestedCoins(finalScore, accuracy >= 50), stats: { correct: finalCorrect, total: finalTotal, accuracy, averageReactionMs: averageReaction, maxStreak: finalStreak, lives: finalLives } });
+    onComplete?.({ gameId: GAME_ID, score: finalScore, won: accuracy >= 50 && finalCorrect > 0, durationMs: Date.now() - gameStartedAt.current, suggestedCoins: suggestedCoins(finalScore, accuracy >= 50, "tsvet"), stats: { correct: finalCorrect, total: finalTotal, accuracy, averageReactionMs: averageReaction, maxStreak: finalStreak, lives: finalLives } });
   }, [correct, lives, maxStreak, onComplete, reactionTimes, score, total]);
 
   const nextPuzzle = useCallback(() => {
@@ -122,7 +122,7 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, pa
       const nextStreak = Math.min(streak + 1, 6);
       const multiplier = [1, 1, 1.5, 2, 3, 4, 5][nextStreak] ?? 5;
       const earned = Math.round(100 * multiplier + Math.max(0, (500 - reaction) / 5));
-      if (!challengeMode) awardCoins("tsvet", Math.floor((score + earned) / 20) - Math.floor(score / 20));
+      if (!challengeMode) awardCoins("tsvet", suggestedCoins(score + earned, true, "tsvet") - suggestedCoins(score, true, "tsvet"));
       setCorrect(nextCorrect); setStreak(nextStreak); setMaxStreak((value) => Math.max(value, nextStreak)); setScore((value) => value + earned); setFlash("correct");
       impact("success");
     } else {
@@ -144,7 +144,7 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, pa
   return (
     <GameRoot colors={["#17141E", "#09090B", "#09090B"]} skin={skin}>
       <GameHeader title="ЦВЕТ" accent={theme.primary} onExit={onExit} right={<Text style={styles.timer}>{challengeMode ? Math.ceil(remainingMs / 1000) : "∞"}</Text>} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label="Верных" value={correct} /></View>
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score, true, "tsvet")} color={theme.primary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label="Верных" value={correct} /></View>
       {challengeMode ? <><View style={styles.lifeRow}>{[0, 1, 2].map((index) => <View key={index} style={[styles.life, index >= lives && styles.lifeLost]} />)}</View><ProgressBar progress={remainingMs / sessionDuration} color={remainingMs < 10_000 ? "#EF4444" : theme.primary} /></> : null}
       <View style={styles.stage}>
         <Animated.View key={`${puzzle.createdAt}-${flash}`} entering={FadeIn.duration(130)} exiting={FadeOut.duration(100)} style={[styles.wordCard, flash === "correct" && styles.correctCard, flash === "wrong" && styles.wrongCard]}>

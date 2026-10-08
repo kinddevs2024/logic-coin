@@ -57,7 +57,7 @@ export function FindNumberGame({ initialBestScore = 0, paused = false, skin, cha
     finishing.current = true;
     const duration = Date.now() - gameStartedAt.current;
     setElapsedMs(duration); setBest((value) => Math.max(value, finalScore)); setPhase("result");
-    onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: duration, suggestedCoins: suggestedCoins(finalScore, won), stats: { level: levelIndex + 1, lives: finalLives, elapsedMs: duration } });
+    onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: duration, suggestedCoins: suggestedCoins(finalScore, won, "space-find-number"), stats: { level: levelIndex + 1, lives: finalLives, elapsedMs: duration } });
   }, [levelIndex, lives, onComplete, score]);
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export function FindNumberGame({ initialBestScore = 0, paused = false, skin, cha
 
   if (phase === "result") return <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}><GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} /><ResultScreen title={levelIndex >= LEVELS.length - 1 && found.length === level.count ? "ГАЛАКТИКА ПОКОРЕНА" : "МИССИЯ ЗАВЕРШЕНА"} score={score} accent={theme.primary} onRestart={start} onExit={onExit} stats={[{ label: "Уровень", value: levelIndex + 1 }, { label: "Время", value: formatClock(elapsedMs) }, { label: "Рекорд", value: Math.max(best, score) }]} /></GameRoot>;
 
-  if (phase === "level") return <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}><GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} /><Animated.View entering={ZoomIn.springify()} style={styles.levelScreen}><Ionicons name="planet-outline" color={theme.primary} size={64} /><Text style={styles.levelTitle}>{level.name}</Text><Text style={styles.levelSubtitle}>УРОВЕНЬ ПРОЙДЕН</Text><Text style={styles.levelScore}>{suggestedCoins(score)} coin</Text><ArcadeButton accent={theme.primary} onPress={continueLevel} style={styles.nextButton}>{levelIndex >= LEVELS.length - 1 ? "ФИНИШ" : "ДАЛЬШЕ"}</ArcadeButton></Animated.View></GameRoot>;
+  if (phase === "level") return <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}><GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} /><Animated.View entering={ZoomIn.springify()} style={styles.levelScreen}><Ionicons name="planet-outline" color={theme.primary} size={64} /><Text style={styles.levelTitle}>{level.name}</Text><Text style={styles.levelSubtitle}>УРОВЕНЬ ПРОЙДЕН</Text><Text style={styles.levelScore}>{suggestedCoins(score, true, "space-find-number")} coin</Text><ArcadeButton accent={theme.primary} onPress={continueLevel} style={styles.nextButton}>{levelIndex >= LEVELS.length - 1 ? "ФИНИШ" : "ДАЛЬШЕ"}</ArcadeButton></Animated.View></GameRoot>;
 
   const maxGrid = Math.min(width - 32, height * 0.53, 500);
   const gap = level.columns >= 6 ? 5 : 8;
@@ -109,7 +109,7 @@ export function FindNumberGame({ initialBestScore = 0, paused = false, skin, cha
   return (
     <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}>
       <GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} right={<Text style={[styles.countdown, timeLeft <= 10_000 && styles.danger]}>{Math.ceil(timeLeft / 1000)}</Text>} />
-      <View style={styles.hud}>{challengeMode ? <LivesStat lives={lives} color="#FF5572" /> : null}<HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /></View>
+      <View style={styles.hud}>{challengeMode ? <LivesStat lives={lives} color="#FF5572" /> : null}<HudStat label="COIN" value={suggestedCoins(score, true, "space-find-number")} color={theme.primary} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /></View>
       <View style={styles.prompt}><Text style={styles.promptLabel}>НАЙДИ ПЛАНЕТУ</Text><Text style={styles.target}>{current}</Text><Text style={styles.levelBadge}>{levelIndex + 1} · {level.name}</Text></View>
       <ProgressBar progress={found.length / level.count} color={theme.primary} />
       <View style={styles.gridStage}>

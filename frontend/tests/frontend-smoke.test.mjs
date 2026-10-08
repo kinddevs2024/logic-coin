@@ -4,6 +4,16 @@ import { test } from "node:test";
 
 const root = new URL("../", import.meta.url);
 
+test("Android game results do not leave a stacked native modal after navigation", async () => {
+  const source = await readFile(new URL("src/app/play/[gameKey].tsx", root), "utf8");
+  const resultComponent = source.slice(source.indexOf("function GameResultModal("), source.indexOf("function ResultStat("));
+  assert.match(resultComponent, /if \(!value\) return null/);
+  assert.match(resultComponent, /Platform\.OS === "android"\s*\? <View accessibilityViewIsModal style=\{styles\.androidResultLayer\}/);
+  assert.doesNotMatch(resultComponent, /<Modal visible=\{Boolean\(value\)\}/);
+  assert.match(resultComponent, /value\.saving \? <ActivityIndicator accessibilityLabel="Сохраняем награду"/);
+  assert.match(resultComponent, /value=\{value\.saving \? "…"/);
+});
+
 async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }

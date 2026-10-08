@@ -12,8 +12,8 @@ export function RankingPreview({ metric, onPress }: { metric: LeaderboardMetric;
   const token = useAppStore(s => s.accessToken);
   const theme = useAppTheme();
   const query = useInfiniteQuery({
-    queryKey: ["leaderboard", token],
-    queryFn: ({ pageParam, signal }) => leaderboardApi.getPage(pageParam, 10, token!, signal),
+    queryKey: ["leaderboard", token, 15],
+    queryFn: ({ pageParam, signal }) => leaderboardApi.getPage(pageParam, 15, token!, signal),
     enabled: !!token,
     initialPageParam: 0,
     getNextPageParam: page => page.offset + page.limit < page.total ? page.offset + page.limit : undefined,

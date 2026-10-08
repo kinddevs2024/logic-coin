@@ -18,10 +18,22 @@ import {
 } from "../services/contest.service.js";
 import { getTodayChallengeOverview } from "../services/daily-challenge.service.js";
 import { getContestProgress } from "../services/contest-progress.service.js";
+import { getContestHistory } from "../services/contest-history.service.js";
+import { getDailyContestRules } from "../services/contest-rules.service.js";
 
 const router = Router();
 const gameKeySchema = z.string().trim().regex(/^[a-z0-9-]{1,80}$/);
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+router.get("/rules", async (request, response) => {
+  const query = z.object({ day: dayKeySchema.optional() }).safeParse(request.query);
+  if (!query.success) throw new ApiError(400, "invalid_rules_query", "Invalid challenge date");
+  response.json({ data: await getDailyContestRules(query.data.day) });
+});
+router.get("/history", async (request, response) => {
+  const query = z.object({ day: dayKeySchema.optional(), offset: z.coerce.number().int().min(0).max(10_000_000).default(0) }).safeParse(request.query);
+  if (!query.success) throw new ApiError(400, "invalid_history_query", "Invalid history date or page");
+  response.json({ data: await getContestHistory(query.data.day, query.data.offset, request.auth!.userId) });
+});
 router.get("/progress", async (request, response) => {
   const query = z.object({ snapshot: z.string().uuid().optional(), offset: z.coerce.number().int().min(0).max(10_000_000).optional(), end: z.coerce.number().int().positive().max(10_000_000).optional() }).safeParse(request.query);
   if (!query.success || Boolean(query.data.snapshot) !== (query.data.offset !== undefined) || (query.data.end !== undefined && (query.data.offset === undefined || query.data.end <= query.data.offset))) throw new ApiError(400, "invalid_cursor", "Ranking cursor is invalid");

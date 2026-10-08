@@ -37,6 +37,9 @@ vi.mock("../src/models/CoinLedgerEntry.js", () => ({
     aggregate: modelMocks.ledgerAggregate
   }
 }));
+vi.mock("../src/models/ChallengeAdReward.js", () => ({
+  ChallengeAdReward: { find: vi.fn().mockReturnValue({ select: () => ({ lean: async () => [] }) }) }
+}));
 vi.mock("../src/models/NotificationEvent.js", () => ({
   NotificationEvent: { findOneAndUpdate: modelMocks.notificationFindOneAndUpdate }
 }));
@@ -122,8 +125,8 @@ describe("daily challenge auto-creation", () => {
     expect(update.$setOnInsert.selectionMode).toBe("random");
     expect((update.$setOnInsert.gameIds as unknown[]).length).toBe(6);
     expect(update.$setOnInsert.cashPrizeMinUnits).toBe(500);
-    expect(update.$setOnInsert.cashPrizeMaxUnits).toBe(10_000);
-    expect(update.$setOnInsert.prizePoolUnits).toBe(100_000);
+    expect(update.$setOnInsert.cashPrizeMaxUnits).toBe(1_000);
+    expect(update.$setOnInsert.prizePoolUnits).toBe(1_000);
 
     expect(result).toMatchObject({
       status: "published",
@@ -136,8 +139,8 @@ describe("daily challenge auto-creation", () => {
     expect(result.games.length).toBe(6);
     expect(result.prizes).toMatchObject({
       cashMinUnits: 500,
-      cashMaxUnits: 10_000,
-      poolUnits: 100_000
+      cashMaxUnits: 1_000,
+      poolUnits: 1_000
     });
   });
 

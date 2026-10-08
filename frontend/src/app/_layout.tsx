@@ -50,13 +50,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!hydrated || authMode !== "authenticated") return;
-    if (Platform.OS === "web" && new URLSearchParams(window.location.search).get("notifications") === "1") {
-      setPushInbox(true);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("notifications");
-      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
-    }
     let disposed = false;
+    if (Platform.OS === "web" && new URLSearchParams(window.location.search).get("notifications") === "1") {
+      queueMicrotask(() => {
+        if (disposed) return;
+        setPushInbox(true);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("notifications");
+        window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+      });
+    }
     let cleanup: (() => void) | undefined;
     void installNotificationHandlers(() => setPushInbox(true), () => {
       const state = useAppStore.getState();

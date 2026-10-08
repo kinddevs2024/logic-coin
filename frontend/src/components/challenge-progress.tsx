@@ -10,6 +10,7 @@ import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { GlassSurface } from "@/components/glass-surface";
 import { ChallengeEmptyState } from "@/components/challenge-empty-state";
+import { ChallengeRulePrizes } from "@/components/challenge-rule-prizes";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { challengesApi } from "@/lib/api";
@@ -23,6 +24,38 @@ const copy = {
   uz: { completed: "bajarildi", hint: "Bu sizning daromadingiz emas, shu kunning sinovi uchun umumiy mukofot jamg‘armasi. Sinov tugagach mukofotlar natijalar yoki administrator belgilagan summalar bo‘yicha taqsimlanadi.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Mukofot jamg‘armasi haqida" },
 };
 type Cursor = { snapshot: string; offset: number; end?: number };
+const challengeRules = {
+  ru: {
+    title: "Правила челленджа",
+    paragraphs: [
+      "Ежедневный челлендж состоит из шести игр. Заверши все игры дня. Перед началом можно потренироваться в разделе «Игры». Основное прохождение доступно один раз в день; дополнительные попытки возможны только по предусмотренным в приложении правилам.",
+      "Счёт начинается с нуля. Коины зависят от результата: правильных действий и прохождения игры. Результат и начисление сохраняются на сервере — для этого нужен интернет. Повтор уже зачтённой игры сам по себе не начисляет новую награду.",
+      "Место в рейтинге определяется коинами текущего челленджа. При одинаковой сумме выше участник, прошедший больше игр; затем учитывается время завершения.",
+      "Реклама и подарки могут дать дополнительные коины, время или разрешённый повтор. Рекламная награда начисляется только после подтверждённого просмотра; она не гарантируется, если реклама недоступна.",
+      "Денежные призы определяются настройками именно этого дня: автоматически из общего фонда либо вручную администратором. Ниже показаны актуальные суммы за первое, второе и третье места. Пока итоги не опубликованы, суммы могут меняться. Общий фонд — не твой баланс. Коины не равны долларам, участие не гарантирует получение денежного приза.",
+    ],
+  },
+  en: {
+    title: "Challenge rules",
+    paragraphs: [
+      "The daily challenge contains six games. Complete all games for the day. You can practice in the Games section first. The main run is available once a day; extra attempts are allowed only under the rules provided in the app.",
+      "Your score starts at zero. Coins depend on your performance and correct actions. Results and rewards are saved on the server, so internet access is required. Replaying an already credited game does not automatically earn a new reward.",
+      "Ranking is based on coins earned in this challenge. Ties are resolved by the number of completed games, then completion time.",
+      "Ads and gifts may provide extra coins, time or an authorized replay. Ad rewards require a verified viewing and are not guaranteed when ads are unavailable.",
+      "Cash prizes come from this day's settings: automatically from its prize pool or assigned manually by the administrator. Current first-, second- and third-place amounts appear below. Amounts may change until results are published. The pool is not your balance. Coins are not dollars, and participation does not guarantee a cash prize.",
+    ],
+  },
+  uz: {
+    title: "Sinov qoidalari",
+    paragraphs: [
+      "Kunlik sinov oltita o‘yindan iborat. Shu kunning barcha o‘yinlarini yakunlang. Avval «O‘yinlar» bo‘limida mashq qilishingiz mumkin. Asosiy ishtirok kuniga bir marta; qo‘shimcha urinishlar faqat ilovada ko‘rsatilgan qoidalarga muvofiq beriladi.",
+      "Hisob noldan boshlanadi. Coinlar to‘g‘ri harakatlar va o‘yin natijasiga bog‘liq. Natija va mukofot serverda saqlanadi, buning uchun internet kerak. Avval hisoblangan o‘yinni takrorlash o‘z-o‘zidan yangi mukofot bermaydi.",
+      "Reyting shu sinovda yig‘ilgan coinlar bo‘yicha tuziladi. Coinlar teng bo‘lsa, ko‘proq o‘yin tugatgan qatnashchi yuqorida turadi; keyin tugatish vaqti hisobga olinadi.",
+      "Reklama va sovg‘alar qo‘shimcha coin, vaqt yoki ruxsat etilgan qayta o‘ynash imkonini berishi mumkin. Reklama mukofoti ko‘rish tasdiqlangandan so‘ng beriladi; reklama mavjud bo‘lmasa mukofot kafolatlanmaydi.",
+      "Pul sovrinlari aynan shu kunning sozlamalaridan olinadi: umumiy jamg‘armadan avtomatik hisoblanadi yoki administrator qo‘lda belgilaydi. Quyida birinchi, ikkinchi va uchinchi o‘rin uchun joriy summalar ko‘rsatilgan. Natijalar e’lon qilinmaguncha summalar o‘zgarishi mumkin. Jamg‘arma sizning balansingiz emas. Coin dollar emas; ishtirok pul sovrinini kafolatlamaydi.",
+    ],
+  },
+};
 const ROW = 46;
 const HEIGHT = ROW * 3.5;
 
@@ -34,12 +67,13 @@ export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
 
 function ChallengeReady({ today }: { today: TodayChallenges }) {
   const focused = useIsFocused();
+  const [info, setInfo] = useState(false);
   // Reset this small clock when focus changes so the first visible render uses
   // current time, including the expired button state, without a hidden timer.
-  return <ChallengeReadyClock key={focused ? "focused" : "hidden"} today={today} focused={focused} />;
+  return <><ChallengeReadyClock key={focused ? "focused" : "hidden"} today={today} focused={focused} onRules={() => setInfo(true)} /><ChallengeRulesModal visible={info} dayKey={today.dayKey} onClose={() => setInfo(false)} /></>;
 }
 
-function ChallengeReadyClock({ today, focused }: { today: TodayChallenges; focused: boolean }) {
+function ChallengeReadyClock({ today, focused, onRules }: { today: TodayChallenges; focused: boolean; onRules: () => void }) {
   const router = useRouter();
   const theme = useAppTheme();
   const { language } = useTranslation();
@@ -67,6 +101,7 @@ function ChallengeReadyClock({ today, focused }: { today: TodayChallenges; focus
       <Ionicons name="trophy-outline" size={19} color={String(theme.primary)} />
       <AppText variant="caption" muted>{labels.pool}</AppText>
       <AppText variant="label">{formatMoney(today.prizes?.poolUnits ?? 0)}</AppText>
+      <Pressable accessibilityRole="button" accessibilityLabel={challengeRules[language].title} hitSlop={8} onPress={event => { event.stopPropagation(); onRules(); }} style={styles.infoButton}><Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} /></Pressable>
     </View>
   </GlassSurface></Pressable>;
 }
@@ -78,6 +113,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   const currentUser = useAppStore(s => s.user);
   const focused = useIsFocused();
   const c = copy[language];
+  const rules = challengeRules[language];
   const [info, setInfo] = useState(false);
   const [details, setDetails] = useState(false);
   const client = useQueryClient();
@@ -93,14 +129,22 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   });
   const pages = query.data?.pages ?? [];
   const progress = pages[0];
-  const snapshot = progress?.previous?.snapshot ?? progress?.next?.snapshot;
+  const rankingKey = ["challenges", "details-ranking", token, today?.dayKey, today?.revision];
   const ranking = useInfiniteQuery({
-    queryKey: ["challenges", "details-ranking", token, today?.dayKey, snapshot],
-    initialPageParam: snapshot ? { snapshot, offset: 0 } as Cursor : undefined,
-    queryFn: ({ pageParam }) => challengesApi.progress(token!, pageParam),
+    queryKey: rankingKey,
+    initialPageParam: undefined as Cursor | undefined,
+    queryFn: async ({ pageParam }) => {
+      if (pageParam) return challengesApi.progress(token!, pageParam);
+      // Never reuse the compact card's potentially expired snapshot.
+      const fresh = await challengesApi.progress(token!);
+      return fresh.previous
+        ? challengesApi.progress(token!, { snapshot: fresh.previous.snapshot, offset: 0 })
+        : fresh;
+    },
     getNextPageParam: page => page.next ?? undefined,
     enabled: Boolean(details && token && today?.available && query.isSuccess),
     retry: 1,
+    gcTime: 0,
   });
   const detailRows = ranking.data?.pages.flatMap(page => page.neighbors) ?? [];
   const rows = pages.flatMap(page => page.neighbors);
@@ -158,8 +202,8 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
       <View style={styles.money}>
         <Ionicons name="cash-outline" size={19} color={String(theme.primary)} />
         <AppText variant="heading" style={{ flexShrink: 1 }}>{today?.prizes ? formatMoney(today.prizes.poolUnits) : "—"}</AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel={c.info} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
-          <Ionicons name="help-circle-outline" size={20} color={String(theme.textMuted)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={rules.title} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
+          <Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} />
         </Pressable>
       </View>
       <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>
@@ -216,7 +260,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
           {(today?.games ?? []).map(game => <View key={game.key} accessibilityLabel={`${game.title}: ${game.state.coinsAwarded} coin`} style={styles.detailsGame}><Image source={gameCoverFor(game.key)} style={styles.detailsGameIcon} resizeMode="contain" /><AppText variant="label">+{game.state.coinsAwarded}</AppText></View>)}
           </View>
         </GlassSurface></View>}
-        ListFooterComponent={ranking.isError ? <Pressable onPress={() => void ranking.refetch()}><AppText>{c.retry}</AppText></Pressable> : ranking.isPending || ranking.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null} />
+        ListFooterComponent={ranking.isError ? <Pressable onPress={() => void client.resetQueries({ queryKey: rankingKey, exact: true })}><AppText>{c.retry}</AppText></Pressable> : ranking.isPending || ranking.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null} />
         <Animated.View pointerEvents="none" style={[styles.detailsFadeTop, { opacity: topFadeOpacity }]}><LinearGradient colors={[String(theme.background), fadeClear]} style={StyleSheet.absoluteFill} /></Animated.View>
         <LinearGradient pointerEvents="none" colors={[fadeClear, String(theme.background)]} style={styles.detailsFadeBottom} />
         {selfStats ? <Animated.View pointerEvents="none" style={[styles.detailsSelf, { transform: [{ translateY: dockY }] }]}><GlassSurface variant="strong" style={[styles.detailsRank, { borderColor: theme.primary, borderWidth: 1 }]}>
@@ -228,16 +272,28 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         </View>
       </SafeAreaView>
     </Modal> : null}
-    <Modal visible={info} transparent animationType="fade" onRequestClose={() => setInfo(false)}>
+    <ChallengeRulesModal visible={info} dayKey={today?.dayKey} onClose={() => setInfo(false)} />
+  </>;
+}
+
+function ChallengeRulesModal({ visible, dayKey, onClose }: { visible: boolean; dayKey?: string; onClose: () => void }) {
+  const theme = useAppTheme();
+  const { language } = useTranslation();
+  const rules = challengeRules[language];
+  const c = copy[language];
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={() => setInfo(false)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={onClose} />
         <GlassSurface variant="strong" style={styles.explanation}>
-          <AppText>{c.hint}</AppText>
-          <Pressable accessibilityRole="button" onPress={() => setInfo(false)}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
+          <AppText variant="heading" accessibilityRole="header">{rules.title}</AppText>
+          <ScrollView style={styles.rulesScroll} contentContainerStyle={styles.rulesContent} showsVerticalScrollIndicator>
+            {rules.paragraphs.map((paragraph, index) => <AppText key={index}>{index + 1}. {paragraph}</AppText>)}
+            {visible ? <ChallengeRulePrizes dayKey={dayKey} /> : null}
+          </ScrollView>
+          <Pressable accessibilityRole="button" onPress={onClose}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
         </GlassSurface>
       </View>
-    </Modal>
-  </>;
+    </Modal>;
 }
 const styles = StyleSheet.create({
   detailsScreen: { flex: 1 },
@@ -269,5 +325,7 @@ const styles = StyleSheet.create({
   person: { flex: 1, minWidth: 0 },
   loading: { position: "absolute", bottom: 2, right: 4 },
   backdrop: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.5)" },
-  explanation: { width: "100%", maxWidth: 420, padding: 24, borderRadius: 24, gap: 20 },
+  explanation: { width: "100%", maxWidth: 420, maxHeight: "85%", padding: 24, borderRadius: 24, gap: 20 },
+  rulesScroll: { flexShrink: 1 },
+  rulesContent: { gap: 14 },
 });

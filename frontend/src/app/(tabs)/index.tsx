@@ -2,13 +2,14 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RankingPreview } from "@/components/ranking-preview";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import Svg, { Circle } from "react-native-svg";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { HomeDesktopAds } from "@/components/home-desktop-ads";
-import { AppButton, IconButton } from "@/components/buttons";
+import { AppButton } from "@/components/buttons";
+import { HomeBell } from "@/components/home-bell";
+import { FloatingHomeGift } from "@/components/floating-home-gift";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { ChallengeCard } from "@/components/challenge-card";
@@ -18,7 +19,7 @@ import { LeaderboardModal } from "@/components/leaderboard-modal";
 import { NotificationInbox } from "@/components/notification-inbox";
 import { ProfileDrawer } from "@/components/profile-drawer";
 import { SavingsScene } from "@/components/savings-scene";
-import { SectionHeader } from "@/components/section-header";
+import { HomeChallengeClock } from "@/components/home-challenge-clock";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -52,6 +53,9 @@ export default function HomeScreen() {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const inboxButton = useRef<View>(null);
+  const [giftBounds, setGiftBounds] = useState<{ top: number; bottom: number; width: number }>();
+  const giftScene = useRef({ top: 0, height: 0 });
+  const [giftSceneVisible, setGiftSceneVisible] = useState(true);
   const [inboxAnchor, setInboxAnchor] = useState<{ x: number; y: number; width: number; height: number }>();
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
@@ -69,7 +73,7 @@ export default function HomeScreen() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.all(["bootstrap", "challenges", "leaderboard"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["bootstrap", "challenges", "leaderboard", "unread-count"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
     } finally { setRefreshing(false); }
   };
   const balance = useAppStore((state) => state.balanceUnits);
@@ -77,17 +81,18 @@ export default function HomeScreen() {
   const user = useAppStore((state) => state.user);
   const { today, pendingGameKey } = useChallenges();
 
-  return (
-    <AppFrame wide desktopNavigationInset contentStyle={styles.content} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={drawerOpen || leaderboardOpen || inboxOpen}>
+  return (<>
+    <AppFrame wide desktopNavigationInset contentStyle={styles.content} scrollProps={{ scrollEventThrottle: 100, onScroll: ({ nativeEvent }) => {
+      const scene = giftScene.current;
+      setGiftSceneVisible(nativeEvent.contentOffset.y < scene.top + scene.height * 0.82);
+    } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={drawerOpen || leaderboardOpen || inboxOpen}>
       <View style={styles.header}>
         <View style={styles.headerSide}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("tabs.profile")} onPress={() => setDrawerOpen(true)}><Avatar name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
         <RankingPreview metric="wealth" onPress={() => setLeaderboardOpen(true)} />
         <View style={[styles.headerSide, styles.headerSideEnd]}>
-          <View ref={inboxButton} collapsable={false}><IconButton
-            name="notifications-outline"
-            label="Уведомления"
+          <View ref={inboxButton} collapsable={false}><HomeBell
             onPress={() => {
               inboxButton.current?.measureInWindow((x, y, width, height) => {
                 setInboxAnchor({ x, y, width, height });
@@ -101,8 +106,11 @@ export default function HomeScreen() {
       {refreshing ? <AppText accessibilityLiveRegion="polite" muted>Обновляем…</AppText> : null}
 
       <HomeDesktopAds position="top" />
-      <View style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
-        <View style={[styles.hero, isDesktop && styles.heroDesktop]}>
+      <View onLayout={({ nativeEvent: { layout } }) => { giftScene.current.top = layout.y; }} style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
+        <View collapsable={false} onLayout={({ nativeEvent: { layout } }) => {
+          giftScene.current.height = layout.height;
+          setGiftBounds({ top: layout.height * 0.08, bottom: layout.height * 0.82, width: layout.width });
+        }} style={[styles.hero, isDesktop && styles.heroDesktop]}>
           <SavingsScene balance={balance} goal={goal}>
             <View style={styles.actions}>
               <AppButton
@@ -123,6 +131,9 @@ export default function HomeScreen() {
               </AppButton>
             </View>
           </SavingsScene>
+          <View collapsable={false} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+            <FloatingHomeGift key="bank-attached-gift" active={giftSceneVisible && !drawerOpen && !leaderboardOpen && !inboxOpen} bounds={giftBounds} />
+          </View>
         </View>
 
         <GlassSurface
@@ -134,10 +145,9 @@ export default function HomeScreen() {
             { borderColor: theme.glassBorder },
           ]}
         >
-          <SectionHeader
-            title={t("home.today")}
-            action={`${today?.completedCount ?? 0}/${today?.totalCount ?? 0} · ${t("home.allChallenges")}`}
-            onAction={() => router.push("/challenges" as never)}
+          <HomeChallengeClock
+            endsAt={today?.endsAt}
+            onPress={() => router.push("/challenges" as never)}
           />
           <View style={styles.taskList}>
             {(today?.games ?? []).map((game, index) => (
@@ -192,7 +202,7 @@ export default function HomeScreen() {
       {leaderboardOpen ? <LeaderboardModal visible onClose={() => setLeaderboardOpen(false)} /> : null}
       {inboxOpen ? <NotificationInbox anchor={inboxAnchor} onClose={() => setInboxOpen(false)} /> : null}
     </AppFrame>
-  );
+  </>);
 }
 
 const styles = StyleSheet.create({

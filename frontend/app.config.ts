@@ -9,7 +9,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: (config.plugins ?? []).some(plugin => (typeof plugin === "string" ? plugin : plugin[0]) === "expo-web-browser")
     ? config.plugins
     : [...(config.plugins ?? []), "expo-web-browser"],
-  runtimeVersion: { policy: "fingerprint" },
+  // Local Expo Go previews do not need the APK compatibility fingerprint.
+  // Release builds keep the signed-update configuration unchanged.
+  runtimeVersion: process.env.LOGIC_EXPO_GO_PREVIEW === "1" ? "expo-go-preview" : { policy: "fingerprint" },
   updates: {
     ...config.updates,
     enabled: true,

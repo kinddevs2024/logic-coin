@@ -24,16 +24,20 @@ describe("daily challenge selection", () => {
 });
 
 describe("challenge coin rules", () => {
-  it("cannot credit base rewards beyond 6000 daily coins", () => {
+  it("does not cut game earnings at the old daily allowance", () => {
     expect(remainingBaseChallengeCoins(1000, 0)).toBe(1000);
-    expect(remainingBaseChallengeCoins(1000, 5750)).toBe(250);
-    expect(remainingBaseChallengeCoins(500, 6000)).toBe(0);
-    expect(remainingBaseChallengeCoins(1000, 6500)).toBe(0);
+    expect(remainingBaseChallengeCoins(1000, 5750)).toBe(1000);
+    expect(remainingBaseChallengeCoins(500, 6000)).toBe(500);
+    expect(remainingBaseChallengeCoins(1200, 6500)).toBe(1200);
   });
-  it("caps one game at 1000 coins while preserving the raw score contract", () => {
-    expect(challengeCoinsForScore(0)).toBe(500);
-    expect(challengeCoinsForScore(499)).toBe(524);
-    expect(challengeCoinsForScore(50_000)).toBe(1_000);
+  it("calibrates ordinary rewards without a hard thousand-coin ceiling", () => {
+    expect(challengeCoinsForScore(0)).toBe(0);
+    expect(challengeCoinsForScore(499)).toBe(499);
+    expect(challengeCoinsForScore(50_000)).toBe(2129);
+    expect(challengeCoinsForScore(67, 1000, "math-quiz")).toBe(67);
+    expect(challengeCoinsForScore(200, 1000, "math-quiz")).toBe(200);
+    expect(challengeCoinsForScore(1000, 1000, "math-quiz")).toBe(1000);
+    expect(challengeCoinsForScore(1000, 1000, "one-second")).toBe(25);
   });
 
   it("calculates the direct 15 percent referral prize share in integer units", () => {

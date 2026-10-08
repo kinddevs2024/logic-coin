@@ -75,7 +75,7 @@ export function FindLetterGame({ initialBestScore = 0, paused = false, skin, cha
     const finalScore = final?.score ?? score; const finalCorrect = final?.correct ?? correctCount; const finalLives = final?.lives ?? lives; const rounds = final?.rounds ?? round;
     const duration = Date.now() - startedAt.current; const accuracy = rounds ? Math.round((finalCorrect / rounds) * 100) : 0;
     setElapsedMs(duration); setScore(finalScore); setCorrectCount(finalCorrect); setLives(finalLives); setRound(rounds); setBest((value) => Math.max(value, finalScore)); setPhase("result");
-    onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: duration, suggestedCoins: suggestedCoins(finalScore, won), stats: { correct: finalCorrect, rounds, accuracy, lives: finalLives } });
+    onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: duration, suggestedCoins: suggestedCoins(finalScore, won, "find-letter"), stats: { correct: finalCorrect, rounds, accuracy, lives: finalLives } });
   }, [correctCount, lives, onComplete, round, score]);
 
   const advance = useCallback((nextRound: number, nextLives: number, finalScore: number, finalCorrect: number) => {
@@ -114,7 +114,7 @@ export function FindLetterGame({ initialBestScore = 0, paused = false, skin, cha
     if (ok) {
       const nextStreak = streak + 1; const bonus = Math.floor(timeLeft / 1000) * 2; const streakBonus = nextStreak >= 3 ? 50 : 0;
       nextScore += 100 + bonus + streakBonus; nextCorrect += 1; setStreak(nextStreak); setCorrectCount(nextCorrect); impact("success");
-      if (!challengeMode) awardCoins("find-letter", Math.floor((100 + bonus + streakBonus) / 20));
+      if (!challengeMode) awardCoins("find-letter", suggestedCoins(nextScore, true, "find-letter") - suggestedCoins(score, true, "find-letter"));
     } else {
       nextScore = Math.max(0, nextScore - 30); if (challengeMode) nextLives -= 1; setStreak(0); setLives(nextLives); impact("error");
     }
@@ -136,7 +136,7 @@ export function FindLetterGame({ initialBestScore = 0, paused = false, skin, cha
   const remainingRatio = timeLeft / (config.seconds * 1000);
   return (
     <GameRoot colors={["#123B5F", "#0C1A2E", "#071830"]} skin={skin}>
-      <GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} right={<View style={styles.scoreBadge}><Ionicons name="diamond" color={theme.secondary} size={14} /><Text style={[styles.score, { color: theme.secondary }]}>{practiceCoins ?? suggestedCoins(score)}</Text></View>} />
+      <GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} right={<View style={styles.scoreBadge}><Ionicons name="diamond" color={theme.secondary} size={14} /><Text style={[styles.score, { color: theme.secondary }]}>{practiceCoins ?? suggestedCoins(score, true, "find-letter")}</Text></View>} />
       {challengeMode ? <><View style={styles.hud}><HudStat label="Раунд" value={`${round + 1}/${TOTAL_ROUNDS}`} /><HudStat label="Верно" value={correctCount} color={theme.primary} /><LivesStat lives={lives} color="#FB7185" /><HudStat label="Время" value={formatClock(elapsedMs)} /></View><ProgressBar progress={round / TOTAL_ROUNDS} color={theme.secondary} /></> : null}
       <View style={[styles.question, { borderColor: theme.primary }]}><Text style={styles.questionText}>Какая буква написана <Text style={[styles.highlight, { color: theme.secondary }]}>2 раза</Text>?</Text><Text style={[styles.difficulty, { color: theme.primary }]}>{config.name}</Text></View>
       <View style={styles.playRow} onLayout={({ nativeEvent: { layout } }) => setPlayArea(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}>

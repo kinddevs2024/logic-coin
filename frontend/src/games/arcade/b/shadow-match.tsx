@@ -64,7 +64,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
     onFinish?.({
       gameId: "shadow-match",
       score: finalStats.score,
-      coins: rewardCoins(finalStats.score, won),
+      coins: rewardCoins(finalStats.score, won, "shadow-match"),
       won,
       durationMs: Date.now() - startedAt.current,
       details: { accuracy, combo: finalStats.maxCombo, rounds: finalStats.round },
@@ -181,7 +181,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
   const gap = 4;
   const cellSize = (boardWidth - gap * 5) / 6;
   const accuracy = Math.round(stats.correct / Math.max(1, stats.correct + stats.wrong) * 100);
-  const coins = rewardCoins(stats.score, accuracy >= 65);
+  const coins = rewardCoins(stats.score, accuracy >= 65, "shadow-match");
   const best = Math.max(initialBest, stats.score);
   const rank = accuracy >= 95 ? "ТЕЛЕПАТ" : accuracy >= 80 ? "МОЛНИЯ" : accuracy >= 65 ? "РЕФЛЕКС" : accuracy >= 50 ? "СТРЕЛОК" : "НОВИЧОК";
   const foundCount = useMemo(() => found.size, [found]);
@@ -192,7 +192,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
       {screen === "play" ? (
         <View style={styles.play}>
           <View style={styles.metrics}>
-            <Metric label="COIN" value={rewardCoins(stats.score, accuracy >= 65)} color={accent} />
+            <Metric label="COIN" value={rewardCoins(stats.score, accuracy >= 65, "shadow-match")} color={accent} />
             <Metric label="СЕРИЯ" value={`×${stats.combo}`} color={B_COLORS.gold} />
             {challengeMode ? <Metric label="ЖИЗНИ" value={`${stats.lives}/3`} color={B_COLORS.red} /> : null}
           </View>

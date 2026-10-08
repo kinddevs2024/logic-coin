@@ -170,7 +170,7 @@ export function IntroScreen({ eyebrow, title, subtitle, accent, children, onStar
 }
 
 export function ResultScreen({ title, score, accent, stats, onRestart, onExit }: { title: string; score: number; accent: string; stats: { label: string; value: string | number }[]; onRestart: () => void; onExit?: () => void }) {
-  const coins = gameCoinReward(score);
+  const coins = gameCoinReward(score, false, useGameSession()?.gameKey);
   return (
     <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.centerScreen}>
       <Text style={[styles.eyebrow, { color: accent }]}>РЕЗУЛЬТАТ</Text>
