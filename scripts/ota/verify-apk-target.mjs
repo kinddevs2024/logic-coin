@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, mkdirSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { X509Certificate } from 'node:crypto';
 
@@ -10,7 +10,18 @@ execFileSync('git', ['merge-base', '--is-ancestor', baselineSha, 'HEAD']);
 execFileSync('git', ['diff', '--exit-code', baselineSha, '--', 'package.json', 'package-lock.json', '.npmrc', 'frontend/package.json', 'frontend/app.json', 'frontend/app.config.ts', 'frontend/certs', 'frontend/plugins', 'frontend/android', 'frontend/ios']);
 const runtime = execFileSync('unzip', ['-p', apk, 'assets/fingerprint'], { encoding: 'utf8' }).trim();
 if (!/^[a-f0-9]{40,64}$/.test(runtime)) throw new Error('APK has no valid embedded fingerprint runtime');
-const embedded = new X509Certificate(execFileSync('unzip', ['-p', apk, 'assets/expo-root.pem']));
+// expo-root.pem is Expo's general trust certificate, not the app's signing key.
+// expo-updates reads its code-signing certificate from AndroidManifest metadata.
+const sdk = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT;
+if (!sdk) throw new Error('Android SDK is required to inspect the APK update configuration');
+const tools = readdirSync(resolve(sdk, 'build-tools')).sort((a, b) => b.localeCompare(a, undefined, { numeric: true })).map(version => resolve(sdk, 'build-tools', version, 'aapt2')).find(existsSync);
+if (!tools) throw new Error('aapt2 is unavailable');
+const xml = execFileSync(tools, ['dump', 'xmltree', '--file', 'AndroidManifest.xml', apk], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+if (!xml.includes('https://logic-coin.online/updates') || !/expo-channel-name[^\n]*preview/.test(xml)) throw new Error('APK does not target the preview update service');
+const signingMetadata = xml.slice(xml.indexOf('expo.modules.updates.CODE_SIGNING_CERTIFICATE'));
+const pem = signingMetadata.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)?.[0];
+if (!pem) throw new Error('APK update signing certificate missing');
+const embedded = new X509Certificate(pem.split(/\r?\n/).map(line => line.trim()).join('\n'));
 const configured = new X509Certificate(readFileSync('frontend/certs/update-certificate.pem'));
 if (!embedded.raw.equals(configured.raw)) throw new Error('Update certificate differs from the APK');
 const resolved = JSON.parse(execFileSync(process.execPath, [resolve('node_modules/expo-updates/bin/cli.js'), 'runtimeversion:resolve', '--platform', 'android'], { cwd: 'frontend', encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }));
