@@ -25,7 +25,10 @@ const embedded = new X509Certificate(pem.split(/\r?\n/).map(line => line.trim())
 const configured = new X509Certificate(readFileSync('frontend/certs/update-certificate.pem'));
 if (!embedded.raw.equals(configured.raw)) throw new Error('Update certificate differs from the APK');
 const resolved = JSON.parse(execFileSync(process.execPath, [resolve('node_modules/expo-updates/bin/cli.js'), 'runtimeversion:resolve', '--platform', 'android'], { cwd: 'frontend', encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }));
-if (resolved.runtimeVersion !== runtime) throw new Error('Resolved runtime does not match the installed APK; do not publish');
+if (resolved.runtimeVersion !== runtime) {
+  console.error(JSON.stringify({ apkRuntime: runtime, resolvedRuntime: resolved.runtimeVersion, workflow: resolved.workflow, sources: resolved.fingerprintSources?.map(source => ({ type: source.type, filePath: source.filePath, hash: source.hash, reasons: source.reasons })) }));
+  throw new Error('Resolved runtime does not match the installed APK; do not publish');
+}
 mkdirSync(output, { recursive: true });
 writeFileSync(resolve(output, 'runtime.json'), JSON.stringify({ runtimeVersion: runtime, channel: 'preview', platform: 'android', baselineSha }));
 console.log('Native inputs, certificate and exact APK runtime compatibility verified.');
