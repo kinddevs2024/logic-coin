@@ -33,8 +33,8 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function rewardCoins(score: number, won = true): number {
-  return gameCoinReward(score, won);
+export function rewardCoins(score: number, won = true, gameKey?: string): number {
+  return gameCoinReward(score, won, gameKey);
 }
 
 export function formatSeconds(ms: number): string {

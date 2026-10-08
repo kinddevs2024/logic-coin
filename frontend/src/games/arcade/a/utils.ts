@@ -46,6 +46,6 @@ export function formatClock(milliseconds: number, showCentiseconds = false) {
   return minutes > 0 ? `${minutes}:${seconds}.${centiseconds}` : `${seconds}.${centiseconds}`;
 }
 
-export function suggestedCoins(score: number, won = true) {
-  return gameCoinReward(score, won);
+export function suggestedCoins(score: number, won = true, gameKey?: string) {
+  return gameCoinReward(score, won, gameKey);
 }

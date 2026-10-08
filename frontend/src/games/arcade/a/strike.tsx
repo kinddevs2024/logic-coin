@@ -78,7 +78,7 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
     const won = finalHits.filter((hit) => hit !== "miss").length >= winningHits;
     setBest((value) => Math.max(value, finalScore));
     setPhase("result");
-    onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: Date.now() - gameStartedAt.current, suggestedCoins: suggestedCoins(finalScore, won), stats: { perfect, maxCombo: finalMaxCombo, attempts: finalHits.length } });
+    onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: Date.now() - gameStartedAt.current, suggestedCoins: suggestedCoins(finalScore, won, "udar"), stats: { perfect, maxCombo: finalMaxCombo, attempts: finalHits.length } });
   }, [onComplete, winningHits]);
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
     const points = Math.round(BASE_POINTS[hit] * multiplier);
     const nextScore = score + points;
     const nextHits = [...hits, hit].slice(challengeMode ? 0 : -38);
-    if (!challengeMode) awardCoins("udar", Math.floor(nextScore / 20) - Math.floor(score / 20));
+    if (!challengeMode) awardCoins("udar", suggestedCoins(nextScore, true, "udar") - suggestedCoins(score, true, "udar"));
     setHits(nextHits); setScore(nextScore); setCombo(nextCombo); setMaxCombo(nextMax); setFeedback({ hit, points });
     buttonScale.set(withSequence(withTiming(0.94, { duration: 70 }), withTiming(1, { duration: 150 })));
     impact(hit === "perfect" ? "success" : hit === "miss" ? "error" : "medium");
@@ -127,7 +127,7 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
   return (
     <GameRoot colors={["#160D0D", "#080808", "#0B0B0B"]} skin={skin}>
       <GameHeader title="УДАР" accent={theme.primary} onExit={onExit} right={<Text style={[styles.speed, { color: theme.secondary }]}>×{currentSpeed.toFixed(1)}</Text>} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.secondary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label={challengeMode ? "Попытка" : "Режим"} value={challengeMode ? `${Math.min(attemptLimit, hits.length + (feedback ? 0 : 1))}/${attemptLimit}` : "∞"} /></View>
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score, true, "udar")} color={theme.secondary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label={challengeMode ? "Попытка" : "Режим"} value={challengeMode ? `${Math.min(attemptLimit, hits.length + (feedback ? 0 : 1))}/${attemptLimit}` : "∞"} /></View>
       {challengeMode ? <View style={styles.attempts}>{Array.from({ length: attemptLimit }, (_, index) => <View key={index} style={[styles.attempt, hits[index] && { backgroundColor: COLORS[hits[index]!] }]} />)}</View> : null}
       <View style={styles.stage}>
         <Text style={[styles.status, feedback && { color: COLORS[feedback.hit] }]}>{feedback ? LABELS[feedback.hit] : "НАЖМИ В НУЖНЫЙ МОМЕНТ"}</Text>

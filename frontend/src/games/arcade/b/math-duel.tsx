@@ -95,7 +95,7 @@ export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
     onFinish?.({
       gameId: "math-duel",
       score: finalState.score,
-      coins: rewardCoins(finalState.score, won),
+      coins: rewardCoins(finalState.score, won, "math-duel"),
       won,
       durationMs: Date.now() - startedAt.current,
       details: { correct, wrong, combo: finalState.maxCombo },
@@ -157,7 +157,7 @@ export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
 
   const correct = game.top.correct + game.bottom.correct;
   const wrong = game.top.wrong + game.bottom.wrong;
-  const coins = rewardCoins(game.score, correct > wrong);
+  const coins = rewardCoins(game.score, correct > wrong, "math-duel");
 
   return (
     <GameScreen title="ДУЭЛЬ УМОВ" accent={accent} skin={skin} onExit={onExit} right={<CoinPill value={initialCoins + coins} />}>
@@ -168,7 +168,7 @@ export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
           <View style={styles.centerBar}>
             <Metric label="ВРЕМЯ" value={timeLeft} color={timeLeft <= 10 ? B_COLORS.red : B_COLORS.gold} />
             <View style={styles.centralScore}>
-              <Text style={[styles.score, { color: accent }]}>{rewardCoins(game.score)} coin</Text>
+              <Text style={[styles.score, { color: accent }]}>{rewardCoins(game.score, true, "math-duel")} coin</Text>
               <View style={styles.comboRow}>
                 {game.combo >= 2 ? <ArcadeIcon name="fire" size={10} color="#FF9D45" /> : null}
                 <Text style={styles.combo}>{game.combo >= 2 ? `x${game.combo}` : "FOCUS"}</Text>

@@ -99,7 +99,7 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
       score: finalScore,
       won: average <= 250,
       durationMs: Date.now() - gameStartedAt.current,
-      suggestedCoins: suggestedCoins(finalScore, average <= 250),
+      suggestedCoins: suggestedCoins(finalScore, average <= 250, "one-second"),
       stats: { averageDeviationMs: average, perfect: finalAttempts.filter((item) => item.kind === "perfect").length },
     };
     setBestScore((value) => Math.max(value, finalScore));
@@ -141,7 +141,7 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
     const kind = classify(deviation);
     const nextAttempt = { elapsed, deviation, points: pointsFor(deviation), kind };
     const next = [...attempts, nextAttempt].slice(challengeMode ? 0 : -40);
-    if (!challengeMode) awardCoins("one-second", Math.floor(nextAttempt.points / 20));
+    if (!challengeMode) awardCoins("one-second", suggestedCoins(score + nextAttempt.points, true, "one-second") - suggestedCoins(score, true, "one-second"));
     setHolding(false);
     setHoldMs(elapsed);
     setFeedback(nextAttempt);
@@ -169,7 +169,7 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
           </GlassPanel>
           <View style={styles.introStats}>
             <View style={styles.introStat}><Text style={styles.introStatLabel}>ЛУЧШЕЕ ОТКЛОНЕНИЕ</Text><Text style={styles.introStatValue}>—</Text></View>
-            <View style={styles.introStat}><Text style={styles.introStatLabel}>ЛУЧШИЙ COIN</Text><Text style={styles.introStatValue}>{bestScore ? suggestedCoins(bestScore) : "—"}</Text></View>
+            <View style={styles.introStat}><Text style={styles.introStatLabel}>ЛУЧШИЙ COIN</Text><Text style={styles.introStatValue}>{bestScore ? suggestedCoins(bestScore, true, "one-second") : "—"}</Text></View>
           </View>
           <ArcadeButton accent={theme.primary} onPress={start} style={styles.introButton}>НАЧАТЬ</ArcadeButton>
         </Animated.View>
@@ -188,7 +188,7 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
   return (
     <GameRoot colors={["#121020", "#060608", "#06100E"]} skin={skin}>
       <GameHeader title="1 СЕКУНДА" accent={theme.primary} onExit={onExit} />
-      <View style={styles.hud}><HudStat label={challengeMode ? "Попытка" : "Режим"} value={challengeMode ? `${attempts.length + (feedback ? 0 : 1)}/${challengeAttempts}` : "∞"} /><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} /><HudStat label="Среднее" value={attempts.length ? `${average}мс` : "—"} /></View>
+      <View style={styles.hud}><HudStat label={challengeMode ? "Попытка" : "Режим"} value={challengeMode ? `${attempts.length + (feedback ? 0 : 1)}/${challengeAttempts}` : "∞"} /><HudStat label="COIN" value={suggestedCoins(score, true, "one-second")} color={theme.primary} /><HudStat label="Среднее" value={attempts.length ? `${average}мс` : "—"} /></View>
       <View style={styles.game}>
         <Text style={[styles.phase, { color: activeColor }]}>{feedback ? hitLabel[feedback.kind] : holding ? "ОТПУСТИ ЧЕРЕЗ 1 СЕКУНДУ" : "НАЖМИ И ДЕРЖИ"}</Text>
         <Pressable onPressIn={pressIn} onPressOut={pressOut} accessibilityRole="button" accessibilityLabel="Зажмите и отпустите через одну секунду">

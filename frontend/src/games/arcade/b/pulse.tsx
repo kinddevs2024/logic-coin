@@ -142,7 +142,7 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = f
       if (elapsed >= 180_000) {
         clearInterval(timer);
         setStatus("lost");
-        onFinish?.({ gameId: "pulse", score: levelScore, coins: rewardCoins(levelScore, false), won: false, durationMs: elapsed, details: { level: level + 1, timedOut: true } });
+        onFinish?.({ gameId: "pulse", score: levelScore, coins: rewardCoins(levelScore, false, "pulse"), won: false, durationMs: elapsed, details: { level: level + 1, timedOut: true } });
       }
     }, 250);
     return () => clearInterval(timer);
@@ -207,18 +207,18 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = f
       setLastLevelPoints(earned);
       setTotalScore(finalTotal);
       setStatus("won");
-      onFinish?.({ gameId: "pulse", score: earned, coins: rewardCoins(earned), won: true, durationMs: Date.now() - startedAt.current, details: { level: level + 1, attempt, chain: nextChainMax } });
+      onFinish?.({ gameId: "pulse", score: earned, coins: rewardCoins(earned, true, "pulse"), won: true, durationMs: Date.now() - startedAt.current, details: { level: level + 1, attempt, chain: nextChainMax } });
     } else if (nextMoves <= 0) {
       setStatus("lost");
       errorTap();
-      onFinish?.({ gameId: "pulse", score: nextLevelScore, coins: rewardCoins(nextLevelScore, false), won: false, durationMs: Date.now() - startedAt.current, details: { level: level + 1, remaining } });
+      onFinish?.({ gameId: "pulse", score: nextLevelScore, coins: rewardCoins(nextLevelScore, false, "pulse"), won: false, durationMs: Date.now() - startedAt.current, details: { level: level + 1, remaining } });
     }
   }, [attempt, chainMax, grid, level, levelScore, moves, onFinish, status, totalScore]);
 
   const boardWidth = Math.min(390, width - 42);
   const gap = 5;
   const cellSize = (boardWidth - gap * (COLS - 1)) / COLS;
-  const displayedCoins = initialCoins + rewardCoins(totalScore + levelScore, status === "won");
+  const displayedCoins = initialCoins + rewardCoins(totalScore + levelScore, status === "won", "pulse");
 
   return (
     <GameScreen title="PULSE" accent={accent} skin={skin} onExit={onExit} right={<CoinPill value={displayedCoins} />}>
@@ -230,7 +230,7 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = f
             <Metric label="УРОВЕНЬ" value={level + 1} color={accent} />
             <Metric label="ПОПЫТКА" value={attempt} color={attempt === 1 ? B_COLORS.green : B_COLORS.gold} />
             <Metric label="ЯЧЕЙКИ" value={alive} color={B_COLORS.cyan} />
-            <Metric label="COIN" value={rewardCoins(totalScore + levelScore)} color={B_COLORS.gold} />
+            <Metric label="COIN" value={rewardCoins(totalScore + levelScore, true, "pulse")} color={B_COLORS.gold} />
           </View>
           <View style={styles.movesRow}><Text style={styles.movesLabel}>ОСТАЛОСЬ ХОДОВ</Text><Text style={[styles.movesValue, moves <= 2 && { color: B_COLORS.red }]}>{moves}</Text></View>
           <ProgressTrack value={moves / Math.max(1, snapshot.moves)} color={moves <= 2 ? B_COLORS.red : accent} />
@@ -258,7 +258,7 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = f
             <ArcadeIcon name="check-decagram-outline" size={52} color={accent} />
             <Text style={[styles.overlayTitle, { color: accent }]}>ОЧИЩЕНО!</Text>
             <Text style={styles.overlayScore}>{lastLevelPoints}</Text>
-            <View style={styles.metrics}><Metric label="ЦЕПЬ" value={`×${chainMax}`} color="#FF9D45" /><Metric label="ПОПЫТКА" value={attempt} color={accent} /><Metric label="COIN" value={`+${rewardCoins(lastLevelPoints)}`} color={B_COLORS.gold} /></View>
+            <View style={styles.metrics}><Metric label="ЦЕПЬ" value={`×${chainMax}`} color="#FF9D45" /><Metric label="ПОПЫТКА" value={attempt} color={accent} /><Metric label="COIN" value={`+${rewardCoins(lastLevelPoints, true, "pulse")}`} color={B_COLORS.gold} /></View>
             <GameButton label="СЛЕДУЮЩИЙ" accent={accent} onPress={() => beginLevel(level + 1, totalScore)} />
             <GameButton label="ПОВТОРИТЬ" accent={accent} secondary onPress={restart} />
           </Panel>

@@ -200,5 +200,6 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
 };
 
 export function translate(language: Language | null, key: TranslationKey) {
+  if (key === "home.earn") return { ru: "Челлендж", en: "Challenge", uz: "Sinov" }[language ?? "ru"];
   return translations[language ?? "ru"][key] ?? ru[key];
 }

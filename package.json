@@ -14,6 +14,7 @@
     "backend"
   ],
   "scripts": {
+    "postinstall": "node scripts/patch-expo-router-linking.cjs",
     "dev": "concurrently --names frontend,backend --prefix-colors cyan,magenta \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "npm run start --workspace frontend",
     "dev:backend": "npm run dev --workspace backend",

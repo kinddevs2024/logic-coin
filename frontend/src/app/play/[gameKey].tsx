@@ -213,7 +213,7 @@ function PlayableGameRoute() {
     completionGuard.current = true;
     const before = options.before ?? gameProgressFor(useGameProgressStore.getState().games, progressId);
     if (options.persist) recordScore(progressId, gameResult.score, gameResult.label, gameResult.won);
-    const previewCoins = gameCoinReward(gameResult.score);
+    const previewCoins = gameCoinReward(gameResult.score, false, progressId);
     const challengeEntry = challenges.today?.games.find((entry) => entry.key === gameKey);
     const isNewChallenge = challengeEntry?.state.status !== "completed";
     const completedAfterThisGame =
@@ -312,9 +312,9 @@ function PlayableGameRoute() {
   };
   const markGameStarted = useCallback(() => exitSession.start(), [exitSession]);
   const giftsAvailable = mode === "challenge" && (!authenticated || challenges.startedGameKey === gameKey);
-  const sessionControls = useMemo(() => ({ onStart: markGameStarted, onExit: exitGame, paused: gamePaused, practiceCoins: mode === "practice" ? progress?.coins ?? 0 : undefined,
+  const sessionControls = useMemo(() => ({ onStart: markGameStarted, onExit: exitGame, paused: gamePaused, gameKey: progressId, practiceCoins: mode === "practice" ? progress?.coins ?? 0 : undefined,
     headerAction: giftsAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Открыть подарки" onPress={() => setGiftOpen(true)} style={({ pressed }) => [styles.giftButton, pressed && styles.pressed]}><Ionicons name="gift" color="#FFFFFF" size={20} /></Pressable> : null,
-  }), [exitGame, gamePaused, giftsAvailable, markGameStarted, mode, progress?.coins]);
+  }), [exitGame, gamePaused, giftsAvailable, markGameStarted, mode, progressId, progress?.coins]);
 
   const continueChallenge = async () => {
     if (adBusy) return;
@@ -468,7 +468,7 @@ function PlayableGameRoute() {
       <GameResultModal
         title={gameTitle}
         accent={accent}
-        value={activeResult ? { ...activeResult, score: Math.min(1000, Math.max(0, activeResult.coins)), previous: Math.min(1000, Math.max(0, gameCoinReward(activeResult.previous))), best: Math.min(1000, Math.max(0, gameCoinReward(activeResult.best))) } : null}
+        value={activeResult ? { ...activeResult, score: Math.max(0, activeResult.coins), previous: Math.max(0, gameCoinReward(activeResult.previous, false, progressId)), best: Math.max(0, gameCoinReward(activeResult.best, false, progressId)) } : null}
         adBusy={adBusy}
         challengeMode={mode === "challenge"}
         nextLabel={nextChallengeGame ? "Следующая игра" : "К челленджам"}
@@ -488,13 +488,17 @@ function PlayableGameRoute() {
 }
 
 function GameResultModal({ title, accent, value, adBusy, challengeMode, nextLabel, onCheckpoint, onReplayAd, onRetry, onGifts, onNext, onExit }: { title: string; accent: string; value: ResultView | null; adBusy: boolean; challengeMode: boolean; nextLabel: string; onCheckpoint: () => void; onReplayAd: () => void; onRetry: () => void; onGifts: () => void; onNext: () => void; onExit: () => void }) {
-  return (
-    <Modal visible={Boolean(value)} transparent animationType="fade" statusBarTranslucent>
+  if (!value) return null;
+  const content = (
       <View style={styles.resultBackdrop}>
-        {value ? <Animated.View entering={FadeIn.duration(180)} style={styles.resultOuter}><BlurView tint="dark" intensity={74} style={styles.resultCard}><LinearGradient colors={[`${accent}32`, "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} /><View style={[styles.resultBadge, { backgroundColor: accent }]}><Ionicons name={value.won ? "trophy" : "sparkles"} size={28} color="#0A0B12" /></View><Text style={styles.resultGame}>{title}</Text><Text style={styles.resultTitle}>{value.won ? "ОТЛИЧНАЯ ИГРА" : "РЕЗУЛЬТАТ ГОТОВ"}</Text><Text style={[styles.resultScore, { color: accent }]}>{value.score}</Text><Text style={styles.resultScoreLabel}>COIN</Text><View style={styles.resultStats}><ResultStat label="Предыдущий coin" value={value.previous} /><ResultStat label="Лучший coin" value={value.best} /><ResultStat label="Получено" value={`+${value.coins}`} suffix="coin" accent={accent} /></View>{(value.saving || value.message) ? <View style={styles.saveState}>{value.saving ? <ActivityIndicator size="small" color={accent} /> : <Ionicons name="checkmark-circle" size={17} color="#54D7A4" />}<Text style={styles.saveText}>{value.message}</Text></View> : null}{value.checkpointReward ? <Pressable disabled={adBusy || value.saving} onPress={onCheckpoint} style={({ pressed }) => [styles.doubleButton, { backgroundColor: accent }, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}>{adBusy ? <ActivityIndicator color="#0A0B12" /> : <><Ionicons name="play-circle" color="#0A0B12" size={21} /><Text style={styles.doubleText}>СМОТРЕТЬ РЕКЛАМУ · +75 COIN</Text></>}</Pressable> : null}{challengeMode ? <>{value.firstReplayAvailable ? <Pressable disabled={adBusy || value.saving} onPress={onReplayAd} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}><Ionicons name="play-circle-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Смотреть рекламу и сыграть ещё раз</Text></Pressable> : null}<Pressable disabled={value.saving} onPress={onGifts} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, value.saving && styles.disabled]}><Ionicons name="gift-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Подарки и повтор</Text></Pressable><AppodealBannerSlot placement="challenge-result" /><Pressable disabled={value.saving} onPress={onNext} style={({ pressed }) => [styles.nextButton, { backgroundColor: accent }, pressed && styles.pressed, value.saving && styles.disabled]}><Text style={styles.nextText}>{nextLabel.toUpperCase()}</Text><Ionicons name="arrow-forward" color="#0A0B12" size={20} /></Pressable></> : <View style={styles.resultButtons}><Pressable disabled={adBusy} onPress={onRetry} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, adBusy && styles.disabled]}>{adBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Смотреть рекламу и повторить игру</Text></>}</Pressable><Pressable onPress={onExit} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Ionicons name="grid-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Все игры</Text></Pressable></View>}</BlurView></Animated.View> : null}
+        {value ? <Animated.View entering={FadeIn.duration(180)} style={styles.resultOuter}><BlurView tint="dark" intensity={74} style={styles.resultCard}><LinearGradient colors={[`${accent}32`, "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} /><View style={[styles.resultBadge, { backgroundColor: accent }]}><Ionicons name={value.won ? "trophy" : "sparkles"} size={28} color="#0A0B12" /></View><Text style={styles.resultGame}>{title}</Text><Text style={styles.resultTitle}>{value.won ? "ОТЛИЧНАЯ ИГРА" : "РЕЗУЛЬТАТ ГОТОВ"}</Text>{value.saving ? <ActivityIndicator accessibilityLabel="Сохраняем награду" size="large" color={accent} style={styles.pendingReward} /> : <Text style={[styles.resultScore, { color: accent }]}>{value.score}</Text>}<Text style={styles.resultScoreLabel}>COIN</Text><View style={styles.resultStats}><ResultStat label="Предыдущий coin" value={value.previous} /><ResultStat label="Лучший coin" value={value.best} /><ResultStat label="Получено" value={value.saving ? "…" : `+${value.coins}`} suffix="coin" accent={accent} /></View>{(value.saving || value.message) ? <View style={styles.saveState}>{value.saving ? <ActivityIndicator size="small" color={accent} /> : <Ionicons name="checkmark-circle" size={17} color="#54D7A4" />}<Text style={styles.saveText}>{value.message}</Text></View> : null}{value.checkpointReward ? <Pressable disabled={adBusy || value.saving} onPress={onCheckpoint} style={({ pressed }) => [styles.doubleButton, { backgroundColor: accent }, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}>{adBusy ? <ActivityIndicator color="#0A0B12" /> : <><Ionicons name="play-circle" color="#0A0B12" size={21} /><Text style={styles.doubleText}>СМОТРЕТЬ РЕКЛАМУ · +75 COIN</Text></>}</Pressable> : null}{challengeMode ? <>{value.firstReplayAvailable ? <Pressable disabled={adBusy || value.saving} onPress={onReplayAd} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}><Ionicons name="play-circle-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Смотреть рекламу и сыграть ещё раз</Text></Pressable> : null}<Pressable disabled={value.saving} onPress={onGifts} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, value.saving && styles.disabled]}><Ionicons name="gift-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Подарки и повтор</Text></Pressable><AppodealBannerSlot placement="challenge-result" /><Pressable disabled={value.saving} onPress={onNext} style={({ pressed }) => [styles.nextButton, { backgroundColor: accent }, pressed && styles.pressed, value.saving && styles.disabled]}><Text style={styles.nextText}>{nextLabel.toUpperCase()}</Text><Ionicons name="arrow-forward" color="#0A0B12" size={20} /></Pressable></> : <View style={styles.resultButtons}><Pressable disabled={adBusy} onPress={onRetry} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, adBusy && styles.disabled]}>{adBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Смотреть рекламу и повторить игру</Text></>}</Pressable><Pressable onPress={onExit} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Ionicons name="grid-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Все игры</Text></Pressable></View>}</BlurView></Animated.View> : null}
       </View>
-    </Modal>
   );
+  // The wheel/ad owns a native window. Keep Android results in the route so
+  // replacing the route cannot leave an empty stacked Modal window behind.
+  return Platform.OS === "android"
+    ? <View accessibilityViewIsModal style={styles.androidResultLayer}>{content}</View>
+    : <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onExit}>{content}</Modal>;
 }
 
 function ResultStat({ label, value, suffix, accent }: { label: string; value: string | number; suffix?: string; accent?: string }) {
@@ -532,6 +536,8 @@ const styles = StyleSheet.create({
       : {}),
   },
   resultOuter: { width: "100%", maxWidth: 430 },
+  pendingReward: { height: 94, justifyContent: "center" },
+  androidResultLayer: { ...StyleSheet.absoluteFill, zIndex: 1000, elevation: 20 },
   resultCard: { overflow: "hidden", alignItems: "center", borderRadius: 32, padding: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(10,13,27,0.94)" },
   resultBadge: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 13, transform: [{ rotate: "-4deg" }] },
   resultGame: { color: "rgba(255,255,255,0.42)", fontSize: 10, fontWeight: "900", letterSpacing: 2.2, textTransform: "uppercase" },

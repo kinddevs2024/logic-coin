@@ -98,9 +98,9 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   const paginationRegion = useRef<View>(null);
   const closing = useRef(false);
   const [selfDock, setSelfDock] = useState<SelfDock>("bottom");
-  const pageSize = 10;
+  const pageSize = 15;
   const query = useInfiniteQuery({
-    queryKey: ["leaderboard", accessToken],
+    queryKey: ["leaderboard", accessToken, pageSize],
     queryFn: ({ pageParam, signal }) => leaderboardApi.getPage(pageParam, pageSize, accessToken!, signal),
     enabled: visible && authenticated,
     initialPageParam: 0,
@@ -378,7 +378,10 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                     setNativeViewportHeight(event.nativeEvent.layout.height);
                     updateSelfVisibility(scrollY.current, viewportHeight.current);
                   }}
-                  onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: nativeScrollY } } }], {
+                  onScroll={
+                    // Animated.event registers a scroll listener; it does not execute the ref-reading callback during render.
+                    // eslint-disable-next-line react-hooks/refs
+                    Animated.event([{ nativeEvent: { contentOffset: { y: nativeScrollY } } }], {
                     useNativeDriver: Platform.OS !== "web",
                     listener: (event: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
                     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;

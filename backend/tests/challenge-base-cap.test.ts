@@ -22,23 +22,23 @@ describe("transactional challenge base allowance", () => {
     mocks.update.mockImplementation(async (_query, update) => ({ _id: new Types.ObjectId(), gameKey: "math", metadata: {}, ...update.$set }));
     mocks.credit.mockResolvedValue({ idempotentReplay: false });
   });
-  it("credits only the remaining 250 coins and records that actual amount", async () => {
+  it("records the full calibrated reward despite earlier daily earnings", async () => {
     const result = await completeChallengeAttempt({ userId: new Types.ObjectId(), gameKey: "math", score: 50000 });
-    expect(result.attempt.coinsAwarded).toBe(250);
-    expect(mocks.credit.mock.calls[0]?.[0]).toMatchObject({ amount: 250, metadata: { kind: "base", dayKey: "2026-10-04" } });
+    expect(result.attempt.coinsAwarded).toBe(2129);
+    expect(mocks.credit.mock.calls[0]?.[0]).toMatchObject({ amount: 2129, metadata: { kind: "base", dayKey: "2026-10-04" } });
   });
-  it("does not credit after the base allowance is exhausted", async () => {
+  it("does not suppress rewards at the old six-thousand daily ceiling", async () => {
     mocks.aggregate.mockReturnValue({ session: async () => [{ total: 6000 }] });
     const result = await completeChallengeAttempt({ userId: new Types.ObjectId(), gameKey: "math", score: 50000 });
-    expect(result.attempt.coinsAwarded).toBe(0);
-    expect(mocks.credit).not.toHaveBeenCalled();
+    expect(result.attempt.coinsAwarded).toBe(2129);
+    expect(mocks.credit.mock.calls[0]?.[0]).toMatchObject({ amount: 2129 });
   });
   it("records an authorized replay separately from base earnings", async () => {
     mocks.findOne.mockReturnValue({ session: async () => ({ metadata: { replayCount: 1 } }) });
     mocks.update.mockImplementation(async (_query, update) => ({ _id: new Types.ObjectId(), gameKey: "math", metadata: { replayCount: 1 }, ...update.$set }));
     const result = await completeChallengeAttempt({ userId: new Types.ObjectId(), gameKey: "math", score: 50000 });
-    expect(result.attempt.coinsAwarded).toBe(1000);
-    expect(mocks.credit.mock.calls[0]?.[0]).toMatchObject({ amount: 1000, metadata: { kind: "replay-bonus" } });
+    expect(result.attempt.coinsAwarded).toBe(2129);
+    expect(mocks.credit.mock.calls[0]?.[0]).toMatchObject({ amount: 2129, metadata: { kind: "replay-bonus" } });
     expect(mocks.aggregate).not.toHaveBeenCalled();
   });
 });

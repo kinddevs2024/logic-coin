@@ -192,7 +192,7 @@ export default function MergeScreen() {
   };
 
   return (
-    <GameShell title="2048" gameId="2048" meta={<AppText style={styles.metaScore}>{gameCoinReward(score)} coin</AppText>}>
+    <GameShell title="2048" gameId="2048" meta={<AppText style={styles.metaScore}>{gameCoinReward(score, false, "2048")} coin</AppText>}>
       <View style={styles.layout}>
         <View style={styles.stats}>
           <PixelStat label="Рекорд" value={Math.max(progress.bestScore, score)} />

@@ -329,16 +329,17 @@ describe("brain tricks engine", () => {
 describe("game reward contract", () => {
   it("is deterministic and shared-result safe", () => {
     expect(gameCoinReward(2_400, true)).toBe(gameCoinReward(2_400, true));
-    expect(gameCoinReward(2_400, true)).toBe(620);
-    expect(gameCoinReward(2_400, false)).toBe(620);
+    expect(gameCoinReward(2_400, true)).toBe(1253);
+    expect(gameCoinReward(2_400, false)).toBe(1253);
     expect(suggestedCoins(2_400, true)).toBe(gameCoinReward(2_400, true));
     expect(rewardCoins(2_400, false)).toBe(gameCoinReward(2_400, false));
   });
 
-  it("normalizes invalid scores and never exceeds the game cap", () => {
-    expect(gameCoinReward(Number.NaN, false)).toBe(MIN_GAME_COIN_REWARD);
-    expect(gameCoinReward(-500, false)).toBe(MIN_GAME_COIN_REWARD);
-    expect(gameCoinReward(9_999_999, true)).toBe(MAX_GAME_COIN_REWARD);
+  it("normalizes invalid scores and uses a soft rather than hard game cap", () => {
+    expect(gameCoinReward(Number.NaN, false)).toBe(0);
+    expect(gameCoinReward(-500, false)).toBe(0);
+    expect(gameCoinReward(1, false)).toBeGreaterThanOrEqual(MIN_GAME_COIN_REWARD);
+    expect(gameCoinReward(9_999_999, true)).toBeGreaterThan(MAX_GAME_COIN_REWARD);
   });
 });
 

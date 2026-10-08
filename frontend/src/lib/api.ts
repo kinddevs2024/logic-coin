@@ -399,6 +399,15 @@ export type ChallengeStartResult = {
 };
 
 export const challengesApi = {
+  history(token: string, day?: string, offset = 0) {
+    return request<{
+      today: string; dayKey: string; days: string[]; status: "final" | "live" | "pending" | "missing";
+      dayStatuses?: Record<string, "final" | "live" | "pending" | "missing">;
+      self?: { userId: string; rank: number; totalCoins: number; completedGamesCount: number } | null;
+      total: number; nextOffset: number | null;
+      rows: { userId: string; rank: number; totalCoins: number; completedGamesCount: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
+    }>(`/challenges/history?offset=${offset}${day ? `&day=${encodeURIComponent(day)}` : ""}`, { token });
+  },
   progress(token: string, cursor?: { snapshot: string; offset: number; end?: number }) {
     return request<{
       dayKey: string; participantCount: number; projectedCashUnits: number;
@@ -865,7 +874,20 @@ export const adminApi = {
 };
 
 export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
+export type HomeGiftOffer = { kind: "telegram" | "ads"; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number };
+export type HomeGiftLink = { flowId: string; pollToken: string; botUrl: string };
+export const homeGiftApi = {
+  offer: (token: string) => request<HomeGiftOffer>("/home-gift", { token }),
+  link: (token: string) => request<HomeGiftLink>("/home-gift/telegram/link", { token, method: "POST" }),
+  finishLink: (token: string, flow: HomeGiftLink) => request<{ linked: boolean }>("/home-gift/telegram/finish-link", { token, method: "POST", body: JSON.stringify({ flowId: flow.flowId, pollToken: flow.pollToken }) }),
+  claimTelegram: (token: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/telegram/claim", { token, method: "POST" }),
+  startAds: (token: string) => request<{ cycleId: string; completedAds: number }>("/home-gift/ads/start", { token, method: "POST" }),
+  claimAds: (token: string, cycleId: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/ads/claim", { token, method: "POST", body: JSON.stringify({ cycleId }) }),
+};
 export const inboxApi = {
+  unreadCount(token: string) {
+    return request<{ count: number }>("/notifications/unread-count", { token });
+  },
   list(token: string, all: boolean, cursor: { date: string; id: string } | null) {
     const query = new URLSearchParams({ all: String(all), ...(cursor ?? {}) });
     return request<{ items: InboxNotification[]; next: { date: string; id: string } | null }>(`/notifications?${query}`, { token });

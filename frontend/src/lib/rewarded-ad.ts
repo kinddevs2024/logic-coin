@@ -5,7 +5,8 @@ export type RewardedAdPlacement =
   | "challenge-day-complete"
   | "navigation-frequency"
   | "practice-replay"
-  | "fortune-wheel";
+  | "fortune-wheel"
+  | "home-gift";
 
 export type InterstitialAdPlacement =
   | "challenge-checkpoint"

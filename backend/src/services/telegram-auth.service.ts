@@ -224,7 +224,7 @@ async function resolveBotUsername(): Promise<string> {
   return cachedBotUsername;
 }
 
-export async function createTelegramLogin(referralCode?: string, deviceId?: string, returnTarget: "app" | "web" = "web") {
+export async function createTelegramLogin(referralCode?: string, deviceId?: string, returnTarget: "app" | "web" = "web", linkUserId?: Types.ObjectId) {
   requireBotToken();
   await ensureTelegramWebhook();
   const flowId = randomBytes(16).toString("base64url");
@@ -235,6 +235,7 @@ export async function createTelegramLogin(referralCode?: string, deviceId?: stri
     flowId,
     pollTokenHash: hashOpaqueToken(pollToken),
     returnTarget,
+    ...(linkUserId ? { linkUserId } : {}),
     ...(referralCode ? { referralCode: referralCode.trim().toUpperCase() } : {}),
     expiresAt
   });
@@ -366,6 +367,14 @@ export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
     { new: true }
   );
   if (!challenge) return { accepted: true, matched: false };
+  if (challenge.linkUserId) {
+    await fetch(`https://api.telegram.org/bot${requireBotToken()}/sendMessage`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: parsed.chatId, text: "Telegram подтверждён. Вернитесь в Logic Coin и нажмите «Проверить», чтобы привязать его к своему аккаунту." }),
+      signal: AbortSignal.timeout(5_000),
+    }).catch(() => undefined);
+    return { accepted: true, matched: true };
+  }
   await sendBotReturnLink(parsed.chatId, resumeToken, challenge.returnTarget === "app" ? "app" : "web", Boolean(challenge.referralCode));
   return { accepted: true, matched: true };
 }
@@ -412,6 +421,7 @@ async function consumeConfirmedChallenge(
   const challenge = await TelegramLoginChallenge.findOneAndUpdate(
     {
       ...filter,
+      linkUserId: { $exists: false },
       confirmedAt: { $exists: true },
       [consumptionField]: { $exists: false },
       expiresAt: { $gt: new Date() }

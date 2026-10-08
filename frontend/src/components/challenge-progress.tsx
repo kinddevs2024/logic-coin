@@ -23,6 +23,38 @@ const copy = {
   uz: { completed: "bajarildi", hint: "Bu sizning daromadingiz emas, shu kunning sinovi uchun umumiy mukofot jamg‘armasi. Sinov tugagach mukofotlar natijalar yoki administrator belgilagan summalar bo‘yicha taqsimlanadi.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Mukofot jamg‘armasi haqida" },
 };
 type Cursor = { snapshot: string; offset: number; end?: number };
+const challengeRules = {
+  ru: {
+    title: "Правила челленджа",
+    paragraphs: [
+      "Каждый день доступен новый набор игр. Открой сегодняшнюю игру и пройди её до результата. В челлендже действуют указанные в игре ограничения времени, раундов и ошибок.",
+      "Счёт начинается с нуля. Коины зависят от результата: правильных действий и прохождения игры. Результат и начисление сохраняются на сервере — для этого нужен интернет. Повтор уже зачтённой игры сам по себе не начисляет новую награду.",
+      "Место в рейтинге определяется коинами текущего челленджа. При одинаковой сумме выше участник, прошедший больше игр; затем учитывается время завершения.",
+      "Реклама и подарки могут дать дополнительные коины, время или разрешённый повтор. Рекламная награда начисляется только после подтверждённого просмотра; она не гарантируется, если реклама недоступна.",
+      "Сумма рядом со значком денег — общий призовой фонд, не ваш баланс. После завершения челленджа публикуются результаты и призы по правилам организатора. Коины не равны долларам; денежный приз не обещан каждому участнику.",
+    ],
+  },
+  en: {
+    title: "Challenge rules",
+    paragraphs: [
+      "A new set of games is available each day. Open today's game and play until its result. Challenge games use the time, round and mistake limits shown in the game.",
+      "Your score starts at zero. Coins depend on your performance and correct actions. Results and rewards are saved on the server, so internet access is required. Replaying an already credited game does not automatically earn a new reward.",
+      "Ranking is based on coins earned in this challenge. Ties are resolved by the number of completed games, then completion time.",
+      "Ads and gifts may provide extra coins, time or an authorized replay. Ad rewards require a verified viewing and are not guaranteed when ads are unavailable.",
+      "The money amount is the total prize pool, not your balance. Results and prizes are published after the challenge ends, under the organizer's rules. Coins are not dollars, and a cash prize is not guaranteed to every participant.",
+    ],
+  },
+  uz: {
+    title: "Sinov qoidalari",
+    paragraphs: [
+      "Har kuni yangi o‘yinlar to‘plami ochiladi. Bugungi o‘yinni ochib, natijagacha o‘ynang. Sinovda o‘yinda ko‘rsatilgan vaqt, bosqich va xato cheklovlari amal qiladi.",
+      "Hisob noldan boshlanadi. Coinlar to‘g‘ri harakatlar va o‘yin natijasiga bog‘liq. Natija va mukofot serverda saqlanadi, buning uchun internet kerak. Avval hisoblangan o‘yinni takrorlash o‘z-o‘zidan yangi mukofot bermaydi.",
+      "Reyting shu sinovda yig‘ilgan coinlar bo‘yicha tuziladi. Coinlar teng bo‘lsa, ko‘proq o‘yin tugatgan qatnashchi yuqorida turadi; keyin tugatish vaqti hisobga olinadi.",
+      "Reklama va sovg‘alar qo‘shimcha coin, vaqt yoki ruxsat etilgan qayta o‘ynash imkonini berishi mumkin. Reklama mukofoti ko‘rish tasdiqlangandan so‘ng beriladi; reklama mavjud bo‘lmasa mukofot kafolatlanmaydi.",
+      "Pul belgisi yonidagi summa umumiy mukofot jamg‘armasi, shaxsiy balansingiz emas. Sinov tugagach natijalar va sovrinlar tashkilotchi qoidalari bo‘yicha e’lon qilinadi. Coin dollar emas va har bir qatnashchiga pul sovrini kafolatlanmaydi.",
+    ],
+  },
+};
 const ROW = 46;
 const HEIGHT = ROW * 3.5;
 
@@ -78,6 +110,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   const currentUser = useAppStore(s => s.user);
   const focused = useIsFocused();
   const c = copy[language];
+  const rules = challengeRules[language];
   const [info, setInfo] = useState(false);
   const [details, setDetails] = useState(false);
   const client = useQueryClient();
@@ -93,14 +126,22 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   });
   const pages = query.data?.pages ?? [];
   const progress = pages[0];
-  const snapshot = progress?.previous?.snapshot ?? progress?.next?.snapshot;
+  const rankingKey = ["challenges", "details-ranking", token, today?.dayKey, today?.revision];
   const ranking = useInfiniteQuery({
-    queryKey: ["challenges", "details-ranking", token, today?.dayKey, snapshot],
-    initialPageParam: snapshot ? { snapshot, offset: 0 } as Cursor : undefined,
-    queryFn: ({ pageParam }) => challengesApi.progress(token!, pageParam),
+    queryKey: rankingKey,
+    initialPageParam: undefined as Cursor | undefined,
+    queryFn: async ({ pageParam }) => {
+      if (pageParam) return challengesApi.progress(token!, pageParam);
+      // Never reuse the compact card's potentially expired snapshot.
+      const fresh = await challengesApi.progress(token!);
+      return fresh.previous
+        ? challengesApi.progress(token!, { snapshot: fresh.previous.snapshot, offset: 0 })
+        : fresh;
+    },
     getNextPageParam: page => page.next ?? undefined,
     enabled: Boolean(details && token && today?.available && query.isSuccess),
     retry: 1,
+    gcTime: 0,
   });
   const detailRows = ranking.data?.pages.flatMap(page => page.neighbors) ?? [];
   const rows = pages.flatMap(page => page.neighbors);
@@ -158,8 +199,8 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
       <View style={styles.money}>
         <Ionicons name="cash-outline" size={19} color={String(theme.primary)} />
         <AppText variant="heading" style={{ flexShrink: 1 }}>{today?.prizes ? formatMoney(today.prizes.poolUnits) : "—"}</AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel={c.info} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
-          <Ionicons name="help-circle-outline" size={20} color={String(theme.textMuted)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={rules.title} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
+          <Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} />
         </Pressable>
       </View>
       <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>
@@ -216,7 +257,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
           {(today?.games ?? []).map(game => <View key={game.key} accessibilityLabel={`${game.title}: ${game.state.coinsAwarded} coin`} style={styles.detailsGame}><Image source={gameCoverFor(game.key)} style={styles.detailsGameIcon} resizeMode="contain" /><AppText variant="label">+{game.state.coinsAwarded}</AppText></View>)}
           </View>
         </GlassSurface></View>}
-        ListFooterComponent={ranking.isError ? <Pressable onPress={() => void ranking.refetch()}><AppText>{c.retry}</AppText></Pressable> : ranking.isPending || ranking.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null} />
+        ListFooterComponent={ranking.isError ? <Pressable onPress={() => void client.resetQueries({ queryKey: rankingKey, exact: true })}><AppText>{c.retry}</AppText></Pressable> : ranking.isPending || ranking.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null} />
         <Animated.View pointerEvents="none" style={[styles.detailsFadeTop, { opacity: topFadeOpacity }]}><LinearGradient colors={[String(theme.background), fadeClear]} style={StyleSheet.absoluteFill} /></Animated.View>
         <LinearGradient pointerEvents="none" colors={[fadeClear, String(theme.background)]} style={styles.detailsFadeBottom} />
         {selfStats ? <Animated.View pointerEvents="none" style={[styles.detailsSelf, { transform: [{ translateY: dockY }] }]}><GlassSurface variant="strong" style={[styles.detailsRank, { borderColor: theme.primary, borderWidth: 1 }]}>
@@ -232,7 +273,10 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
       <View style={styles.backdrop}>
         <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={() => setInfo(false)} />
         <GlassSurface variant="strong" style={styles.explanation}>
-          <AppText>{c.hint}</AppText>
+          <AppText variant="heading" accessibilityRole="header">{rules.title}</AppText>
+          <ScrollView style={styles.rulesScroll} contentContainerStyle={styles.rulesContent} showsVerticalScrollIndicator>
+            {rules.paragraphs.map((paragraph, index) => <AppText key={index}>{index + 1}. {paragraph}</AppText>)}
+          </ScrollView>
           <Pressable accessibilityRole="button" onPress={() => setInfo(false)}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
         </GlassSurface>
       </View>
@@ -269,5 +313,7 @@ const styles = StyleSheet.create({
   person: { flex: 1, minWidth: 0 },
   loading: { position: "absolute", bottom: 2, right: 4 },
   backdrop: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.5)" },
-  explanation: { width: "100%", maxWidth: 420, padding: 24, borderRadius: 24, gap: 20 },
+  explanation: { width: "100%", maxWidth: 420, maxHeight: "85%", padding: 24, borderRadius: 24, gap: 20 },
+  rulesScroll: { flexShrink: 1 },
+  rulesContent: { gap: 14 },
 });

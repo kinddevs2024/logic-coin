@@ -9,10 +9,8 @@ import { AppText } from "@/components/app-text";
 import { ChallengeCard } from "@/components/challenge-card";
 import { ChallengeAppRequired } from "@/components/challenge-app-required";
 import { ChallengeProgress } from "@/components/challenge-progress";
-import { IconButton } from "@/components/buttons";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
 import { GlassSurface } from "@/components/glass-surface";
-import { ScreenHeader } from "@/components/screen-header";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -38,18 +36,17 @@ export default function ChallengesScreen() {
 
   return (
     <AppFrame wide desktopNavigationInset contentStyle={styles.page} swipesDisabled={giftsOpen}>
-      <ScreenHeader
-        title={c.title}
-        action={
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <IconButton name="gift-outline" label={language === "ru" ? "Мои подарки" : language === "uz" ? "Sovg‘alarim" : "My gifts"} onPress={() => setGiftsOpen(true)} />
+      <View style={styles.header}>
+        <AppText variant="title" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.headerTitle}>{c.title}</AppText>
+          <View style={styles.headerActions}>
+          <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={language === "ru" ? "История челленджей" : language === "uz" ? "Sinovlar tarixi" : "Challenge history"} onPress={() => router.push("/challenge-history" as never)}><GlassSurface variant="strong" style={styles.headerIcon}><Ionicons name="time-outline" size={18} color={String(theme.text)} /></GlassSurface></Pressable>
+          <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={language === "ru" ? "Мои подарки" : language === "uz" ? "Sovg‘alarim" : "My gifts"} onPress={() => setGiftsOpen(true)}><GlassSurface variant="strong" style={styles.headerIcon}><Ionicons name="gift-outline" size={18} color={String(theme.text)} /></GlassSurface></Pressable>
           <GlassSurface variant="strong" intensity={68} style={styles.coinPill}>
-            <Ionicons name="diamond" size={16} color="#F5B800" />
-            <AppText style={[styles.coinValue, { color: theme.text }]}>{today?.coins.balance ?? coinBalance}</AppText>
+            <Ionicons name="diamond" size={13} color="#F5B800" />
+            <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.coinValue, { color: theme.text }]}>{today?.coins.balance ?? coinBalance}</AppText>
           </GlassSurface>
           </View>
-        }
-      />
+      </View>
 
       <Animated.View entering={FadeIn.duration(350)}>
         <ChallengeProgress today={today} />
@@ -90,8 +87,12 @@ export default function ChallengesScreen() {
 
 const styles = StyleSheet.create({
   page: { maxWidth: 1180 },
-  coinPill: { minHeight: 46, borderRadius: 18, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 6 },
-  coinValue: { fontSize: 15, lineHeight: 19, fontWeight: "900" },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 22 },
+  headerTitle: { flex: 1, minWidth: 0 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  coinPill: { minHeight: 40, maxWidth: 96, borderRadius: 18, paddingHorizontal: 9, flexDirection: "row", alignItems: "center", gap: 4 },
+  coinValue: { fontSize: 14, lineHeight: 18, fontWeight: "900", flexShrink: 1 },
   hero: { borderRadius: 30, padding: 18, gap: 15, overflow: "hidden" },
   heroTop: { flexDirection: "row", alignItems: "center", gap: 16 },
   eyebrow: { fontSize: 10, lineHeight: 13, fontWeight: "900", letterSpacing: 1.4 },

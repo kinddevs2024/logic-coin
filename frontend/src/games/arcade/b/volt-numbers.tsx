@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import Animated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeOut, ZoomIn } from "react-native-reanimated";
 
-import { ArcadeIcon } from "./icons";
 import type { ArcadeGameProps } from "./types";
-import { arcadeSkinAccent, B_COLORS, CoinPill, errorTap, GameButton, GameScreen, Metric, Panel, ProgressTrack, ResultCard, StartCard, successTap } from "./ui";
+import { arcadeSkinAccent, B_COLORS, CoinPill, errorTap, GameScreen, Metric, Panel, ProgressTrack, ResultCard, StartCard, successTap } from "./ui";
 import { clamp, rewardCoins, shuffle, shuffleAvoidingFirst } from "./utils";
 import { usePauseClock } from "@/games/pause-clock";
 
@@ -46,10 +45,11 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
   const startedAt = useRef(0);
   usePauseClock(paused, [startedAt]);
 
-  const config = CONFIG[difficulty];
+  const activeDifficulty = challengeMode ? "easy" : difficulty;
+  const config = CONFIG[activeDifficulty];
   const okTaps = config.count - remaining.size;
-  const score = won ? Math.max(100, Math.round(10000 - elapsed / 1000 * 48 - mistakes * 400)) : okTaps * 20;
-  const coins = rewardCoins(score, won);
+  const score = phase === "menu" ? 0 : Math.round(okTaps * 10_000 / config.count);
+  const coins = rewardCoins(score, won, "volt-numbers");
 
   useEffect(() => {
     if (phase !== "play" || paused) return;
@@ -58,16 +58,16 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
   }, [paused, phase]);
 
   const begin = useCallback(() => {
-    const numbers = shuffle(Array.from({ length: CONFIG[difficulty].count }, (_, index) => index + 1));
+    const numbers = shuffle(Array.from({ length: config.count }, (_, index) => index + 1));
     setOrder(numbers);
     setRemaining(new Set(numbers));
-    setCurrent(CONFIG[difficulty].count);
+    setCurrent(config.count);
     setMistakes(0);
     setElapsed(0);
     setWon(false);
     startedAt.current = Date.now();
     setPhase("play");
-  }, [difficulty]);
+  }, [config.count]);
 
   const activate = useCallback(() => {
     setOrder((numbers) => shuffleAvoidingFirst(numbers, numbers[0]));
@@ -78,23 +78,25 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
   }, []);
 
   const finish = useCallback((didWin: boolean, finalMistakes: number, finalElapsed: number, finalOk: number) => {
-    const finalScore = didWin ? Math.max(100, Math.round(10000 - finalElapsed / 1000 * 48 - finalMistakes * 400)) : finalOk * 20;
+    const finalScore = Math.round(finalOk * 10_000 / config.count);
     setWon(didWin);
     setElapsed(finalElapsed);
     setPhase("result");
     onFinish?.({
       gameId: "volt-numbers",
       score: finalScore,
-      coins: rewardCoins(finalScore, didWin),
+      coins: rewardCoins(finalScore, didWin, "volt-numbers"),
       won: didWin,
       durationMs: finalElapsed,
-      details: { difficulty, correct: finalOk, mistakes: finalMistakes, total: CONFIG[difficulty].count },
+      details: { difficulty: activeDifficulty, correct: finalOk, mistakes: finalMistakes, total: config.count },
     });
-  }, [difficulty, onFinish]);
+  }, [activeDifficulty, config.count, onFinish]);
 
   useEffect(() => {
-    if (phase === "play" && elapsed >= 180_000 && !paused) finish(false, mistakes, elapsed, okTaps);
-  }, [elapsed, finish, mistakes, okTaps, paused, phase]);
+    if (!challengeMode || phase !== "play" || elapsed < 180_000 || paused) return;
+    const timeout = setTimeout(() => finish(false, mistakes, elapsed, okTaps), 0);
+    return () => clearTimeout(timeout);
+  }, [challengeMode, elapsed, finish, mistakes, okTaps, paused, phase]);
 
   const tapNumber = useCallback((number: number) => {
     if (phase === "look") {
@@ -132,7 +134,7 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
           subtitle="Numbers · Speed of Thought"
           accent={accent}
           details={["Запомни расположение чисел", "После перемешивания жми по убыванию", "Три ошибки завершают попытку"]}
-          options={<View style={styles.difficultyRow}>
+          options={challengeMode ? undefined : <View style={styles.difficultyRow}>
             {(Object.keys(CONFIG) as VoltDifficulty[]).map((value) => (
               <Pressable key={value} onPress={() => setDifficulty(value)} style={[styles.difficulty, difficulty === value && styles.difficultyActive]}>
                 <Text style={[styles.difficultyLabel, difficulty === value && { color: accent }]}>{CONFIG[value].label}</Text>

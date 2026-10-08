@@ -87,7 +87,7 @@ export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, chal
     const finalScore = final?.score ?? score; const finalMistakes = final?.mistakes ?? mistakes; const finalCorrect = final?.correct ?? correctTaps; const finalWrong = final?.wrong ?? wrongTaps; const finalCombo = final?.maxCombo ?? maxCombo; const finalRound = final?.round ?? round;
     const duration = Date.now() - startedAt.current; const accuracy = Math.round((finalCorrect / Math.max(1, finalCorrect + finalWrong)) * 100); const won = finalRound >= TOTAL_ROUNDS && finalMistakes < 3;
     setElapsedMs(duration); setBest((value) => Math.max(value, finalScore)); setPhase("result");
-    onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: duration, suggestedCoins: suggestedCoins(finalScore, won), stats: { rounds: finalRound, mistakes: finalMistakes, correct: finalCorrect, accuracy, maxCombo: finalCombo } });
+    onComplete?.({ gameId: GAME_ID, score: finalScore, won, durationMs: duration, suggestedCoins: suggestedCoins(finalScore, won, "volt-match"), stats: { rounds: finalRound, mistakes: finalMistakes, correct: finalCorrect, accuracy, maxCombo: finalCombo } });
   }, [correctTaps, maxCombo, mistakes, onComplete, round, score, wrongTaps]);
 
   useEffect(() => {
@@ -105,7 +105,7 @@ export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, chal
     if (cell.target) {
       const nextCombo = combo + 1; const multiplier = Math.min(nextCombo, 6); const speedBonus = Math.round((timeLeft / 7_000) * 20); const points = (15 + speedBonus) * multiplier;
       const nextScore = score + points; const nextRoundScore = roundScore + points; const nextRemaining = remainingTargets - 1; const nextCorrect = correctTaps + 1; const nextMax = Math.max(maxCombo, nextCombo);
-      if (!challengeMode) awardCoins("volt-match", Math.floor(nextScore / 20) - Math.floor(score / 20));
+      if (!challengeMode) awardCoins("volt-match", suggestedCoins(nextScore, true, "volt-match") - suggestedCoins(score, true, "volt-match"));
       setCells((items) => items.map((item) => item.id === cell.id ? { ...item, removed: true } : item)); setCombo(nextCombo); setMaxCombo(nextMax); setScore(nextScore); setRoundScore(nextRoundScore); setRemainingTargets(nextRemaining); setCorrectTaps(nextCorrect); setFeedback("correct"); impact("success");
       setTimeout(() => setFeedback(null), 180);
       if (nextRemaining <= 0) { canTap.current = false; setRoundWon(true); setTimeout(() => setPhase("round"), 350); }
@@ -125,14 +125,14 @@ export function VoltMatchGame({ initialBestScore = 0, paused = false, skin, chal
   const accuracy = Math.round((correctTaps / Math.max(1, correctTaps + wrongTaps)) * 100);
   if (phase === "result") return <GameRoot colors={["#2B1B16", "#100F18", "#08070C"]} skin={skin}><GameHeader title="VOLT" accent={theme.primary} onExit={onExit} /><ResultScreen title={score >= 1500 && accuracy >= 85 ? "ЛЕГЕНДА" : accuracy >= 80 ? "ОТЛИЧНО" : accuracy >= 60 ? "ХОРОШО" : "ТРЕНИРУЙСЯ"} score={score} accent={theme.primary} onRestart={start} onExit={onExit} stats={[{ label: "Верно", value: correctTaps }, { label: "Ошибок", value: wrongTaps }, { label: "Точность", value: `${accuracy}%` }, { label: "Рекорд", value: Math.max(best, score) }]} /></GameRoot>;
 
-  if (phase === "round") return <GameRoot colors={["#2B1B16", "#100F18", "#08070C"]} skin={skin}><GameHeader title="VOLT" accent={theme.primary} onExit={onExit} /><Animated.View entering={ZoomIn.springify()} style={styles.roundScreen}><View style={styles.roundIcon}><Ionicons name={roundWon ? "checkmark-circle" : "timer-outline"} color={theme.primary} size={68} /></View><Text style={styles.roundTitle}>{roundWon ? `РАУНД ${round}` : "ВРЕМЯ"}</Text><Text style={styles.roundSubtitle}>{roundWon ? `${suggestedCoins(score)} coin` : "Продолжаем"}</Text><ArcadeButton accent={theme.primary} onPress={continueGame} style={styles.next}>{round >= TOTAL_ROUNDS ? "ФИНИШ" : "ДАЛЬШЕ"}</ArcadeButton></Animated.View></GameRoot>;
+  if (phase === "round") return <GameRoot colors={["#2B1B16", "#100F18", "#08070C"]} skin={skin}><GameHeader title="VOLT" accent={theme.primary} onExit={onExit} /><Animated.View entering={ZoomIn.springify()} style={styles.roundScreen}><View style={styles.roundIcon}><Ionicons name={roundWon ? "checkmark-circle" : "timer-outline"} color={theme.primary} size={68} /></View><Text style={styles.roundTitle}>{roundWon ? `РАУНД ${round}` : "ВРЕМЯ"}</Text><Text style={styles.roundSubtitle}>{roundWon ? `${suggestedCoins(score, true, "volt-match")} coin` : "Продолжаем"}</Text><ArcadeButton accent={theme.primary} onPress={continueGame} style={styles.next}>{round >= TOTAL_ROUNDS ? "ФИНИШ" : "ДАЛЬШЕ"}</ArcadeButton></Animated.View></GameRoot>;
 
   const target = ICONS[targetIndex]!;
   const maxGrid = Math.min(width - 28, height * 0.52, 520); const gap = width < 380 ? 6 : 9; const cellSize = Math.floor((maxGrid - gap * 4) / 5); const duration = roundDuration(round) * 1000;
   return (
     <GameRoot colors={["#2B1B16", "#100F18", "#08070C"]} skin={skin}>
       <GameHeader title="VOLT" accent={theme.primary} onExit={onExit} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score)} color={theme.primary} />{challengeMode ? <><HudStat label="Раунд" value={`${round}/${TOTAL_ROUNDS}`} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /><HudStat label="Ошибки" value={`${mistakes}/3`} color="#FF5C6C" /></> : <HudStat label="Режим" value="∞" />}</View>
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score, true, "volt-match")} color={theme.primary} />{challengeMode ? <><HudStat label="Раунд" value={`${round}/${TOTAL_ROUNDS}`} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /><HudStat label="Ошибки" value={`${mistakes}/3`} color="#FF5C6C" /></> : <HudStat label="Режим" value="∞" />}</View>
       <View style={[styles.targetStrip, { borderColor: theme.primary }]}><LinearGradient colors={target.colors} style={[styles.targetIcon, { borderColor: theme.primary }]}><Ionicons name={target.icon} color="#FFFFFF" size={29} /></LinearGradient><View style={styles.targetInfo}><Text style={[styles.targetLabel, { color: theme.primary }]}>НАЙДИ ВСЕ</Text><Text style={[styles.targetName, { color: theme.primary }]}>{target.name}</Text><Text style={styles.targetLeft}>осталось · {remainingTargets}</Text></View><View style={styles.targetTimer}><Text style={[styles.time, { color: theme.primary }, timeLeft < duration * 0.3 && { color: "#FF5C6C" }]}>{(timeLeft / 1000).toFixed(1)}</Text><Text style={styles.combo}>КОМБО ×{Math.min(combo, 6)}</Text></View></View>
       <ProgressBar progress={timeLeft / duration} color={timeLeft < duration * 0.3 ? "#FF5C6C" : theme.primary} />
       <View style={styles.gridStage}><View style={[styles.grid, { width: cellSize * 5 + gap * 4, gap }]}>{cells.map((cell) => {

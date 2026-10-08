@@ -56,8 +56,8 @@ export async function getContestProgress(userId: Types.ObjectId, cursor?: Progre
   const snapshot = await snapshotFor(dayKey, cursor);
   const selfIndex = snapshot.ranked.findIndex(row => row.userId === userId.toString());
   const self = snapshot.ranked[selfIndex] ?? null;
-  const offset = cursor?.offset ?? Math.max(0, Math.min(selfIndex - 2, snapshot.ranked.length - 5));
-  const end = Math.min(offset + 5, cursor?.end ?? Infinity, snapshot.ranked.length);
+  const offset = cursor?.offset ?? Math.max(0, Math.min(selfIndex - 7, snapshot.ranked.length - 15));
+  const end = Math.min(offset + 15, cursor?.end ?? Infinity, snapshot.ranked.length);
   const rows = snapshot.ranked.slice(offset, end);
   const users = await User.find({ _id: { $in: rows.map(row => new Types.ObjectId(row.userId)) } }).select("name avatarUrl").lean();
   const byId = new Map(users.map(user => [user._id.toString(), user]));
@@ -67,7 +67,7 @@ export async function getContestProgress(userId: Types.ObjectId, cursor?: Progre
     dayKey, participantCount: snapshot.ranked.length,
     self: self ? { rank: self.rank, totalCoins: self.totalCoins, completedGamesCount: self.completedGamesCount } : null,
     projectedCashUnits: reward?.projectedCashUnits ?? 0,
-    previous: offset > 0 ? { snapshot: snapshot.id, offset: Math.max(0, offset - 5), end: offset } : null,
+    previous: offset > 0 ? { snapshot: snapshot.id, offset: Math.max(0, offset - 15), end: offset } : null,
     next: end < snapshot.ranked.length ? { snapshot: snapshot.id, offset: end } : null,
     neighbors: rows.map(row => ({
       userId: row.userId, rank: row.rank, totalCoins: row.totalCoins,
