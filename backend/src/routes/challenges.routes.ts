@@ -19,10 +19,16 @@ import {
 import { getTodayChallengeOverview } from "../services/daily-challenge.service.js";
 import { getContestProgress } from "../services/contest-progress.service.js";
 import { getContestHistory } from "../services/contest-history.service.js";
+import { getDailyContestRules } from "../services/contest-rules.service.js";
 
 const router = Router();
 const gameKeySchema = z.string().trim().regex(/^[a-z0-9-]{1,80}$/);
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+router.get("/rules", async (request, response) => {
+  const query = z.object({ day: dayKeySchema.optional() }).safeParse(request.query);
+  if (!query.success) throw new ApiError(400, "invalid_rules_query", "Invalid challenge date");
+  response.json({ data: await getDailyContestRules(query.data.day) });
+});
 router.get("/history", async (request, response) => {
   const query = z.object({ day: dayKeySchema.optional(), offset: z.coerce.number().int().min(0).max(10_000_000).default(0) }).safeParse(request.query);
   if (!query.success) throw new ApiError(400, "invalid_history_query", "Invalid history date or page");

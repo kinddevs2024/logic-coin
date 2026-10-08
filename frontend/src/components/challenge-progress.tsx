@@ -10,6 +10,7 @@ import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { GlassSurface } from "@/components/glass-surface";
 import { ChallengeEmptyState } from "@/components/challenge-empty-state";
+import { ChallengeRulePrizes } from "@/components/challenge-rule-prizes";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { challengesApi } from "@/lib/api";
@@ -27,31 +28,31 @@ const challengeRules = {
   ru: {
     title: "Правила челленджа",
     paragraphs: [
-      "Каждый день доступен новый набор игр. Открой сегодняшнюю игру и пройди её до результата. В челлендже действуют указанные в игре ограничения времени, раундов и ошибок.",
+      "Ежедневный челлендж состоит из шести игр. Заверши все игры дня. Перед началом можно потренироваться в разделе «Игры». Основное прохождение доступно один раз в день; дополнительные попытки возможны только по предусмотренным в приложении правилам.",
       "Счёт начинается с нуля. Коины зависят от результата: правильных действий и прохождения игры. Результат и начисление сохраняются на сервере — для этого нужен интернет. Повтор уже зачтённой игры сам по себе не начисляет новую награду.",
       "Место в рейтинге определяется коинами текущего челленджа. При одинаковой сумме выше участник, прошедший больше игр; затем учитывается время завершения.",
       "Реклама и подарки могут дать дополнительные коины, время или разрешённый повтор. Рекламная награда начисляется только после подтверждённого просмотра; она не гарантируется, если реклама недоступна.",
-      "Сумма рядом со значком денег — общий призовой фонд, не ваш баланс. После завершения челленджа публикуются результаты и призы по правилам организатора. Коины не равны долларам; денежный приз не обещан каждому участнику.",
+      "Денежные призы определяются настройками именно этого дня: автоматически из общего фонда либо вручную администратором. Ниже показаны актуальные суммы за первое, второе и третье места. Пока итоги не опубликованы, суммы могут меняться. Общий фонд — не твой баланс. Коины не равны долларам, участие не гарантирует получение денежного приза.",
     ],
   },
   en: {
     title: "Challenge rules",
     paragraphs: [
-      "A new set of games is available each day. Open today's game and play until its result. Challenge games use the time, round and mistake limits shown in the game.",
+      "The daily challenge contains six games. Complete all games for the day. You can practice in the Games section first. The main run is available once a day; extra attempts are allowed only under the rules provided in the app.",
       "Your score starts at zero. Coins depend on your performance and correct actions. Results and rewards are saved on the server, so internet access is required. Replaying an already credited game does not automatically earn a new reward.",
       "Ranking is based on coins earned in this challenge. Ties are resolved by the number of completed games, then completion time.",
       "Ads and gifts may provide extra coins, time or an authorized replay. Ad rewards require a verified viewing and are not guaranteed when ads are unavailable.",
-      "The money amount is the total prize pool, not your balance. Results and prizes are published after the challenge ends, under the organizer's rules. Coins are not dollars, and a cash prize is not guaranteed to every participant.",
+      "Cash prizes come from this day's settings: automatically from its prize pool or assigned manually by the administrator. Current first-, second- and third-place amounts appear below. Amounts may change until results are published. The pool is not your balance. Coins are not dollars, and participation does not guarantee a cash prize.",
     ],
   },
   uz: {
     title: "Sinov qoidalari",
     paragraphs: [
-      "Har kuni yangi o‘yinlar to‘plami ochiladi. Bugungi o‘yinni ochib, natijagacha o‘ynang. Sinovda o‘yinda ko‘rsatilgan vaqt, bosqich va xato cheklovlari amal qiladi.",
+      "Kunlik sinov oltita o‘yindan iborat. Shu kunning barcha o‘yinlarini yakunlang. Avval «O‘yinlar» bo‘limida mashq qilishingiz mumkin. Asosiy ishtirok kuniga bir marta; qo‘shimcha urinishlar faqat ilovada ko‘rsatilgan qoidalarga muvofiq beriladi.",
       "Hisob noldan boshlanadi. Coinlar to‘g‘ri harakatlar va o‘yin natijasiga bog‘liq. Natija va mukofot serverda saqlanadi, buning uchun internet kerak. Avval hisoblangan o‘yinni takrorlash o‘z-o‘zidan yangi mukofot bermaydi.",
       "Reyting shu sinovda yig‘ilgan coinlar bo‘yicha tuziladi. Coinlar teng bo‘lsa, ko‘proq o‘yin tugatgan qatnashchi yuqorida turadi; keyin tugatish vaqti hisobga olinadi.",
       "Reklama va sovg‘alar qo‘shimcha coin, vaqt yoki ruxsat etilgan qayta o‘ynash imkonini berishi mumkin. Reklama mukofoti ko‘rish tasdiqlangandan so‘ng beriladi; reklama mavjud bo‘lmasa mukofot kafolatlanmaydi.",
-      "Pul belgisi yonidagi summa umumiy mukofot jamg‘armasi, shaxsiy balansingiz emas. Sinov tugagach natijalar va sovrinlar tashkilotchi qoidalari bo‘yicha e’lon qilinadi. Coin dollar emas va har bir qatnashchiga pul sovrini kafolatlanmaydi.",
+      "Pul sovrinlari aynan shu kunning sozlamalaridan olinadi: umumiy jamg‘armadan avtomatik hisoblanadi yoki administrator qo‘lda belgilaydi. Quyida birinchi, ikkinchi va uchinchi o‘rin uchun joriy summalar ko‘rsatilgan. Natijalar e’lon qilinmaguncha summalar o‘zgarishi mumkin. Jamg‘arma sizning balansingiz emas. Coin dollar emas; ishtirok pul sovrinini kafolatlamaydi.",
     ],
   },
 };
@@ -66,12 +67,13 @@ export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
 
 function ChallengeReady({ today }: { today: TodayChallenges }) {
   const focused = useIsFocused();
+  const [info, setInfo] = useState(false);
   // Reset this small clock when focus changes so the first visible render uses
   // current time, including the expired button state, without a hidden timer.
-  return <ChallengeReadyClock key={focused ? "focused" : "hidden"} today={today} focused={focused} />;
+  return <><ChallengeReadyClock key={focused ? "focused" : "hidden"} today={today} focused={focused} onRules={() => setInfo(true)} /><ChallengeRulesModal visible={info} dayKey={today.dayKey} onClose={() => setInfo(false)} /></>;
 }
 
-function ChallengeReadyClock({ today, focused }: { today: TodayChallenges; focused: boolean }) {
+function ChallengeReadyClock({ today, focused, onRules }: { today: TodayChallenges; focused: boolean; onRules: () => void }) {
   const router = useRouter();
   const theme = useAppTheme();
   const { language } = useTranslation();
@@ -99,6 +101,7 @@ function ChallengeReadyClock({ today, focused }: { today: TodayChallenges; focus
       <Ionicons name="trophy-outline" size={19} color={String(theme.primary)} />
       <AppText variant="caption" muted>{labels.pool}</AppText>
       <AppText variant="label">{formatMoney(today.prizes?.poolUnits ?? 0)}</AppText>
+      <Pressable accessibilityRole="button" accessibilityLabel={challengeRules[language].title} hitSlop={8} onPress={event => { event.stopPropagation(); onRules(); }} style={styles.infoButton}><Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} /></Pressable>
     </View>
   </GlassSurface></Pressable>;
 }
@@ -269,19 +272,28 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         </View>
       </SafeAreaView>
     </Modal> : null}
-    <Modal visible={info} transparent animationType="fade" onRequestClose={() => setInfo(false)}>
+    <ChallengeRulesModal visible={info} dayKey={today?.dayKey} onClose={() => setInfo(false)} />
+  </>;
+}
+
+function ChallengeRulesModal({ visible, dayKey, onClose }: { visible: boolean; dayKey?: string; onClose: () => void }) {
+  const theme = useAppTheme();
+  const { language } = useTranslation();
+  const rules = challengeRules[language];
+  const c = copy[language];
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={() => setInfo(false)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={onClose} />
         <GlassSurface variant="strong" style={styles.explanation}>
           <AppText variant="heading" accessibilityRole="header">{rules.title}</AppText>
           <ScrollView style={styles.rulesScroll} contentContainerStyle={styles.rulesContent} showsVerticalScrollIndicator>
             {rules.paragraphs.map((paragraph, index) => <AppText key={index}>{index + 1}. {paragraph}</AppText>)}
+            {visible ? <ChallengeRulePrizes dayKey={dayKey} /> : null}
           </ScrollView>
-          <Pressable accessibilityRole="button" onPress={() => setInfo(false)}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
+          <Pressable accessibilityRole="button" onPress={onClose}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
         </GlassSurface>
       </View>
-    </Modal>
-  </>;
+    </Modal>;
 }
 const styles = StyleSheet.create({
   detailsScreen: { flex: 1 },

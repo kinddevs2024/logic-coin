@@ -399,6 +399,13 @@ export type ChallengeStartResult = {
 };
 
 export const challengesApi = {
+  rules(token: string, day?: string) {
+    return request<{
+      dayKey: string; source: "automatic" | "manual" | "saved"; final: boolean;
+      poolUnits: number; participantCount: number; cashWinnerCount: number; otherMaxCashUnits: number;
+      podium: { rank: number; cashUnits: number | null }[];
+    }>(`/challenges/rules${day ? `?day=${encodeURIComponent(day)}` : ""}`, { token });
+  },
   history(token: string, day?: string, offset = 0) {
     return request<{
       today: string; dayKey: string; days: string[]; status: "final" | "live" | "pending" | "missing";
