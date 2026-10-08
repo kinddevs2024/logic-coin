@@ -64,7 +64,10 @@ jobs:
           node --test scripts/ota/server.test.mjs
       - name: Generate the same native configuration used by the APK fingerprint
         working-directory: frontend
-        run: npx expo prebuild --platform android --no-install
+        run: |
+          npx expo prebuild --platform android --no-install
+          cd ..
+          node scripts/ota/prepare-native-fingerprint.mjs
       - name: Verify exact APK compatibility
         env:
           BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
@@ -82,6 +85,7 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/logic-ota-baseline" "$BASELINE_SHA"
           cd "$RUNNER_TEMP/logic-ota-baseline"
           npm ci --workspace frontend --include=dev
+          node "$GITHUB_WORKSPACE/scripts/ota/prepare-native-fingerprint.mjs"
           cd frontend
           npx expo prebuild --platform android --no-install
           npx expo export --platform android --output-dir "$GITHUB_WORKSPACE/artifacts/ota-baseline" --max-workers 2
