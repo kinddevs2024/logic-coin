@@ -1,0 +1,93 @@
+name: Android signed update export
+on:
+  push:
+    branches: [codex/ota-preview-export]
+  workflow_dispatch:
+    inputs:
+      baseline_run:
+        description: Successful preview APK build to update
+        type: string
+        required: true
+        default: '37812805936'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: android-ota-preview
+  cancel-in-progress: false
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      NODE_ENV: production
+      LOGIC_UPDATE_CHANNEL: preview
+      EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || secrets.EXPO_PUBLIC_API_URL }}
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB }}
+      EXPO_PUBLIC_APPODEAL_APP_KEY: ${{ secrets.EXPO_PUBLIC_APPODEAL_APP_KEY }}
+      EXPO_PUBLIC_APPODEAL_TEST_MODE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm install --global npm@11.18.0
+      - name: Verify baseline build and production client configuration
+        id: baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE_RUN: ${{ inputs.baseline_run || '37812805936' }}
+        run: |
+          node -e 'const u=new URL(process.env.EXPO_PUBLIC_API_URL); if (u.protocol!=="https:" || !["logic-coin.online","www.logic-coin.online"].includes(u.hostname) || u.pathname.replace(/\/$/,"")!=="/api/v1" || !process.env.EXPO_PUBLIC_APPODEAL_APP_KEY || !process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.endsWith(".apps.googleusercontent.com")) throw Error("Missing matching APK client configuration");'
+          node -e 'if(!/^[0-9]+$/.test(process.env.BASELINE_RUN)) throw Error("Invalid baseline run");'
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BASELINE_RUN" > baseline-run.json
+          node -e 'const fs=require("fs"), r=JSON.parse(fs.readFileSync("baseline-run.json")); if(r.conclusion!=="success" || r.head_branch!=="codex/game-updates-preview" || !/^[a-f0-9]{40}$/.test(r.head_sha)) throw Error("Baseline must be a successful preview APK build"); fs.appendFileSync(process.env.GITHUB_OUTPUT,"sha="+r.head_sha+"\n");'
+      - uses: actions/download-artifact@v4
+        with:
+          name: logic-coin-android-release
+          run-id: ${{ inputs.baseline_run || '37812805936' }}
+          github-token: ${{ github.token }}
+          path: artifacts/baseline
+      - run: npm ci --workspace frontend --include=dev
+      - name: Validate code and signed-delivery tests
+        run: |
+          npm run lint --workspace frontend
+          npm run typecheck --workspace frontend
+          npm test --workspace frontend
+          node --test scripts/ota/server.test.mjs
+      - name: Verify exact APK compatibility
+        env:
+          BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
+        run: node scripts/ota/verify-apk-target.mjs artifacts/baseline/logic-coin.apk "$BASELINE_SHA" artifacts/ota-target
+      - name: Export Android update without rebuilding APK
+        working-directory: frontend
+        run: |
+          npx expo export --platform android --output-dir ../artifacts/ota-preview --max-workers 2
+          npx expo config --type public --json > ../artifacts/ota-preview/public-config.json
+          cp ../artifacts/ota-target/runtime.json ../artifacts/ota-preview/runtime.json
+      - name: Export original APK source for a compatible rollback
+        env:
+          BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/logic-ota-baseline" "$BASELINE_SHA"
+          cd "$RUNNER_TEMP/logic-ota-baseline"
+          npm ci --workspace frontend --include=dev
+          cd frontend
+          npx expo export --platform android --output-dir "$GITHUB_WORKSPACE/artifacts/ota-baseline" --max-workers 2
+          npx expo config --type public --json > "$GITHUB_WORKSPACE/artifacts/ota-baseline/public-config.json"
+          cp "$GITHUB_WORKSPACE/artifacts/ota-target/runtime.json" "$GITHUB_WORKSPACE/artifacts/ota-baseline/runtime.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logic-coin-ota-preview
+          path: |
+            artifacts/ota-preview
+            artifacts/ota-baseline
+          if-no-files-found: error
+          retention-days: 7

@@ -20,6 +20,7 @@ import { ChallengeAdReward } from "../models/ChallengeAdReward.js";
 import { serializeCoins, serializeGame } from "./serialization.service.js";
 import { settleExpiredDailyContests } from "./contest.service.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
+import { getMonthlyChallengeActivity } from "./monthly-challenge-activity.service.js";
 
 // One Second is deliberately a fixed seven-attempt challenge. Keeping the
 // rule server-side makes every published day consistent, including days that
@@ -119,13 +120,14 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
   const dayKey = challengeDayKey();
   const todayBounds = dayBoundsInTimeZone(dayKey, env.DEFAULT_TIMEZONE);
   const month = currentMonthBounds(dayKey);
-  const [monthlyChallengeDays, gamesCompletedToday] = await Promise.all([
+  const [monthlyChallengeDays, gamesCompletedToday, monthlyActivity] = await Promise.all([
     typeof ChallengeAttempt.distinct === "function"
       ? ChallengeAttempt.distinct("dayKey", { userId, mode: "challenge", status: { $in: ["started", "completed"] }, dayKey: { $gte: month.from, $lte: month.to } })
       : [],
     typeof ChallengeAttempt.countDocuments === "function"
       ? ChallengeAttempt.countDocuments({ userId, status: "completed", completedAt: { $gte: todayBounds.from, $lt: todayBounds.to } })
-      : 0
+      : 0,
+    getMonthlyChallengeActivity(userId, dayKey)
   ]);
   const set = await getDailyChallengeSet(dayKey);
   if (!set || set.status !== "published") {
@@ -139,6 +141,9 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
       gamesCompletedToday,
       totalCoinsToday: 0,
       monthlyChallengeCount: monthlyChallengeDays.length,
+      monthlyCompletedDays: monthlyActivity.completedDays,
+      weeklyCompletedDays: monthlyActivity.weeklyCompletedDays,
+      monthlyDaysInMonth: monthlyActivity.daysInMonth,
       games: [],
       coins: serializeCoins(user.coins),
       doubling: {
@@ -214,6 +219,9 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
     gamesCompletedToday,
     totalCoinsToday: (ledgerTotal[0]?.total ?? 0) + adCoins,
     monthlyChallengeCount: monthlyChallengeDays.length,
+    monthlyCompletedDays: monthlyActivity.completedDays,
+    weeklyCompletedDays: monthlyActivity.weeklyCompletedDays,
+    monthlyDaysInMonth: monthlyActivity.daysInMonth,
     games: items,
     coins: serializeCoins(user.coins),
     doubling: {

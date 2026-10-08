@@ -49,6 +49,9 @@ vi.mock("../src/services/notification.service.js", () => ({
 vi.mock("../src/services/contest.service.js", () => ({
   settleExpiredDailyContests: modelMocks.settleExpired
 }));
+vi.mock("../src/services/monthly-challenge-activity.service.js", () => ({
+  getMonthlyChallengeActivity: vi.fn().mockResolvedValue({ completedDays: 0, daysInMonth: 31, weeklyCompletedDays: 0 })
+}));
 
 import {
   ensureDailyChallengeSet,
