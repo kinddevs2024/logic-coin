@@ -4,7 +4,7 @@ import { BlurView } from "expo-blur";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Animated, AppState, Easing, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Alert, Animated, AppState, Easing, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "./app-text";
@@ -51,10 +51,17 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
   const refreshRewards = async () => {
     await Promise.all([queryClient.invalidateQueries({ queryKey: ["home-gift"] }), queryClient.invalidateQueries({ queryKey: ["challenges"] }), queryClient.invalidateQueries({ queryKey: ["bootstrap"] })]);
   };
-  const perform = async (task: () => Promise<void>) => {
+  const perform = async (task: () => Promise<void>, closeOnError = false) => {
     if (busy || !token) return;
     setBusy(true); setMessage("");
-    try { await task(); } catch (error) { setMessage(error instanceof Error ? error.message : c.failed); }
+    try { await task(); } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : c.failed;
+      if (closeOnError) {
+        setOpen(false);
+        if (Platform.OS === "web" && typeof globalThis.alert === "function") globalThis.alert(errorMessage);
+        else Alert.alert(c.gift, errorMessage);
+      } else setMessage(errorMessage);
+    }
     finally { setBusy(false); }
   };
   const checkTelegram = () => perform(async () => {
@@ -74,7 +81,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     setMessage(`+${result.credited} coin`);
     await refreshRewards();
     setOpen(false);
-  });
+  }, true);
   const watchAds = () => perform(async () => {
     const cycle = await homeGiftApi.startAds(token!);
     for (let completed = cycle.completedAds; completed < 2; completed++) {
