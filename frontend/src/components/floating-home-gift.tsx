@@ -91,7 +91,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     if (!running || open || reduced) return;
     let cancelled = false;
     const listener = flight.addListener(({ value }) => { flightProgress.current = value; });
-    const motion = Animated.timing(flight, { toValue: 1, duration: Math.max(1, 14000 * (1 - flightProgress.current)), easing: Easing.linear, useNativeDriver: true });
+    const motion = Animated.timing(flight, { toValue: 1, duration: Math.max(1, 30000 * (1 - flightProgress.current)), easing: Easing.linear, useNativeDriver: true });
     motion.start(({ finished }) => {
       if (!finished || cancelled) return;
       flightProgress.current = 0;
