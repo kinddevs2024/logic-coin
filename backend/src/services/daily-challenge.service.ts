@@ -196,7 +196,7 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
         state: {
           status: attempt?.status ?? "not_started",
           score: attempt?.score ?? null,
-          coinsAwarded: attempt?.coinsAwarded ?? 0,
+          coinsAwarded: (attempt?.coinsAwarded ?? 0) + (attempt?.fortuneCoinsAwarded ?? 0),
           doubled: metadata.doubled === true,
           completedAt: attempt?.completedAt?.toISOString() ?? null
         }

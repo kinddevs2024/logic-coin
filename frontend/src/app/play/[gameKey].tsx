@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -35,6 +36,7 @@ import type { GiftItem, GiftUseEffect } from "@/types";
 type PlayMode = "practice" | "challenge";
 type ResultView = {
   sessionId: string;
+  attemptId?: string;
   score: number;
   coins: number;
   previous: number;
@@ -113,6 +115,7 @@ function PlayableGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
   const router = useRouter();
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const gameKey = firstParam(params.gameKey) ?? "";
   const mode: PlayMode = firstParam(params.mode) === "challenge" ? "challenge" : "practice";
@@ -240,7 +243,7 @@ function PlayableGameRoute() {
       try {
         const completed = await challengesApi.completePractice(gameKey, { score: gameResult.score, durationMs: gameResult.durationMs }, accessToken);
         if (completed.coins) setCoinBalance(completed.coins.balance);
-        setResult((current) => current?.sessionId === sessionId ? { ...current, coins: completed.attempt.coinsAwarded, saving: false, message: "Награда начислена" } : current);
+        setResult((current) => current?.sessionId === sessionId ? { ...current, attemptId: completed.attempt.id, coins: completed.attempt.coinsAwarded, saving: false, message: "Награда начислена" } : current);
       } catch {
         setResult((current) => current?.sessionId === sessionId ? { ...current, saving: false, message: "Результат сохранён на устройстве. Награда аккаунта не начислена." } : current);
       }
@@ -250,7 +253,7 @@ function PlayableGameRoute() {
     try {
       const completed = await challenges.complete({ gameKey, score: gameResult.score, durationMs: gameResult.durationMs });
       useChallengeAdGate.setState({ resultReady: true });
-      setResult((current) => current?.sessionId === sessionId ? { ...current, coins: completed.attempt.coinsAwarded, saving: false, message: "" } : current);
+      setResult((current) => current?.sessionId === sessionId ? { ...current, attemptId: completed.attempt.id, coins: completed.attempt.coinsAwarded, saving: false, message: "" } : current);
       await showCompletionAds();
     } catch {
       completionGuard.current = false;
@@ -346,12 +349,13 @@ function PlayableGameRoute() {
   };
 
   const playFortune = async () => {
-    if (fortuneBusy || fortuneSpinning || !accessToken) return;
+    if (fortuneBusy || fortuneSpinning || !accessToken || !activeResult?.attemptId || activeResult.saving) return;
     setGiftNotice("");
     setFortuneBusy(true);
     try {
       const reward = await showVerifiedRewardedAd({
         placement: "fortune-wheel", accessToken, claimCoins: true,
+        gameAttemptId: activeResult.attemptId,
         beforeShow: async (session) => {
           if (exitSession.isDiscarded()) throw new Error("session_closed");
           await new Promise<void>((resolve) => {
@@ -364,6 +368,10 @@ function PlayableGameRoute() {
       });
       if (!reward.receipt.completed || !reward.verified) throw new Error("rewarded_ad_incomplete");
       if (reward.coinBalance !== undefined) setCoinBalance(reward.coinBalance);
+      if (reward.credited > 0) {
+        setResult(current => current?.sessionId === sessionId ? { ...current, coins: current.coins + reward.credited } : current);
+        void queryClient.invalidateQueries({ queryKey: ["challenges"] });
+      }
       setGiftNotice(reward.credited ? `Колесо: +${reward.credited} coin` : "Награда колеса получена");
       setFortuneVisible(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);

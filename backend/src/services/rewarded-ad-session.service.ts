@@ -76,8 +76,18 @@ function serializeSession(session: {
 export async function startRewardedAdSession(
   userId: Types.ObjectId,
   placement: RewardedAdPlacement,
-  provider: RewardedAdProvider = "yandex"
+  provider: RewardedAdProvider = "yandex",
+  gameAttemptId?: string
 ) {
+  if (gameAttemptId) {
+    if (placement !== "fortune-wheel" || !Types.ObjectId.isValid(gameAttemptId)) throw new ApiError(400, "invalid_fortune_attempt", "Неверная игровая попытка.");
+    const attempt = await ChallengeAttempt.findOne({ _id: gameAttemptId, userId, status: "completed", completedAt: { $gte: new Date(Date.now() - SESSION_TTL_MS) }, fortuneRewardSessionId: { $exists: false } });
+    if (!attempt) throw new ApiError(409, "fortune_attempt_unavailable", "Колесо для этой игры уже использовано или результат недоступен.");
+    if (attempt.mode === "challenge") {
+      const set = await DailyChallengeSet.findOne({ _id: attempt.dailyChallengeSetId, dayKey: challengeDayKey(), status: "published", endsAt: { $gt: new Date() } });
+      if (!set) throw new ApiError(409, "fortune_challenge_finished", "Челлендж уже завершён.");
+    }
+  }
   // Keep only one pending session per user so a delayed callback can never
   // complete a different reward flow.
   const offer = placement === "navigation-frequency" ? await requireChallengeAdOffer(userId) : null;
@@ -88,6 +98,7 @@ export async function startRewardedAdSession(
   );
   const fortune = placement === "fortune-wheel" ? fortuneReward() : null;
   const session = await RewardedAdSession.create({
+    ...(gameAttemptId ? { gameAttemptId: new Types.ObjectId(gameAttemptId) } : {}),
     sessionId: randomUUID(),
     userId,
     provider,
@@ -217,6 +228,17 @@ export async function claimRewardedAdCoins(input: {
         }], { session: databaseSession });
         rewardCoins = NAVIGATION_CHALLENGE_REWARD;
       } else {
+        if (adSession.placement === "fortune-wheel" && adSession.gameAttemptId) {
+          const attempt = await ChallengeAttempt.findOneAndUpdate({ _id: adSession.gameAttemptId, userId: input.userId, status: "completed", fortuneRewardSessionId: { $exists: false } },
+            { $set: { fortuneRewardSessionId: adSession.sessionId, fortuneCoinsAwarded: adSession.rewardCoins } }, { new: true, session: databaseSession });
+          if (!attempt) throw new ApiError(409, "fortune_already_claimed", "Награда колеса для этой игры уже получена.");
+          if (attempt.mode === "challenge") {
+            const set = await DailyChallengeSet.findOne({ _id: attempt.dailyChallengeSetId, dayKey: challengeDayKey(), status: "published", endsAt: { $gt: new Date() } }).session(databaseSession);
+            if (!set || !attempt.dayKey) throw new ApiError(409, "fortune_challenge_finished", "Челлендж уже завершён.");
+            challengeDay = attempt.dayKey;
+            await ChallengeAdReward.create([{ userId: input.userId, sessionId: adSession.sessionId, dayKey: attempt.dayKey, amount: adSession.rewardCoins }], { session: databaseSession });
+          }
+        }
         const credited = await creditCoins(
           {
             userId: input.userId,

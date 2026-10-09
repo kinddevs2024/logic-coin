@@ -487,13 +487,13 @@ export const adsApi = {
   challengeOffer(token: string) {
     return request<{ eligible: boolean; available: boolean; challengeSetId: string | null; dayKey: string | null; rewardDayKey?: string; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
   },
-  async startRewarded(placement: string, token: string) {
+  async startRewarded(placement: string, token: string, gameAttemptId?: string) {
     const payload = await request<{ session: RewardedAdSessionDto }>(
       "/ads/rewarded/start",
       {
         method: "POST",
         token,
-        body: JSON.stringify({ placement, provider: "yandex" }),
+        body: JSON.stringify({ placement, provider: "yandex", ...(gameAttemptId ? { gameAttemptId } : {}) }),
       },
     );
     return payload.session;

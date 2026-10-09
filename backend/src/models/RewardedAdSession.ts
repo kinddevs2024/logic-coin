@@ -27,6 +27,7 @@ const rewardedAdSessionSchema = new Schema(
     rewardLabel: { type: String, maxlength: 40 },
     challengeSetId: { type: Schema.Types.ObjectId, ref: "DailyChallengeSet" },
     homeGiftCycleId: { type: String, maxlength: 80 },
+    gameAttemptId: { type: Schema.Types.ObjectId, ref: "ChallengeAttempt" },
     clientReceiptId: { type: String, maxlength: 180 },
     impressionId: { type: String, maxlength: 180 },
     completedAt: { type: Date },
