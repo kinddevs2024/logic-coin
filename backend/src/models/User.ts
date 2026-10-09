@@ -57,6 +57,8 @@ const userSchema = new Schema(
     referredBy: { type: Schema.Types.ObjectId, ref: "User" },
     referralRewardProcessedAt: { type: Date },
     challengeAdAvailableAt: { type: Date },
+    challengeAdRewardDay: { type: String },
+    challengeAdDailyCount: { type: Number, default: 0 },
     preferences: { type: preferencesSchema, required: true, default: () => ({}) },
     wallet: { type: walletSchema, required: true, default: () => ({}) },
     coins: { type: coinsSchema, required: true, default: () => ({}) },

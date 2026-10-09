@@ -21,7 +21,8 @@ import { creditCoins, getCoinBalance } from "./coin.service.js";
 import { challengeDayKey } from "./daily-challenge.service.js";
 import { invalidateContestProgress } from "./contest-progress.service.js";
 import { User } from "../models/User.js";
-import { CHALLENGE_AD_COOLDOWN_MS, requireChallengeAdOffer } from "./challenge-ad-offer.service.js";
+import { requireChallengeAdOffer } from "./challenge-ad-offer.service.js";
+import { DAILY_BONUS_LIMIT, nextBonusDeadline } from "../lib/daily-bonus-schedule.js";
 import { requireHomeGiftAdFlow } from "./home-gift.service.js";
 
 export type RewardedAdPlacement = (typeof REWARDED_AD_PLACEMENTS)[number];
@@ -35,10 +36,10 @@ const COIN_REWARDS: Partial<Record<RewardedAdPlacement, number>> = {
 };
 
 const FORTUNE_REWARDS = [
-  { coins: 1000, label: "+1000", weight: 1 },
-  { coins: 500, label: "+500", weight: 3 },
+  { coins: 200, label: "×2", weight: 1 },
+  { coins: 150, label: "×1.5", weight: 3 },
   { coins: 200, label: "+200", weight: 7 },
-  { coins: 150, label: "+150", weight: 19 },
+  { coins: 100, label: "+100", weight: 19 },
   { coins: 50, label: "+50", weight: 70 }
 ] as const;
 
@@ -200,12 +201,12 @@ export async function claimRewardedAdCoins(input: {
       }
       if (adSession.placement === "navigation-frequency") {
         const now = new Date();
-        await requireChallengeAdOffer(input.userId, now, databaseSession, adSession.challengeSetId?.toString());
+        const offer = await requireChallengeAdOffer(input.userId, now, databaseSession, adSession.challengeSetId?.toString());
         // One atomic user-level lock protects simultaneous claims on different devices.
-        const locked = await User.updateOne({ _id: input.userId, $or: [
+        const locked = await User.updateOne({ _id: input.userId, challengeAdRewardDay: offer.rewardDayKey, challengeAdDailyCount: { $eq: offer.claimedCount, $lt: DAILY_BONUS_LIMIT }, $or: [
           { challengeAdAvailableAt: { $exists: false } }, { challengeAdAvailableAt: null }, { challengeAdAvailableAt: { $lte: now } },
-        ] }, { $set: { challengeAdAvailableAt: new Date(now.getTime() + CHALLENGE_AD_COOLDOWN_MS) } }, { session: databaseSession });
-        if (locked.modifiedCount !== 1) throw new ApiError(429, "challenge_ad_cooldown", "Награда уже получена. Подождите 5 минут.");
+        ] }, { $set: { challengeAdAvailableAt: nextBonusDeadline(now, offer.claimedCount + 1) }, $inc: { challengeAdDailyCount: 1 } }, { session: databaseSession });
+        if (locked.modifiedCount !== 1) throw new ApiError(429, "challenge_ad_cooldown", "Награда уже получена. Дождитесь следующего бонуса.");
         const today = challengeDayKey(now);
         const set = await DailyChallengeSet.findOne({ dayKey: today }).session(databaseSession);
         challengeDay = challengeAdRewardDay(today, set, now);

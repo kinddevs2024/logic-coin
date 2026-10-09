@@ -106,7 +106,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     return () => clearInterval(timer);
   }, [running, serverDeadline]);
   useEffect(() => {
-    if (!running || open || reduced) return;
+    if (!running || open || reduced || offer.data?.exhausted) return;
     let cancelled = false;
     const listener = flight.addListener(({ value }) => { flightProgress.current = value; });
     const motion = Animated.timing(flight, { toValue: 1, duration: Math.max(1, 30000 * (1 - flightProgress.current)), easing: Easing.linear, useNativeDriver: true });
@@ -122,9 +122,9 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
       flight.removeListener(listener);
       flight.stopAnimation(value => { flightProgress.current = value; });
     };
-  }, [running, open, reduced, flight, path]);
+  }, [running, open, reduced, flight, path, offer.data?.exhausted]);
 
-  if (!active || !focused) return null;
+  if (!active || !focused || offer.data?.exhausted) return null;
   return <>
     {!open ? <Animated.View style={[styles.flying, { top: bounds?.top ?? insets.top + 140, transform: [
       { translateX: reduced ? 12 : flight.interpolate({ inputRange: [0, 1], outputRange: path.reverse ? [width - horizontalInset + 12, -horizontalInset - 108] : [-horizontalInset - 108, width - horizontalInset + 12] }) },

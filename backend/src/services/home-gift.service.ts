@@ -12,6 +12,7 @@ import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { challengeDayKey } from "./daily-challenge.service.js";
 import { invalidateContestProgress } from "./contest-progress.service.js";
 import { createTelegramLogin } from "./telegram-auth.service.js";
+import { bonusDay, DAILY_BONUS_LIMIT, nextBonusDeadline } from "../lib/daily-bonus-schedule.js";
 
 export const HOME_GIFT_CHANNEL = "@logic_coin_global";
 export const HOME_GIFT_COOLDOWN_MS = 120_000;
@@ -27,7 +28,10 @@ async function requireCurrentChallenge(dayKey = challengeDayKey(), session: Clie
   return set;
 }
 async function stateFor(userId: Types.ObjectId) {
-  return HomeGiftState.findOneAndUpdate({ userId }, { $setOnInsert: { availableAt: new Date(Date.now() + HOME_GIFT_COOLDOWN_MS) } }, { upsert: true, new: true });
+  const now = new Date(); const { dayKey } = bonusDay(now);
+  await HomeGiftState.findOneAndUpdate({ userId }, { $setOnInsert: { availableAt: nextBonusDeadline(now, 0), rewardDayKey: dayKey, dailyClaimCount: 0 } }, { upsert: true, new: true });
+  await HomeGiftState.updateOne({ userId, rewardDayKey: { $ne: dayKey } }, { $set: { rewardDayKey: dayKey, dailyClaimCount: 0, availableAt: nextBonusDeadline(now, 0) }, $unset: { cycleId: 1, cycleDayKey: 1, cycleExpiresAt: 1 } });
+  return HomeGiftState.findOne({ userId });
 }
 export async function getHomeGiftOffer(userId: Types.ObjectId) {
   const now = new Date();
@@ -39,7 +43,8 @@ export async function getHomeGiftOffer(userId: Types.ObjectId) {
   const completedAds = state.cycleId && state.cycleExpiresAt && state.cycleExpiresAt > now
     ? await RewardedAdSession.countDocuments({ userId, placement: "home-gift", homeGiftCycleId: state.cycleId, status: "completed", expiresAt: { $gt: now } }) : 0;
   return { kind: state.telegramRewardedAt ? "ads" : "telegram", rewardCoins: state.telegramRewardedAt ? 75 : 50,
-    eligible: Boolean(set), available: Boolean(set) && state.availableAt <= now, availableAt: state.availableAt.toISOString(), serverNow: now.toISOString(),
+    eligible: Boolean(set), available: Boolean(set) && state.dailyClaimCount < DAILY_BONUS_LIMIT && state.availableAt <= now, availableAt: state.availableAt.toISOString(), serverNow: now.toISOString(),
+    dailyClaimCount: state.dailyClaimCount, dailyLimit: DAILY_BONUS_LIMIT, exhausted: state.dailyClaimCount >= DAILY_BONUS_LIMIT,
     telegramLinked: Boolean(user.providers.telegramSub), channelUrl: "https://t.me/logic_coin_global", completedAds: Math.min(2, completedAds),
   };
 }
@@ -85,12 +90,14 @@ export async function claimHomeGiftTelegram(userId: Types.ObjectId) {
   const state = await stateFor(userId);
   if (state?.telegramRewardedAt) return { credited: 0, alreadyClaimed: true };
   if (!state || state.availableAt > new Date()) throw new ApiError(429, "home_gift_cooldown", "Подарок ещё не доступен.");
+  if (state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(429, "home_gift_daily_limit", "Все подарки на сегодня получены.");
   if (!await verifyMembership(telegramId)) throw new ApiError(409, "telegram_subscription_required", "Подпишитесь на канал и нажмите «Проверить».");
   const session = await mongoose.startSession(); let credited = 0; let rewardDay = "";
   try { await session.withTransaction(async () => {
     const set = await requireCurrentChallenge(undefined, session); rewardDay = set.dayKey;
-    const claimed = await HomeGiftState.findOneAndUpdate({ userId, telegramRewardedAt: { $exists: false }, availableAt: { $lte: new Date() } },
-      { $set: { telegramRewardedAt: new Date(), availableAt: new Date(Date.now() + HOME_GIFT_COOLDOWN_MS) } }, { new: true, session });
+    const now = new Date();
+    const claimed = await HomeGiftState.findOneAndUpdate({ userId, telegramRewardedAt: { $exists: false }, availableAt: { $lte: now }, rewardDayKey: bonusDay(now).dayKey, dailyClaimCount: state.dailyClaimCount },
+      { $set: { telegramRewardedAt: now, availableAt: nextBonusDeadline(now, state.dailyClaimCount + 1) }, $inc: { dailyClaimCount: 1 } }, { new: true, session });
     if (!claimed) { credited = 0; return; }
     await ChallengeAdReward.create([{ userId, sessionId: `home-gift:telegram:${telegramId}`, dayKey: set.dayKey, amount: 50 }], { session }); credited = 50;
   }); } finally { await session.endSession(); }
@@ -100,7 +107,8 @@ export async function claimHomeGiftTelegram(userId: Types.ObjectId) {
 export async function startHomeGiftAds(userId: Types.ObjectId) {
   const state = await stateFor(userId); const now = new Date(); const set = await requireCurrentChallenge();
   if (!state?.telegramRewardedAt) throw new ApiError(409, "home_gift_telegram_first", "Сначала выполните задание Telegram.");
-  if (state.availableAt > now) throw new ApiError(429, "home_gift_cooldown", "Следующий подарок доступен через две минуты.");
+  if (state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(429, "home_gift_daily_limit", "Все подарки на сегодня получены.");
+  if (state.availableAt > now) throw new ApiError(429, "home_gift_cooldown", "Следующий подарок ещё не доступен.");
   let active = await HomeGiftState.findOneAndUpdate({ userId, telegramRewardedAt: { $exists: true }, availableAt: { $lte: now },
     $or: [{ cycleId: { $exists: false } }, { cycleExpiresAt: { $lte: now } }, { cycleDayKey: { $ne: set.dayKey } }] },
     { $set: { cycleId: randomUUID(), cycleDayKey: set.dayKey, cycleExpiresAt: new Date(now.getTime() + CYCLE_TTL_MS) } }, { new: true });
@@ -111,7 +119,7 @@ export async function startHomeGiftAds(userId: Types.ObjectId) {
 }
 export async function requireHomeGiftAdFlow(userId: Types.ObjectId) {
   const state = await HomeGiftState.findOne({ userId, telegramRewardedAt: { $exists: true }, cycleId: { $exists: true }, cycleExpiresAt: { $gt: new Date() }, availableAt: { $lte: new Date() } });
-  if (!state?.cycleId || !state.cycleDayKey) throw new ApiError(409, "home_gift_cycle_unavailable", "Сначала откройте задание подарка.");
+  if (!state?.cycleId || !state.cycleDayKey || state.rewardDayKey !== bonusDay(new Date()).dayKey || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "home_gift_cycle_unavailable", "Сначала откройте задание подарка.");
   await requireCurrentChallenge(state.cycleDayKey); return state;
 }
 export async function claimHomeGiftAds(userId: Types.ObjectId, cycleId: string) {
@@ -120,13 +128,15 @@ export async function claimHomeGiftAds(userId: Types.ObjectId, cycleId: string) 
     const state = await HomeGiftState.findOne({ userId }).session(session);
     if (state?.lastClaimedCycle === cycleId) { credited = 0; return; }
     if (!state || state.cycleId !== cycleId || !state.cycleExpiresAt || state.cycleExpiresAt < new Date() || state.availableAt > new Date()) throw new ApiError(409, "home_gift_cycle_unavailable", "Задание истекло. Откройте подарок заново.");
+    if (state.rewardDayKey !== bonusDay(new Date()).dayKey || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "home_gift_daily_limit", "Подарки этого дня закончились. Откройте задание заново.");
     const set = await requireCurrentChallenge(state.cycleDayKey ?? undefined, session); rewardDay = set.dayKey;
     const ads = await RewardedAdSession.find({ userId, placement: "home-gift", homeGiftCycleId: cycleId, status: "completed", expiresAt: { $gt: new Date() } }).sort({ completedAt: 1 }).limit(2).session(session);
     if (ads.length !== 2) throw new ApiError(409, "home_gift_two_ads_required", "Нужно полностью посмотреть две рекламы.");
     const consumed = await RewardedAdSession.updateMany({ _id: { $in: ads.map(ad => ad._id) }, status: "completed" }, { $set: { status: "claimed", claimedAt: new Date() } }, { session });
     if (consumed.modifiedCount !== 2) throw new ApiError(409, "home_gift_ad_already_used", "Эти просмотры уже использованы.");
     await ChallengeAdReward.create([{ userId, sessionId: `home-gift:ads:${cycleId}`, dayKey: set.dayKey, amount: 75 }], { session });
-    state.lastClaimedCycle = cycleId; state.availableAt = new Date(Date.now() + HOME_GIFT_COOLDOWN_MS); state.set("cycleId", undefined); state.set("cycleDayKey", undefined); state.set("cycleExpiresAt", undefined);
+    state.dailyClaimCount += 1;
+    state.lastClaimedCycle = cycleId; state.availableAt = nextBonusDeadline(new Date(), state.dailyClaimCount); state.set("cycleId", undefined); state.set("cycleDayKey", undefined); state.set("cycleExpiresAt", undefined);
     await state.save({ session }); credited = 75;
   }); } finally { await session.endSession(); }
   if (credited) invalidateContestProgress(rewardDay);

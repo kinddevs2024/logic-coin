@@ -485,7 +485,7 @@ export type RewardedAdSessionDto = {
 
 export const adsApi = {
   challengeOffer(token: string) {
-    return request<{ eligible: boolean; available: boolean; challengeSetId: string | null; dayKey: string | null; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
+    return request<{ eligible: boolean; available: boolean; challengeSetId: string | null; dayKey: string | null; rewardDayKey?: string; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
   },
   async startRewarded(placement: string, token: string) {
     const payload = await request<{ session: RewardedAdSessionDto }>(
@@ -881,7 +881,7 @@ export const adminApi = {
 };
 
 export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
-export type HomeGiftOffer = { kind: "telegram" | "ads"; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number };
+export type HomeGiftOffer = { kind: "telegram" | "ads"; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
 export type HomeGiftLink = { flowId: string; pollToken: string; botUrl: string };
 export const homeGiftApi = {
   offer: (token: string) => request<HomeGiftOffer>("/home-gift", { token }),
