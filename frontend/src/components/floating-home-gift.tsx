@@ -35,6 +35,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [linkFlow, setLinkFlow] = useState<HomeGiftLink | null>(null);
+  const [telegramOpened, setTelegramOpened] = useState(false);
   const token = useAppStore(state => state.accessToken);
   const queryClient = useQueryClient();
   const reduced = useReducedMotion();
@@ -57,6 +58,13 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     finally { setBusy(false); }
   };
   const checkTelegram = () => perform(async () => {
+    if (!offer.data?.telegramLinked && !linkFlow) {
+      const flow = await homeGiftApi.link(token!);
+      setLinkFlow(flow);
+      setMessage(c.pending);
+      await Linking.openURL(flow.botUrl);
+      return;
+    }
     if (linkFlow && !offer.data?.telegramLinked) {
       const result = await homeGiftApi.finishLink(token!, linkFlow);
       if (!result.linked) { setMessage(c.pending); return; }
@@ -65,6 +73,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     const result = await homeGiftApi.claimTelegram(token!);
     setMessage(`+${result.credited} coin`);
     await refreshRewards();
+    setOpen(false);
   });
   const watchAds = () => perform(async () => {
     const cycle = await homeGiftApi.startAds(token!);
@@ -75,6 +84,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     const result = await homeGiftApi.claimAds(token!, cycle.cycleId);
     setMessage(`+${result.credited} coin`);
     await refreshRewards();
+    setOpen(false);
   });
 
   useEffect(() => {
@@ -132,13 +142,12 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
           <AppText style={styles.pending}>{!token ? c.login : offer.isError ? c.failed : !offer.data ? c.wait : !offer.data.eligible ? c.inactive : offer.data.kind === "telegram" ? c.telegram : c.ads}</AppText>
           {token && offer.data?.eligible ? <>
             {offer.data.kind === "telegram" ? <>
-              {!offer.data.telegramLinked && !linkFlow ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { const flow = await homeGiftApi.link(token); setLinkFlow(flow); await Linking.openURL(flow.botUrl); setMessage(c.pending); })} style={styles.close}><AppText color={String(theme.primary)}>{c.link}</AppText></Pressable> : null}
-              <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { await Linking.openURL(offer.data!.channelUrl); })} style={styles.close}><AppText color={String(theme.primary)}>{c.channel}</AppText></Pressable>
-              <Pressable disabled={busy || remaining > 0 || (!offer.data.telegramLinked && !linkFlow)} accessibilityRole="button" onPress={checkTelegram} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : c.check}</AppText></Pressable>
+              {!telegramOpened ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { await Linking.openURL(offer.data!.channelUrl); setTelegramOpened(true); })} style={styles.close}><AppText color={String(theme.primary)}>{language === "ru" ? "Открыть Telegram" : language === "uz" ? "Telegramni ochish" : "Open Telegram"}</AppText></Pressable>
+              : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={checkTelegram} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : language === "ru" ? "Подтвердить" : language === "uz" ? "Tasdiqlash" : "Confirm"}</AppText></Pressable>}
             </> : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={watchAds} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : `${c.watch} · ${offer.data.completedAds}/2`}</AppText></Pressable>}
           </> : null}
           {message ? <AppText style={styles.pending}>{message}</AppText> : null}
-          <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.close}><AppText color={String(theme.primary)}>{c.close}</AppText></Pressable>
+          <Pressable accessibilityLabel={c.close} accessibilityRole="button" disabled={busy} onPress={() => setOpen(false)} hitSlop={8} style={{ position: "absolute", top: 12, right: 12, padding: 8 }}><Ionicons name="close" size={22} color={theme.text} /></Pressable>
         </View>
       </View>
     </Modal> : null}
