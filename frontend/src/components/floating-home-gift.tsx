@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { BlurView } from "expo-blur";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
@@ -116,11 +117,11 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
       <Pressable accessibilityRole="button" accessibilityLabel={c.gift} accessibilityState={{ disabled: remaining > 0 }} disabled={remaining > 0} onPress={() => setOpen(true)}
         style={({ pressed }) => [styles.gift, pressed && styles.pressed]}>
         <View pointerEvents="none" style={styles.glass}><BlurView intensity={65} tint="default" blurTarget={blurTarget ?? backgroundBlurTarget ?? undefined} {...(Platform.OS === "android" ? { blurMethod: "dimezisBlurView" as const, blurReductionFactor: 1 } : {})} style={StyleSheet.absoluteFill} /></View>
-        <Ionicons name="gift" size={46} color="#168BDA" />
+        <MaterialCommunityIcons name={remaining > 0 ? "gift" : "gift-open"} size={46} color="#168BDA" />
         <View pointerEvents="none" style={styles.sparkle}><Ionicons name="sparkles" size={16} color="#FFDE69" /></View>
       </Pressable>
       </Animated.View>
-      <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</AppText></View>
+      {remaining > 0 ? <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</AppText></View> : null}
     </Animated.View> : null}
     {open ? <Modal visible transparent animationType="fade" onRequestClose={() => setOpen(false)}>
       <View style={styles.backdrop}>
