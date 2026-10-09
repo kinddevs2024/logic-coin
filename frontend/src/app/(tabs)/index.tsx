@@ -172,7 +172,7 @@ export default function HomeScreen() {
             style={[styles.activityStrip, { borderColor: theme.glassBorder }]}
           >
             <View style={styles.activityItem}>
-              <View style={{ maxWidth: "58%", flexShrink: 1 }}><AppText style={[styles.activityTitle, { maxWidth: "100%" }]}>{language === "uz" ? "Haftalik faollik" : language === "en" ? "Weekly activity" : "Недельная активность"}</AppText><Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={language === "uz" ? "Haftalik faollik haqida" : language === "en" ? "About weekly activity" : "О недельной активности"} onPress={() => setActivityInfoOpen("week")} style={{ minHeight: 32, width: 32, justifyContent: "center" }}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /></Pressable></View>
+              <View style={styles.activityLabelRow}><AppText style={[styles.activityTitle, { maxWidth: "100%", flex: 1 }]}>{language === "uz" ? "Haftalik faollik" : language === "en" ? "Weekly activity" : "Недельная активность"}</AppText><Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={language === "uz" ? "Haftalik faollik haqida" : language === "en" ? "About weekly activity" : "О недельной активности"} onPress={() => setActivityInfoOpen("week")} style={styles.activityInfoButton}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /></Pressable></View>
               <ProgressDonut
                 value={today?.weeklyCompletedDays === undefined ? "—" : `${today.weeklyCompletedDays}/7`}
                 progress={(today?.weeklyCompletedDays ?? 0) / 7}
@@ -182,7 +182,7 @@ export default function HomeScreen() {
             </View>
             <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
             <View style={styles.activityItem}>
-              <View style={{ maxWidth: "58%", flexShrink: 1 }}><AppText style={[styles.activityTitle, { maxWidth: "100%" }]}>{language === "uz" ? "Oylik faollik" : language === "en" ? "Monthly activity" : "Месячная активность"}</AppText><Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={language === "uz" ? "Oylik faollik haqida" : language === "en" ? "About monthly activity" : "О месячной активности"} onPress={() => setActivityInfoOpen("month")} style={{ minHeight: 32, width: 32, justifyContent: "center" }}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /></Pressable></View>
+              <View style={styles.activityLabelRow}><AppText style={[styles.activityTitle, { maxWidth: "100%", flex: 1 }]}>{language === "uz" ? "Oylik faollik" : language === "en" ? "Monthly activity" : "Месячная активность"}</AppText><Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={language === "uz" ? "Oylik faollik haqida" : language === "en" ? "About monthly activity" : "О месячной активности"} onPress={() => setActivityInfoOpen("month")} style={styles.activityInfoButton}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /></Pressable></View>
               <ProgressDonut
                 value={today?.monthlyCompletedDays === undefined ? "—" : `${today.monthlyCompletedDays}/${today.monthlyDaysInMonth}`}
                 progress={today?.monthlyDaysInMonth ? Math.min(1, (today.monthlyCompletedDays ?? 0) / today.monthlyDaysInMonth) : 0}
@@ -255,6 +255,8 @@ const styles = StyleSheet.create({
   activityStrip: { minHeight: 82, marginTop: 12, borderRadius: 22, paddingHorizontal: 6, paddingVertical: 8, flexDirection: "row", alignItems: "stretch", borderWidth: StyleSheet.hairlineWidth },
   activityItem: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-evenly", gap: 8, paddingHorizontal: 8 },
   activityTitle: { minWidth: 0, maxWidth: "58%", fontSize: 12, lineHeight: 16, fontWeight: "800", textAlign: "left", flexShrink: 1 },
+  activityLabelRow: { maxWidth: "58%", flexShrink: 1, flexDirection: "row", alignItems: "center", gap: 3 },
+  activityInfoButton: { minHeight: 32, width: 24, flexShrink: 0, alignItems: "center", justifyContent: "center" },
   donut: { width: 64, height: 64, alignItems: "center", justifyContent: "center" },
   donutValue: { position: "absolute", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   activityDivider: { width: StyleSheet.hairlineWidth, alignSelf: "stretch", marginHorizontal: 4 },
