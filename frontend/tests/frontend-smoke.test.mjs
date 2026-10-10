@@ -17,6 +17,13 @@ test("Android game results do not leave a stacked native modal after navigation"
 async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
+test("next challenge keeps a result visible until a fresh game host mounts", async () => {
+  const game = await readFile(new URL("src/app/play/[gameKey].tsx", root), "utf8");
+  assert.match(game, /<PlayableGameRoute key=\{/);
+  const transition = game.slice(game.indexOf("const continueChallenge"), game.indexOf("const applyGift"));
+  assert.doesNotMatch(transition, /setResult\(null\)/);
+  assert.match(transition, /resultReady: false/);
+});
 test("Android fortune wheel closes in the game tree before the next route", async () => {
   const wheel = await readFile(new URL("src/components/fortune-wheel-modal.tsx", root), "utf8");
   const game = await readFile(new URL("src/app/play/[gameKey].tsx", root), "utf8");

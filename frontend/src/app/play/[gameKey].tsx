@@ -105,11 +105,13 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 }
 
 export default function DynamicGameRoute() {
-  const params = useLocalSearchParams<{ mode?: string | string[] }>();
+  const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
   if (Platform.OS === "web" && firstParam(params.mode) === "challenge") {
     return <AppFrame><ChallengeAppRequired /></AppFrame>;
   }
-  return <PlayableGameRoute />;
+  // A replacement of the same dynamic route must get a fresh host, not only
+  // a fresh child game with the previous host's completed/discarded session.
+  return <PlayableGameRoute key={`${firstParam(params.mode)}:${firstParam(params.gameKey)}`} />;
 }
 
 function PlayableGameRoute() {
@@ -322,13 +324,15 @@ function PlayableGameRoute() {
 
   const continueChallenge = async () => {
     if (adBusy || fortuneBusy || fortuneSpinning) return;
+    useChallengeAdGate.setState({ resultReady: false });
     exitSession.discard();
     setFortuneVisible(false);
     setFortuneSpinning(false);
     setGiftOpen(false);
     setExitOpen(false);
     setGiftNotice("");
-    setResult(null);
+    // Keep the completed screen until navigation commits. Clearing it here
+    // exposes the finished game's empty render during native replacement.
     if (nextChallengeGame) {
       router.replace({ pathname: "/play/[gameKey]", params: { gameKey: nextChallengeGame.key, mode: "challenge" } } as never);
       return;
