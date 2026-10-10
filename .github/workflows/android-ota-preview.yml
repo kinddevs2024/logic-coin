@@ -8,7 +8,7 @@ on:
         description: Successful preview APK build to update
         type: string
         required: true
-        default: '37812805936'
+        default: '37874197885'
 permissions:
   contents: read
   actions: read
@@ -43,7 +43,7 @@ jobs:
         id: baseline
         env:
           GH_TOKEN: ${{ github.token }}
-          BASELINE_RUN: ${{ inputs.baseline_run || '37812805936' }}
+          BASELINE_RUN: ${{ inputs.baseline_run || '37874197885' }}
         run: |
           node -e 'const u=new URL(process.env.EXPO_PUBLIC_API_URL); if (u.protocol!=="https:" || !["logic-coin.online","www.logic-coin.online"].includes(u.hostname) || u.pathname.replace(/\/$/,"")!=="/api/v1" || !process.env.EXPO_PUBLIC_APPODEAL_APP_KEY || !process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.endsWith(".apps.googleusercontent.com")) throw Error("Missing matching APK client configuration");'
           node -e 'if(!/^[0-9]+$/.test(process.env.BASELINE_RUN)) throw Error("Invalid baseline run");'
@@ -52,7 +52,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: logic-coin-android-release
-          run-id: ${{ inputs.baseline_run || '37812805936' }}
+          run-id: ${{ inputs.baseline_run || '37874197885' }}
           github-token: ${{ github.token }}
           path: artifacts/baseline
       - run: npm ci --workspace frontend --include=dev
