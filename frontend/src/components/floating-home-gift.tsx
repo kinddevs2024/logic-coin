@@ -29,6 +29,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
   const [availableAt] = useState(() => Date.now() + INTERVAL_MS);
   const [remaining, setRemaining] = useState(INTERVAL_MS / 1000);
   const [open, setOpen] = useState(false);
+  const [holdingGift, setHoldingGift] = useState(false);
   const [flight] = useState(() => new Animated.Value(0));
   const flightProgress = useRef(0);
   const [path, setPath] = useState({ from: 0.2, to: 0.8, reverse: false });
@@ -106,7 +107,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     return () => clearInterval(timer);
   }, [running, serverDeadline]);
   useEffect(() => {
-    if (!running || open || reduced || offer.data?.exhausted) return;
+    if (!running || open || holdingGift || reduced || offer.data?.exhausted) return;
     let cancelled = false;
     const listener = flight.addListener(({ value }) => { flightProgress.current = value; });
     const motion = Animated.timing(flight, { toValue: 1, duration: Math.max(1, 30000 * (1 - flightProgress.current)), easing: Easing.linear, useNativeDriver: true });
@@ -122,7 +123,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
       flight.removeListener(listener);
       flight.stopAnimation(value => { flightProgress.current = value; });
     };
-  }, [running, open, reduced, flight, path, offer.data?.exhausted]);
+  }, [running, open, holdingGift, reduced, flight, path, offer.data?.exhausted]);
 
   if (!active || !focused || offer.data?.exhausted) return null;
   return <>
@@ -132,6 +133,7 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     ] }]}>
       <Animated.View style={{ overflow: "visible", transform: [{ rotate: reduced ? "0deg" : flight.interpolate({ inputRange: [0, 1], outputRange: ["-9deg", "9deg"] }) }] }}>
       <Pressable accessibilityRole="button" accessibilityLabel={c.gift} accessibilityState={{ disabled: remaining > 0 }} disabled={remaining > 0} onPress={() => setOpen(true)}
+        hitSlop={12} onPressIn={() => setHoldingGift(true)} onPressOut={() => setHoldingGift(false)}
         style={({ pressed }) => [styles.gift, pressed && styles.pressed]}>
         <View pointerEvents="none" style={styles.glass}><BlurView intensity={65} tint="default" blurTarget={blurTarget ?? backgroundBlurTarget ?? undefined} {...(Platform.OS === "android" ? { blurMethod: "dimezisBlurView" as const, blurReductionFactor: 1 } : {})} style={StyleSheet.absoluteFill} /></View>
         <MaterialCommunityIcons name={remaining > 0 ? "gift" : "gift-open"} size={46} color="#168BDA" />
@@ -147,6 +149,13 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
           <Ionicons name="gift-outline" size={42} color={theme.primary} />
           <AppText variant="heading">{c.gift}</AppText>
           <AppText style={styles.pending}>{!token ? c.login : offer.isError ? c.failed : !offer.data ? c.wait : !offer.data.eligible ? c.inactive : offer.data.kind === "telegram" ? c.telegram : c.ads}</AppText>
+          {offer.data?.eligible ? <AppText style={styles.pending}>{offer.data.kind === "telegram"
+            ? language === "ru" ? "Открой канал, подпишись и вернись сюда. Нажми «Подтвердить»: после проверки подписки 50 коинов добавятся в текущий челлендж. Награда за подписку выдаётся один раз. Если Telegram не привязан, потребуется подтверждение через бота."
+              : language === "uz" ? "Kanalni oching, obuna bo‘ling va qayting. «Tasdiqlash»ni bosing: obuna tekshirilgach, joriy chempionatga 50 coin qo‘shiladi. Bu mukofot bir marta beriladi. Telegram bog‘lanmagan bo‘lsa, bot orqali tasdiqlash kerak."
+              : "Open the channel, subscribe and return here. Press Confirm: after verification, 50 coins are added to the current challenge. This subscription reward is given once. An unlinked Telegram account needs confirmation through the bot."
+            : language === "ru" ? "Нажми «Смотреть» и полностью просмотри две рекламы подряд. После подтверждения обоих просмотров 75 коинов добавятся в текущий челлендж, и окно закроется. Незавершённый просмотр не даёт награду."
+              : language === "uz" ? "«Ko‘rish»ni bosing va ketma-ket ikkita reklamani oxirigacha ko‘ring. Ikkala ko‘rish tasdiqlangach, joriy chempionatga 75 coin qo‘shiladi va oyna yopiladi. Tugallanmagan reklama uchun mukofot berilmaydi."
+              : "Press Watch and finish two ads in a row. After both views are verified, 75 coins are added to the current challenge and this window closes. Unfinished views do not earn a reward."}</AppText> : null}
           {token && offer.data?.eligible ? <>
             {offer.data.kind === "telegram" ? <>
               {!telegramOpened ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { await Linking.openURL(offer.data!.channelUrl); setTelegramOpened(true); })} style={styles.close}><AppText color={String(theme.primary)}>{language === "ru" ? "Открыть Telegram" : language === "uz" ? "Telegramni ochish" : "Open Telegram"}</AppText></Pressable>
