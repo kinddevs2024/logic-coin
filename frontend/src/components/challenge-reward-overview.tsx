@@ -1,43 +1,52 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "@/hooks/use-translation";
-import { challengesApi } from "@/lib/api";
-import { formatMoney } from "@/lib/format";
-
+import { giftsApi } from "@/lib/api";
+import { useAppStore } from "@/store/app-store";
 const copy = {
-  ru: { daily: "Дневные подарки", weekly: "Недельные подарки", monthly: "Месячные подарки", dailyRule: "Заверши все 6 игр. Денежные призы зависят от места в рейтинге.", preliminary: "Предварительные суммы: зависят от участников и настроек организатора.", final: "Окончательные призы за этот день.", place: "место", unset: "Сумма пока не назначена", missing: "Призы дня пока не объявлены", retry: "Повторить", error: "Не удалось загрузить призы", weekRule: "Для розыгрыша по условиям организатора заверши все 6 игр ежедневно, без пропусков, в течение недели.", monthRule: "Для розыгрыша по условиям организатора заверши все 6 игр ежедневно, без пропусков, в течение месяца.", pending: "Денежный розыгрыш пока не подключён. Суммы и даты объявляет организатор; этот счётчик не выдаёт приз автоматически.", chance: "Победителей выбирают случайно среди выполнивших условия. Коины не влияют на выбор; приз не гарантирован.", progress: "Завершено дней", period: "Неделя начинается в понедельник; месяц — с 1-го числа." },
-  en: { daily: "Daily rewards", weekly: "Weekly rewards", monthly: "Monthly rewards", dailyRule: "Finish all 6 games. Cash prizes depend on your leaderboard rank.", preliminary: "Provisional amounts depend on participants and organizer settings.", final: "Final prizes for this day.", place: "place", unset: "Amount not assigned yet", missing: "Daily prizes have not been announced", retry: "Retry", error: "Could not load prizes", weekRule: "For a draw under the organizer’s rules, finish all 6 games every day of the week without skipping a day.", monthRule: "For a draw under the organizer’s rules, finish all 6 games every day of the month without skipping a day.", pending: "The cash draw is not connected yet. The organizer announces amounts and dates; this counter does not award a prize automatically.", chance: "Winners are selected randomly among eligible participants. Coins do not affect selection; a prize is not guaranteed.", progress: "Completed days", period: "Weeks start on Monday; months start on the 1st." },
-  uz: { daily: "Kunlik sovg‘alar", weekly: "Haftalik sovg‘alar", monthly: "Oylik sovg‘alar", dailyRule: "Barcha 6 ta o‘yinni yakunlang. Pul sovrinlari reytingdagi o‘ringa bog‘liq.", preliminary: "Dastlabki summalar ishtirokchilar va tashkilotchi sozlamalariga bog‘liq.", final: "Shu kunning yakuniy sovrinlari.", place: "o‘rin", unset: "Summa hali belgilanmagan", missing: "Kunlik sovrinlar hali e’lon qilinmagan", retry: "Qayta urinish", error: "Sovrinlarni yuklab bo‘lmadi", weekRule: "Tashkilotchi shartlari bo‘yicha tanlov uchun haftaning har kuni barcha 6 ta o‘yinni bir kun ham qoldirmasdan yakunlang.", monthRule: "Tashkilotchi shartlari bo‘yicha tanlov uchun oyning har kuni barcha 6 ta o‘yinni bir kun ham qoldirmasdan yakunlang.", pending: "Pul tanlovi hali ulanmagan. Summalar va sanalarni tashkilotchi e’lon qiladi; bu hisoblagich avtomatik sovrin bermaydi.", chance: "G‘oliblar shartlarni bajarganlar orasidan tasodifiy tanlanadi. Coinlar ta’sir qilmaydi; sovrin kafolatlanmaydi.", progress: "Yakunlangan kunlar", period: "Hafta dushanbadan, oy esa 1-sanadan boshlanadi." },
+  ru: { title: "Заходи каждый день", day: "День", claim: "Получить", claimed: "Получено", locked: "Недоступно", missed: "Пропущено", weekly: "За неделю", monthly: "За месяц", rule: "Заверши хотя бы одну игру в день. Награда доступна в конце периода.", login: "100 коинов за каждый день входа. Пропустишь день — серия начнётся заново.", retry: "Повторить", failed: "Не удалось загрузить подарки", wait: "Подождите…" },
+  en: { title: "Come back every day", day: "Day", claim: "Claim", claimed: "Claimed", locked: "Locked", missed: "Missed", weekly: "Weekly activity", monthly: "Monthly activity", rule: "Finish at least one game a day. The reward unlocks at the end of the period.", login: "100 coins for each login day. Skip a day and the streak restarts.", retry: "Retry", failed: "Could not load gifts", wait: "Please wait…" },
+  uz: { title: "Har kuni kiring", day: "Kun", claim: "Olish", claimed: "Olindi", locked: "Yopiq", missed: "O‘tkazib yuborildi", weekly: "Haftalik faollik", monthly: "Oylik faollik", rule: "Har kuni kamida bitta o‘yinni yakunlang. Mukofot davr oxirida ochiladi.", login: "Har kirgan kuningiz uchun 100 coin. Bir kunni qoldirsangiz, ketma-ketlik qaytadan boshlanadi.", retry: "Qayta urinish", failed: "Sovg‘alar yuklanmadi", wait: "Kutib turing…" },
 };
-
 export function ChallengeRewardOverview({ token }: { token: string }) {
   const { language } = useTranslation();
   const c = copy[language];
-  const prizes = useQuery({ queryKey: ["challenge-prize-rules", token], queryFn: () => challengesApi.rules(token), staleTime: 0, retry: 1 });
-  const activity = useQuery({ queryKey: ["challenge-reward-activity", token], queryFn: () => challengesApi.today(token), staleTime: 0, retry: 1 });
+  const client = useQueryClient();
+  const offer = useQuery({ queryKey: ["coin-rewards", token], queryFn: () => giftsApi.coinRewards(token), staleTime: 0, refetchInterval: 30_000, retry: 1 });
+  const claim = useMutation({
+    mutationFn: (kind: "daily" | "week" | "month") => giftsApi.claimCoinReward(kind, token),
+    onSuccess: async result => {
+      useAppStore.getState().setCoinBalance(result.coins.balance);
+      await Promise.all([client.invalidateQueries({ queryKey: ["coin-rewards"] }), client.invalidateQueries({ queryKey: ["bootstrap"] }), client.invalidateQueries({ queryKey: ["challenges"] })]);
+    },
+  });
+  if (offer.isPending) return <ActivityIndicator color="#D8D1FF" />;
+  if (offer.isError) return <Pressable accessibilityRole="button" onPress={() => void offer.refetch()}><Text style={styles.body}>{c.failed} · {c.retry}</Text></Pressable>;
   return <View style={styles.list}>
-    <View style={styles.card}>
-      <View style={styles.heading}><Ionicons name="trophy-outline" size={22} color="#D8D1FF" /><Text style={styles.title}>{c.daily}</Text></View>
-      <Text style={styles.body}>{c.dailyRule}</Text>
-      {prizes.isPending ? <ActivityIndicator color="#A89AFF" /> : prizes.isError ? <Pressable accessibilityRole="button" onPress={() => void prizes.refetch()}><Text style={styles.body}>{c.error} · {c.retry}</Text></Pressable> : <>
-        <Text style={styles.body}>{prizes.data.final ? c.final : c.preliminary}</Text>
-        {prizes.data.cashWinnerCount > 0 ? prizes.data.podium.map(prize => <View key={prize.rank} style={styles.row}><Text style={styles.body}>{prize.rank} {c.place}</Text><Text style={styles.amount}>{prize.cashUnits === null ? c.unset : formatMoney(prize.cashUnits)}</Text></View>) : <Text style={styles.body}>{c.missing}</Text>}
-      </>}
-    </View>
-    {(["week", "month"] as const).map(period => <View key={period} style={styles.card}>
-      <View style={styles.heading}><Ionicons name="calendar-outline" size={22} color="#D8D1FF" /><Text style={styles.title}>{period === "week" ? c.weekly : c.monthly}</Text></View>
-      <Text style={styles.amount}>{c.progress}: {activity.data ? period === "week" ? `${activity.data.weeklyCompletedDays ?? 0}/7` : `${activity.data.monthlyCompletedDays ?? 0}/${activity.data.monthlyDaysInMonth}` : "—"}</Text>
-      {activity.isError ? <Pressable accessibilityRole="button" onPress={() => void activity.refetch()}><Text style={styles.body}>{c.retry}</Text></Pressable> : null}
-      <Text style={styles.body}>{period === "week" ? c.weekRule : c.monthRule}</Text>
-      <Text style={styles.body}>{c.chance}</Text>
-      <Text style={styles.notice}>{c.pending}</Text>
-      <Text style={styles.body}>{c.period}</Text>
-    </View>)}
+    <Text style={styles.title}>{c.title}</Text><Text style={styles.body}>{c.login}</Text>
+    <View style={styles.grid}>{offer.data.daily.map(day => <Pressable key={day.day} accessibilityRole="button" accessibilityLabel={`${c.day} ${day.day}, ${day.coins} coin, ${c[day.status === "available" ? "claim" : day.status]}`} disabled={day.status !== "available" || claim.isPending} onPress={() => claim.mutate("daily")} style={[styles.tile, day.status === "available" && styles.available, day.status === "claimed" && styles.claimed]}>
+      <Text style={styles.day}>{c.day} {day.day}</Text>
+      <Ionicons name={day.status === "claimed" ? "checkmark-circle" : day.status === "available" ? "gift" : "lock-closed-outline"} size={28} color={day.status === "claimed" ? "#63E0B6" : "#F1CD65"} />
+      <Text style={styles.amount}>+{day.coins}</Text>
+      <Text style={styles.status}>{claim.isPending && day.status === "available" ? c.wait : c[day.status === "available" ? "claim" : day.status]}</Text>
+    </Pressable>)}</View>
+    <Text style={styles.body}>{c.rule}</Text>
+    <View style={styles.periods}>{([offer.data.weekly, offer.data.monthly]).map(reward => <Pressable key={reward.kind} accessibilityRole="button" disabled={reward.status !== "available" || claim.isPending} onPress={() => claim.mutate(reward.kind)} style={[styles.period, reward.status === "available" && styles.available]}>
+      <Text style={styles.day}>{reward.kind === "week" ? c.weekly : c.monthly}</Text>
+      <Ionicons name={reward.status === "claimed" ? "checkmark-circle" : "gift-outline"} size={32} color="#F1CD65" />
+      <Text style={styles.amount}>+{reward.coins} coin</Text>
+      <Text style={styles.body}>{reward.activeDays}/{reward.totalDays}</Text>
+      <Text style={styles.status}>{reward.from} — {reward.to}</Text>
+      <Text style={styles.action}>{reward.status === "available" && claim.isPending ? c.wait : c[reward.status === "available" ? "claim" : reward.status]}</Text>
+    </Pressable>)}</View>
+    {claim.error ? <Text style={styles.error}>{claim.error instanceof Error ? claim.error.message : c.failed}</Text> : null}
   </View>;
 }
 const styles = StyleSheet.create({
-  list: { gap: 12 }, card: { padding: 16, gap: 10, borderRadius: 20, backgroundColor: "rgba(124,92,255,0.12)", borderWidth: 1, borderColor: "rgba(168,154,255,0.24)" },
-  heading: { flexDirection: "row", alignItems: "center", gap: 10 }, title: { color: "#FFFFFF", fontSize: 17, fontWeight: "800", flexShrink: 1 }, body: { color: "#D2D3E0", fontSize: 13, lineHeight: 19 },
-  row: { flexDirection: "row", justifyContent: "space-between", gap: 12 }, amount: { color: "#D8D1FF", fontSize: 14, fontWeight: "700", flexShrink: 1 }, notice: { color: "#FFDE9A", fontSize: 12, lineHeight: 18 },
+  list: { gap: 12 }, title: { color: "#FFF", fontSize: 18, fontWeight: "800" }, body: { color: "#D2D3E0", fontSize: 12, lineHeight: 18 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, tile: { width: "22%", flexGrow: 1, minWidth: 70, minHeight: 120, padding: 10, borderRadius: 18, alignItems: "center", gap: 8, backgroundColor: "rgba(124,92,255,0.14)", borderWidth: 1, borderColor: "rgba(168,154,255,0.24)" },
+  available: { backgroundColor: "rgba(124,92,255,0.35)", borderColor: "#D8D1FF" }, claimed: { backgroundColor: "rgba(60,180,140,0.12)", borderColor: "#63E0B6" },
+  day: { color: "#FFF", fontWeight: "700", fontSize: 12 }, amount: { color: "#FFE08A", fontWeight: "900", fontSize: 18 }, status: { color: "#D2D3E0", fontSize: 10, textAlign: "center" },
+  periods: { flexDirection: "row", gap: 10 }, period: { flex: 1, padding: 14, borderRadius: 20, alignItems: "center", gap: 10, backgroundColor: "rgba(124,92,255,0.14)", borderWidth: 1, borderColor: "rgba(168,154,255,0.24)" }, action: { color: "#D8D1FF", fontWeight: "700", fontSize: 12 }, error: { color: "#FF9AA8", fontSize: 12 },
 });
