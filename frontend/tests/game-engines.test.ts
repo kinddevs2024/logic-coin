@@ -67,6 +67,27 @@ import { strikeRules } from "../src/games/arcade/a/strike-rules";
 import { createGameExitSession } from "../src/games/exit-session";
 
 describe("challenge exit confirmation", () => {
+  it("exits the fourth active game without altering three completed results or accepting late completion", () => {
+    const scores: number[] = [];
+    for (let index = 0; index < 3; index += 1) {
+      const session = createGameExitSession(`game-${index}`);
+      session.start();
+      session.complete(() => scores.push(100 + index));
+      expect(session.needsConfirmation()).toBe(false);
+      session.discard();
+    }
+    const fourth = createGameExitSession("fourth");
+    fourth.start();
+    expect(fourth.requestExit()).toBe(true);
+    fourth.stay();
+    expect(fourth.requestExit()).toBe(true);
+    fourth.complete(() => scores.push(999));
+    fourth.discard();
+    fourth.stay();
+    fourth.complete(() => scores.push(999));
+    expect(scores).toEqual([100, 101, 102]);
+    expect(fourth.needsConfirmation()).toBe(false);
+  });
   it("does not warn or save before the player starts", () => {
     const session = createGameExitSession("intro");
     let saves = 0;

@@ -4,6 +4,7 @@ import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { usePreventRemove, type NavigationAction } from "expo-router/react-navigation";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
@@ -141,6 +142,8 @@ function PlayableGameRoute() {
   const [result, setResult] = useState<ResultView | null>(null);
   const [giftOpen, setGiftOpen] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
+  const [exitGuardEnabled, setExitGuardEnabled] = useState(false);
+  const pendingExitAction = useRef<NavigationAction | null>(null);
   const [extraTimeSeconds, setExtraTimeSeconds] = useState(0);
   const [sessionRevision, setSessionRevision] = useState(0);
   const [giftNotice, setGiftNotice] = useState("");
@@ -187,11 +190,13 @@ function PlayableGameRoute() {
     };
   }, [exitSession]);
 
-  useEffect(() => navigation.addListener("beforeRemove", (event) => {
-    if (mode !== "challenge" || !exitSession.requestExit()) return;
-    event.preventDefault();
+  // Unlike manually cancelling beforeRemove, this also prevents native-stack
+  // removal, so its native and JS navigation state cannot diverge.
+  usePreventRemove(mode === "challenge" && exitGuardEnabled, ({ data }) => {
+    if (!exitSession.requestExit()) { navigation.dispatch(data.action); return; }
+    pendingExitAction.current = data.action;
     setExitOpen(true);
-  }), [exitSession, mode, navigation]);
+  });
 
   useEffect(() => {
     if (Platform.OS !== "web" || mode !== "challenge") return;
@@ -217,6 +222,7 @@ function PlayableGameRoute() {
   ) => {
     if (completionGuard.current || exitSession.isDiscarded()) return;
     completionGuard.current = true;
+    setExitGuardEnabled(false);
     const before = options.before ?? gameProgressFor(useGameProgressStore.getState().games, progressId);
     if (options.persist) recordScore(progressId, gameResult.score, gameResult.label, gameResult.won);
     const previewCoins = gameCoinReward(gameResult.score, false, progressId);
@@ -289,6 +295,7 @@ function PlayableGameRoute() {
   }, [classic, exitSession, gameKey, hydrated, processResult, progress, sessionId]);
 
   const retry = () => {
+    setExitGuardEnabled(false);
     completionGuard.current = false;
     setResult(null);
     setGiftNotice("");
@@ -297,8 +304,9 @@ function PlayableGameRoute() {
   };
 
   const exitGame = useCallback(() => {
-    if (mode === "challenge" && exitSession.requestExit()) {
-      setExitOpen(true);
+    if (mode === "challenge" && exitSession.needsConfirmation()) {
+      // Let usePreventRemove capture the real action for confirmed replay.
+      router.replace("/challenges" as never);
       return;
     }
     exitSession.discard();
@@ -308,15 +316,22 @@ function PlayableGameRoute() {
   const confirmExit = () => {
     // Discard before navigation: late feedback timers must not submit a result.
     exitSession.discard();
+    setExitGuardEnabled(false);
+    useChallengeAdGate.setState({ resultReady: false });
     setExitOpen(false);
     setGiftOpen(false);
-    router.replace("/challenges" as never);
+    const action = pendingExitAction.current;
+    pendingExitAction.current = null;
+    // Replay the captured action, including the hook's visited-route marker.
+    // Dispatching a new replace here would re-trigger the confirmation guard.
+    if (action) navigation.dispatch(action);
   };
   const stayInGame = () => {
+    pendingExitAction.current = null;
     setExitOpen(false);
     exitSession.stay();
   };
-  const markGameStarted = useCallback(() => exitSession.start(), [exitSession]);
+  const markGameStarted = useCallback(() => { exitSession.start(); setExitGuardEnabled(true); }, [exitSession]);
   const giftsAvailable = mode === "challenge" && (!authenticated || challenges.startedGameKey === gameKey);
   const sessionControls = useMemo(() => ({ onStart: markGameStarted, onExit: exitGame, paused: gamePaused, gameKey: progressId, practiceCoins: mode === "practice" ? progress?.coins ?? 0 : undefined,
     headerAction: giftsAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Открыть подарки" onPress={() => setGiftOpen(true)} style={({ pressed }) => [styles.giftButton, pressed && styles.pressed]}><Ionicons name="gift" color="#FFFFFF" size={20} /></Pressable> : null,

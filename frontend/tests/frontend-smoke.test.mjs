@@ -17,6 +17,20 @@ test("Android game results do not leave a stacked native modal after navigation"
 async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
+test("active challenge exit uses native-stack prevention and a route-owned Android dialog", async () => {
+  const game = await readFile(new URL("src/app/play/[gameKey].tsx", root), "utf8");
+  const dialog = await readFile(new URL("src/components/game-exit-modal.tsx", root), "utf8");
+  assert.match(game, /usePreventRemove\(mode === "challenge" && exitGuardEnabled/);
+  assert.doesNotMatch(game, /navigation\.addListener\("beforeRemove"/);
+  assert.match(game, /pendingExitAction\.current = data\.action/);
+  const confirm = game.slice(game.indexOf("const confirmExit"), game.indexOf("const stayInGame"));
+  assert.ok(confirm.indexOf("exitSession.discard()") < confirm.indexOf("navigation.dispatch(action)"));
+  assert.match(confirm, /setExitGuardEnabled\(false\)/);
+  assert.doesNotMatch(confirm, /router.replace/);
+  assert.match(dialog, /if \(!visible\) return null/);
+  assert.match(dialog, /Platform\.OS === "android"\s*\? <View accessibilityViewIsModal style=\{styles\.androidLayer\}/);
+  assert.match(dialog, /subscription.remove\(\)/);
+});
 test("next challenge keeps a result visible until a fresh game host mounts", async () => {
   const game = await readFile(new URL("src/app/play/[gameKey].tsx", root), "utf8");
   assert.match(game, /<PlayableGameRoute key=\{/);
