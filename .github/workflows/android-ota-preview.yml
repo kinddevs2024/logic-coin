@@ -66,25 +66,13 @@ jobs:
           npm run typecheck --workspace frontend
           npm test --workspace frontend
           node --test scripts/ota/server.test.mjs
+          node --test scripts/ota/compatibility-evidence.test.mjs
       - name: Generate the same native configuration used by the APK fingerprint
         working-directory: frontend
         run: |
           npx expo prebuild --platform android --no-install
           cd ..
           node scripts/ota/prepare-native-fingerprint.mjs
-          cd frontend/android
-          chmod +x ./gradlew
-          ./gradlew :app:createReleaseUpdatesResources -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
-      - name: Verify exact APK compatibility
-        env:
-          BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
-        run: node scripts/ota/verify-apk-target.mjs artifacts/baseline/logic-coin.apk "$BASELINE_SHA" artifacts/ota-target
-      - name: Export Android update without rebuilding APK
-        working-directory: frontend
-        run: |
-          npx expo export --platform android --output-dir ../artifacts/ota-preview --max-workers 2
-          npx expo config --type public --json > ../artifacts/ota-preview/public-config.json
-          cp ../artifacts/ota-target/runtime.json ../artifacts/ota-preview/runtime.json
       - name: Export original APK source for a compatible rollback
         env:
           BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
@@ -95,13 +83,27 @@ jobs:
           node "$GITHUB_WORKSPACE/scripts/ota/prepare-native-fingerprint.mjs"
           cd frontend
           npx expo prebuild --platform android --no-install
-          cd android
-          chmod +x ./gradlew
-          ./gradlew :app:createReleaseUpdatesResources -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
           cd ..
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/ota-target"
+          node "$GITHUB_WORKSPACE/scripts/ota/capture-native-reference.mjs" "$GITHUB_WORKSPACE/artifacts/ota-target/native-reference.json"
+          cd frontend
           npx expo export --platform android --output-dir "$GITHUB_WORKSPACE/artifacts/ota-baseline" --max-workers 2
           npx expo config --type public --json > "$GITHUB_WORKSPACE/artifacts/ota-baseline/public-config.json"
-          cp "$GITHUB_WORKSPACE/artifacts/ota-target/runtime.json" "$GITHUB_WORKSPACE/artifacts/ota-baseline/runtime.json"
+      - name: Verify APK compatibility against its independently reproduced source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE_RUN: ${{ inputs.baseline_run || '37874197885' }}
+          BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
+        run: |
+          node scripts/ota/verify-apk-target.mjs artifacts/baseline/logic-coin.apk "$BASELINE_SHA" artifacts/ota-target artifacts/ota-target/native-reference.json
+          cp artifacts/ota-target/runtime.json artifacts/ota-baseline/runtime.json
+      - name: Export Android update without rebuilding APK
+        working-directory: frontend
+        run: |
+          npx expo export --platform android --output-dir ../artifacts/ota-preview --max-workers 2
+          npx expo config --type public --json > ../artifacts/ota-preview/public-config.json
+          cp ../artifacts/ota-target/runtime.json ../artifacts/ota-preview/runtime.json
+          cp ../artifacts/ota-target/compatibility-evidence.json ../artifacts/ota-preview/compatibility-evidence.json
       - uses: actions/upload-artifact@v4
         with:
           name: logic-coin-ota-preview
