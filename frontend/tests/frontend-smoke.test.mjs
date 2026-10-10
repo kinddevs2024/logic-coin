@@ -17,6 +17,18 @@ test("Android game results do not leave a stacked native modal after navigation"
 async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
+test("Android fortune wheel closes in the game tree before the next route", async () => {
+  const wheel = await readFile(new URL("src/components/fortune-wheel-modal.tsx", root), "utf8");
+  const game = await readFile(new URL("src/app/play/[gameKey].tsx", root), "utf8");
+  assert.match(wheel, /if \(!visible\) return null/);
+  assert.match(wheel, /Platform\.OS === "android"\s*\? <View accessibilityViewIsModal style=\{styles\.androidLayer\}/);
+  assert.match(wheel, /BackHandler\.addEventListener\("hardwareBackPress"/);
+  const transition = game.slice(game.indexOf("const continueChallenge"), game.indexOf("const applyGift"));
+  assert.match(transition, /if \(adBusy \|\| fortuneBusy \|\| fortuneSpinning\) return/);
+  assert.ok(transition.indexOf("exitSession.discard()") < transition.indexOf("router.replace"));
+  assert.ok(transition.indexOf("setFortuneVisible(false)") < transition.indexOf("router.replace"));
+  assert.ok(transition.indexOf("setGiftOpen(false)") < transition.indexOf("router.replace"));
+});
 
 test("Expo and web deployment config target Logic Coin", async () => {
   const [app, eas, vercel, pkg, appodealPlugin] = await Promise.all([

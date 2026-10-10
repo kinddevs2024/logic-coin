@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, BackHandler, Image, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 const WHEEL_SIZE = 272;
 const WHEEL_CENTER = WHEEL_SIZE / 2;
@@ -39,8 +39,17 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
     animation.start(({ finished }) => { if (finished) onEnd.current(); });
     return () => animation.stop();
   }, [rotation, spinning]);
+  useEffect(() => {
+    if (Platform.OS !== "android" || !visible) return;
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!busy && !spinning) onDismiss();
+      return true;
+    });
+    return () => listener.remove();
+  }, [visible, busy, spinning, onDismiss]);
   const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", `${finalAngle}deg`] });
-  return <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => { if (!busy && !spinning) onDismiss(); }}>
+  if (!visible) return null;
+  const content = (
     <View style={styles.backdrop}><View style={styles.card}>
       <Text style={styles.title}>КОЛЕСО ФОРТУНЫ</Text>
       <View style={styles.pointer} accessibilityLabel="Указатель колеса"><View style={styles.pointerTip} /></View>
@@ -56,10 +65,16 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
       <Pressable disabled={busy || spinning} onPress={onSpin} style={[styles.spinButton, (busy || spinning) && styles.disabled]}>{busy || spinning ? <ActivityIndicator color="#07101E" /> : <Text style={styles.spinText}>{selected ? "РЕКЛАМА → ЗАБРАТЬ ПРИЗ" : "КРУТИТЬ КОЛЕСО"}</Text>}</Pressable>
       {!spinning && !busy ? <Pressable onPress={onDismiss} style={styles.dismiss}><Text style={styles.dismissText}>Не сейчас</Text></Pressable> : null}
     </View></View>
-  </Modal>;
+  );
+  // Keep the Android wheel in the game tree, not in a separate Dialog window
+  // which can outlive dismissal when the ad activity returns and routes change.
+  return Platform.OS === "android"
+    ? <View accessibilityViewIsModal style={styles.androidLayer}>{content}</View>
+    : <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => { if (!busy && !spinning) onDismiss(); }}>{content}</Modal>;
 }
 
 const styles = StyleSheet.create({
+  androidLayer: { ...StyleSheet.absoluteFill, zIndex: 2000, elevation: 40 },
   backdrop: { flex: 1, backgroundColor: "rgba(2,5,14,0.88)", alignItems: "center", justifyContent: "center", padding: 24 },
   card: { width: "100%", maxWidth: 380, alignItems: "center", padding: 26, borderRadius: 30, backgroundColor: "#111B35", borderWidth: 1, borderColor: "rgba(111,185,255,0.45)" },
   title: { color: "#FFFFFF", fontSize: 22, fontWeight: "900", letterSpacing: 1 }, copy: { color: "#AEC1DF", fontSize: 13, textAlign: "center", marginTop: 7 },

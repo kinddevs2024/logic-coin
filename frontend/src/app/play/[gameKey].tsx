@@ -321,7 +321,13 @@ function PlayableGameRoute() {
   }), [exitGame, gamePaused, giftsAvailable, markGameStarted, mode, progressId, progress?.coins]);
 
   const continueChallenge = async () => {
-    if (adBusy) return;
+    if (adBusy || fortuneBusy || fortuneSpinning) return;
+    exitSession.discard();
+    setFortuneVisible(false);
+    setFortuneSpinning(false);
+    setGiftOpen(false);
+    setExitOpen(false);
+    setGiftNotice("");
     setResult(null);
     if (nextChallengeGame) {
       router.replace({ pathname: "/play/[gameKey]", params: { gameKey: nextChallengeGame.key, mode: "challenge" } } as never);
