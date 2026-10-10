@@ -74,7 +74,7 @@ jobs:
           node scripts/ota/prepare-native-fingerprint.mjs
           cd frontend/android
           chmod +x ./gradlew
-          ./gradlew help -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
+          ./gradlew :app:createReleaseUpdatesResources -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
       - name: Verify exact APK compatibility
         env:
           BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
@@ -97,7 +97,7 @@ jobs:
           npx expo prebuild --platform android --no-install
           cd android
           chmod +x ./gradlew
-          ./gradlew help -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
+          ./gradlew :app:createReleaseUpdatesResources -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
           cd ..
           npx expo export --platform android --output-dir "$GITHUB_WORKSPACE/artifacts/ota-baseline" --max-workers 2
           npx expo config --type public --json > "$GITHUB_WORKSPACE/artifacts/ota-baseline/public-config.json"
