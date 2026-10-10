@@ -535,7 +535,16 @@ export const adsApi = {
   },
 };
 
+export type CoinRewardOffer = {
+  dayKey: string;
+  daily: { day: number; dayKey: string; coins: number; status: "claimed" | "available" | "missed" | "locked" }[];
+  weekly: CoinPeriodReward;
+  monthly: CoinPeriodReward;
+};
+export type CoinPeriodReward = { kind: "week" | "month"; from: string; to: string; coins: number; activeDays: number; totalDays: number; status: "claimed" | "available" | "locked" };
 export const giftsApi = {
+  coinRewards(token: string) { return request<CoinRewardOffer>("/gifts/coin-rewards", { token }); },
+  claimCoinReward(kind: "daily" | "week" | "month", token: string) { return request<{ credited: number; coins: CoinWallet }>("/gifts/coin-rewards/claim", { method: "POST", token, body: JSON.stringify({ kind }) }); },
   async list(token: string) {
     const payload = await request<{ gifts: GiftItem[] }>("/gifts", { token });
     return payload.gifts;
