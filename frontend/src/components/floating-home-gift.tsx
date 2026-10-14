@@ -95,14 +95,12 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
   });
 
   useEffect(() => {
-    const listener = AppState.addEventListener("change", state => setForeground(state === "active"));
+    const listener = AppState.addEventListener("change", state => {
+      setHoldingGift(false);
+      setForeground(state === "active");
+    });
     return () => listener.remove();
   }, []);
-  useEffect(() => {
-    // Opening the modal removes the pressed gift before onPressOut can fire.
-    // A return from Telegram/an ad must also never retain that stale touch.
-    setHoldingGift(false);
-  }, [open, foreground]);
   useEffect(() => {
     if (!running) return;
     const update = () => setRemaining(Math.max(0, Math.ceil((serverDeadline - Date.now()) / 1000)));
