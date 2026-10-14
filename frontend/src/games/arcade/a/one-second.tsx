@@ -13,7 +13,7 @@ import { useGameProgressStore } from "@/games/progress-store";
 
 const GAME_ID = "one-second" as const;
 const TARGET_MS = 1000;
-const DEFAULT_CHALLENGE_ATTEMPTS = 40;
+const DEFAULT_CHALLENGE_ATTEMPTS = 10;
 const RADIUS = 72;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -67,7 +67,6 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
   usePauseClock(paused, [pressStartedAt, gameStartedAt]);
   const scale = useSharedValue(1);
   const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  // Forty short attempts target roughly 70–100 seconds including feedback.
   const challengeAttempts = DEFAULT_CHALLENGE_ATTEMPTS;
 
   const score = useMemo(() => attempts.reduce((sum, item) => sum + item.points, 0), [attempts]);
