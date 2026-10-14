@@ -33,7 +33,7 @@ test("home gift uses matching generated closed and open transparent assets", asy
 test("opening a gift cannot leave a stale press pause after an ad or app return", async () => {
   const source = await readFile(new URL("src/components/floating-home-gift.tsx", root), "utf8");
   assert.match(source, /onPress=\{\(\) => \{ setHoldingGift\(false\); setOpen\(true\); \}\}/);
-  assert.match(source, /setHoldingGift\(false\);\s*\}, \[open, foreground\]\)/);
+  assert.match(source, /AppState\.addEventListener\("change", state => \{\s*setHoldingGift\(false\);/);
   assert.match(source, /finally \{ setHoldingGift\(false\); setBusy\(false\); \}/);
   assert.match(source, /ru: "Открыть", en: "Open", uz: "Ochish"/);
   assert.match(source, /<AppText style=\{styles\.timerText\}>\{OPEN_GIFT_LABEL\[language\]\}/);
