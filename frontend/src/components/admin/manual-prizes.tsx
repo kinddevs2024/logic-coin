@@ -34,7 +34,8 @@ export function ManualPrizes({ dayKey, onDirtyChange }: { dayKey: string; onDirt
   const amounts = draft?.amounts ?? baseline;
   const prizes = Object.entries(amounts).map(([userId, amount]) => ({ userId, cashUnits: cents(amount) }));
   const total = prizes.reduce((sum, row) => sum + row.cashUnits, 0);
-  const valid = Number.isSafeInteger(total) && total >= 0 && total <= (data?.prizePoolUnits ?? 0);
+  const valid = Number.isSafeInteger(total) && total >= 0 && total <= (data?.prizePoolUnits ?? 0)
+    && prizes.every(row => row.cashUnits >= 0 && (data?.cashPrizeLimitUnits == null || row.cashUnits <= data.cashPrizeLimitUnits));
   const save = useMutation({
     mutationFn: (mode: "manual" | "automatic") => adminApi.saveChallengePrizes(dayKey, { mode, revision: draft?.revision ?? data!.revision, prizes: mode === "manual" ? prizes : [] }, adminToken),
     onSuccess: (result) => {
@@ -52,6 +53,7 @@ export function ManualPrizes({ dayKey, onDirtyChange }: { dayKey: string; onDirt
     {data ? <>
       <AppText muted>{data.locked ? "Итоги зафиксированы — изменение недоступно." : `Режим: ${data.mode === "manual" ? "ручной" : "автоматический"}. Суммы вводятся в долларах.`}</AppText>
       <AppText>Фонд {money(data.prizePoolUnits)} · Назначено {Number.isFinite(total) ? money(total) : "—"} · Остаток {Number.isFinite(total) ? money(data.prizePoolUnits - total) : "—"}</AppText>
+      {data.cashPrizeLimitUnits != null ? <AppText>Максимум одному участнику: {money(data.cashPrizeLimitUnits)}</AppText> : null}
       {!data.locked ? <AppText variant="caption" muted>Ручной режим заменяет автоматические денежные призы. 0 — без денежного приза; новые участники получат 0, пока админ не назначит сумму. Место и коины не изменяются.</AppText> : null}
       <TextInput accessibilityLabel="Найти участника" placeholder="Имя, место или ID" placeholderTextColor={String(theme.textMuted)} value={search} onChangeText={value => { setSearch(value); setLimit(20); }} style={[styles.input, { color: theme.text, borderColor: theme.border }]} />
       {rows.slice(0, limit).map(row => <View key={row.userId} style={[styles.row, { borderColor: theme.border }]}>
@@ -65,6 +67,7 @@ export function ManualPrizes({ dayKey, onDirtyChange }: { dayKey: string; onDirt
       {!rows.length ? <AppText muted>Участники не найдены.</AppText> : null}
       {rows.length > limit ? <AppButton variant="ghost" onPress={() => setLimit(value => value + 20)}>Ещё участники</AppButton> : null}
       {!valid ? <AppText color={String(theme.danger)}>Введите суммы с точностью до цента. Общая сумма не должна превышать фонд.</AppText> : null}
+      {!valid && data.cashPrizeLimitUnits != null ? <AppText color={String(theme.danger)}>Приз одному участнику не должен превышать {money(data.cashPrizeLimitUnits)}.</AppText> : null}
       {!data.locked ? <>
         <AppButton disabled={!valid || save.isPending || !data.participants.length} onPress={() => setConfirm("manual")}>Сохранить ручные призы</AppButton>
         <AppButton variant="ghost" disabled={save.isPending || (data.mode === "automatic" && !dirty)} onPress={() => setConfirm("automatic")}>Вернуть автоматический расчёт</AppButton>

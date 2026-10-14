@@ -403,6 +403,7 @@ export const challengesApi = {
     return request<{
       dayKey: string; source: "automatic" | "manual" | "saved"; final: boolean;
       poolUnits: number; participantCount: number; cashWinnerCount: number; otherMaxCashUnits: number;
+      cashPrizeLimitUnits?: number | null; unallocatedUnits?: number;
       podium: { rank: number; cashUnits: number | null }[];
     }>(`/challenges/rules${day ? `?day=${encodeURIComponent(day)}` : ""}`, { token });
   },
@@ -756,6 +757,7 @@ export type AdminBlockedDevice = {
 export type AdminPrizePlan = {
   dayKey: string; mode: "automatic" | "manual"; revision: number; locked: boolean;
   prizePoolUnits: number; allocatedUnits: number; remainingUnits: number;
+  cashPrizeLimitUnits?: number | null;
   participants: { userId: string; name: string; rank: number; totalCoins: number; cashUnits: number }[];
 };
 
