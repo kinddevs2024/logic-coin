@@ -4,7 +4,7 @@ import { computeContestBands, rankContestStandings, type ContestStandingInput } 
 // All money is integer cents. Legacy min/max arguments are ignored: only the
 // fixed pool funds cash prizes. New contests explicitly store a per-person
 // cap; legacy contests without one retain their original full-pool allocation.
-export function contestCashPlan(participants: number, _minimum: number, _maximum: number, budget: number, cashPrizeLimitUnits?: number | null) {
+export function contestCashPlan(participants: number, _minimum: number, _maximum: number, budget: number, cashPrizeLimitUnits?: number | null, descendingCashPrizes = false) {
   if (!Number.isSafeInteger(participants) || participants < 0 || !Number.isSafeInteger(budget) || budget < 0) {
     throw new ApiError(400, "invalid_prize_pool", "Бюджет в центах и число участников должны быть неотрицательными целыми числами.");
   }
@@ -26,7 +26,9 @@ export function contestCashPlan(participants: number, _minimum: number, _maximum
     for (let weight = tailCount; weight > 0; weight--) weights.push(BigInt(weight));
   }
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0n);
-  const ladder = limit > 0 ? cappedLadder(weights, pool, BigInt(limit)) : weights.map(weight => Number(pool * weight / totalWeight));
+  const ladder = descendingCashPrizes && limit > 0
+    ? descendingLadder(weights, budget, limit)
+    : limit > 0 ? cappedLadder(weights, pool, BigInt(limit)) : weights.map(weight => Number(pool * weight / totalWeight));
   if (limit === 0) {
     let remainder = budget - ladder.reduce((sum, amount) => sum + amount, 0);
     for (let index = 0; remainder > 0; index = (index + 1) % ladder.length, remainder--) ladder[index]!++;
@@ -38,6 +40,19 @@ export function contestCashPlan(participants: number, _minimum: number, _maximum
   const bands = { participantCount: participants, cashWinners, caseWinners, randomWinners, coinWinners: participants - cashWinners - caseWinners - randomWinners };
   const distributedUnits = positiveLadder.reduce((sum, amount) => sum + amount, 0);
   return { bands, ladder: positiveLadder, distributedUnits, unallocatedUnits: budget - distributedUnits };
+}
+
+// First prize is the stored limit; later prizes strictly decrease in cents.
+// Any unused part of the advertised real pool remains explicitly unallocated.
+function descendingLadder(weights: bigint[], budget: number, limit: number) {
+  let remaining = budget;
+  let previous = limit + 1;
+  return weights.map(weight => {
+    const amount = Math.max(0, Math.min(remaining, previous - 1, Number(BigInt(limit) * weight / weights[0]!)));
+    remaining -= amount;
+    previous = amount;
+    return amount;
+  });
 }
 
 // Weighted water filling in integer cents. Saturated prizes are fixed before

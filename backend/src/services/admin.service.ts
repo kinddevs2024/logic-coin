@@ -252,7 +252,7 @@ export async function configureDailyChallenge(input: {
     : existing?.publishedAt ?? new Date();
   const endsAt = !isFirstPublication && existing?.endsAt ? existing.endsAt : new Date(firstPublishedAt.getTime() + 24 * 60 * 60 * 1_000);
   const update = {
-    ...(!existing ? { $setOnInsert: { cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS } } : {}),
+    ...(!existing ? { $setOnInsert: { cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS, descendingCashPrizes: true } } : {}),
     $set: {
       timezone: env.DEFAULT_TIMEZONE,
       status: publish ? ("published" as const) : ("draft" as const),

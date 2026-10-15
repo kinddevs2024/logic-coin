@@ -24,9 +24,10 @@ export function validateManualCashPrizes(prizes: readonly ManualCashPrize[], bud
 export function contestPrizePlan(standings: readonly ContestStandingInput[], settings: {
   prizePoolUnits: number; cashPrizeMinUnits: number; cashPrizeMaxUnits: number;
   cashPrizeLimitUnits?: number | null;
+  descendingCashPrizes?: boolean | null;
   manualCashPrizes?: readonly ManualCashPrize[] | null;
 }) {
-  const automatic = contestCashPlan(standings.length, settings.cashPrizeMinUnits, settings.cashPrizeMaxUnits, settings.prizePoolUnits, settings.cashPrizeLimitUnits);
+  const automatic = contestCashPlan(standings.length, settings.cashPrizeMinUnits, settings.cashPrizeMaxUnits, settings.prizePoolUnits, settings.cashPrizeLimitUnits, settings.descendingCashPrizes === true);
   const ranked = rankContestStandings(standings, automatic.bands);
   if (settings.manualCashPrizes == null) return {
     ...automatic, ranked: ranked.map(row => ({ ...row, cashUnits: automatic.ladder[row.rank - 1] ?? 0 })),
@@ -39,6 +40,14 @@ export function contestPrizePlan(standings: readonly ContestStandingInput[], set
     return { ...row, cashUnits, rewardType: cashUnits > 0 ? "cash" as const : row.rewardType === "cash" ? "coins" as const : row.rewardType };
   });
   const distributedUnits = custom.reduce((total, row) => total + row.cashUnits, 0);
+  if (settings.descendingCashPrizes && custom.length > 0) {
+    const positive = custom.filter(row => row.cashUnits > 0);
+    if (custom[0]!.cashUnits !== Math.min(settings.cashPrizeLimitUnits ?? 100, settings.prizePoolUnits)
+      || positive.some((row, index) => index > 0 && row.cashUnits >= positive[index - 1]!.cashUnits)
+      || custom.slice(0, positive.length).some(row => row.cashUnits === 0)) {
+      throw new ApiError(400, "invalid_prize_order", "Первое место получает установленный приз, каждое следующее денежное место — строго меньше.");
+    }
+  }
   return {
     ranked: custom, ladder: custom.map(row => row.cashUnits), distributedUnits,
     unallocatedUnits: settings.prizePoolUnits - distributedUnits,

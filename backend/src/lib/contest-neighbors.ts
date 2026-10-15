@@ -1,8 +1,8 @@
 import { type ContestStandingInput } from "./contest.js";
 import { contestPrizePlan, type ManualCashPrize } from "./manual-contest-prizes.js";
 
-export function contestNeighborhood(standings: ContestStandingInput[], userId: string, minUnits: number, maxUnits: number, budget: number, manualCashPrizes?: readonly ManualCashPrize[] | null, cashPrizeLimitUnits?: number | null) {
-  const plan = contestPrizePlan(standings, { cashPrizeMinUnits: minUnits, cashPrizeMaxUnits: maxUnits, prizePoolUnits: budget, ...(cashPrizeLimitUnits !== undefined ? { cashPrizeLimitUnits } : {}), ...(manualCashPrizes !== undefined ? { manualCashPrizes } : {}) });
+export function contestNeighborhood(standings: ContestStandingInput[], userId: string, minUnits: number, maxUnits: number, budget: number, manualCashPrizes?: readonly ManualCashPrize[] | null, cashPrizeLimitUnits?: number | null, descendingCashPrizes = false) {
+  const plan = contestPrizePlan(standings, { descendingCashPrizes, cashPrizeMinUnits: minUnits, cashPrizeMaxUnits: maxUnits, prizePoolUnits: budget, ...(cashPrizeLimitUnits !== undefined ? { cashPrizeLimitUnits } : {}), ...(manualCashPrizes !== undefined ? { manualCashPrizes } : {}) });
   const ranked = plan.ranked;
   const index = ranked.findIndex(row => row.userId === userId);
   const self = ranked[index] ?? null;

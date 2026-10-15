@@ -81,6 +81,7 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
         cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS,
+        descendingCashPrizes: true,
         coinPrizeAmounts: [100, 100, 100, 100, 100, 100],
         maxAttemptsPerGame: 1,
         oneSecondAttemptLimit: ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT,

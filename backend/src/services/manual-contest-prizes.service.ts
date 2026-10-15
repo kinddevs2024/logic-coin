@@ -34,8 +34,10 @@ export async function saveManualContestPrizes(input: {
   if (set.status === "settled" || set.prizesLocked) throw new ApiError(409, "prizes_locked", "Итоги уже рассчитываются или рассчитаны. Изменение призов запрещено.");
   if ((set.manualPrizeRevision ?? 0) !== input.revision) throw new ApiError(409, "prizes_changed", "Призы уже изменены другим администратором. Обновите список.");
   if (input.mode === "automatic" && input.prizes.length) throw new ApiError(400, "invalid_manual_prizes", "Для автоматического режима список должен быть пустым.");
-  const participants = new Set((await collectContestStandings(input.dayKey)).map(row => row.userId));
+  const standings = await collectContestStandings(input.dayKey);
+  const participants = new Set(standings.map(row => row.userId));
   validateManualCashPrizes(input.prizes, set.prizePoolUnits, participants, set.cashPrizeLimitUnits);
+  if (input.mode === "manual") contestPrizePlan(standings, { ...set, manualCashPrizes: input.prizes });
   const updated = await DailyChallengeSet.findOneAndUpdate({
     _id: set._id, updatedAt: set.updatedAt, status: { $ne: "settled" }, prizesLocked: { $ne: true },
     ...(input.revision === 0 ? { $or: [{ manualPrizeRevision: 0 }, { manualPrizeRevision: { $exists: false } }] } : { manualPrizeRevision: input.revision }),
