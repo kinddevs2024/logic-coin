@@ -29,6 +29,8 @@ export function ChallengeRulePrizes({ dayKey }: { dayKey?: string }) {
     {data ? <>
       <AppText variant="caption" muted>{data.dayKey} · {data.source === "saved" ? c.final : data.source === "manual" ? c.manual : c.automatic}</AppText>
       <View style={styles.row}><AppText>{c.pool}</AppText><AppText variant="label">{formatMoney(data.poolUnits)}</AppText></View>
+      {data.cashPrizeLimitUnits != null ? <View style={styles.row}><AppText>{language === "ru" ? "Максимум одному участнику" : language === "uz" ? "Bir ishtirokchiga eng ko‘pi" : "Maximum per participant"}</AppText><AppText variant="label">{formatMoney(data.cashPrizeLimitUnits)}</AppText></View> : null}
+      {(data.unallocatedUnits ?? 0) > 0 ? <View style={styles.row}><AppText>{language === "ru" ? "Нераспределённый остаток" : language === "uz" ? "Taqsimlanmagan qoldiq" : "Unallocated balance"}</AppText><AppText variant="label">{formatMoney(data.unallocatedUnits!)}</AppText></View> : null}
       {data.podium.map(row => <View key={row.rank} style={styles.row}><AppText>{language === "ru" ? `${row.rank}-е место` : language === "uz" ? `${row.rank}-o‘rin` : `${row.rank}${row.rank === 1 ? "st" : row.rank === 2 ? "nd" : "rd"} place`}</AppText><AppText variant="label">{row.cashUnits === null ? c.unavailable : row.cashUnits === 0 ? c.none : formatMoney(row.cashUnits)}</AppText></View>)}
       {data.otherMaxCashUnits > 0 ? <AppText>{language === "uz" ? `Boshqa pul sovrinlari — ${formatMoney(data.otherMaxCashUnits)} gacha.` : `${c.other} ${formatMoney(data.otherMaxCashUnits)}.`}</AppText> : null}
       <AppText variant="caption" muted>{data.final ? c.final : c.preliminary}</AppText>

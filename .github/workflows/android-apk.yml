@@ -83,7 +83,9 @@ jobs:
           packages: platform-tools
 
       - name: Install frontend workspace
-        run: npm ci --workspace frontend --include=dev
+        run: |
+          node scripts/ota/verify-certificate.mjs
+          npm ci --workspace frontend --include=dev
 
       - name: Verify installed SDK dependency compatibility
         working-directory: frontend

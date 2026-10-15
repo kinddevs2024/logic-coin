@@ -25,13 +25,14 @@ export async function showVerifiedRewardedAd(input: {
   placement: RewardedAdPlacement;
   accessToken?: string | null;
   claimCoins?: boolean;
+  gameAttemptId?: string;
   beforeShow?: (session: RewardedAdSessionDto) => Promise<void> | void;
 }): Promise<VerifiedRewardedAdResult> {
   if (isExpoGo) {
     return { receipt: await rewardedAds.show(input.placement), sessionId: null, verified: false, credited: 0 };
   }
   const session = input.accessToken
-    ? await adsApi.startRewarded(input.placement, input.accessToken)
+    ? await adsApi.startRewarded(input.placement, input.accessToken, input.gameAttemptId)
     : null;
   if (session && input.beforeShow) await input.beforeShow(session);
   const receipt = await rewardedAds.show(input.placement);

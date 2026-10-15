@@ -9,6 +9,7 @@ import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { giftsApi } from "@/lib/api";
+import { ChallengeRewardOverview } from "@/components/challenge-reward-overview";
 import { useAppStore } from "@/store/app-store";
 import type { GiftItem, GiftUseEffect } from "@/types";
 
@@ -136,12 +137,13 @@ export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = f
             <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={styles.close}><Ionicons name="close" color="rgba(255,255,255,0.78)" size={22} /></Pressable>
           </View>
 
-          {!authenticated ? <View style={styles.empty}><Ionicons name="lock-closed-outline" size={34} color="#A89AFF" /><Text style={styles.emptyTitle}>Подарки хранятся в аккаунте</Text><Text style={styles.emptyText}>Войдите, чтобы получать и использовать бонусы.</Text></View> : gifts.isLoading ? <View style={styles.loading}><ActivityIndicator color="#A89AFF" /><Text style={styles.emptyText}>Загружаем подарки</Text></View> : gifts.isError ? <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={34} color="#FF8B9A" /><Text style={styles.emptyTitle}>Не удалось загрузить</Text><Pressable onPress={() => void gifts.refetch()} style={styles.retry}><Text style={styles.retryText}>Повторить</Text></Pressable></View> : (
+{!authenticated ? <View style={styles.empty}><Ionicons name="lock-closed-outline" size={34} color="#A89AFF" /><Text style={styles.emptyTitle}>Подарки хранятся в аккаунте</Text><Text style={styles.emptyText}>Войдите, чтобы получать и использовать бонусы.</Text></View> : gifts.isLoading && !viewOnly ? <View style={styles.loading}><ActivityIndicator color="#A89AFF" /><Text style={styles.emptyText}>Загружаем подарки</Text></View> : gifts.isError && !viewOnly ? <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={34} color="#FF8B9A" /><Text style={styles.emptyTitle}>Не удалось загрузить</Text><Pressable onPress={() => void gifts.refetch()} style={styles.retry}><Text style={styles.retryText}>Повторить</Text></Pressable></View> : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+              {viewOnly && visible ? <ChallengeRewardOverview token={accessToken!} /> : null}
               {available.length ? <Text style={styles.sectionLabel}>ДОСТУПНО · {available.length}</Text> : null}
               
               {available.map((gift) => <GiftCard key={gift.id} gift={gift} viewOnly={viewOnly} usable={canUseGift(gift, context)} context={context} busy={useGift.isPending && useGift.variables?.id === gift.id} onUse={() => useGift.mutate(gift)} />)}
-              {!available.length ? <View style={styles.empty}><Ionicons name="gift-outline" size={36} color="rgba(255,255,255,0.34)" /><Text style={styles.emptyTitle}>Пока пусто</Text></View> : null}
+              {!available.length && !viewOnly ? <View style={styles.empty}><Ionicons name="gift-outline" size={36} color="rgba(255,255,255,0.34)" /><Text style={styles.emptyTitle}>Пока пусто</Text></View> : null}
               {used.length ? <Text style={[styles.sectionLabel, styles.usedLabel]}>ИСПОЛЬЗОВАНО · {used.length}</Text> : null}
               {used.map((gift) => <GiftCard key={gift.id} gift={gift} viewOnly={viewOnly} disabled />)}
             </ScrollView>

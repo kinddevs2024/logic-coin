@@ -1,0 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { X509Certificate } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+const path = process.argv[2] ?? 'frontend/certs/update-certificate.pem';
+const certificate = new X509Certificate(readFileSync(path));
+if (!certificate.keyUsage?.includes('1.3.6.1.5.5.7.3.3')) throw Error('Missing Extended Key Usage: Code Signing');
+const now = Date.now();
+if (now < Date.parse(certificate.validFrom) || now > Date.parse(certificate.validTo)) throw Error('Certificate is outside its validity period');
+if (certificate.subject !== certificate.issuer || !certificate.verify(certificate.publicKey)) throw Error('Expected valid self-signed update certificate');
+const details = execFileSync('openssl', ['x509', '-in', path, '-noout', '-text'], { encoding: 'utf8' });
+if (!/X509v3 Key Usage[^\n]*\n\s*Digital Signature/.test(details)) throw Error('Missing Key Usage: Digital Signature');
+console.log('Android code-signing certificate requirements verified.');

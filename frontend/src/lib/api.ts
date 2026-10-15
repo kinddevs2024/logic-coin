@@ -403,6 +403,7 @@ export const challengesApi = {
     return request<{
       dayKey: string; source: "automatic" | "manual" | "saved"; final: boolean;
       poolUnits: number; participantCount: number; cashWinnerCount: number; otherMaxCashUnits: number;
+      cashPrizeLimitUnits?: number | null; unallocatedUnits?: number;
       podium: { rank: number; cashUnits: number | null }[];
     }>(`/challenges/rules${day ? `?day=${encodeURIComponent(day)}` : ""}`, { token });
   },
@@ -485,15 +486,15 @@ export type RewardedAdSessionDto = {
 
 export const adsApi = {
   challengeOffer(token: string) {
-    return request<{ eligible: boolean; available: boolean; challengeSetId: string | null; dayKey: string | null; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
+    return request<{ eligible: boolean; available: boolean; challengeSetId: string | null; dayKey: string | null; rewardDayKey?: string; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
   },
-  async startRewarded(placement: string, token: string) {
+  async startRewarded(placement: string, token: string, gameAttemptId?: string) {
     const payload = await request<{ session: RewardedAdSessionDto }>(
       "/ads/rewarded/start",
       {
         method: "POST",
         token,
-        body: JSON.stringify({ placement, provider: "yandex" }),
+        body: JSON.stringify({ placement, provider: "yandex", ...(gameAttemptId ? { gameAttemptId } : {}) }),
       },
     );
     return payload.session;
@@ -535,7 +536,16 @@ export const adsApi = {
   },
 };
 
+export type CoinRewardOffer = {
+  dayKey: string;
+  daily: { day: number; dayKey: string; coins: number; status: "claimed" | "available" | "missed" | "locked" }[];
+  weekly: CoinPeriodReward;
+  monthly: CoinPeriodReward;
+};
+export type CoinPeriodReward = { kind: "week" | "month"; from: string; to: string; coins: number; activeDays: number; totalDays: number; status: "claimed" | "available" | "locked" };
 export const giftsApi = {
+  coinRewards(token: string) { return request<CoinRewardOffer>("/gifts/coin-rewards", { token }); },
+  claimCoinReward(kind: "daily" | "week" | "month", token: string) { return request<{ credited: number; coins: CoinWallet }>("/gifts/coin-rewards/claim", { method: "POST", token, body: JSON.stringify({ kind }) }); },
   async list(token: string) {
     const payload = await request<{ gifts: GiftItem[] }>("/gifts", { token });
     return payload.gifts;
@@ -747,6 +757,7 @@ export type AdminBlockedDevice = {
 export type AdminPrizePlan = {
   dayKey: string; mode: "automatic" | "manual"; revision: number; locked: boolean;
   prizePoolUnits: number; allocatedUnits: number; remainingUnits: number;
+  cashPrizeLimitUnits?: number | null;
   participants: { userId: string; name: string; rank: number; totalCoins: number; cashUnits: number }[];
 };
 
@@ -881,7 +892,7 @@ export const adminApi = {
 };
 
 export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
-export type HomeGiftOffer = { kind: "telegram" | "ads"; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number };
+export type HomeGiftOffer = { kind: "telegram" | "ads"; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
 export type HomeGiftLink = { flowId: string; pollToken: string; botUrl: string };
 export const homeGiftApi = {
   offer: (token: string) => request<HomeGiftOffer>("/home-gift", { token }),

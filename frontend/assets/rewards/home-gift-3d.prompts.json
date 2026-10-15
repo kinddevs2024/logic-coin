@@ -1,0 +1,13 @@
+{
+  "tool": "built-in image_gen",
+  "transparent_background": true,
+  "closed": {
+    "asset": "home-gift-closed-3d.png",
+    "prompt": "Use case: stylized-concept. Asset type: production mobile game reward icon, a single isolated 3D gift box on genuinely transparent alpha background. Create a beautiful immediately recognizable CLOSED present for Logic Coin's glossy blue 3D UI. Rounded square blue gift box, deep azure sides and lighter cyan lid, luxurious warm pale-gold satin ribbon crossing the box and a large sculpted loop bow. Three-quarter front view with right side slightly visible, soft studio key light upper left, clean beveled edges, tasteful glossy material and ambient occlusion. Small subtle golden sparkle beside upper right is allowed. Entire object centered and fully visible, occupying about 80 percent of square canvas, generous transparent margins. Clear silhouette readable at 64px. No text, no numbers, no coins, no logos, no circular frame, no badge, no backdrop, no floor, no cast shadow rectangular plate. This is an image asset, not an app screenshot."
+  },
+  "open": {
+    "asset": "home-gift-open-3d.png",
+    "reference": "home-gift-closed-3d.png",
+    "prompt": "Use case: precise-object-edit. This is the same mobile game gift icon in its READY/OPEN state. Preserve this exact blue glossy rounded box, warm gold satin ribbon/bow, three-quarter camera angle, lighting, materials and crisp 3D style. Change only the closed lid: lift the lid with its bow slightly above the box and tilt it back, leaving an unmistakable visible gap/open top with soft warm golden light glowing from inside. The body stays at the same horizontal center and near the same bottom anchor; fit the raised lid fully within square canvas with generous transparent margins. Keep the same two small golden sparkles at upper right. No contents spilling out, no coins, no lettering, no background, no circular badge, no floor, no rectangular shadow. Genuinely transparent alpha output. Clean strong silhouette legible at 64px; this is the matching companion asset, not a different present."
+  }
+}

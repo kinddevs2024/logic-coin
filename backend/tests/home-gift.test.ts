@@ -6,6 +6,7 @@ import { ChallengeAdReward } from "../src/models/ChallengeAdReward.js";
 import { DailyChallengeSet } from "../src/models/DailyChallengeSet.js";
 import { claimHomeGiftAds, finishHomeGiftTelegramLink, isTelegramMember } from "../src/services/home-gift.service.js";
 import { TelegramLoginChallenge } from "../src/models/TelegramLoginChallenge.js";
+import { bonusDay } from "../src/lib/daily-bonus-schedule.js";
 
 describe("home gift guards", () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -22,7 +23,7 @@ describe("home gift guards", () => {
   });
   it("requires two owned verified receipts, not one", async () => {
     const userId = new Types.ObjectId();
-    const state = { cycleId: "cycle", cycleDayKey: "2026-10-08", cycleExpiresAt: new Date(Date.now() + 60000), availableAt: new Date(0) };
+    const state = { cycleId: "cycle", cycleDayKey: "2026-10-08", cycleExpiresAt: new Date(Date.now() + 60000), availableAt: new Date(0), rewardDayKey: bonusDay(new Date()).dayKey, dailyClaimCount: 0 };
     vi.spyOn(mongoose, "startSession").mockResolvedValue({ withTransaction: async (callback: () => Promise<void>) => callback(), endSession: async () => {} } as never);
     vi.spyOn(HomeGiftState, "findOne").mockReturnValue({ session: async () => state } as never);
     vi.spyOn(DailyChallengeSet, "findOne").mockReturnValue({ session: async () => ({ dayKey: state.cycleDayKey }) } as never);

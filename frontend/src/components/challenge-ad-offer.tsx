@@ -13,9 +13,9 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const COPY = {
-  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг челленджа.\nПовторить можно через 5 минут.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
-  en: { title: "+45 coins for a video", body: "Watch the full ad to earn 45 coins.\nThey count toward the challenge ranking.\nAnother reward is available in 5 minutes.", watch: "Watch ad · +45 coins", skip: "Not now", error: "No reward received. Please try again later." },
-  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar sinov reytingiga qo‘shiladi.\nYana 5 daqiqadan keyin olish mumkin.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
+  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг челленджа.\nДо десяти наград в день. Ожидание растёт после получения; сброс в полночь по Ташкенту.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
+  en: { title: "+45 coins for a video", body: "Watch the full ad to earn 45 coins.\nThey count toward the challenge ranking.\nUp to ten rewards daily. Waiting increases after each claim; reset at midnight in Tashkent.", watch: "Watch ad · +45 coins", skip: "Not now", error: "No reward received. Please try again later." },
+  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar sinov reytingiga qo‘shiladi.\nKuniga o‘ntagacha mukofot. Har mukofotdan keyin kutish uzayadi; Toshkent vaqti bilan yarim tunda yangilanadi.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
 };
 
 export function ChallengeAdOffer() {
@@ -70,7 +70,7 @@ export function ChallengeAdOffer() {
         const offer = await adsApi.challengeOffer(token!);
         if (disposed || busyRef.current) return;
         if (!offer.eligible || !offer.challengeSetId) { setVisible(false); return; }
-        const key = `logic-coin:challenge-ad-offer:v1:${userId}:${offer.challengeSetId}`;
+        const key = `logic-coin:challenge-ad-offer:v2:${userId}:${offer.rewardDayKey ?? offer.dayKey}:${offer.challengeSetId}`;
         const stored = Number(await AsyncStorage.getItem(key)) || 0;
         if (disposed || busyRef.current) return;
         if (keyRef.current !== key) quietRef.current = stored;

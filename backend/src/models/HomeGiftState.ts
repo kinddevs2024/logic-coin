@@ -3,6 +3,8 @@ const schema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
   telegramRewardedAt: Date,
   availableAt: { type: Date, required: true },
+  rewardDayKey: String,
+  dailyClaimCount: { type: Number, default: 0 },
   cycleId: String,
   cycleDayKey: String,
   cycleExpiresAt: Date,

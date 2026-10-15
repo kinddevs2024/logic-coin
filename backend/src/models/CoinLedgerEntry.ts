@@ -6,7 +6,8 @@ export const COIN_LEDGER_TYPES = [
   "daily_consolation",
   "referral_coin_bonus",
   "case_coin_reward",
-  "rewarded_ad_reward"
+  "rewarded_ad_reward",
+  "attendance_coin_reward"
 ] as const;
 
 const coinLedgerEntrySchema = new Schema(

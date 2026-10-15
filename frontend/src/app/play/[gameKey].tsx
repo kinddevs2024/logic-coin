@@ -1,8 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { usePreventRemove, type NavigationAction } from "expo-router/react-navigation";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
@@ -35,8 +37,10 @@ import type { GiftItem, GiftUseEffect } from "@/types";
 type PlayMode = "practice" | "challenge";
 type ResultView = {
   sessionId: string;
+  attemptId?: string;
   score: number;
   coins: number;
+  fortuneCoins?: number;
   previous: number;
   best: number;
   won: boolean;
@@ -102,17 +106,20 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 }
 
 export default function DynamicGameRoute() {
-  const params = useLocalSearchParams<{ mode?: string | string[] }>();
+  const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
   if (Platform.OS === "web" && firstParam(params.mode) === "challenge") {
     return <AppFrame><ChallengeAppRequired /></AppFrame>;
   }
-  return <PlayableGameRoute />;
+  // A replacement of the same dynamic route must get a fresh host, not only
+  // a fresh child game with the previous host's completed/discarded session.
+  return <PlayableGameRoute key={`${firstParam(params.mode)}:${firstParam(params.gameKey)}`} />;
 }
 
 function PlayableGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
   const router = useRouter();
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const gameKey = firstParam(params.gameKey) ?? "";
   const mode: PlayMode = firstParam(params.mode) === "challenge" ? "challenge" : "practice";
@@ -135,6 +142,8 @@ function PlayableGameRoute() {
   const [result, setResult] = useState<ResultView | null>(null);
   const [giftOpen, setGiftOpen] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
+  const [exitGuardEnabled, setExitGuardEnabled] = useState(false);
+  const pendingExitAction = useRef<NavigationAction | null>(null);
   const [extraTimeSeconds, setExtraTimeSeconds] = useState(0);
   const [sessionRevision, setSessionRevision] = useState(0);
   const [giftNotice, setGiftNotice] = useState("");
@@ -181,11 +190,13 @@ function PlayableGameRoute() {
     };
   }, [exitSession]);
 
-  useEffect(() => navigation.addListener("beforeRemove", (event) => {
-    if (mode !== "challenge" || !exitSession.requestExit()) return;
-    event.preventDefault();
+  // Unlike manually cancelling beforeRemove, this also prevents native-stack
+  // removal, so its native and JS navigation state cannot diverge.
+  usePreventRemove(mode === "challenge" && exitGuardEnabled, ({ data }) => {
+    if (!exitSession.requestExit()) { navigation.dispatch(data.action); return; }
+    pendingExitAction.current = data.action;
     setExitOpen(true);
-  }), [exitSession, mode, navigation]);
+  });
 
   useEffect(() => {
     if (Platform.OS !== "web" || mode !== "challenge") return;
@@ -211,6 +222,7 @@ function PlayableGameRoute() {
   ) => {
     if (completionGuard.current || exitSession.isDiscarded()) return;
     completionGuard.current = true;
+    setExitGuardEnabled(false);
     const before = options.before ?? gameProgressFor(useGameProgressStore.getState().games, progressId);
     if (options.persist) recordScore(progressId, gameResult.score, gameResult.label, gameResult.won);
     const previewCoins = gameCoinReward(gameResult.score, false, progressId);
@@ -240,7 +252,7 @@ function PlayableGameRoute() {
       try {
         const completed = await challengesApi.completePractice(gameKey, { score: gameResult.score, durationMs: gameResult.durationMs }, accessToken);
         if (completed.coins) setCoinBalance(completed.coins.balance);
-        setResult((current) => current?.sessionId === sessionId ? { ...current, coins: completed.attempt.coinsAwarded, saving: false, message: "Награда начислена" } : current);
+        setResult((current) => current?.sessionId === sessionId ? { ...current, attemptId: completed.attempt.id, coins: completed.attempt.coinsAwarded, saving: false, message: "Награда начислена" } : current);
       } catch {
         setResult((current) => current?.sessionId === sessionId ? { ...current, saving: false, message: "Результат сохранён на устройстве. Награда аккаунта не начислена." } : current);
       }
@@ -250,7 +262,7 @@ function PlayableGameRoute() {
     try {
       const completed = await challenges.complete({ gameKey, score: gameResult.score, durationMs: gameResult.durationMs });
       useChallengeAdGate.setState({ resultReady: true });
-      setResult((current) => current?.sessionId === sessionId ? { ...current, coins: completed.attempt.coinsAwarded, saving: false, message: "" } : current);
+      setResult((current) => current?.sessionId === sessionId ? { ...current, attemptId: completed.attempt.id, coins: completed.attempt.coinsAwarded, saving: false, message: "" } : current);
       await showCompletionAds();
     } catch {
       completionGuard.current = false;
@@ -283,6 +295,7 @@ function PlayableGameRoute() {
   }, [classic, exitSession, gameKey, hydrated, processResult, progress, sessionId]);
 
   const retry = () => {
+    setExitGuardEnabled(false);
     completionGuard.current = false;
     setResult(null);
     setGiftNotice("");
@@ -291,8 +304,9 @@ function PlayableGameRoute() {
   };
 
   const exitGame = useCallback(() => {
-    if (mode === "challenge" && exitSession.requestExit()) {
-      setExitOpen(true);
+    if (mode === "challenge" && exitSession.needsConfirmation()) {
+      // Let usePreventRemove capture the real action for confirmed replay.
+      router.replace("/challenges" as never);
       return;
     }
     exitSession.discard();
@@ -302,23 +316,38 @@ function PlayableGameRoute() {
   const confirmExit = () => {
     // Discard before navigation: late feedback timers must not submit a result.
     exitSession.discard();
+    setExitGuardEnabled(false);
+    useChallengeAdGate.setState({ resultReady: false });
     setExitOpen(false);
     setGiftOpen(false);
-    router.replace("/challenges" as never);
+    const action = pendingExitAction.current;
+    pendingExitAction.current = null;
+    // Replay the captured action, including the hook's visited-route marker.
+    // Dispatching a new replace here would re-trigger the confirmation guard.
+    if (action) navigation.dispatch(action);
   };
   const stayInGame = () => {
+    pendingExitAction.current = null;
     setExitOpen(false);
     exitSession.stay();
   };
-  const markGameStarted = useCallback(() => exitSession.start(), [exitSession]);
+  const markGameStarted = useCallback(() => { exitSession.start(); setExitGuardEnabled(true); }, [exitSession]);
   const giftsAvailable = mode === "challenge" && (!authenticated || challenges.startedGameKey === gameKey);
   const sessionControls = useMemo(() => ({ onStart: markGameStarted, onExit: exitGame, paused: gamePaused, gameKey: progressId, practiceCoins: mode === "practice" ? progress?.coins ?? 0 : undefined,
     headerAction: giftsAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Открыть подарки" onPress={() => setGiftOpen(true)} style={({ pressed }) => [styles.giftButton, pressed && styles.pressed]}><Ionicons name="gift" color="#FFFFFF" size={20} /></Pressable> : null,
   }), [exitGame, gamePaused, giftsAvailable, markGameStarted, mode, progressId, progress?.coins]);
 
   const continueChallenge = async () => {
-    if (adBusy) return;
-    setResult(null);
+    if (adBusy || fortuneBusy || fortuneSpinning) return;
+    useChallengeAdGate.setState({ resultReady: false });
+    exitSession.discard();
+    setFortuneVisible(false);
+    setFortuneSpinning(false);
+    setGiftOpen(false);
+    setExitOpen(false);
+    setGiftNotice("");
+    // Keep the completed screen until navigation commits. Clearing it here
+    // exposes the finished game's empty render during native replacement.
     if (nextChallengeGame) {
       router.replace({ pathname: "/play/[gameKey]", params: { gameKey: nextChallengeGame.key, mode: "challenge" } } as never);
       return;
@@ -346,12 +375,13 @@ function PlayableGameRoute() {
   };
 
   const playFortune = async () => {
-    if (fortuneBusy || fortuneSpinning || !accessToken) return;
+    if (fortuneBusy || fortuneSpinning || !accessToken || !activeResult?.attemptId || activeResult.saving) return;
     setGiftNotice("");
     setFortuneBusy(true);
     try {
       const reward = await showVerifiedRewardedAd({
         placement: "fortune-wheel", accessToken, claimCoins: true,
+        gameAttemptId: activeResult.attemptId,
         beforeShow: async (session) => {
           if (exitSession.isDiscarded()) throw new Error("session_closed");
           await new Promise<void>((resolve) => {
@@ -364,6 +394,10 @@ function PlayableGameRoute() {
       });
       if (!reward.receipt.completed || !reward.verified) throw new Error("rewarded_ad_incomplete");
       if (reward.coinBalance !== undefined) setCoinBalance(reward.coinBalance);
+      if (reward.credited > 0) {
+        setResult(current => current?.sessionId === sessionId ? { ...current, coins: current.coins + reward.credited, fortuneCoins: (current.fortuneCoins ?? 0) + reward.credited } : current);
+        void queryClient.invalidateQueries({ queryKey: ["challenges"] });
+      }
       setGiftNotice(reward.credited ? `Колесо: +${reward.credited} coin` : "Награда колеса получена");
       setFortuneVisible(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
@@ -491,7 +525,7 @@ function GameResultModal({ title, accent, value, adBusy, challengeMode, nextLabe
   if (!value) return null;
   const content = (
       <View style={styles.resultBackdrop}>
-        {value ? <Animated.View entering={FadeIn.duration(180)} style={styles.resultOuter}><BlurView tint="dark" intensity={74} style={styles.resultCard}><LinearGradient colors={[`${accent}32`, "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} /><View style={[styles.resultBadge, { backgroundColor: accent }]}><Ionicons name={value.won ? "trophy" : "sparkles"} size={28} color="#0A0B12" /></View><Text style={styles.resultGame}>{title}</Text><Text style={styles.resultTitle}>{value.won ? "ОТЛИЧНАЯ ИГРА" : "РЕЗУЛЬТАТ ГОТОВ"}</Text>{value.saving ? <ActivityIndicator accessibilityLabel="Сохраняем награду" size="large" color={accent} style={styles.pendingReward} /> : <Text style={[styles.resultScore, { color: accent }]}>{value.score}</Text>}<Text style={styles.resultScoreLabel}>COIN</Text><View style={styles.resultStats}><ResultStat label="Предыдущий coin" value={value.previous} /><ResultStat label="Лучший coin" value={value.best} /><ResultStat label="Получено" value={value.saving ? "…" : `+${value.coins}`} suffix="coin" accent={accent} /></View>{(value.saving || value.message) ? <View style={styles.saveState}>{value.saving ? <ActivityIndicator size="small" color={accent} /> : <Ionicons name="checkmark-circle" size={17} color="#54D7A4" />}<Text style={styles.saveText}>{value.message}</Text></View> : null}{value.checkpointReward ? <Pressable disabled={adBusy || value.saving} onPress={onCheckpoint} style={({ pressed }) => [styles.doubleButton, { backgroundColor: accent }, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}>{adBusy ? <ActivityIndicator color="#0A0B12" /> : <><Ionicons name="play-circle" color="#0A0B12" size={21} /><Text style={styles.doubleText}>СМОТРЕТЬ РЕКЛАМУ · +75 COIN</Text></>}</Pressable> : null}{challengeMode ? <>{value.firstReplayAvailable ? <Pressable disabled={adBusy || value.saving} onPress={onReplayAd} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}><Ionicons name="play-circle-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Смотреть рекламу и сыграть ещё раз</Text></Pressable> : null}<Pressable disabled={value.saving} onPress={onGifts} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, value.saving && styles.disabled]}><Ionicons name="gift-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Подарки и повтор</Text></Pressable><AppodealBannerSlot placement="challenge-result" /><Pressable disabled={value.saving} onPress={onNext} style={({ pressed }) => [styles.nextButton, { backgroundColor: accent }, pressed && styles.pressed, value.saving && styles.disabled]}><Text style={styles.nextText}>{nextLabel.toUpperCase()}</Text><Ionicons name="arrow-forward" color="#0A0B12" size={20} /></Pressable></> : <View style={styles.resultButtons}><Pressable disabled={adBusy} onPress={onRetry} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, adBusy && styles.disabled]}>{adBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Смотреть рекламу и повторить игру</Text></>}</Pressable><Pressable onPress={onExit} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Ionicons name="grid-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Все игры</Text></Pressable></View>}</BlurView></Animated.View> : null}
+{value ? <Animated.View entering={FadeIn.duration(180)} style={styles.resultOuter}><BlurView tint="dark" intensity={74} style={styles.resultCard}><LinearGradient colors={[`${accent}32`, "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} /><View style={[styles.resultBadge, { backgroundColor: accent }]}><Ionicons name={value.won ? "trophy" : "sparkles"} size={28} color="#0A0B12" /></View><Text style={styles.resultGame}>{title}</Text><Text style={styles.resultTitle}>{value.won ? "ОТЛИЧНАЯ ИГРА" : "РЕЗУЛЬТАТ ГОТОВ"}</Text>{value.saving ? <ActivityIndicator accessibilityLabel="Сохраняем награду" size="large" color={accent} style={styles.pendingReward} /> : <Text style={[styles.resultScore, { color: accent }]}>{value.score}</Text>}<Text style={styles.resultScoreLabel}>COIN</Text><View style={styles.resultStats}><ResultStat label="Предыдущий coin" value={value.previous} /><ResultStat label="Лучший coin" value={value.best} /><ResultStat label="Получено" value={value.saving ? "…" : `+${value.coins}`} suffix="coin" accent={accent} detail={!value.saving && (value.fortuneCoins ?? 0) > 0 ? `+${value.fortuneCoins} coin из фортуны` : undefined} /></View>{(value.saving || value.message) ? <View style={styles.saveState}>{value.saving ? <ActivityIndicator size="small" color={accent} /> : <Ionicons name="checkmark-circle" size={17} color="#54D7A4" />}<Text style={styles.saveText}>{value.message}</Text></View> : null}{value.checkpointReward ? <Pressable disabled={adBusy || value.saving} onPress={onCheckpoint} style={({ pressed }) => [styles.doubleButton, { backgroundColor: accent }, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}>{adBusy ? <ActivityIndicator color="#0A0B12" /> : <><Ionicons name="play-circle" color="#0A0B12" size={21} /><Text style={styles.doubleText}>СМОТРЕТЬ РЕКЛАМУ · +75 COIN</Text></>}</Pressable> : null}{challengeMode ? <>{value.firstReplayAvailable ? <Pressable disabled={adBusy || value.saving} onPress={onReplayAd} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}><Ionicons name="play-circle-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Смотреть рекламу и сыграть ещё раз</Text></Pressable> : null}<Pressable disabled={value.saving} onPress={onGifts} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, value.saving && styles.disabled]}><Ionicons name="gift-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Подарки и повтор</Text></Pressable><AppodealBannerSlot placement="challenge-result" /><Pressable disabled={value.saving} onPress={onNext} style={({ pressed }) => [styles.nextButton, { backgroundColor: accent }, pressed && styles.pressed, value.saving && styles.disabled]}><Text style={styles.nextText}>{nextLabel.toUpperCase()}</Text><Ionicons name="arrow-forward" color="#0A0B12" size={20} /></Pressable></> : <View style={styles.resultButtons}><Pressable disabled={adBusy} onPress={onRetry} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, adBusy && styles.disabled]}>{adBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Смотреть рекламу и повторить игру</Text></>}</Pressable><Pressable onPress={onExit} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Ionicons name="grid-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Все игры</Text></Pressable></View>}</BlurView></Animated.View> : null}
       </View>
   );
   // The wheel/ad owns a native window. Keep Android results in the route so
@@ -501,8 +535,8 @@ function GameResultModal({ title, accent, value, adBusy, challengeMode, nextLabe
     : <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onExit}>{content}</Modal>;
 }
 
-function ResultStat({ label, value, suffix, accent }: { label: string; value: string | number; suffix?: string; accent?: string }) {
-  return <View style={styles.resultStat}><Text style={styles.resultStatLabel}>{label}</Text><View style={styles.resultStatValueRow}><Text numberOfLines={1} style={[styles.resultStatValue, accent ? { color: accent } : null]}>{value}</Text>{suffix ? <Text style={[styles.resultSuffix, accent ? { color: accent } : null]}>{suffix}</Text> : null}</View></View>;
+function ResultStat({ label, value, suffix, accent, detail }: { label: string; value: string | number; suffix?: string; accent?: string; detail?: string }) {
+  return <View style={styles.resultStat}><Text style={styles.resultStatLabel}>{label}</Text><View style={styles.resultStatValueRow}><Text numberOfLines={1} style={[styles.resultStatValue, accent ? { color: accent } : null]}>{value}</Text>{suffix ? <Text style={[styles.resultSuffix, accent ? { color: accent } : null]}>{suffix}</Text> : null}</View>{detail ? <Text style={{ color: accent ?? "#D8D1FF", fontSize: 11, lineHeight: 15, marginTop: 4 }}>{detail}</Text> : null}</View>;
 }
 
 const styles = StyleSheet.create({

@@ -19,6 +19,8 @@ const challengeAttemptSchema = new Schema(
     completedAt: { type: Date },
     score: { type: Number, min: 0 },
     coinsAwarded: { type: Number, min: 0, max: 1_000, default: 0 },
+    fortuneCoinsAwarded: { type: Number, min: 0, default: 0 },
+    fortuneRewardSessionId: { type: String },
     durationMs: { type: Number, min: 0 },
     metadata: { type: Schema.Types.Mixed }
   },

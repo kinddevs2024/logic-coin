@@ -196,6 +196,9 @@ export type TodayChallenges = {
   gamesCompletedToday?: number;
   totalCoinsToday: number;
   monthlyChallengeCount?: number;
+  monthlyCompletedDays?: number;
+  weeklyCompletedDays?: number;
+  monthlyDaysInMonth?: number;
   games: TodayChallengeGame[];
   coins: CoinWallet;
   doubling?: ChallengeDoublingInfo;

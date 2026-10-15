@@ -1,5 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { useEffect } from "react";
+import { BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import { useAppTheme } from "@/hooks/use-app-theme";
 
@@ -10,11 +11,15 @@ export function GameExitModal({ visible, title, onStay, onExit }: {
   onExit: () => void;
 }) {
   const theme = useAppTheme();
-  return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onStay}
-      onShow={() => {
-        if (Platform.OS === "web") document.querySelector<HTMLElement>('[data-testid="game-exit-stay"]')?.focus();
-      }}>
+  useEffect(() => {
+    if (!visible) return;
+    if (Platform.OS === "web") document.querySelector<HTMLElement>('[data-testid="game-exit-stay"]')?.focus();
+    if (Platform.OS !== "android") return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => { onStay(); return true; });
+    return () => subscription.remove();
+  }, [visible, onStay]);
+  if (!visible) return null;
+  const content = (
       <View style={styles.backdrop}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View testID="game-exit-dialog" accessibilityViewIsModal accessibilityLabel="Выйти из игры?"
@@ -37,11 +42,16 @@ export function GameExitModal({ visible, title, onStay, onExit }: {
         </View>
         </ScrollView>
       </View>
-    </Modal>
   );
+  // Keep confirmation in the same native screen: no Dialog dismissal can
+  // outlive a confirmed replacement and cover the destination with emptiness.
+  return Platform.OS === "android"
+    ? <View accessibilityViewIsModal style={styles.androidLayer}>{content}</View>
+    : <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onStay}>{content}</Modal>;
 }
 
 const styles = StyleSheet.create({
+  androidLayer: { ...StyleSheet.absoluteFill, zIndex: 3000, elevation: 50 },
   backdrop: {
     flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(1,3,10,0.72)",
     ...(Platform.OS === "web" ? ({ position: "fixed", inset: 0, width: "100vw", height: "100dvh" } as unknown as ViewStyle) : {}),

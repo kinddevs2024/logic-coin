@@ -9,6 +9,7 @@ import { getReferralOverview } from "../services/referral.service.js";
 import { serializeUser } from "../services/serialization.service.js";
 import { listTasksForUser } from "../services/task.service.js";
 import { getTodayChallengeOverview } from "../services/daily-challenge.service.js";
+import { recordCoinRewardLogin } from "../services/coin-rewards.service.js";
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.get("/", async (request, response) => {
     throw new ApiError(404, "user_not_found", "User not found");
   }
   const today = localDayKey(new Date(), user.preferences.timezone);
+  await recordCoinRewardLogin(user._id);
   const [tasks, todayChallenges, bonuses, referral, recentDays, totalActiveDays] = await Promise.all([
     listTasksForUser(user._id),
     getTodayChallengeOverview(user._id),

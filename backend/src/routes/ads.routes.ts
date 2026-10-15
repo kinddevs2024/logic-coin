@@ -42,15 +42,17 @@ router.post(
   validateBody(
     z.object({
       placement: z.enum(REWARDED_AD_PLACEMENTS),
-      provider: z.enum(["yandex", "appodeal"]).default("yandex")
+      provider: z.enum(["yandex", "appodeal"]).default("yandex"),
+      gameAttemptId: z.string().regex(/^[a-f0-9]{24}$/i).optional()
     }).strict()
   ),
   async (request, response) => {
     const body = request.body as {
       placement: (typeof REWARDED_AD_PLACEMENTS)[number];
       provider: "yandex" | "appodeal";
+      gameAttemptId?: string;
     };
-    const session = await startRewardedAdSession(request.auth!.userId, body.placement, body.provider);
+    const session = await startRewardedAdSession(request.auth!.userId, body.placement, body.provider, body.gameAttemptId);
     response.status(201).json({ data: { session } });
   }
 );

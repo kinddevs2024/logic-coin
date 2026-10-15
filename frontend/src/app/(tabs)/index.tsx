@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RankingPreview } from "@/components/ranking-preview";
@@ -20,6 +21,7 @@ import { NotificationInbox } from "@/components/notification-inbox";
 import { ProfileDrawer } from "@/components/profile-drawer";
 import { SavingsScene } from "@/components/savings-scene";
 import { HomeChallengeClock } from "@/components/home-challenge-clock";
+import { MonthlyActivityInfo } from "@/components/monthly-activity-info";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -28,7 +30,7 @@ import { useAppStore } from "@/store/app-store";
 import { inboxApi } from "@/lib/api";
 
 function ProgressDonut({ value, progress, color, accessibilityLabel }: { value: string; progress: number; color: string; accessibilityLabel: string }) {
-  const size = 64;
+  const size = 56;
   const strokeWidth = 7;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -46,12 +48,13 @@ function ProgressDonut({ value, progress, color, accessibilityLabel }: { value: 
 
 export default function HomeScreen() {
   const theme = useAppTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const router = useRouter();
   const { isDesktop } = useResponsiveLayout();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const [activityInfoOpen, setActivityInfoOpen] = useState<"week" | "month" | null>(null);
   const inboxButton = useRef<View>(null);
   const [giftBounds, setGiftBounds] = useState<{ top: number; bottom: number; width: number }>();
   const giftScene = useRef({ top: 0, height: 0 });
@@ -132,7 +135,7 @@ export default function HomeScreen() {
             </View>
           </SavingsScene>
           <View collapsable={false} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-            <FloatingHomeGift key="bank-attached-gift" active={giftSceneVisible && !drawerOpen && !leaderboardOpen && !inboxOpen} bounds={giftBounds} />
+            <FloatingHomeGift key="bank-attached-gift" active={giftSceneVisible && !drawerOpen && !leaderboardOpen && !inboxOpen && !activityInfoOpen} bounds={giftBounds} />
           </View>
         </View>
 
@@ -169,22 +172,22 @@ export default function HomeScreen() {
             style={[styles.activityStrip, { borderColor: theme.glassBorder }]}
           >
             <View style={styles.activityItem}>
-              <AppText style={styles.activityTitle}>Игры на сегодня</AppText>
+              <Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={language === "uz" ? "Haftalik faollik haqida" : language === "en" ? "About weekly activity" : "О недельной активности"} onPress={() => setActivityInfoOpen("week")} style={styles.activityLabelRow}><AppText adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={2} style={styles.activityTitle}>{language === "uz" ? "Haftalik\nfaollik" : language === "en" ? "Weekly\nactivity" : "Недельная\nактивность"}{"\u00a0"}<Ionicons name="information-circle-outline" size={14} color={String(theme.textMuted)} /></AppText><AppText style={{ fontSize: 11, color: theme.primary, fontWeight: "700" }}>{language === "ru" ? "Подробнее" : language === "uz" ? "Batafsil" : "Details"}</AppText></Pressable>
               <ProgressDonut
-                value={`${today?.gamesCompletedToday ?? today?.completedCount ?? 0} / ${today?.totalCount ?? 0}`}
-                progress={(today?.totalCount ?? 0) > 0 ? (today?.gamesCompletedToday ?? today?.completedCount ?? 0) / (today?.totalCount ?? 1) : 0}
+                value={today?.weeklyCompletedDays === undefined ? "—" : `${today.weeklyCompletedDays}/7`}
+                progress={(today?.weeklyCompletedDays ?? 0) / 7}
                 color={String(theme.primary)}
-                accessibilityLabel="Прогресс игр сегодня"
+                accessibilityLabel={language === "uz" ? "Haftada yopilgan kunlar" : language === "en" ? "Completed days this week" : "Завершённые дни за неделю"}
               />
             </View>
             <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
             <View style={styles.activityItem}>
-              <AppText style={styles.activityTitle}>Челленджей за месяц</AppText>
+              <Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={language === "uz" ? "Oylik faollik haqida" : language === "en" ? "About monthly activity" : "О месячной активности"} onPress={() => setActivityInfoOpen("month")} style={styles.activityLabelRow}><AppText adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={2} style={styles.activityTitle}>{language === "uz" ? "Oylik\nfaollik" : language === "en" ? "Monthly\nactivity" : "Месячная\nактивность"}{"\u00a0"}<Ionicons name="information-circle-outline" size={14} color={String(theme.textMuted)} /></AppText><AppText style={{ fontSize: 11, color: theme.primary, fontWeight: "700" }}>{language === "ru" ? "Подробнее" : language === "uz" ? "Batafsil" : "Details"}</AppText></Pressable>
               <ProgressDonut
-                value={String(today?.monthlyChallengeCount ?? 0)}
-                progress={Math.min(1, (today?.monthlyChallengeCount ?? 0) / 12)}
+                value={today?.monthlyCompletedDays === undefined ? "—" : `${today.monthlyCompletedDays}/${today.monthlyDaysInMonth}`}
+                progress={today?.monthlyDaysInMonth ? Math.min(1, (today.monthlyCompletedDays ?? 0) / today.monthlyDaysInMonth) : 0}
                 color={theme.mode === "dark" ? "#B9A5FF" : "#7A5AF8"}
-                accessibilityLabel="Челленджи за месяц"
+                  accessibilityLabel={language === "uz" ? "Oyda to‘liq yopilgan kunlar" : language === "en" ? "Fully completed challenge days this month" : "Полностью завершённые дни челленджа за месяц"}
               />
             </View>
           </GlassSurface>
@@ -199,6 +202,7 @@ export default function HomeScreen() {
         onSettings={() => router.push("/settings")}
         onInvite={() => router.push("/invite")}
       />
+      {activityInfoOpen ? <MonthlyActivityInfo period={activityInfoOpen} onClose={() => setActivityInfoOpen(null)} /> : null}
       {leaderboardOpen ? <LeaderboardModal visible onClose={() => setLeaderboardOpen(false)} /> : null}
       {inboxOpen ? <NotificationInbox anchor={inboxAnchor} onClose={() => setInboxOpen(false)} /> : null}
     </AppFrame>
@@ -249,9 +253,10 @@ const styles = StyleSheet.create({
     minHeight: 64,
   },
   activityStrip: { minHeight: 82, marginTop: 12, borderRadius: 22, paddingHorizontal: 6, paddingVertical: 8, flexDirection: "row", alignItems: "stretch", borderWidth: StyleSheet.hairlineWidth },
-  activityItem: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-evenly", gap: 8, paddingHorizontal: 8 },
-  activityTitle: { minWidth: 0, maxWidth: "58%", fontSize: 12, lineHeight: 16, fontWeight: "800", textAlign: "left", flexShrink: 1 },
-  donut: { width: 64, height: 64, alignItems: "center", justifyContent: "center" },
+  activityItem: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, paddingHorizontal: 4 },
+  activityTitle: { minWidth: 0, fontSize: 12, lineHeight: 16, fontWeight: "800", textAlign: "left" },
+  activityLabelRow: { flex: 1, minWidth: 0, minHeight: 44, justifyContent: "center", gap: 4 },
+  donut: { width: 56, height: 56, flexShrink: 0, alignItems: "center", justifyContent: "center" },
   donutValue: { position: "absolute", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   activityDivider: { width: StyleSheet.hairlineWidth, alignSelf: "stretch", marginHorizontal: 4 },
   tasksPanel: {

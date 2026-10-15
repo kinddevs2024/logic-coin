@@ -1,13 +1,11 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { BlurView } from "expo-blur";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Animated, AppState, Easing, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Alert, Animated, AppState, Easing, Image, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "./app-text";
-import { useGlassBlurTarget } from "./glass-blur-target";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { homeGiftApi, type HomeGiftLink } from "@/lib/api";
@@ -15,25 +13,29 @@ import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
 import { useAppStore } from "@/store/app-store";
 
 const INTERVAL_MS = 120_000;
+const GIFT_CLOSED = require("../../assets/rewards/home-gift-closed-3d.png");
+const GIFT_OPEN = require("../../assets/rewards/home-gift-open-3d.png");
+const OPEN_GIFT_LABEL = { ru: "Открыть", en: "Open", uz: "Ochish" };
 const copy = {
   ru: { gift: "Подарок", close: "Закрыть", telegram: "Подпишись на Telegram · +50", ads: "Две рекламы · +75", link: "Привязать Telegram", channel: "Открыть канал", check: "Проверить", watch: "Смотреть", wait: "Подождите…", pending: "Подтверди Telegram в боте и вернись сюда.", unavailable: "Реклама не завершена или недоступна. Награда не начислена. В Expo Go реклама не работает.", inactive: "Нужен активный челлендж", failed: "Не удалось выполнить задание. Попробуй ещё раз.", login: "Войди, чтобы получить подарок" },
   en: { gift: "Gift", close: "Close", telegram: "Subscribe on Telegram · +50", ads: "Two ads · +75", link: "Link Telegram", channel: "Open channel", check: "Check", watch: "Watch", wait: "Please wait…", pending: "Confirm Telegram in the bot, then return here.", unavailable: "Ad unfinished or unavailable. No reward credited. Ads do not work in Expo Go.", inactive: "An active challenge is required", failed: "Could not complete the task. Try again.", login: "Sign in to claim gifts" },
   uz: { gift: "Sovg‘a", close: "Yopish", telegram: "Telegramga obuna · +50", ads: "Ikkita reklama · +75", link: "Telegramni bog‘lash", channel: "Kanalni ochish", check: "Tekshirish", watch: "Ko‘rish", wait: "Kutib turing…", pending: "Botda Telegramni tasdiqlang va qayting.", unavailable: "Reklama tugamadi yoki mavjud emas. Mukofot berilmadi. Expo Go’da reklama ishlamaydi.", inactive: "Faol sinov kerak", failed: "Topshiriq bajarilmadi. Qayta urinib ko‘ring.", login: "Sovg‘a uchun hisobga kiring" },
 };
 
-export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active?: boolean; bounds?: { top: number; bottom: number; width?: number }; blurTarget?: RefObject<View | null> }) {
-  const backgroundBlurTarget = useGlassBlurTarget();
+export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; bounds?: { top: number; bottom: number; width?: number }; blurTarget?: RefObject<View | null> }) {
   const focused = useIsFocused();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [availableAt] = useState(() => Date.now() + INTERVAL_MS);
   const [remaining, setRemaining] = useState(INTERVAL_MS / 1000);
   const [open, setOpen] = useState(false);
+  const [holdingGift, setHoldingGift] = useState(false);
   const [flight] = useState(() => new Animated.Value(0));
   const flightProgress = useRef(0);
   const [path, setPath] = useState({ from: 0.2, to: 0.8, reverse: false });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [linkFlow, setLinkFlow] = useState<HomeGiftLink | null>(null);
+  const [telegramOpened, setTelegramOpened] = useState(false);
   const token = useAppStore(state => state.accessToken);
   const queryClient = useQueryClient();
   const reduced = useReducedMotion();
@@ -49,13 +51,27 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
   const refreshRewards = async () => {
     await Promise.all([queryClient.invalidateQueries({ queryKey: ["home-gift"] }), queryClient.invalidateQueries({ queryKey: ["challenges"] }), queryClient.invalidateQueries({ queryKey: ["bootstrap"] })]);
   };
-  const perform = async (task: () => Promise<void>) => {
+  const perform = async (task: () => Promise<void>, closeOnError = false) => {
     if (busy || !token) return;
     setBusy(true); setMessage("");
-    try { await task(); } catch (error) { setMessage(error instanceof Error ? error.message : c.failed); }
-    finally { setBusy(false); }
+    try { await task(); } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : c.failed;
+      if (closeOnError) {
+        setOpen(false);
+        if (Platform.OS === "web" && typeof globalThis.alert === "function") globalThis.alert(errorMessage);
+        else Alert.alert(c.gift, errorMessage);
+      } else setMessage(errorMessage);
+    }
+    finally { setHoldingGift(false); setBusy(false); }
   };
   const checkTelegram = () => perform(async () => {
+    if (!offer.data?.telegramLinked && !linkFlow) {
+      const flow = await homeGiftApi.link(token!);
+      setLinkFlow(flow);
+      setMessage(c.pending);
+      await Linking.openURL(flow.botUrl);
+      return;
+    }
     if (linkFlow && !offer.data?.telegramLinked) {
       const result = await homeGiftApi.finishLink(token!, linkFlow);
       if (!result.linked) { setMessage(c.pending); return; }
@@ -64,7 +80,8 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     const result = await homeGiftApi.claimTelegram(token!);
     setMessage(`+${result.credited} coin`);
     await refreshRewards();
-  });
+    setOpen(false);
+  }, true);
   const watchAds = () => perform(async () => {
     const cycle = await homeGiftApi.startAds(token!);
     for (let completed = cycle.completedAds; completed < 2; completed++) {
@@ -74,10 +91,14 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     const result = await homeGiftApi.claimAds(token!, cycle.cycleId);
     setMessage(`+${result.credited} coin`);
     await refreshRewards();
+    setOpen(false);
   });
 
   useEffect(() => {
-    const listener = AppState.addEventListener("change", state => setForeground(state === "active"));
+    const listener = AppState.addEventListener("change", state => {
+      setHoldingGift(false);
+      setForeground(state === "active");
+    });
     return () => listener.remove();
   }, []);
   useEffect(() => {
@@ -88,10 +109,10 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
     return () => clearInterval(timer);
   }, [running, serverDeadline]);
   useEffect(() => {
-    if (!running || open || reduced) return;
+    if (!running || open || holdingGift || reduced || offer.data?.exhausted) return;
     let cancelled = false;
     const listener = flight.addListener(({ value }) => { flightProgress.current = value; });
-    const motion = Animated.timing(flight, { toValue: 1, duration: Math.max(1, 14000 * (1 - flightProgress.current)), easing: Easing.linear, useNativeDriver: true });
+    const motion = Animated.timing(flight, { toValue: 1, duration: Math.max(1, 30000 * (1 - flightProgress.current)), easing: Easing.linear, useNativeDriver: true });
     motion.start(({ finished }) => {
       if (!finished || cancelled) return;
       flightProgress.current = 0;
@@ -104,40 +125,45 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
       flight.removeListener(listener);
       flight.stopAnimation(value => { flightProgress.current = value; });
     };
-  }, [running, open, reduced, flight, path]);
+  }, [running, open, holdingGift, reduced, flight, path, offer.data?.exhausted]);
 
-  if (!active || !focused) return null;
+  if (!active || !focused || offer.data?.exhausted) return null;
   return <>
     {!open ? <Animated.View style={[styles.flying, { top: bounds?.top ?? insets.top + 140, transform: [
       { translateX: reduced ? 12 : flight.interpolate({ inputRange: [0, 1], outputRange: path.reverse ? [width - horizontalInset + 12, -horizontalInset - 108] : [-horizontalInset - 108, width - horizontalInset + 12] }) },
-      { translateY: reduced ? 0 : flight.interpolate({ inputRange: [0, 1], outputRange: [path.from, path.to].map(fraction => fraction * Math.max(0, (bounds?.bottom ?? height * 0.7) - (bounds?.top ?? insets.top + 140) - 105)) }) },
+      { translateY: reduced ? 0 : flight.interpolate({ inputRange: [0, 1], outputRange: [path.from, path.to].map(fraction => fraction * Math.max(0, (bounds?.bottom ?? height * 0.7) - (bounds?.top ?? insets.top + 140) - 117)) }) },
     ] }]}>
       <Animated.View style={{ overflow: "visible", transform: [{ rotate: reduced ? "0deg" : flight.interpolate({ inputRange: [0, 1], outputRange: ["-9deg", "9deg"] }) }] }}>
-      <Pressable accessibilityRole="button" accessibilityLabel={c.gift} accessibilityState={{ disabled: remaining > 0 }} disabled={remaining > 0} onPress={() => setOpen(true)}
+      <Pressable accessibilityRole="button" accessibilityLabel={remaining > 0 ? c.gift : `${OPEN_GIFT_LABEL[language]} · ${c.gift}`} accessibilityState={{ disabled: remaining > 0 }} disabled={remaining > 0} onPress={() => { setHoldingGift(false); setOpen(true); }}
+        hitSlop={12} onPressIn={() => setHoldingGift(true)} onPressOut={() => setHoldingGift(false)}
         style={({ pressed }) => [styles.gift, pressed && styles.pressed]}>
-        <View pointerEvents="none" style={styles.glass}><BlurView intensity={65} tint="default" blurTarget={blurTarget ?? backgroundBlurTarget ?? undefined} {...(Platform.OS === "android" ? { blurMethod: "dimezisBlurView" as const, blurReductionFactor: 1 } : {})} style={StyleSheet.absoluteFill} /></View>
-        <Ionicons name="gift" size={46} color="#168BDA" />
-        <View pointerEvents="none" style={styles.sparkle}><Ionicons name="sparkles" size={16} color="#FFDE69" /></View>
+        <Image source={remaining > 0 ? GIFT_CLOSED : GIFT_OPEN} resizeMode="contain" style={styles.giftImage} accessible={false} />
       </Pressable>
       </Animated.View>
-      <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</AppText></View>
+      {remaining > 0 ? <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</AppText></View> : <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{OPEN_GIFT_LABEL[language]}</AppText></View>}
     </Animated.View> : null}
     {open ? <Modal visible transparent animationType="fade" onRequestClose={() => setOpen(false)}>
       <View style={styles.backdrop}>
         <Pressable accessibilityLabel={c.close} accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
         <View style={[styles.card, { backgroundColor: theme.surfaceRaised }]}>
-          <Ionicons name="gift-outline" size={42} color={theme.primary} />
+          <Image source={GIFT_OPEN} resizeMode="contain" style={styles.giftImage} accessible={false} />
           <AppText variant="heading">{c.gift}</AppText>
           <AppText style={styles.pending}>{!token ? c.login : offer.isError ? c.failed : !offer.data ? c.wait : !offer.data.eligible ? c.inactive : offer.data.kind === "telegram" ? c.telegram : c.ads}</AppText>
+          {offer.data?.eligible ? <AppText style={styles.pending}>{offer.data.kind === "telegram"
+            ? language === "ru" ? "Открой канал, подпишись и вернись сюда. Нажми «Подтвердить»: после проверки подписки 50 коинов добавятся в текущий челлендж. Награда за подписку выдаётся один раз. Если Telegram не привязан, потребуется подтверждение через бота."
+              : language === "uz" ? "Kanalni oching, obuna bo‘ling va qayting. «Tasdiqlash»ni bosing: obuna tekshirilgach, joriy chempionatga 50 coin qo‘shiladi. Bu mukofot bir marta beriladi. Telegram bog‘lanmagan bo‘lsa, bot orqali tasdiqlash kerak."
+              : "Open the channel, subscribe and return here. Press Confirm: after verification, 50 coins are added to the current challenge. This subscription reward is given once. An unlinked Telegram account needs confirmation through the bot."
+            : language === "ru" ? "Нажми «Смотреть» и полностью просмотри две рекламы подряд. После подтверждения обоих просмотров 75 коинов добавятся в текущий челлендж, и окно закроется. Незавершённый просмотр не даёт награду."
+              : language === "uz" ? "«Ko‘rish»ni bosing va ketma-ket ikkita reklamani oxirigacha ko‘ring. Ikkala ko‘rish tasdiqlangach, joriy chempionatga 75 coin qo‘shiladi va oyna yopiladi. Tugallanmagan reklama uchun mukofot berilmaydi."
+              : "Press Watch and finish two ads in a row. After both views are verified, 75 coins are added to the current challenge and this window closes. Unfinished views do not earn a reward."}</AppText> : null}
           {token && offer.data?.eligible ? <>
             {offer.data.kind === "telegram" ? <>
-              {!offer.data.telegramLinked && !linkFlow ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { const flow = await homeGiftApi.link(token); setLinkFlow(flow); await Linking.openURL(flow.botUrl); setMessage(c.pending); })} style={styles.close}><AppText color={String(theme.primary)}>{c.link}</AppText></Pressable> : null}
-              <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { await Linking.openURL(offer.data!.channelUrl); })} style={styles.close}><AppText color={String(theme.primary)}>{c.channel}</AppText></Pressable>
-              <Pressable disabled={busy || remaining > 0 || (!offer.data.telegramLinked && !linkFlow)} accessibilityRole="button" onPress={checkTelegram} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : c.check}</AppText></Pressable>
+              {!telegramOpened ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { await Linking.openURL(offer.data!.channelUrl); setTelegramOpened(true); })} style={styles.close}><AppText color={String(theme.primary)}>{language === "ru" ? "Открыть Telegram" : language === "uz" ? "Telegramni ochish" : "Open Telegram"}</AppText></Pressable>
+              : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={checkTelegram} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : language === "ru" ? "Подтвердить" : language === "uz" ? "Tasdiqlash" : "Confirm"}</AppText></Pressable>}
             </> : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={watchAds} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : `${c.watch} · ${offer.data.completedAds}/2`}</AppText></Pressable>}
           </> : null}
           {message ? <AppText style={styles.pending}>{message}</AppText> : null}
-          <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.close}><AppText color={String(theme.primary)}>{c.close}</AppText></Pressable>
+          <Pressable accessibilityLabel={c.close} accessibilityRole="button" disabled={busy} onPress={() => setOpen(false)} hitSlop={8} style={{ position: "absolute", top: 12, right: 12, padding: 8 }}><Ionicons name="close" size={22} color={theme.text} /></Pressable>
         </View>
       </View>
     </Modal> : null}
@@ -145,9 +171,8 @@ export function FloatingHomeGift({ active = true, bounds, blurTarget }: { active
 }
 const styles = StyleSheet.create({
   flying: { position: "absolute", left: 8, padding: 12, alignItems: "center", overflow: "visible", zIndex: 80 },
-  gift: { width: 60, height: 60, alignItems: "center", justifyContent: "center", overflow: "visible" },
-  glass: { ...StyleSheet.absoluteFill, borderRadius: 30, overflow: "hidden", borderWidth: 1.5, borderColor: "rgba(90,185,245,0.75)" },
-  sparkle: { position: "absolute", top: -4, right: -4, width: 22, height: 22, alignItems: "center", justifyContent: "center", overflow: "visible" },
+  gift: { width: 72, height: 72, alignItems: "center", justifyContent: "center", overflow: "visible" },
+  giftImage: { width: 72, height: 72 },
   timer: { marginTop: 5, borderRadius: 12, paddingVertical: 3, paddingHorizontal: 8, alignItems: "center" },
   timerText: { fontSize: 12, fontVariant: ["tabular-nums"] },
   pressed: { opacity: 0.8 },
