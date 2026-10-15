@@ -133,6 +133,26 @@ jobs:
           cp "${release_apk}" artifacts/unsigned/logic-coin-unsigned.apk
           cp "${release_aab}" artifacts/unsigned/logic-coin-unsigned.aab
 
+      - name: Verify compiled Android advertising ID permission and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_tools="$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "${build_tools}/aapt2" dump permissions artifacts/unsigned/logic-coin-unsigned.apk > artifacts/android-permissions.txt
+          grep -F "com.google.android.gms.permission.AD_ID" artifacts/android-permissions.txt
+          "${build_tools}/aapt2" dump badging artifacts/unsigned/logic-coin-unsigned.apk > artifacts/android-badging.txt
+          expected_code="$(node -p 'require("./frontend/app.json").expo.android.versionCode')"
+          grep -F "versionCode='${expected_code}'" artifacts/android-badging.txt
+          # The AAB stores protobuf XML: verify the permission identifier survived
+          # compilation there too, in addition to the parsed APK manifest above.
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('artifacts/unsigned/logic-coin-unsigned.aab') as bundle:
+              manifest = bundle.read('base/manifest/AndroidManifest.xml')
+          assert b'com.google.android.gms.permission.AD_ID' in manifest, 'AD_ID absent from AAB manifest'
+          print('AD_ID identifier verified in AAB base manifest')
+          PY
+
       - name: Upload unsigned Android artifacts
         uses: actions/upload-artifact@v4
         with:
