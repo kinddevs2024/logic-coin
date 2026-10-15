@@ -45,6 +45,8 @@ const dailyChallengeSetSchema = new Schema(
       default: DEFAULT_DAILY_PRIZE_MAX_UNITS,
       required: true
     },
+    // No default: already-created contests retain their original allocations.
+    cashPrizeLimitUnits: { type: Number, min: 1, validate: Number.isSafeInteger },
     prizePoolUnits: {
       type: Number,
       min: 0,

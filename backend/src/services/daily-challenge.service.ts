@@ -4,7 +4,8 @@ import {
   DAILY_CHALLENGE_GAME_COUNT,
   DEFAULT_DAILY_PRIZE_MAX_UNITS,
   DEFAULT_DAILY_PRIZE_MIN_UNITS,
-  DEFAULT_DAILY_PRIZE_POOL_UNITS
+  DEFAULT_DAILY_PRIZE_POOL_UNITS,
+  NEW_CHALLENGE_CASH_LIMIT_UNITS
 } from "../config/constants.js";
 import { env } from "../config/env.js";
 import { currentMonthBounds, dayBoundsInTimeZone, localDayKey } from "../lib/date.js";
@@ -25,7 +26,7 @@ import { getMonthlyChallengeActivity } from "./monthly-challenge-activity.servic
 // One Second is deliberately a fixed seven-attempt challenge. Keeping the
 // rule server-side makes every published day consistent, including days that
 // were configured before this rule existed.
-const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 7;
+const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 10;
 
 export function challengeDayKey(date: Date = new Date()): string {
   return localDayKey(date, env.DEFAULT_TIMEZONE);
@@ -79,6 +80,7 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         cashPrizeMinUnits: DEFAULT_DAILY_PRIZE_MIN_UNITS,
         cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
+        cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS,
         coinPrizeAmounts: [100, 100, 100, 100, 100, 100],
         maxAttemptsPerGame: 1,
         oneSecondAttemptLimit: ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT,

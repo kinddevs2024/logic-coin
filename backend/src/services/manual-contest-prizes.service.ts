@@ -20,7 +20,7 @@ export async function getManualContestPrizes(dayKey: string) {
   return {
     dayKey, mode: set.manualCashPrizes == null ? "automatic" as const : "manual" as const,
     revision: set.manualPrizeRevision ?? 0, locked: set.status === "settled" || Boolean(set.prizesLocked),
-    prizePoolUnits: set.prizePoolUnits, allocatedUnits, remainingUnits: set.prizePoolUnits - allocatedUnits,
+    prizePoolUnits: set.prizePoolUnits, cashPrizeLimitUnits: set.cashPrizeLimitUnits ?? null, allocatedUnits, remainingUnits: set.prizePoolUnits - allocatedUnits,
     participants: rows.sort((a, b) => a.rank - b.rank).map(row => ({ userId: row.userId, name: names.get(row.userId) ?? "Участник", rank: row.rank, totalCoins: row.totalCoins, cashUnits: row.cashUnits })),
   };
 }
@@ -35,7 +35,7 @@ export async function saveManualContestPrizes(input: {
   if ((set.manualPrizeRevision ?? 0) !== input.revision) throw new ApiError(409, "prizes_changed", "Призы уже изменены другим администратором. Обновите список.");
   if (input.mode === "automatic" && input.prizes.length) throw new ApiError(400, "invalid_manual_prizes", "Для автоматического режима список должен быть пустым.");
   const participants = new Set((await collectContestStandings(input.dayKey)).map(row => row.userId));
-  validateManualCashPrizes(input.prizes, set.prizePoolUnits, participants);
+  validateManualCashPrizes(input.prizes, set.prizePoolUnits, participants, set.cashPrizeLimitUnits);
   const updated = await DailyChallengeSet.findOneAndUpdate({
     _id: set._id, updatedAt: set.updatedAt, status: { $ne: "settled" }, prizesLocked: { $ne: true },
     ...(input.revision === 0 ? { $or: [{ manualPrizeRevision: 0 }, { manualPrizeRevision: { $exists: false } }] } : { manualPrizeRevision: input.revision }),

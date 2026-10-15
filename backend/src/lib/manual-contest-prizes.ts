@@ -3,15 +3,17 @@ import { contestCashPlan } from "./contest-cash-plan.js";
 import { rankContestStandings, type ContestStandingInput } from "./contest.js";
 
 export type ManualCashPrize = { userId: string; cashUnits: number };
-export function validateManualCashPrizes(prizes: readonly ManualCashPrize[], budget: number, participants?: ReadonlySet<string>) {
+export function validateManualCashPrizes(prizes: readonly ManualCashPrize[], budget: number, participants?: ReadonlySet<string>, cashPrizeLimitUnits?: number | null) {
   if (!Number.isSafeInteger(budget) || budget < 0) throw new ApiError(400, "invalid_prize_pool", "Некорректный фонд.");
   const seen = new Set<string>();
+  if (cashPrizeLimitUnits != null && (!Number.isSafeInteger(cashPrizeLimitUnits) || cashPrizeLimitUnits <= 0)) throw new ApiError(400, "invalid_prize_limit", "Некорректный лимит приза.");
   let total = 0;
   for (const prize of prizes) {
     if (!/^[a-f0-9]{24}$/i.test(prize.userId) || seen.has(prize.userId.toLowerCase()) || !Number.isSafeInteger(prize.cashUnits) || prize.cashUnits < 0) {
       throw new ApiError(400, "invalid_manual_prizes", "Участники не должны повторяться, суммы должны быть неотрицательными целыми центами.");
     }
     if (participants && !participants.has(prize.userId)) throw new ApiError(400, "not_contest_participant", "Приз можно назначить только участнику этого челленджа.");
+    if (cashPrizeLimitUnits != null && prize.cashUnits > cashPrizeLimitUnits) throw new ApiError(400, "prize_exceeds_limit", "Приз участнику превышает лимит этого челленджа.");
     seen.add(prize.userId.toLowerCase());
     total += prize.cashUnits;
     if (!Number.isSafeInteger(total) || total > budget) throw new ApiError(400, "prizes_exceed_pool", "Сумма назначенных призов превышает фонд челленджа.");
@@ -21,15 +23,16 @@ export function validateManualCashPrizes(prizes: readonly ManualCashPrize[], bud
 
 export function contestPrizePlan(standings: readonly ContestStandingInput[], settings: {
   prizePoolUnits: number; cashPrizeMinUnits: number; cashPrizeMaxUnits: number;
+  cashPrizeLimitUnits?: number | null;
   manualCashPrizes?: readonly ManualCashPrize[] | null;
 }) {
-  const automatic = contestCashPlan(standings.length, settings.cashPrizeMinUnits, settings.cashPrizeMaxUnits, settings.prizePoolUnits);
+  const automatic = contestCashPlan(standings.length, settings.cashPrizeMinUnits, settings.cashPrizeMaxUnits, settings.prizePoolUnits, settings.cashPrizeLimitUnits);
   const ranked = rankContestStandings(standings, automatic.bands);
   if (settings.manualCashPrizes == null) return {
     ...automatic, ranked: ranked.map(row => ({ ...row, cashUnits: automatic.ladder[row.rank - 1] ?? 0 })),
   };
   // Validate the entire saved allocation, including any participant absent from a later snapshot.
-  validateManualCashPrizes(settings.manualCashPrizes, settings.prizePoolUnits);
+  validateManualCashPrizes(settings.manualCashPrizes, settings.prizePoolUnits, undefined, settings.cashPrizeLimitUnits);
   const byUser = new Map(settings.manualCashPrizes.map(p => [p.userId, p.cashUnits]));
   const custom = ranked.map(row => {
     const cashUnits = byUser.get(row.userId) ?? 0;
