@@ -101,7 +101,7 @@ export default function BottleFlipScreen() {
         { translateY: Animated.add(Animated.add(airborneY, drag), settle.interpolate({ inputRange: [0, 1], outputRange: [0, result.landed ? 0 : 50] })) }, { rotate: rotation },
       ] }]}><Image source={art.bottle} style={styles.bottleArt} resizeMode="contain" /></Animated.View>
     </View>
-    <AppText style={[styles.hint, { color: phase === "result" && result.landed ? art.success : art.foreground }]}>{attemptsLabel}: {attempts} · {phase === "result" ? c[result.verdict] : c.hint}</AppText>
+    <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} ellipsizeMode="tail" style={[styles.hint, { color: phase === "result" && result.landed ? art.success : art.foreground }]}>{attemptsLabel}: {attempts} · {phase === "result" ? c[result.verdict] : c.hint}</AppText>
     <BottleThemes visible={themesOpen} onClose={() => setThemesOpen(false)} />
   </SafeAreaView>;
 }
@@ -113,5 +113,5 @@ const styles = StyleSheet.create({
   scene: { flex: 1, minHeight: 260, borderRadius: 32, overflow: "hidden", alignItems: "center", justifyContent: "flex-end" },
   bottle: { position: "absolute", width: 140, height: 210, alignItems: "center", justifyContent: "center" }, bottleArt: { width: 140, height: 210 },
   shadow: { position: "absolute", width: 60, height: 9, borderRadius: 30, backgroundColor: "#43322633" },
-  hint: { textAlign: "center", fontSize: 16, fontWeight: "600", marginVertical: 18, minHeight: 24 },
+  hint: { textAlign: "center", fontSize: 16, lineHeight: 24, fontWeight: "600", marginVertical: 18, height: 24, flexShrink: 0 },
 });
