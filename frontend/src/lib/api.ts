@@ -892,10 +892,13 @@ export const adminApi = {
 };
 
 export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
-export type HomeGiftOffer = { kind: "telegram" | "ads"; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
+export type HomeGiftOffer = { kind: "telegram" | "instagram" | "ads"; instagramUrl?: string; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
 export type HomeGiftLink = { flowId: string; pollToken: string; botUrl: string };
 export const homeGiftApi = {
-  offer: (token: string) => request<HomeGiftOffer>("/home-gift", { token }),
+  offer: (token: string) => request<HomeGiftOffer>("/home-gift?includeInstagram=true", { token }),
+  skipTelegram: (token: string) => request<{ skipped: boolean }>("/home-gift/telegram/skip", { token, method: "POST" }),
+  startInstagram: (token: string) => request<{ visitId: string; url: string }>("/home-gift/instagram/start", { token, method: "POST" }),
+  claimInstagram: (token: string, visitId: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/instagram/claim", { token, method: "POST", body: JSON.stringify({ visitId }) }),
   link: (token: string) => request<HomeGiftLink>("/home-gift/telegram/link", { token, method: "POST" }),
   finishLink: (token: string, flow: HomeGiftLink) => request<{ linked: boolean }>("/home-gift/telegram/finish-link", { token, method: "POST", body: JSON.stringify({ flowId: flow.flowId, pollToken: flow.pollToken }) }),
   claimTelegram: (token: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/telegram/claim", { token, method: "POST" }),

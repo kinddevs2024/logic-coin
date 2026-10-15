@@ -4,12 +4,34 @@ import { HomeGiftState } from "../src/models/HomeGiftState.js";
 import { RewardedAdSession } from "../src/models/RewardedAdSession.js";
 import { ChallengeAdReward } from "../src/models/ChallengeAdReward.js";
 import { DailyChallengeSet } from "../src/models/DailyChallengeSet.js";
-import { claimHomeGiftAds, finishHomeGiftTelegramLink, isTelegramMember } from "../src/services/home-gift.service.js";
+import { claimHomeGiftAds, claimHomeGiftInstagram, finishHomeGiftTelegramLink, isTelegramMember, skipHomeGiftTelegram } from "../src/services/home-gift.service.js";
 import { TelegramLoginChallenge } from "../src/models/TelegramLoginChallenge.js";
 import { bonusDay } from "../src/lib/daily-bonus-schedule.js";
 
 describe("home gift guards", () => {
   beforeEach(() => vi.restoreAllMocks());
+  it("never credits Instagram twice", async () => {
+    vi.spyOn(mongoose, "startSession").mockResolvedValue({ withTransaction: async (callback: () => Promise<void>) => callback(), endSession: async () => {} } as never);
+    vi.spyOn(HomeGiftState, "findOne").mockReturnValue({ session: async () => ({ instagramRewardedAt: new Date() }) } as never);
+    const credit = vi.spyOn(ChallengeAdReward, "create");
+    expect(await claimHomeGiftInstagram(new Types.ObjectId(), "same")).toEqual({ credited: 0, alreadyClaimed: true });
+    expect(credit).not.toHaveBeenCalled();
+  });
+  it("rejects an Instagram claim without an owned visit", async () => {
+    vi.spyOn(mongoose, "startSession").mockResolvedValue({ withTransaction: async (callback: () => Promise<void>) => callback(), endSession: async () => {} } as never);
+    vi.spyOn(HomeGiftState, "findOne").mockReturnValue({ session: async () => ({ instagramVisitId: "other" }) } as never);
+    const credit = vi.spyOn(ChallengeAdReward, "create");
+    await expect(claimHomeGiftInstagram(new Types.ObjectId(), "forged")).rejects.toThrow("Instagram");
+    expect(credit).not.toHaveBeenCalled();
+  });
+  it("does not advance the schedule or credit coins for a repeated Telegram skip", async () => {
+    vi.spyOn(HomeGiftState, "findOneAndUpdate").mockResolvedValue({} as never);
+    vi.spyOn(HomeGiftState, "updateOne").mockResolvedValue({} as never);
+    vi.spyOn(HomeGiftState, "findOne").mockResolvedValue({ telegramSkippedAt: new Date() } as never);
+    const credit = vi.spyOn(ChallengeAdReward, "create");
+    expect(await skipHomeGiftTelegram(new Types.ObjectId())).toEqual({ skipped: false });
+    expect(credit).not.toHaveBeenCalled();
+  });
   it("only accepts actual Telegram membership", () => {
     for (const status of ["member", "administrator", "creator"]) expect(isTelegramMember({ status })).toBe(true);
     for (const status of ["left", "kicked", "restricted", "unknown"]) expect(isTelegramMember({ status })).toBe(false);

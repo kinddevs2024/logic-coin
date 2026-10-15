@@ -36,6 +36,7 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
   const [message, setMessage] = useState("");
   const [linkFlow, setLinkFlow] = useState<HomeGiftLink | null>(null);
   const [telegramOpened, setTelegramOpened] = useState(false);
+  const [instagramVisit, setInstagramVisit] = useState<string | null>(null);
   const token = useAppStore(state => state.accessToken);
   const queryClient = useQueryClient();
   const reduced = useReducedMotion();
@@ -65,6 +66,7 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
     finally { setHoldingGift(false); setBusy(false); }
   };
   const checkTelegram = () => perform(async () => {
+    try {
     if (!offer.data?.telegramLinked && !linkFlow) {
       const flow = await homeGiftApi.link(token!);
       setLinkFlow(flow);
@@ -81,7 +83,29 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
     setMessage(`+${result.credited} coin`);
     await refreshRewards();
     setOpen(false);
+    } catch (error) {
+      // Preserve the original error, but do not strand the user on this task.
+      await homeGiftApi.skipTelegram(token!);
+      setLinkFlow(null); setTelegramOpened(false);
+      await refreshRewards();
+      throw error;
+    }
   }, true);
+  const instagramTask = () => perform(async () => {
+    try {
+    if (!instagramVisit) {
+      const visit = await homeGiftApi.startInstagram(token!);
+      await Linking.openURL(visit.url);
+      setInstagramVisit(visit.visitId);
+      return;
+    }
+    const result = await homeGiftApi.claimInstagram(token!, instagramVisit);
+    setMessage(`+${result.credited} coin`);
+    setInstagramVisit(null);
+    await refreshRewards();
+    setOpen(false);
+    } catch (error) { setInstagramVisit(null); throw error; }
+  });
   const watchAds = () => perform(async () => {
     const cycle = await homeGiftApi.startAds(token!);
     for (let completed = cycle.completedAds; completed < 2; completed++) {
@@ -148,11 +172,14 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
         <View style={[styles.card, { backgroundColor: theme.surfaceRaised }]}>
           <Image source={GIFT_OPEN} resizeMode="contain" style={styles.giftImage} accessible={false} />
           <AppText variant="heading">{c.gift}</AppText>
-          <AppText style={styles.pending}>{!token ? c.login : offer.isError ? c.failed : !offer.data ? c.wait : !offer.data.eligible ? c.inactive : offer.data.kind === "telegram" ? c.telegram : c.ads}</AppText>
+          <AppText style={styles.pending}>{!token ? c.login : offer.isError ? c.failed : !offer.data ? c.wait : !offer.data.eligible ? c.inactive : offer.data.kind === "telegram" ? c.telegram : offer.data.kind === "instagram" ? "Instagram · +75" : c.ads}</AppText>
           {offer.data?.eligible ? <AppText style={styles.pending}>{offer.data.kind === "telegram"
             ? language === "ru" ? "Открой канал, подпишись и вернись сюда. Нажми «Подтвердить»: после проверки подписки 50 коинов добавятся в текущий челлендж. Награда за подписку выдаётся один раз. Если Telegram не привязан, потребуется подтверждение через бота."
               : language === "uz" ? "Kanalni oching, obuna bo‘ling va qayting. «Tasdiqlash»ni bosing: obuna tekshirilgach, joriy chempionatga 50 coin qo‘shiladi. Bu mukofot bir marta beriladi. Telegram bog‘lanmagan bo‘lsa, bot orqali tasdiqlash kerak."
               : "Open the channel, subscribe and return here. Press Confirm: after verification, 50 coins are added to the current challenge. This subscription reward is given once. An unlinked Telegram account needs confirmation through the bot."
+            : offer.data.kind === "instagram" ? language === "ru" ? "Открой наш Instagram и вернись за 75 коинами. Подписка добровольная и не проверяется. Награда за переход выдаётся один раз."
+              : language === "uz" ? "Instagram sahifamizni oching va 75 coin uchun qayting. Obuna ixtiyoriy va tekshirilmaydi. O‘tish mukofoti bir marta beriladi."
+              : "Open our Instagram and return for 75 coins. Following is optional and not verified. The visit reward is available once."
             : language === "ru" ? "Нажми «Смотреть» и полностью просмотри две рекламы подряд. После подтверждения обоих просмотров 75 коинов добавятся в текущий челлендж, и окно закроется. Незавершённый просмотр не даёт награду."
               : language === "uz" ? "«Ko‘rish»ni bosing va ketma-ket ikkita reklamani oxirigacha ko‘ring. Ikkala ko‘rish tasdiqlangach, joriy chempionatga 75 coin qo‘shiladi va oyna yopiladi. Tugallanmagan reklama uchun mukofot berilmaydi."
               : "Press Watch and finish two ads in a row. After both views are verified, 75 coins are added to the current challenge and this window closes. Unfinished views do not earn a reward."}</AppText> : null}
@@ -160,7 +187,9 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
             {offer.data.kind === "telegram" ? <>
               {!telegramOpened ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { await Linking.openURL(offer.data!.channelUrl); setTelegramOpened(true); })} style={styles.close}><AppText color={String(theme.primary)}>{language === "ru" ? "Открыть Telegram" : language === "uz" ? "Telegramni ochish" : "Open Telegram"}</AppText></Pressable>
               : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={checkTelegram} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : language === "ru" ? "Подтвердить" : language === "uz" ? "Tasdiqlash" : "Confirm"}</AppText></Pressable>}
-            </> : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={watchAds} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : `${c.watch} · ${offer.data.completedAds}/2`}</AppText></Pressable>}
+              {telegramOpened ? <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={() => void perform(async () => { await homeGiftApi.skipTelegram(token!); setLinkFlow(null); setTelegramOpened(false); await refreshRewards(); setOpen(false); })} style={styles.close}><AppText color={String(theme.textMuted)}>{language === "ru" ? "Пропустить без награды" : language === "uz" ? "Mukofotsiz o‘tkazish" : "Skip without reward"}</AppText></Pressable> : null}
+            </> : offer.data.kind === "instagram" ? <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={instagramTask} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : !instagramVisit ? language === "ru" ? "Открыть Instagram" : language === "uz" ? "Instagramni ochish" : "Open Instagram" : language === "ru" ? "Получить 75 коинов" : language === "uz" ? "75 coin olish" : "Claim 75 coins"}</AppText></Pressable>
+            : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={watchAds} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : `${c.watch} · ${offer.data.completedAds}/2`}</AppText></Pressable>}
           </> : null}
           {message ? <AppText style={styles.pending}>{message}</AppText> : null}
           <Pressable accessibilityLabel={c.close} accessibilityRole="button" disabled={busy} onPress={() => setOpen(false)} hitSlop={8} style={{ position: "absolute", top: 12, right: 12, padding: 8 }}><Ionicons name="close" size={22} color={theme.text} /></Pressable>
