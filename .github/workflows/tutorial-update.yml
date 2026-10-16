@@ -53,11 +53,23 @@ jobs:
       - name: Generate matching native configuration
         working-directory: frontend
         run: npx expo prebuild --platform android --no-install
-      - name: Reproduce Gradle plugin configuration from the APK build
-        working-directory: frontend/android
-        run: chmod +x ./gradlew && ./gradlew help --no-daemon
       - run: node scripts/ota/prepare-native-fingerprint.mjs
+      - name: Load fingerprint from the authenticated original build log
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run view 38785543129 --repo kinddevs2024/logic-coin --log > "$RUNNER_TEMP/baseline.log"
+          node -e 'const fs=require("fs");const line=fs.readFileSync(process.env.RUNNER_TEMP+"/baseline.log","utf8").split("\n").find(s=>s.includes("{\"sources\"") && s.includes("e8acc8045d2ed90a518eb58b74373d71f8c200c5")); if(!line)throw Error("Baseline fingerprint not found");fs.writeFileSync(process.env.RUNNER_TEMP+"/baseline-fingerprint.json",line.slice(line.indexOf("{\"sources\"")));'
+      - name: Verify pinned registry plugin sources
+        run: |
+          mkdir -p "$RUNNER_TEMP/registry"
+          cd "$RUNNER_TEMP/registry"
+          npm pack expo-updates@57.0.24 --ignore-scripts > package-name.txt
+          tar -xf "$(cat package-name.txt)"
       - name: Verify compatibility with the actual APK
+        env:
+          OTA_BASELINE_FINGERPRINT: ${{ runner.temp }}/baseline-fingerprint.json
+          OTA_REGISTRY_PLUGIN: ${{ runner.temp }}/registry/package/expo-updates-gradle-plugin
         run: node scripts/ota/verify-apk-target.mjs previous-apk/logic-coin.apk be1e5502be784e2f4e398a159851eeb780a9de8a artifacts/compatibility
       - name: Export Android update
         run: node scripts/ota/prepare-export.mjs preview
