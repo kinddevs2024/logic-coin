@@ -13,6 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       CI: 'true'
+      NODE_ENV: production
       LOGIC_UPDATE_CHANNEL: preview
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || secrets.EXPO_PUBLIC_API_URL }}
