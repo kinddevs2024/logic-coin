@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { AccessibilityInfo, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useIsFocused } from "expo-router";
 import { useReducedMotion } from "react-native-reanimated";
@@ -39,23 +39,22 @@ export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [cardHeight, setCardHeight] = useState(280);
-  const cardX = useRef(new Animated.Value(0)).current;
-  const cardY = useRef(new Animated.Value(0)).current;
+  const [cardX] = useState(() => new Animated.Value(0));
+  const [cardY] = useState(() => new Animated.Value(0));
   const [ready, setReady] = useState(false);
   const { width, height } = useWindowDimensions();
   const reduced = useReducedMotion();
-  const bounds = useRef({ x: new Animated.Value(0), y: new Animated.Value(0), w: new Animated.Value(0), h: new Animated.Value(0) }).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [bounds] = useState(() => ({ x: new Animated.Value(0), y: new Animated.Value(0), w: new Animated.Value(0), h: new Animated.Value(0) }));
+  const [opacity] = useState(() => new Animated.Value(0));
   const active = focused && activeKey === key && key !== null;
   useEffect(() => {
     let cancelled = false;
-    setActiveKey(null); setStep(0);
-    if (key) void AsyncStorage.getItem(key).then(value => { if (!cancelled) { setCheckedKey(key); if (value !== "done") setActiveKey(key); } }).catch(() => { if (!cancelled) setCheckedKey(key); });
+    if (key) void AsyncStorage.getItem(key).then(value => { if (!cancelled) { setStep(0); setReady(false); setCheckedKey(key); if (value !== "done") setActiveKey(key); } }).catch(() => { if (!cancelled) setCheckedKey(key); });
     return () => { cancelled = true; };
   }, [key]);
   useEffect(() => { onActiveChange(active || Boolean(key && checkedKey !== key)); return () => onActiveChange(false); }, [active, key, checkedKey, onActiveChange]);
   useEffect(() => {
-    if (!active) { setReady(false); return; }
+    if (!active) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     opacity.setValue(0);
@@ -86,7 +85,7 @@ export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
   }, [active, step, width, height, reduced, language, cardHeight]);
   const finish = () => {
     if (key) void AsyncStorage.setItem(key, "done").catch(() => {});
-    setActiveKey(null); scrollRef.current?.scrollTo({ y: 0, animated: !reduced });
+    setActiveKey(null); setReady(false); scrollRef.current?.scrollTo({ y: 0, animated: !reduced });
   };
   return <Modal visible={active} transparent animationType={reduced ? "none" : "fade"} onRequestClose={finish} statusBarTranslucent>
     <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
