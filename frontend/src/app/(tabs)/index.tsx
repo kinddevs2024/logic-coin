@@ -1,10 +1,11 @@
+import { HomeTutorial } from "@/components/home-tutorial";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RankingPreview } from "@/components/ranking-preview";
 import Svg, { Circle } from "react-native-svg";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View, ScrollView } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { HomeDesktopAds } from "@/components/home-desktop-ads";
@@ -51,6 +52,12 @@ export default function HomeScreen() {
   const { t, language } = useTranslation();
   const router = useRouter();
   const { isDesktop } = useResponsiveLayout();
+  const jarTarget = useRef<View>(null);
+  const challengesTarget = useRef<View>(null);
+  const rankingTarget = useRef<View>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const [tourActive, setTourActive] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -85,15 +92,16 @@ export default function HomeScreen() {
   const { today, pendingGameKey } = useChallenges();
 
   return (<>
-    <AppFrame wide desktopNavigationInset contentStyle={styles.content} scrollProps={{ scrollEventThrottle: 100, onScroll: ({ nativeEvent }) => {
+    <AppFrame wide desktopNavigationInset contentStyle={styles.content} scrollRef={scrollRef} scrollProps={{ scrollEnabled: !tourActive, scrollEventThrottle: 16, onScroll: ({ nativeEvent }) => {
+      scrollY.current = nativeEvent.contentOffset.y;
       const scene = giftScene.current;
       setGiftSceneVisible(nativeEvent.contentOffset.y < scene.top + scene.height * 0.82);
-    } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={drawerOpen || leaderboardOpen || inboxOpen}>
+    } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={tourActive || drawerOpen || leaderboardOpen || inboxOpen}>
       <View style={styles.header}>
         <View style={styles.headerSide}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("tabs.profile")} onPress={() => setDrawerOpen(true)}><Avatar name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
-        <RankingPreview metric="wealth" onPress={() => setLeaderboardOpen(true)} />
+        <View ref={rankingTarget} collapsable={false}><RankingPreview metric="wealth" onPress={() => setLeaderboardOpen(true)} /></View>
         <View style={[styles.headerSide, styles.headerSideEnd]}>
           <View ref={inboxButton} collapsable={false}><HomeBell
             onPress={() => {
@@ -108,9 +116,9 @@ export default function HomeScreen() {
 
       {refreshing ? <AppText accessibilityLiveRegion="polite" muted>Обновляем…</AppText> : null}
 
-      <HomeDesktopAds position="top" />
+      {!tourActive ? <HomeDesktopAds position="top" /> : null}
       <View onLayout={({ nativeEvent: { layout } }) => { giftScene.current.top = layout.y; }} style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
-        <View collapsable={false} onLayout={({ nativeEvent: { layout } }) => {
+        <View ref={jarTarget} collapsable={false} onLayout={({ nativeEvent: { layout } }) => {
           giftScene.current.height = layout.height;
           setGiftBounds({ top: layout.height * 0.08, bottom: layout.height * 0.82, width: layout.width });
         }} style={[styles.hero, isDesktop && styles.heroDesktop]}>
@@ -135,7 +143,7 @@ export default function HomeScreen() {
             </View>
           </SavingsScene>
           <View collapsable={false} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-            <FloatingHomeGift key="bank-attached-gift" active={giftSceneVisible && !drawerOpen && !leaderboardOpen && !inboxOpen && !activityInfoOpen} bounds={giftBounds} />
+            <FloatingHomeGift key="bank-attached-gift" active={!tourActive && giftSceneVisible && !drawerOpen && !leaderboardOpen && !inboxOpen && !activityInfoOpen} bounds={giftBounds} />
           </View>
         </View>
 
@@ -154,8 +162,8 @@ export default function HomeScreen() {
           />
           <View style={styles.taskList}>
             {(today?.games ?? []).map((game, index) => (
+              <View key={game.key} ref={index === 0 ? challengesTarget : undefined} collapsable={false}>
               <ChallengeCard
-                key={game.key}
                 game={game}
                 state={game.state}
                 compact
@@ -163,8 +171,9 @@ export default function HomeScreen() {
                 loading={pendingGameKey === game.key}
                 onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "challenge" } } as never)}
               />
+              </View>
             ))}
-            {!today?.games.length ? <ChallengeEmptyState compact /> : null}
+            {!today?.games.length ? <View ref={challengesTarget} collapsable={false}><ChallengeEmptyState compact /></View> : null}
           </View>
           <GlassSurface
             intensity={58}
@@ -194,8 +203,9 @@ export default function HomeScreen() {
         </GlassSurface>
       </View>
 
-      <HomeDesktopAds position="bottom" />
+      {!tourActive ? <HomeDesktopAds position="bottom" /> : null}
 
+      <HomeTutorial targets={[jarTarget, challengesTarget, rankingTarget]} scrollRef={scrollRef} scrollY={scrollY} onActiveChange={setTourActive} />
       <ProfileDrawer
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
