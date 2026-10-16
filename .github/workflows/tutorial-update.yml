@@ -1,6 +1,9 @@
 name: Publishable tutorial update
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/home-tutorial-update]
+    paths: [.github/workflows/tutorial-update.yml]
 permissions:
   contents: read
   actions: read
