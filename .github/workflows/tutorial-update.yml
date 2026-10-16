@@ -34,6 +34,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            package-lock.json
+            frontend/app.json
+            frontend/plugins/**
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
@@ -48,6 +53,9 @@ jobs:
       - name: Generate matching native configuration
         working-directory: frontend
         run: npx expo prebuild --platform android --no-install
+      - name: Reproduce Gradle plugin configuration from the APK build
+        working-directory: frontend/android
+        run: chmod +x ./gradlew && ./gradlew help --no-daemon
       - run: node scripts/ota/prepare-native-fingerprint.mjs
       - name: Verify compatibility with the actual APK
         run: node scripts/ota/verify-apk-target.mjs previous-apk/logic-coin.apk be1e5502be784e2f4e398a159851eeb780a9de8a artifacts/compatibility
