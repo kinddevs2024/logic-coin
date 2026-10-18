@@ -3,7 +3,8 @@ import { readFileSync, mkdirSync, writeFileSync, readdirSync, existsSync } from 
 import { resolve } from 'node:path';
 import { X509Certificate } from 'node:crypto';
 
-const [apk, baselineSha, output] = process.argv.slice(2);
+const [apk, baselineSha, output, channel = 'preview'] = process.argv.slice(2);
+if (!['preview', 'production'].includes(channel)) throw new Error('Unsupported update channel');
 if (!apk || !/^[a-f0-9]{40}$/.test(baselineSha ?? '') || !output) throw new Error('APK, baseline commit and output directory required');
 execFileSync('git', ['merge-base', '--is-ancestor', baselineSha, 'HEAD']);
 // Every native/config/dependency input must be unchanged from the actual APK.
@@ -17,7 +18,7 @@ if (!sdk) throw new Error('Android SDK is required to inspect the APK update con
 const tools = readdirSync(resolve(sdk, 'build-tools')).sort((a, b) => b.localeCompare(a, undefined, { numeric: true })).map(version => resolve(sdk, 'build-tools', version, 'aapt2')).find(existsSync);
 if (!tools) throw new Error('aapt2 is unavailable');
 const xml = execFileSync(tools, ['dump', 'xmltree', '--file', 'AndroidManifest.xml', apk], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
-if (!xml.includes('https://logic-coin.online/updates') || !/expo-channel-name[^\n]*preview/.test(xml)) throw new Error('APK does not target the preview update service');
+if (!xml.includes('https://logic-coin.online/updates') || !new RegExp(`expo-channel-name[^\\n]*${channel}`).test(xml)) throw new Error(`APK does not target the ${channel} update service`);
 const signingMetadata = xml.slice(xml.indexOf('expo.modules.updates.CODE_SIGNING_CERTIFICATE'));
 const pem = signingMetadata.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)?.[0];
 if (!pem) throw new Error('APK update signing certificate missing');
@@ -49,5 +50,5 @@ if (resolved.runtimeVersion !== runtime) {
   console.log('Native inputs and all native source fingerprints match; only Gradle plugin build-state hashing differs. Exact APK runtime retained.');
 }
 mkdirSync(output, { recursive: true });
-writeFileSync(resolve(output, 'runtime.json'), JSON.stringify({ runtimeVersion: runtime, channel: 'preview', platform: 'android', baselineSha }));
+writeFileSync(resolve(output, 'runtime.json'), JSON.stringify({ runtimeVersion: runtime, channel, platform: 'android', baselineSha }));
 console.log('Native inputs, certificate and exact APK runtime compatibility verified.');
