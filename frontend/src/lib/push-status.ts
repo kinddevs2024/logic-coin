@@ -1,4 +1,4 @@
-export type PushStatus = "idle" | "disabled" | "permission" | "denied" | "unsupported" | "setup_required" | "error" | "ready";
+export type PushStatus = "idle" | "disabled" | "permission" | "denied" | "unsupported" | "setup_required" | "local_only" | "error" | "ready";
 let status: PushStatus = "idle";
 const listeners = new Set<() => void>();
 export const getPushStatus = () => status;

@@ -7,7 +7,7 @@ export async function configureDailyReminder(_enabled: boolean, _time: string, _
   return true; // Native scheduled reminders do not apply to browsers.
 }
 
-export async function syncPushNotifications(input: { accessToken: string; enabled: boolean; reminderTime: string; requestPermission?: boolean }) {
+export async function syncPushNotifications(input: { accessToken: string; enabled: boolean; reminderTime: string; requestPermission?: boolean; permissionOnEntry?: boolean }) {
   if (!globalThis.isSecureContext || !("Notification" in globalThis) || !("serviceWorker" in navigator) || !("PushManager" in globalThis)) {
     setPushStatus("unsupported"); return false;
   }
@@ -49,5 +49,27 @@ export async function syncPushNotifications(input: { accessToken: string; enable
 }
 
 export async function installNotificationHandlers(_onOpen: () => void, _onTokenChange: () => void) {
+  return () => {};
+}
+
+export async function openNotificationSettings() {
+  // Browsers do not expose an API that opens their site's permission panel.
+  // The control explains how to use the address-bar site settings instead.
+}
+
+export async function dismissInboxNotifications(ids?: string[], before?: string) {
+  const registration = await navigator.serviceWorker?.getRegistration("/");
+  if (!registration) return;
+  const selected = ids ? new Set(ids) : undefined;
+  const { beforeReadCutoff, inboxNotificationIds } = await import("./inbox-notification-tray");
+  const notifications = await registration.getNotifications();
+  for (const notification of notifications) {
+    const matches = inboxNotificationIds(notification.data);
+    if (matches.length && (!selected || matches.some(id => selected.has(id))) &&
+      beforeReadCutoff(notification.data?.createdAt, (notification as Notification & { timestamp?: number }).timestamp ?? Infinity, before)) notification.close();
+  }
+}
+
+export async function startInboxNotificationSync(_accessToken: string, _accountId: string) {
   return () => {};
 }

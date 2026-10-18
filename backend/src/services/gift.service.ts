@@ -53,7 +53,7 @@ export async function grantGift(input: GrantGiftInput, session: ClientSession) {
   const [gift] = await GiftItem.create([input], { session });
   await NotificationEvent.create([{
     eventKey: `gift:${gift!._id}`, type: "gift_received", audience: "specific_users", status: "queued",
-    payload: { userIds: [input.userId.toString()], title: "Вы получили подарок", body: input.description }
+    payload: { userIds: [input.userId.toString()], giftId: gift!._id.toString(), title: "Вы получили подарок", body: input.description }
   }], { session });
   return { gift, granted: true };
 }

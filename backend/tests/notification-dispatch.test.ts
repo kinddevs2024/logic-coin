@@ -33,6 +33,7 @@ describe("Expo notification dispatcher", () => {
     mocks.eventFindOneAndUpdate.mockReturnValue({
       lean: vi.fn().mockResolvedValue({
         _id: eventId,
+        createdAt: new Date("2026-10-18T08:00:00Z"),
         status: "processing",
         targetCount: 2,
         payload: { dayKey: "2026-08-21", title: "Новый челлендж доступен" }
@@ -62,6 +63,7 @@ describe("Expo notification dispatcher", () => {
       "ExpoPushToken[player_one]",
       "ExponentPushToken[player_two]"
     ]);
+    expect(messages[0]?.data).toMatchObject({ inboxId: `event:${eventId}`, createdAt: "2026-10-18T08:00:00.000Z" });
     expect(result).toEqual({ status: "sent", targetCount: 2, sentCount: 2, failedCount: 0 });
     expect(mocks.eventUpdateOne).toHaveBeenCalledWith(
       { _id: eventId, status: "processing" },
@@ -69,6 +71,18 @@ describe("Expo notification dispatcher", () => {
         $set: expect.objectContaining({ status: "sent", sentCount: 2, failedCount: 0 })
       })
     );
+  });
+
+  it("links gift delivery to the gift inbox row for tap-to-read", async () => {
+    const giftId = new Types.ObjectId();
+    mocks.eventFindOneAndUpdate.mockReturnValue({ lean: vi.fn().mockResolvedValue({
+      _id: eventId, createdAt: new Date("2026-10-18T08:00:00Z"), type: "gift_received", status: "processing",
+      payload: { giftId: String(giftId), title: "Gift" },
+    }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [{ status: "ok" }, { status: "ok" }] }) });
+    await dispatchNotificationEvent(eventId, fetchMock as unknown as typeof fetch);
+    const messages = JSON.parse(fetchMock.mock.calls[0]![1].body);
+    expect(messages[0].data.inboxId).toBe(`gift:${giftId}`);
   });
 
   it("records failed delivery without undoing the published challenge", async () => {

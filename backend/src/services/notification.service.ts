@@ -28,7 +28,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
   let targetCount = 0, sentCount = 0, failedCount = 0;
   const errors = new Set<string>();
   try {
-    const payload = (event.payload ?? {}) as { dayKey?: string; gameKey?: string; title?: string; body?: string; userIds?: string[] };
+    const payload = (event.payload ?? {}) as { dayKey?: string; gameKey?: string; giftId?: string; title?: string; body?: string; userIds?: string[] };
     // Malformed targeted events must never become broadcasts.
     const recipients = event.audience === "specific_users"
       ? (payload.userIds ?? []).filter(id => /^[a-f\d]{24}$/i.test(id))
@@ -45,7 +45,10 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
     targetCount = tokens.length + webSubscriptions.length;
     const notification = {
       title: payload.title ?? "Logic Coin", body: payload.body ?? "У вас новое уведомление.", tag: `logic-${event._id}`,
-      data: { type: event.type, eventId: String(event._id), dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
+      data: { type: event.type, eventId: String(event._id),
+        inboxId: event.type === "gift_received" && payload.giftId ? `gift:${payload.giftId}` : `event:${event._id}`,
+        createdAt: event.createdAt.toISOString(),
+        dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
     };
     for (const group of batches(webSubscriptions, 10)) await Promise.all(group.map(async subscription => {
       try {
