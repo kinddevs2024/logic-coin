@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
@@ -13,8 +13,14 @@ import { useCalendars } from "expo-localization";
 import { useTranslation } from "@/hooks/use-translation";
 import { formatNotificationTime } from "@/lib/notification-time";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { dismissInboxNotifications } from "@/lib/notifications";
 
 const config = { itemVisiblePercentThreshold: 70, minimumViewTime: 800 };
+const copy = {
+  ru: { readAll: "Прочитать все", busy: "Читаем…", retry: "Не удалось отметить уведомления. Нажмите, чтобы повторить." },
+  en: { readAll: "Read all", busy: "Marking…", retry: "Could not mark notifications. Tap to retry." },
+  uz: { readAll: "Barchasini o‘qish", busy: "Belgilanmoqda…", retry: "Bildirishnomalar belgilanmadi. Qayta urining." },
+};
 
 export function NotificationInbox({ onClose, anchor }: { onClose: () => void; anchor?: { x: number; y: number; width: number; height: number } }) {
   const closeAction = useRef(onClose);
@@ -30,12 +36,16 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     const subscription = AppState.addEventListener("change", state => { if (state === "active") setNow(new Date()); });
     return () => { clearInterval(timer); subscription.remove(); };
   }, []);
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [closing, setClosing] = useState(false);
   const close = useCallback(() => setClosing(true), []);
   const reduced = useReducedMotion();
   const [readError, setReadError] = useState(false);
+  const [allReadError, setAllReadError] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const markingAllRef = useRef(false);
+  const c = copy[language];
   const seen = useRef(new Set<string>());
   const failed = useRef(new Set<string>());
   const scrolled = useRef(false);
@@ -61,9 +71,29 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     ids.forEach(id => seen.current.add(id));
     void inboxApi.read(token, ids).then(() => {
       void client.invalidateQueries({ queryKey: ["unread-count", token] });
+      void dismissInboxNotifications(ids).catch(() => {});
       ids.forEach(id => failed.current.delete(id));
       setReadError(failed.current.size > 0);
     }).catch(() => { ids.forEach(id => failed.current.add(id)); setReadError(true); });
+  }, [token, client]);
+  const readAll = useCallback(async () => {
+    if (!token || markingAllRef.current) return;
+    markingAllRef.current = true; setMarkingAll(true); setAllReadError(false);
+    try {
+      const { readThrough } = await inboxApi.readAll(token);
+      const cutoff = new Date(readThrough).getTime();
+      client.setQueriesData<InfiniteData<Awaited<ReturnType<typeof inboxApi.list>>>>(
+        { queryKey: ["inbox", token] },
+        cached => cached ? { ...cached, pages: cached.pages.map(page => ({ ...page, items: page.items.map(item => new Date(item.createdAt).getTime() <= cutoff ? { ...item, read: true } : item) })) } : cached
+      );
+      failed.current.clear(); setReadError(false);
+      void dismissInboxNotifications(undefined, readThrough).catch(() => {});
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["unread-count", token] }),
+        client.invalidateQueries({ queryKey: ["inbox", token] }),
+      ]);
+    } catch { setAllReadError(true); }
+    finally { markingAllRef.current = false; setMarkingAll(false); }
   }, [token, client]);
   const viewable = useCallback(({ viewableItems }: { viewableItems: ViewToken<InboxNotification>[] }) => {
     if (AppState.currentState !== "active" || (Platform.OS === "web" && document.visibilityState === "hidden")) return;
@@ -73,8 +103,13 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
   // The bell anchor and the translucent modal use the same window coordinates.
   const anchorTop = anchor ? anchor.y : Math.max(insets.top, 12);
   return <Modal transparent visible hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close} statusBarTranslucent>
-    <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 12) + 17 }]}>
+    <View style={[styles.overlay, { paddingTop: anchorTop + (anchor?.height ?? 48) + 12 }]}>
       <Pressable accessibilityLabel="Закрыть уведомления" accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
+      {token ? <View style={[styles.readAllPosition, { top: anchorTop, right: Math.max(16, width - (anchor?.x ?? width - 68) + 8), height: anchor?.height ?? 48 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={c.readAll} accessibilityState={{ disabled: markingAll, busy: markingAll }} disabled={markingAll} onPress={() => { void readAll(); }} style={[styles.readAllButton, { backgroundColor: theme.surface, borderColor: theme.border, opacity: markingAll ? 0.6 : 1 }]}>
+          <AppText variant="caption" style={{ fontWeight: "700" }}>{markingAll ? c.busy : c.readAll}</AppText>
+        </Pressable>
+      </View> : null}
       <View style={[styles.close, anchor ? { position: "absolute", left: anchor.x, top: anchorTop, width: anchor.width, height: anchor.height } : { position: "absolute", right: 20, top: anchorTop }]}>
         <IconButton name="close" label="Закрыть" onPress={close} />
       </View>
@@ -83,6 +118,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
         {token && query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
         {query.error ? <Pressable onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())}><AppText color={String(theme.danger)}>Не удалось загрузить. Нажмите, чтобы повторить.</AppText></Pressable> : null}
         {readError ? <Pressable onPress={() => read([...failed.current])}><AppText color={String(theme.danger)}>Не удалось сохранить просмотр. Повторить</AppText></Pressable> : null}
+        {allReadError ? <Pressable accessibilityRole="button" onPress={() => { void readAll(); }}><AppText color={String(theme.danger)}>{c.retry}</AppText></Pressable> : null}
         <View style={styles.listViewport}>
         <FlatList data={items} keyExtractor={item => item.id} style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 12) }]}
           initialNumToRender={4} maxToRenderPerBatch={2} windowSize={3} removeClippedSubviews={Platform.OS === "android"}
@@ -99,7 +135,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
             </View>
             <AppText>{item.body}</AppText>
           </GlassSurface>}
-          ListHeaderComponent={<GlassSurface style={styles.card}><PushNotificationsControl /></GlassSurface>}
+          ListHeaderComponent={<PushNotificationsControl />}
           ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>Уведомлений пока нет</AppText></GlassSurface> : null}
           ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null}
         />
@@ -112,6 +148,8 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, alignItems: "center", backgroundColor: "rgba(16,37,27,0.5)", paddingHorizontal: 18 },
   panel: { flex: 1, minHeight: 0, width: "100%", maxWidth: 560, gap: 12 },
   close: { alignSelf: "flex-end", zIndex: 10, elevation: 10 },
+  readAllPosition: { position: "absolute", left: 16, alignItems: "flex-end", justifyContent: "center", zIndex: 10, elevation: 10 },
+  readAllButton: { minHeight: 40, maxWidth: "100%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 24, borderWidth: 1 },
   listViewport: { flex: 1, minHeight: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
   list: { gap: 12, paddingBottom: 8 },
   card: { padding: 18, borderRadius: 24, gap: 8 },

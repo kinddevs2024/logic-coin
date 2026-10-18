@@ -18,7 +18,7 @@ export function InviteQr({ value, size = 220 }: { value: string; size?: number }
       gradient={{ type: "linear", options: { colors: ["#007A57", "#006345"], start: [0, 0], end: [1, 1] } }}
       outerEyesOptions={{ borderRadius: 12, stroke: "#52E4B2", strokeWidth: 1.2 }}
       innerEyesOptions={{ borderRadius: 6 }}
-      logo={{ href: require("../../assets/brand/logo-mark.png"), scale: 0.9, padding: 4, hidePieces: true }}
+      logo={{ href: require("../../assets/brand/logo-source.png"), scale: 0.9, padding: 4, hidePieces: true }}
     />
   );
 }

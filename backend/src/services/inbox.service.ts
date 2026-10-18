@@ -9,7 +9,7 @@ export type InboxItem = { id: string; title: string; body: string; createdAt: st
 
 async function pipeline(userId: Types.ObjectId): Promise<PipelineStage[]> {
   const [user, days] = await Promise.all([
-    User.findById(userId).select("createdAt").lean(),
+    User.findById(userId).select("createdAt inboxReadThrough").lean(),
     DailyContestResult.distinct("dayKey", { userId })
   ]);
   return [
@@ -30,7 +30,10 @@ async function pipeline(userId: Types.ObjectId): Promise<PipelineStage[]> {
     { $lookup: { from: NotificationRead.collection.name, let: { notificationId: "$id" }, pipeline: [
       { $match: { userId, $expr: { $eq: ["$notificationId", "$$notificationId"] } } }
     ], as: "receipts" } },
-    { $set: { read: { $gt: [{ $size: "$receipts" }, 0] } } },
+    { $set: { read: { $or: [
+      { $gt: [{ $size: "$receipts" }, 0] },
+      ...(user?.inboxReadThrough ? [{ $lte: ["$createdAt", user.inboxReadThrough] }] : [])
+    ] } } },
     { $unset: "receipts" }
   ];
 }
@@ -66,4 +69,13 @@ export async function markInboxRead(userId: Types.ObjectId, ids: string[]) {
     update: { $setOnInsert: { userId, notificationId: row.id, readAt: new Date() } }, upsert: true
   } })), { ordered: false });
   return { marked: owned.length };
+}
+
+/** Marks the complete inbox, not just the first page. Later arrivals stay unread. */
+export async function markAllInboxRead(userId: Types.ObjectId) {
+  const user = await User.findByIdAndUpdate(userId,
+    { $max: { inboxReadThrough: new Date() } },
+    { new: true }
+  ).select("inboxReadThrough").lean();
+  return { readThrough: user!.inboxReadThrough!.toISOString() };
 }

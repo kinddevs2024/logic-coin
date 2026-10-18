@@ -916,6 +916,9 @@ export const inboxApi = {
   read(token: string, ids: string[]) {
     return request<{ marked: number }>("/notifications/read", { method: "POST", token, body: JSON.stringify({ ids }) });
   },
+  readAll(token: string) {
+    return request<{ readThrough: string }>("/notifications/read-all", { method: "POST", token, body: JSON.stringify({}) });
+  },
 };
 
 export const activityApi = {

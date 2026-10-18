@@ -63,6 +63,7 @@ const userSchema = new Schema(
     wallet: { type: walletSchema, required: true, default: () => ({}) },
     coins: { type: coinsSchema, required: true, default: () => ({}) },
     lastLoginAt: { type: Date },
+    inboxReadThrough: { type: Date },
     timezoneChangedAt: { type: Date }
   },
   {
