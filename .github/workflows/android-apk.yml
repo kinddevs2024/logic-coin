@@ -8,6 +8,12 @@ on:
         type: boolean
         required: false
         default: false
+      update_channel:
+        description: 'Signed update channel embedded in the app'
+        type: choice
+        options: [production, preview]
+        required: true
+        default: production
   push:
     tags:
       - "v*"
@@ -28,7 +34,7 @@ jobs:
     env:
       CI: "true"
       EXPO_NO_TELEMETRY: "1"
-      LOGIC_UPDATE_CHANNEL: ${{ startsWith(github.ref, 'refs/tags/') && 'production' || 'preview' }}
+      LOGIC_UPDATE_CHANNEL: ${{ startsWith(github.ref, 'refs/tags/') && 'production' || inputs.update_channel || 'production' }}
       NODE_ENV: "production"
       EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || secrets.EXPO_PUBLIC_API_URL }}
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
@@ -127,7 +133,8 @@ jobs:
         working-directory: frontend/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease bundleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --build-cache --no-daemon --stacktrace
+          mkdir -p ../../artifacts
+          ./gradlew assembleRelease bundleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --build-cache --no-daemon --stacktrace 2>&1 | tee ../../artifacts/android-gradle-build.log
 
       - name: Prepare unsigned Android artifacts
         shell: bash
@@ -147,6 +154,25 @@ jobs:
           fi
           cp "${release_apk}" artifacts/unsigned/logic-coin-unsigned.apk
           cp "${release_aab}" artifacts/unsigned/logic-coin-unsigned.aab
+          printf '%s\n' "$LOGIC_UPDATE_CHANNEL" > artifacts/unsigned/update-channel.txt
+          git rev-parse HEAD > artifacts/unsigned/source-commit.txt
+          python3 - <<'PY'
+          import json, pathlib, re, zipfile
+          with zipfile.ZipFile('artifacts/unsigned/logic-coin-unsigned.apk') as apk:
+              runtime = apk.read('assets/fingerprint').decode().strip()
+          assert re.fullmatch(r'[a-f0-9]{40,64}', runtime), 'APK fingerprint runtime missing'
+          pathlib.Path('artifacts/unsigned/runtime.txt').write_text(runtime + '\n')
+          for line in pathlib.Path('artifacts/android-gradle-build.log').read_text().splitlines():
+              try:
+                  value = json.loads(line)
+              except (ValueError, TypeError):
+                  continue
+              if isinstance(value, dict) and value.get('hash') == runtime and value.get('sources'):
+                  pathlib.Path('artifacts/unsigned/build-fingerprint.json').write_text(json.dumps(value))
+                  break
+          else:
+              print('::warning::Build fingerprint sources were not emitted; verify native compatibility before publishing an OTA for this runtime.')
+          PY
 
       - name: Verify compiled Android advertising ID permission and version
         shell: bash
@@ -175,6 +201,10 @@ jobs:
           path: |
             artifacts/unsigned/logic-coin-unsigned.apk
             artifacts/unsigned/logic-coin-unsigned.aab
+            artifacts/unsigned/runtime.txt
+            artifacts/unsigned/update-channel.txt
+            artifacts/unsigned/source-commit.txt
+            artifacts/unsigned/build-fingerprint.json
           if-no-files-found: error
           retention-days: 7
 
@@ -276,6 +306,10 @@ jobs:
             artifacts/signed/logic-coin.aab \
             "${ANDROID_KEY_ALIAS}"
           jarsigner -verify -verbose -certs artifacts/signed/logic-coin.aab
+          cp artifacts/unsigned/runtime.txt artifacts/unsigned/update-channel.txt artifacts/unsigned/source-commit.txt artifacts/signed/
+          if [ -f artifacts/unsigned/build-fingerprint.json ]; then
+            cp artifacts/unsigned/build-fingerprint.json artifacts/signed/
+          fi
 
           aab_signer_count="$(unzip -Z1 artifacts/signed/logic-coin.aab \
             | grep -Ec '^META-INF/[^/]+\.(RSA|DSA|EC)$')"
@@ -297,5 +331,9 @@ jobs:
             artifacts/signed/logic-coin.apk.sha256
             artifacts/signed/logic-coin.aab
             artifacts/signed/logic-coin.aab.sha256
+            artifacts/signed/runtime.txt
+            artifacts/signed/update-channel.txt
+            artifacts/signed/source-commit.txt
+            artifacts/signed/build-fingerprint.json
           if-no-files-found: error
           retention-days: 30
