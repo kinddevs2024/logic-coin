@@ -9,7 +9,10 @@ const auth = new GoogleAuth({ ...(env.FCM_SERVICE_ACCOUNT_FILE ? { keyFile: env.
 
 export function fcmMessage(token: string, notification: { title: string; body: string; tag: string; data: Record<string, unknown> }) {
   return { message: { token, notification: { title: notification.title, body: notification.body },
-    data: Object.fromEntries(Object.entries(notification.data).filter(([, value]) => value != null).map(([key, value]) => [key, String(value)])),
+    // Expo Android maps FCM data.body JSON to notification.content.data.
+    // Keep top-level routing strings too for native launch-intent handling.
+    data: { ...Object.fromEntries(Object.entries(notification.data).filter(([, value]) => value != null).map(([key, value]) => [key, String(value)])),
+      body: JSON.stringify(notification.data), tag: notification.tag },
     android: { priority: "HIGH", notification: { channel_id: "messages", tag: notification.tag, sound: "default" } } } };
 }
 
