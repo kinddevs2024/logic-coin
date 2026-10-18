@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StatusBar, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
+import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { AppText } from "@/components/app-text";
 import { PushNotificationsControl } from "@/components/push-notifications-control";
@@ -70,8 +70,8 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     read(viewableItems.filter(v => v.isViewable && !v.item.read && !seen.current.has(v.item.id)).map(v => v.item.id));
   }, [read]);
   const items = query.data?.pages.flatMap(page => page.items) ?? [];
-  // Android's window measurement excludes the status bar, while this modal draws behind it.
-  const anchorTop = anchor ? anchor.y + (Platform.OS === "android" ? (StatusBar.currentHeight ?? insets.top) : 0) : Math.max(insets.top, 12);
+  // The bell anchor and the translucent modal use the same window coordinates.
+  const anchorTop = anchor ? anchor.y : Math.max(insets.top, 12);
   return <Modal transparent visible hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close} statusBarTranslucent>
     <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 12) + 17 }]}>
       <Pressable accessibilityLabel="Закрыть уведомления" accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />

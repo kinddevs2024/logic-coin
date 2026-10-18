@@ -23,6 +23,8 @@ export function PushNotificationsControl() {
   const [busy, setBusy] = useState(false);
   if (!token) return null;
   const c = labels[language];
+  const ready = status === "ready";
+  const dark = theme.mode === "dark";
   const enable = async () => {
     if (busy) return;
     setBusy(true);
@@ -37,8 +39,8 @@ export function PushNotificationsControl() {
       }
     } finally { setBusy(false); }
   };
-  return <View style={{ padding: 12, gap: 8 }}>
-    <AppText variant="caption" muted accessibilityLiveRegion="polite">{c[status]}</AppText>
+  return <View style={{ padding: 12, gap: 8, borderRadius: 14, borderWidth: 1, borderColor: ready ? dark ? "#B87432" : "#F1B365" : "transparent", backgroundColor: ready ? dark ? "#482D16" : "#FFF0DB" : "transparent" }}>
+    <AppText variant="caption" muted={!ready} color={ready ? dark ? "#FFD299" : "#9A4D00" : undefined} accessibilityLiveRegion="polite">{c[status]}</AppText>
     {status !== "ready" && status !== "unsupported" && status !== "denied" && status !== "setup_required" ?
       <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void enable().catch(() => {}); }} style={{ padding: 12, borderRadius: 14, backgroundColor: theme.primary }}>
         <AppText color="#FFFFFF" variant="label">{busy ? c.busy : c.enable}</AppText>
