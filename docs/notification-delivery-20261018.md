@@ -30,6 +30,7 @@ Owned Firebase/Expo setup remains necessary for the chosen native remote-push tr
 - Signed production OTA verification checked the RSA signature and **76 assets** by hash. Unknown runtimes return HTTP 204. APK runtime/certificate compatibility was independently checked against the actual APK and pinned registry Gradle-plugin sources.
 - Public homepage, backend health, service-worker file hash and APK download were verified. The new read-all route rejects unauthenticated requests with HTTP 401.
 - Physical Mi 10: the combined Read-all/QR/permission build installed over the existing app successfully and launched without Android/React Native runtime errors. Final visual interaction remains pending because the phone was locked or the user was in another application. No unrelated application screenshots or lock bypasses were used.
+- The final permission-network-guard APK with the SHA-256 below was also installed over the existing app successfully. No foreground application was switched for that final installation.
 - The enlarged QR has **not** yet received a successful physical scanner/decoder check; builds are not presented as decoder proof.
 
 ## Current release
