@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   eventFindOneAndUpdate: vi.fn(),
   eventUpdateOne: vi.fn(),
-  deviceFind: vi.fn()
+  deviceFind: vi.fn(), readDistinct: vi.fn(), userFind: vi.fn(),
 }));
 
 vi.mock("../src/config/env.js", () => ({
@@ -20,6 +20,8 @@ vi.mock("../src/models/NotificationEvent.js", () => ({
   }
 }));
 vi.mock("../src/models/Device.js", () => ({ Device: { find: mocks.deviceFind } }));
+vi.mock("../src/models/NotificationRead.js", () => ({ NotificationRead: { distinct: mocks.readDistinct } }));
+vi.mock("../src/models/User.js", () => ({ User: { find: mocks.userFind } }));
 
 import { dispatchNotificationEvent } from "../src/services/notification.service.js";
 
@@ -30,6 +32,8 @@ describe("Expo notification dispatcher", () => {
     mocks.eventFindOneAndUpdate.mockReset();
     mocks.eventUpdateOne.mockReset();
     mocks.deviceFind.mockReset();
+    mocks.readDistinct.mockResolvedValue([]);
+    mocks.userFind.mockReturnValue({ select: () => ({ lean: async () => [] }) });
     mocks.eventFindOneAndUpdate.mockReturnValue({
       lean: vi.fn().mockResolvedValue({
         _id: eventId,
@@ -83,6 +87,22 @@ describe("Expo notification dispatcher", () => {
     await dispatchNotificationEvent(eventId, fetchMock as unknown as typeof fetch);
     const messages = JSON.parse(fetchMock.mock.calls[0]![1].body);
     expect(messages[0].data.inboxId).toBe(`gift:${giftId}`);
+  });
+
+  it("does not dispatch notices read individually or through the read-all watermark", async () => {
+    const firstUser = new Types.ObjectId(), secondUser = new Types.ObjectId();
+    mocks.deviceFind.mockReturnValue({ select: () => ({ lean: async () => [
+      { userId: firstUser, pushToken: "ExpoPushToken[player_one]" },
+      { userId: secondUser, pushToken: "ExpoPushToken[player_two]" },
+    ] }) });
+    mocks.readDistinct.mockResolvedValue([firstUser]);
+    mocks.userFind.mockReturnValue({ select: () => ({ lean: async () => [{ _id: secondUser }] }) });
+    const fetchMock = vi.fn();
+    const result = await dispatchNotificationEvent(eventId, fetchMock as unknown as typeof fetch);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ status: "no_devices", targetCount: 0 });
+    expect(mocks.readDistinct).toHaveBeenCalledWith("userId", expect.objectContaining({ notificationId: `event:${eventId}` }));
+    expect(mocks.userFind).toHaveBeenCalledWith(expect.objectContaining({ $or: [{ inboxReadThrough: { $gte: new Date("2026-10-18T08:00:00Z") } }] }));
   });
 
   it("records failed delivery without undoing the published challenge", async () => {

@@ -4,6 +4,8 @@ import { Device } from "../models/Device.js";
 import { DailyContestResult } from "../models/DailyContestResult.js";
 import { NotificationEvent } from "../models/NotificationEvent.js";
 import { PushReceipt } from "../models/PushReceipt.js";
+import { NotificationRead } from "../models/NotificationRead.js";
+import { User } from "../models/User.js";
 import { sendWebPush } from "./web-push.service.js";
 
 function expoToken(value: unknown): value is string {
@@ -35,18 +37,34 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       : event.audience === "contest_participants"
         ? payload.dayKey ? await DailyContestResult.distinct("userId", { dayKey: payload.dayKey }) : []
         : null;
-    const devices = await Device.find({
+    let devices = await Device.find({
       notificationsEnabled: true,
       $or: [{ pushToken: { $exists: true, $ne: "" } }, { "webPush.endpoint": { $exists: true } }],
       ...(recipients ? { userId: { $in: recipients } } : {})
-    }).select("pushToken webPush").lean();
+    }).select("pushToken webPush userId").lean();
+    const inboxId = event.type === "gift_received" && payload.giftId ? `gift:${payload.giftId}`
+      : event.type === "gift_received" && /^gift:[a-f\d]{24}$/i.test(event.eventKey ?? "") ? event.eventKey
+      : `event:${event._id}`;
+    const deviceUsers = [...new Set(devices.map(device => device.userId?.toString()).filter((id): id is string => Boolean(id)))];
+    if (deviceUsers.length) {
+      // A queued delivery must not bring back a notice already read in the app.
+      const [readUsers, excludedUsers] = await Promise.all([
+        NotificationRead.distinct("userId", { userId: { $in: deviceUsers }, notificationId: inboxId }),
+        User.find({ _id: { $in: deviceUsers }, $or: [
+          { inboxReadThrough: { $gte: event.createdAt } },
+          ...(event.audience === "all_users" ? [{ createdAt: { $gt: event.createdAt } }] : []),
+        ] }).select("_id").lean(),
+      ]);
+      const excluded = new Set([...readUsers.map(String), ...excludedUsers.map(user => String(user._id))]);
+      devices = devices.filter(device => !excluded.has(String(device.userId)));
+    }
     const tokens = [...new Set(devices.map(d => d.pushToken).filter(expoToken))];
     const webSubscriptions = [...new Map(devices.filter(d => d.webPush?.endpoint).map(d => [d.webPush!.endpoint, d.webPush!])).values()];
     targetCount = tokens.length + webSubscriptions.length;
     const notification = {
       title: payload.title ?? "Logic Coin", body: payload.body ?? "У вас новое уведомление.", tag: `logic-${event._id}`,
       data: { type: event.type, eventId: String(event._id),
-        inboxId: event.type === "gift_received" && payload.giftId ? `gift:${payload.giftId}` : `event:${event._id}`,
+        inboxId,
         createdAt: event.createdAt.toISOString(),
         dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
     };
