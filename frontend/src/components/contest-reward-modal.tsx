@@ -43,7 +43,7 @@ const confetti = Array.from({ length: 22 }, (_, index) => ({
   left: `${(index * 37) % 96}%` as `${number}%`,
   delay: (index % 7) * 65,
   rotate: (index * 71) % 240,
-  color: ["#007A57", "#7A5AF8", "#FFCA3A", "#22C77A", "#FF5C8A"][index % 5]!,
+  color: ["#007A57", "#007A57", "#FFCA3A", "#22C77A", "#FF5C8A"][index % 5]!,
 }));
 
 function rewardLabel(result: ContestRewardResult) {
@@ -161,11 +161,11 @@ export function ContestRewardModal() {
     if (result.rewardType === "box") {
       return [
         { icon: "diamond" as const, x: 150, y: -350, color: "#F3B61F" },
-        { icon: "refresh" as const, x: -145, y: -300, color: "#7A5AF8" },
+        { icon: "refresh" as const, x: -145, y: -300, color: "#007A57" },
         { icon: "time" as const, x: 145, y: 300, color: "#22C77A" },
       ];
     }
-    if (result.giftKind === "replay") return [{ icon: "refresh" as const, x: -145, y: -330, color: "#7A5AF8" }];
+    if (result.giftKind === "replay") return [{ icon: "refresh" as const, x: -145, y: -330, color: "#007A57" }];
     if (result.giftKind === "extra_time") return [{ icon: "time" as const, x: 145, y: 300, color: "#22C77A" }];
     return [{ icon: "diamond" as const, x: 150, y: -350, color: "#F3B61F" }];
   }, [result]);
@@ -359,7 +359,7 @@ export function ContestRewardModal() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 70 },
-  dim: { backgroundColor: "rgba(3,12,30,0.38)" },
+  dim: { backgroundColor: "rgba(16,37,27,0.38)" },
   confetti: { position: "absolute", top: 0, width: 8, height: 18, borderRadius: 3, zIndex: 3 },
   cardWrap: { width: "100%", maxWidth: 560, maxHeight: "82%", zIndex: 8 },
   card: { overflow: "hidden", borderRadius: 34, padding: 18, alignItems: "center", maxHeight: "100%" },
@@ -368,9 +368,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 25, lineHeight: 31, fontWeight: "900", textAlign: "center", marginTop: 5 },
   rewardValue: { fontSize: 28, lineHeight: 34, fontWeight: "900", textAlign: "center", marginTop: 2 },
   contentsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 7, marginTop: 9 },
-  prizeChip: { minHeight: 35, paddingHorizontal: 10, borderRadius: 18, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(17,131,247,0.80)" },
+  prizeChip: { minHeight: 35, paddingHorizontal: 10, borderRadius: 18, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(0,122,87,0.80)" },
   prizeChipText: { color: "#FFFFFF", fontSize: 11, fontWeight: "900" },
-  rouletteWindow: { width: "100%", height: 84, overflow: "hidden", borderRadius: 22, backgroundColor: "rgba(5,18,42,0.88)", marginTop: 12, justifyContent: "center" },
+  rouletteWindow: { width: "100%", height: 84, overflow: "hidden", borderRadius: 22, backgroundColor: "rgba(16,37,27,0.88)", marginTop: 12, justifyContent: "center" },
   rouletteTrack: { flexDirection: "row", gap: 8, width: 680 },
   rouletteItem: { width: 80, height: 66, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", gap: 4 },
   rouletteLabel: { color: "#FFFFFF", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },

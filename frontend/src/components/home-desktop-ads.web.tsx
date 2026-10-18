@@ -93,7 +93,7 @@ function DisplayAd({ slot, horizontal, focused }: { slot: string; horizontal?: b
   return (
     <section aria-label="Реклама" data-ad-placement={slot} data-ad-state={state}
       style={{ display: collapsed ? "none" : "block", width: "100%", minWidth: 0, textAlign: "center" }}>
-      <div style={{ color: "#7E91AC", fontSize: 11, lineHeight: "18px", marginBottom: 6 }}>Реклама</div>
+      <div style={{ color: "#B8CCBC", fontSize: 11, lineHeight: "18px", marginBottom: 6 }}>Реклама</div>
       <ins ref={insRef} className="adsbygoogle"
         style={{ display: "block", width: "100%", minHeight: horizontal ? 90 : 250 }}
         data-ad-client={CLIENT} data-ad-slot={slot}

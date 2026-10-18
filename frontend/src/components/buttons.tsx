@@ -108,7 +108,7 @@ export function AppButton({
           locations={[0, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.gradient, theme.mode === "dark" && { borderColor: "rgba(183,216,255,0.18)" }]}
+          style={[styles.gradient, theme.mode === "dark" && { borderColor: "rgba(225,239,227,0.18)" }]}
         >
           <LinearGradient
             pointerEvents="none"

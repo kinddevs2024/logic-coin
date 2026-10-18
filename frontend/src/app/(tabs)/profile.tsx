@@ -103,13 +103,13 @@ export default function ProfileScreen() {
                 icon: "diamond-outline" as const,
                 label: "coin",
                 value: String(coinBalance),
-                color: readableAccent("#7A5AF8", theme.mode),
+                color: readableAccent("#007A57", theme.mode),
               },
               {
                 icon: "people-outline" as const,
                 label: t("profile.friends"),
                 value: String(friendCount),
-                color: readableAccent("#7A5AF8", theme.mode),
+                color: readableAccent("#007A57", theme.mode),
               },
               {
                 icon: "game-controller-outline" as const,
@@ -156,8 +156,8 @@ export default function ProfileScreen() {
             { opacity: pressed ? 0.78 : 1 },
           ]}
         >
-          <View style={[styles.refIcon, { backgroundColor: theme.mode === "dark" ? "#2D294A" : "#F2EFFF" }]}>
-            <Ionicons name="gift" size={24} color={readableAccent("#7A5AF8", theme.mode)} />
+          <View style={[styles.refIcon, { backgroundColor: theme.mode === "dark" ? "#193E2E" : "#E1EFE3" }]}>
+            <Ionicons name="gift" size={24} color={readableAccent("#007A57", theme.mode)} />
           </View>
           <View style={{ flex: 1 }}>
             <AppText variant="label">{t("profile.invite")}</AppText>

@@ -232,7 +232,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(4,16,38,0.38)", alignItems: "center", justifyContent: "center", padding: 18 },
+  backdrop: { flex: 1, backgroundColor: "rgba(16,37,27,0.38)", alignItems: "center", justifyContent: "center", padding: 18 },
   wrap: { width: "100%", maxWidth: 480 },
   card: { borderRadius: 34, padding: 18, gap: 14 },
   top: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   close: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   preview: { alignItems: "center", paddingVertical: 4, gap: 8 },
   avatarButton: { width: 92, height: 92, borderRadius: 46, overflow: "hidden" },
-  avatarOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(4,16,38,0.08)", alignItems: "center", justifyContent: "center", borderRadius: 46 },
+  avatarOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(16,37,27,0.08)", alignItems: "center", justifyContent: "center", borderRadius: 46 },
   field: { gap: 6 },
   countrySearch: { minHeight: 44, borderRadius: 15, borderWidth: 1, paddingHorizontal: 13, fontSize: 14, fontWeight: "600" },
   countryScroll: { maxHeight: 260 },

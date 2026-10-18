@@ -114,7 +114,7 @@ export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
   </Modal>;
 }
 const styles = StyleSheet.create({
-  shade: { position: "absolute", backgroundColor: "rgba(5,15,35,0.68)" },
+  shade: { position: "absolute", backgroundColor: "rgba(16,37,27,0.68)" },
   highlight: { position: "absolute", borderWidth: 3, borderRadius: 24 },
   card: { position: "absolute", alignSelf: "center", borderRadius: 26, borderWidth: 1, padding: 22, gap: 18 },
   label: { fontSize: 12, lineHeight: 18 }, title: { fontSize: 24, lineHeight: 30, fontWeight: "800", marginTop: 12 },

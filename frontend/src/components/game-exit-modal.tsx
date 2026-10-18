@@ -53,7 +53,7 @@ export function GameExitModal({ visible, title, onStay, onExit }: {
 const styles = StyleSheet.create({
   androidLayer: { ...StyleSheet.absoluteFill, zIndex: 3000, elevation: 50 },
   backdrop: {
-    flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(1,3,10,0.72)",
+    flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(16,37,27,0.72)",
     ...(Platform.OS === "web" ? ({ position: "fixed", inset: 0, width: "100vw", height: "100dvh" } as unknown as ViewStyle) : {}),
   },
   scroll: { width: "100%", flex: 1 },

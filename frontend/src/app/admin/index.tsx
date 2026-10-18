@@ -115,8 +115,8 @@ export default function AdminOverviewScreen() {
           <View style={styles.games}>
             {games.map((game, index) => (
               <View key={game.key} style={[styles.game, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}>
-                <View style={[styles.gameOrder, { backgroundColor: `${game.color}18` }]}><AppText style={{ color: game.color, fontWeight: "900" }}>{index + 1}</AppText></View>
-                <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} size={20} color={game.color} />
+                <View style={[styles.gameOrder, { backgroundColor: theme.primarySoft }]}><AppText style={{ color: theme.primary, fontWeight: "900" }}>{index + 1}</AppText></View>
+                <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} size={20} color={theme.primary} />
                 <AppText variant="label" numberOfLines={1} style={styles.gameTitle}>{game.title}</AppText>
               </View>
             ))}

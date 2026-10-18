@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 16 },
     elevation: 7,
     overflow: "hidden",
-    backgroundColor: "#EAF4FF",
+    backgroundColor: "#EDF5E9",
   },
   visualImage: { width: "100%", height: "100%" },
   copy: {

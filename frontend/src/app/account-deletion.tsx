@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0A84FF",
+    backgroundColor: "#007A57",
   },
   stepText: {
     flex: 1,

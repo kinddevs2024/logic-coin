@@ -13,7 +13,6 @@ import { radii } from "@/constants/theme";
 import type { TranslationKey } from "@/constants/translations";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
-import { readableAccent } from "@/lib/theme-colors";
 import { useTranslation } from "@/hooks/use-translation";
 import type { LogicTask } from "@/types";
 
@@ -50,7 +49,7 @@ export function TaskCard({
 }) {
   const theme = useAppTheme();
   const { t } = useTranslation();
-  const accent = readableAccent(task.color, theme.mode);
+  const accent = String(theme.primary);
 
   const handlePress = () => {
     void Haptics.selectionAsync().catch(() => {});
@@ -74,7 +73,7 @@ export function TaskCard({
         style={[
           styles.icon,
           compact && styles.iconCompact,
-          { backgroundColor: `${task.color}18` },
+          { backgroundColor: theme.primarySoft },
         ]}
       >
         <Ionicons

@@ -118,7 +118,7 @@ export function ChallengeAdOffer() {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(4,12,26,0.65)" },
+  backdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(16,37,27,0.65)" },
   card: { width: "100%", maxWidth: 390, padding: 22, borderRadius: 28, alignItems: "center" },
   title: { fontSize: 22, fontWeight: "800", textAlign: "center", marginTop: 12 },
   body: { fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 10 },

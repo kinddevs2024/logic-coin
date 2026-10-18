@@ -254,8 +254,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   });
 
   const edgeOpacity = nativeScrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: "clamp" });
-  const edgeSolid = theme.mode === "dark" ? "#19273E" : "#FFFFFF";
-  const edgeClear = theme.mode === "dark" ? "rgba(25,39,62,0)" : "rgba(255,255,255,0)";
+  const edgeSolid = theme.mode === "dark" ? "#182A21" : "#FFFFFF";
+  const edgeClear = theme.mode === "dark" ? "rgba(16,37,27,0)" : "rgba(255,255,255,0)";
   if (!visible) return null;
 
   return (
@@ -264,7 +264,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(4,16,38,0.32)", opacity: backdrop },
+            { backgroundColor: "rgba(16,37,27,0.32)", opacity: backdrop },
           ]}
         >
           <BlurView
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     bottom: 4,
     borderRadius: 17,
     borderWidth: 1,
-    shadowColor: "#157DFB",
+    shadowColor: "#007A57",
     shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },

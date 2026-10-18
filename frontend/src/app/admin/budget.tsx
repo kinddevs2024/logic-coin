@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   row: { minHeight: 48, borderBottomWidth: 1, flexDirection: "row", alignItems: "center" },
   headerRow: { minHeight: 40 },
   cellHeader: { fontSize: 10, lineHeight: 13, fontWeight: "900", opacity: 0.65, textTransform: "uppercase" },
-  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(8,19,37,0.34)" },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(16,37,27,0.34)" },
   modalStop: { width: "100%", alignItems: "center" },
   adjustmentSheet: { width: "100%", maxWidth: 560, borderTopLeftRadius: 30, borderTopRightRadius: 30, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 20, paddingBottom: 30, gap: 16 },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },

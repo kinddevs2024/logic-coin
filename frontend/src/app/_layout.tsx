@@ -97,7 +97,7 @@ export default function RootLayout() {
         browserTheme.name = "theme-color";
         document.head.appendChild(browserTheme);
       }
-      browserTheme.content = "#0866FF";
+      browserTheme.content = "#007A57";
     } else {
       void SystemUI.setBackgroundColorAsync(theme.background).catch(() => {});
     }

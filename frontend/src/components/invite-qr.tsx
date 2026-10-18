@@ -11,12 +11,12 @@ export function InviteQr({ value, size = 220 }: { value: string; size?: number }
       size={qrSize}
       padding={28}
       errorCorrectionLevel="H"
-      color="#0044DD"
+      color="#006345"
       style={{ backgroundColor: "#FFFFFF", borderRadius: 22 }}
       pieceBorderRadius={2}
       isPiecesGlued
-      gradient={{ type: "linear", options: { colors: ["#007BFF", "#0030CB"], start: [0, 0], end: [1, 1] } }}
-      outerEyesOptions={{ borderRadius: 12, stroke: "#00BCEB", strokeWidth: 1.2 }}
+      gradient={{ type: "linear", options: { colors: ["#007A57", "#006345"], start: [0, 0], end: [1, 1] } }}
+      outerEyesOptions={{ borderRadius: 12, stroke: "#52E4B2", strokeWidth: 1.2 }}
       innerEyesOptions={{ borderRadius: 6 }}
       logo={{ href: require("../../assets/brand/logo-mark.png"), scale: 0.9, padding: 4, hidePieces: true }}
     />

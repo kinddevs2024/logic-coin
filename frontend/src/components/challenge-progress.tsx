@@ -166,7 +166,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   const selfIndex = detailRows.findIndex(row => row.isSelf);
   const dockTravel = Math.max(1, detailsHeight - 80);
   const dockY = selfIndex < 0 ? dockTravel : Animated.subtract(summaryHeight + 12 + selfIndex * 84, detailsScrollY).interpolate({ inputRange: [0, dockTravel], outputRange: [0, dockTravel], extrapolate: "clamp" });
-  const fadeClear = theme.mode === "dark" ? "rgba(15,23,42,0)" : "rgba(240,249,255,0)";
+  const fadeClear = theme.mode === "dark" ? "rgba(16,37,27,0)" : "rgba(240,249,255,0)";
   const topFadeOpacity = detailsScrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: "clamp" });
   useEffect(() => { if (!details) detailsScrollY.setValue(0); }, [details, detailsScrollY]);
   const list = useRef<ScrollView>(null);

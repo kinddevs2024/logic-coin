@@ -109,7 +109,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
   </Modal>;
 }
 const styles = StyleSheet.create({
-  overlay: { flex: 1, alignItems: "center", backgroundColor: "rgba(4,12,26,0.5)", paddingHorizontal: 18 },
+  overlay: { flex: 1, alignItems: "center", backgroundColor: "rgba(16,37,27,0.5)", paddingHorizontal: 18 },
   panel: { flex: 1, minHeight: 0, width: "100%", maxWidth: 560, gap: 12 },
   close: { alignSelf: "flex-end", zIndex: 10, elevation: 10 },
   listViewport: { flex: 1, minHeight: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
