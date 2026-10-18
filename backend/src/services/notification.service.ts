@@ -6,6 +6,7 @@ import { NotificationEvent } from "../models/NotificationEvent.js";
 import { PushReceipt } from "../models/PushReceipt.js";
 import { NotificationRead } from "../models/NotificationRead.js";
 import { User } from "../models/User.js";
+import { sendFcmPush } from "./fcm-push.service.js";
 import { sendWebPush } from "./web-push.service.js";
 
 function expoToken(value: unknown): value is string {
@@ -39,9 +40,9 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
         : null;
     let devices = await Device.find({
       notificationsEnabled: true,
-      $or: [{ pushToken: { $exists: true, $ne: "" } }, { "webPush.endpoint": { $exists: true } }],
+      $or: [{ fcmToken: { $exists: true, $ne: "" } }, { pushToken: { $exists: true, $ne: "" } }, { "webPush.endpoint": { $exists: true } }],
       ...(recipients ? { userId: { $in: recipients } } : {})
-    }).select("pushToken webPush userId").lean();
+    }).select("fcmToken pushToken webPush userId").lean();
     const inboxId = event.type === "gift_received" && payload.giftId ? `gift:${payload.giftId}`
       : event.type === "gift_received" && /^gift:[a-f\d]{24}$/i.test(event.eventKey ?? "") ? event.eventKey
       : `event:${event._id}`;
@@ -58,9 +59,10 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       const excluded = new Set([...readUsers.map(String), ...excludedUsers.map(user => String(user._id))]);
       devices = devices.filter(device => !excluded.has(String(device.userId)));
     }
-    const tokens = [...new Set(devices.map(d => d.pushToken).filter(expoToken))];
+    const tokens = [...new Set(devices.filter(d => !d.fcmToken).map(d => d.pushToken).filter(expoToken))];
     const webSubscriptions = [...new Map(devices.filter(d => d.webPush?.endpoint).map(d => [d.webPush!.endpoint, d.webPush!])).values()];
-    targetCount = tokens.length + webSubscriptions.length;
+    const fcmTokens = [...new Set(devices.map(d => d.fcmToken).filter((token): token is string => Boolean(token)))];
+    targetCount = tokens.length + fcmTokens.length + webSubscriptions.length;
     const notification = {
       title: payload.title ?? "Logic Coin", body: payload.body ?? "У вас новое уведомление.", tag: `logic-${event._id}`,
       data: { type: event.type, eventId: String(event._id),
@@ -68,6 +70,16 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
         createdAt: event.createdAt.toISOString(),
         dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
     };
+    for (const group of batches(fcmTokens, 10)) await Promise.all(group.map(async token => {
+      try {
+        const outcome = await sendFcmPush(token, notification, fetchImplementation);
+        if (outcome === "accepted") sentCount++;
+        else {
+          failedCount++; errors.add("fcm:unregistered");
+          await Device.updateMany({ fcmToken: token }, { $unset: { fcmToken: 1 } });
+        }
+      } catch { failedCount++; errors.add("fcm:delivery_error"); }
+    }));
     for (const group of batches(webSubscriptions, 10)) await Promise.all(group.map(async subscription => {
       try {
         await sendWebPush({ endpoint: subscription.endpoint, keys: { p256dh: subscription.keys!.p256dh!, auth: subscription.keys!.auth! } }, notification);

@@ -113,6 +113,8 @@ export async function syncPushNotifications(input: {
   const Notifications = await import("expo-notifications");
   // Undefined preserves an existing token on transient network/provider failure.
   let pushToken: string | null | undefined = input.enabled ? undefined : null;
+  let fcmToken: string | null | undefined = input.enabled ? undefined : null;
+  let fcmReady = false;
   let permitted = false;
 
   if (input.enabled) {
@@ -137,12 +139,26 @@ export async function syncPushNotifications(input: {
       }
       if (permission.status === "granted" && !channelBlocked) {
         permitted = true;
+        if (Platform.OS === "android") {
+          try {
+            const config = await devicesApi.pushConfig(input.accessToken);
+            if (config.fcmEnabled) {
+              const nativeToken = await Notifications.getDevicePushTokenAsync();
+              if (nativeToken.type === "android" && typeof nativeToken.data === "string") {
+                fcmToken = nativeToken.data;
+                fcmReady = true;
+                pushToken = null;
+              }
+            }
+          } catch { /* Older APKs may lack native Firebase resources. */ }
+        }
         const Constants = (await import("expo-constants")).default;
         const projectId =
           Constants.easConfig?.projectId ??
           Constants.expoConfig?.extra?.eas?.projectId ??
           process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
-        if (!projectId) { setPushStatus("local_only"); }
+        if (fcmReady) { /* Direct FCM needs no EAS project. */ }
+        else if (!projectId) { setPushStatus("local_only"); }
         else {
           const response = await Notifications.getExpoPushTokenAsync({ projectId });
           pushToken = response.data || undefined;
@@ -150,6 +166,7 @@ export async function syncPushNotifications(input: {
         }
       } else {
         pushToken = null;
+        fcmToken = null;
         setPushStatus(channelBlocked || permission.status === "denied" ? "denied" : "permission");
       }
     } catch {
@@ -163,6 +180,7 @@ export async function syncPushNotifications(input: {
       {
         platform: platformForDevice(),
         pushToken,
+        fcmToken,
         notificationsEnabled: input.enabled && permitted,
         dailyReminderEnabled: input.enabled,
         reminderTime: input.reminderTime,
@@ -177,7 +195,7 @@ export async function syncPushNotifications(input: {
     throw error;
   }
 
-  if (pushToken) setPushStatus("ready");
+  if (pushToken || fcmReady) setPushStatus("ready");
   return permitted;
 }
 

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   permission: { status: "granted", canAskAgain: true },
+  config: vi.fn(), nativeToken: vi.fn(),
   projectId: undefined as string | undefined,
   status: "local_only",
   updatePreferences: vi.fn(), list: vi.fn(),
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("react-native", () => ({ Platform: { OS: "android" }, Linking: { openSettings: mocks.openSettings, sendIntent: mocks.sendIntent }, AppState: { currentState: "active", addEventListener: () => ({ remove: vi.fn() }) } }));
 vi.mock("@/lib/native-runtime", () => ({ isExpoGo: false }));
-vi.mock("@/lib/api", () => ({ devicesApi: { updatePreferences: mocks.updatePreferences }, inboxApi: { list: mocks.list } }));
+vi.mock("@/lib/api", () => ({ devicesApi: { pushConfig: mocks.config, updatePreferences: mocks.updatePreferences }, inboxApi: { list: mocks.list } }));
 vi.mock("@/lib/device-id", () => ({ getDeviceId: async () => "test-device" }));
 vi.mock("@/lib/push-status", () => ({ getPushStatus: () => mocks.status, setPushStatus: (status: string) => { mocks.status = status; } }));
 vi.mock("expo-constants", () => ({ default: { get easConfig() { return { projectId: mocks.projectId }; } } }));
@@ -24,6 +25,7 @@ vi.mock("expo-notifications", () => ({
   AndroidImportance: { HIGH: 4, LOW: 2, DEFAULT: 3, NONE: 0 }, SchedulableTriggerInputTypes: { TIME_INTERVAL: "timeInterval", DAILY: "daily" },
   getPermissionsAsync: async () => mocks.permission,
   requestPermissionsAsync: mocks.request,
+  getDevicePushTokenAsync: mocks.nativeToken,
   getExpoPushTokenAsync: mocks.token,
   setNotificationChannelAsync: mocks.channel,
   getPresentedNotificationsAsync: mocks.presented,
@@ -44,6 +46,8 @@ const input = { accessToken: "test-only", enabled: true, reminderTime: "19:00", 
 let cleanup: (() => void) | undefined;
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.config.mockResolvedValue({ fcmEnabled: false });
+  mocks.nativeToken.mockResolvedValue({ type: "android", data: "native-fcm-token" });
   mocks.permission = { status: "granted", canAskAgain: true };
   mocks.projectId = undefined; mocks.status = "local_only";
   mocks.updatePreferences.mockResolvedValue({}); mocks.presented.mockResolvedValue([]);
@@ -143,4 +147,19 @@ describe("native device notification permission and delivery", () => {
     await vi.waitFor(() => expect(onOpen).toHaveBeenCalledWith(["gift:000000000000000000000001"]));
     expect(mocks.clearResponse).not.toHaveBeenCalled();
   });
+});
+
+it("registers direct FCM without an EAS project", async () => {
+  mocks.config.mockResolvedValue({ fcmEnabled: true });
+  await syncPushNotifications(input);
+  expect(mocks.nativeToken).toHaveBeenCalledOnce();
+  expect(mocks.token).not.toHaveBeenCalled();
+  expect(mocks.updatePreferences).toHaveBeenCalledWith("test-device", expect.objectContaining({ fcmToken: "native-fcm-token", pushToken: null }), "test-only");
+  expect(mocks.status).toBe("ready");
+});
+it("does not claim remote delivery when native Firebase setup is missing", async () => {
+  mocks.config.mockResolvedValue({ fcmEnabled: true });
+  mocks.nativeToken.mockRejectedValueOnce(new Error("not configured"));
+  await syncPushNotifications(input);
+  expect(mocks.status).toBe("local_only");
 });

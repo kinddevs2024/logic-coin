@@ -1086,12 +1086,13 @@ export const meApi = {
 
 export const devicesApi = {
   pushConfig(token: string) {
-    return request<{ publicKey: string | null }>("/devices/push-config", { token });
+    return request<{ publicKey: string | null; fcmEnabled?: boolean }>("/devices/push-config", { token });
   },
   updatePreferences(
     deviceId: string,
     input: {
       platform: "android" | "ios" | "web";
+      fcmToken?: string | null;
       pushToken?: string | null;
       webPush?: { endpoint: string; keys: { p256dh: string; auth: string } } | null;
       notificationsEnabled: boolean;

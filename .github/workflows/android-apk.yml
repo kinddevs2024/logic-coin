@@ -8,6 +8,11 @@ on:
         type: boolean
         required: false
         default: false
+      require_background_push:
+        description: 'Fail if Firebase native background push config is absent'
+        type: boolean
+        required: false
+        default: false
       update_channel:
         description: 'Signed update channel embedded in the app'
         type: choice
@@ -110,7 +115,7 @@ jobs:
             chmod 600 "$RUNNER_TEMP/logic-google-services.json"
             echo "GOOGLE_SERVICES_JSON=$RUNNER_TEMP/logic-google-services.json" >> "$GITHUB_ENV"
           fi
-          if [[ -z "${EXPO_PUBLIC_EAS_PROJECT_ID:-}" || -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]]; then
+          if [[ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]]; then
             echo '::warning::Remote Android push is not configured. Inbox and local reminders do not prove remote push delivery.'
           fi
 
@@ -124,6 +129,10 @@ jobs:
       - name: Verify Android JavaScript bundle
         working-directory: frontend
         run: npx expo export --platform android --output-dir ../artifacts/android-js-check
+
+      - name: Validate required background push configuration
+        if: inputs.require_background_push == true
+        run: node scripts/release/verify-background-push.mjs
 
       - name: Generate native Android project
         working-directory: frontend

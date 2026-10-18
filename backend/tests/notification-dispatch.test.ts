@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   eventFindOneAndUpdate: vi.fn(),
   eventUpdateOne: vi.fn(),
+  fcm: vi.fn(), deviceUpdate: vi.fn(),
   deviceFind: vi.fn(), readDistinct: vi.fn(), userFind: vi.fn(),
 }));
 
@@ -19,9 +20,11 @@ vi.mock("../src/models/NotificationEvent.js", () => ({
     updateOne: mocks.eventUpdateOne
   }
 }));
-vi.mock("../src/models/Device.js", () => ({ Device: { find: mocks.deviceFind } }));
+vi.mock("../src/models/Device.js", () => ({ Device: { find: mocks.deviceFind, updateMany: mocks.deviceUpdate } }));
 vi.mock("../src/models/NotificationRead.js", () => ({ NotificationRead: { distinct: mocks.readDistinct } }));
 vi.mock("../src/models/User.js", () => ({ User: { find: mocks.userFind } }));
+
+vi.mock("../src/services/fcm-push.service.js", () => ({ sendFcmPush: mocks.fcm }));
 
 import { dispatchNotificationEvent } from "../src/services/notification.service.js";
 
@@ -116,4 +119,17 @@ describe("Expo notification dispatcher", () => {
       })
     );
   });
+});
+
+it("prefers direct FCM over Expo on the same device", async () => {
+  mocks.eventFindOneAndUpdate.mockReturnValue({ lean: async () => ({ _id: new Types.ObjectId(), createdAt: new Date(), payload: {} }) });
+  mocks.readDistinct.mockResolvedValue([]);
+  mocks.userFind.mockReturnValue({ select: () => ({ lean: async () => [] }) });
+  mocks.deviceFind.mockReturnValue({ select: () => ({ lean: async () => [{ fcmToken: "native-token", pushToken: "ExpoPushToken[legacy]" }] }) });
+  mocks.fcm.mockResolvedValue("accepted");
+  const fetchMock = vi.fn();
+  const result = await dispatchNotificationEvent(new Types.ObjectId(), fetchMock as unknown as typeof fetch);
+  expect(result).toMatchObject({ status: "sent", targetCount: 1, sentCount: 1 });
+  expect(mocks.fcm).toHaveBeenCalled();
+  expect(fetchMock).not.toHaveBeenCalled();
 });

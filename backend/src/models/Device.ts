@@ -5,6 +5,7 @@ const deviceSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     deviceId: { type: String, required: true, maxlength: 160 },
     platform: { type: String, enum: ["android", "ios", "web"], required: true },
+    fcmToken: { type: String, maxlength: 4_096 },
     pushToken: { type: String, maxlength: 4_096 },
     webPush: {
       type: new Schema({
