@@ -18,8 +18,10 @@ Backend direct FCM deployed with protected sender credentials outside repository
 
 Source verification: both typechecks passed. Before the final tray follow-up, full backend 204 tests and frontend 104 Vitest plus 16 smoke tests passed. Final follow-up typechecks and 22 focused tests passed; final CI also ran frontend lint/typecheck/tests. Tray checks cover foreign FCM identifiers, preserved creation timestamps at read-all cutoff, delayed delivery and malformed/unrelated identifiers.
 
-## Remaining device verification
+## Device verification
 
 At verification time ADB and mDNS showed no connected phone, and the server had zero enabled native FCM registrations. The new APK must be installed over the existing app and opened once to register its native token, followed by a real notification sent while backgrounded/closed and tap/read-all checks. OAuth success and a validate-only request with a deliberately invalid placeholder token are not proof of delivery. No actual device delivery has been claimed.
+
+Subsequently, on October 18, the owner reported installing/testing this final APK and confirmed that notifications now arrive with the application closed. This is owner-reported device verification, not an automated ADB observation. Tap/read-all behavior after background delivery was not separately confirmed in that report.
 
 Older installed APK runtime `808cda61091ceb9ef092146bf40cff9341901a68` lacks Firebase native resources. A JavaScript OTA cannot add them; the new signed native APK is required. No incompatible OTA was published.
