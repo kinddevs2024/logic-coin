@@ -43,7 +43,7 @@ function EntryValue({ entry, metric }: { entry: LeaderboardEntry; metric: Leader
     return (
       <View style={styles.combinedValue}>
         <View style={styles.valueLine}>
-          <Ionicons name="wallet-outline" size={13} color="#1183F7" />
+          <Ionicons name="wallet-outline" size={13} color="#007A57" />
           <AppText style={styles.valueText}>{formatMoney(entry.walletBalanceUnits)}</AppText>
         </View>
         <View style={styles.valueLine}>
@@ -59,7 +59,7 @@ function EntryValue({ entry, metric }: { entry: LeaderboardEntry; metric: Leader
       <Ionicons
         name={metric === "coins" ? "diamond" : "wallet-outline"}
         size={14}
-        color={metric === "coins" ? "#F5B800" : "#1183F7"}
+        color={metric === "coins" ? "#F5B800" : "#007A57"}
       />
       <AppText style={styles.valueText}>
         {metric === "coins" ? entry.coinBalance : formatMoney(entry.walletBalanceUnits)}

@@ -13,9 +13,9 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const COPY = {
-  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг челленджа.\nДо десяти наград в день. Ожидание растёт после получения; сброс в полночь по Ташкенту.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
-  en: { title: "+45 coins for a video", body: "Watch the full ad to earn 45 coins.\nThey count toward the challenge ranking.\nUp to ten rewards daily. Waiting increases after each claim; reset at midnight in Tashkent.", watch: "Watch ad · +45 coins", skip: "Not now", error: "No reward received. Please try again later." },
-  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar sinov reytingiga qo‘shiladi.\nKuniga o‘ntagacha mukofot. Har mukofotdan keyin kutish uzayadi; Toshkent vaqti bilan yarim tunda yangilanadi.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
+  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг челленджа.\nДо семи наград в день. Ожидание растёт после получения; сброс в полночь по Ташкенту.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
+  en: { title: "+45 coins for a video", body: "Watch the full ad to earn 45 coins.\nThey count toward the challenge ranking.\nUp to seven rewards daily. Waiting increases after each claim; reset at midnight in Tashkent.", watch: "Watch ad · +45 coins", skip: "Not now", error: "No reward received. Please try again later." },
+  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar sinov reytingiga qo‘shiladi.\nKuniga yettitagacha mukofot. Har mukofotdan keyin kutish uzayadi; Toshkent vaqti bilan yarim tunda yangilanadi.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
 };
 
 export function ChallengeAdOffer() {

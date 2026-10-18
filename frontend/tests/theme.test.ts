@@ -38,7 +38,7 @@ describe("dark theme contrast", () => {
   });
 });
 
-describe("other themes remain unchanged", () => {
+describe("green brand themes", () => {
   it.each(["light", "sky"] as const)("preserves game colors in %s", (mode) => {
     for (const { color } of GAME_CATALOG) {
       expect(readableAccent(color, mode)).toBe(color);
@@ -47,25 +47,11 @@ describe("other themes remain unchanged", () => {
     expect(themes[mode].onPrimary).toBe("#FFFFFF");
   });
 
-  it("preserves the light palette", () => {
-    expect(themes.light).toMatchObject({
-      background: "#F5F7FA", backgroundStart: "#FFFFFF", backgroundMiddle: "#F2F6FA", backgroundEnd: "#E8EFF6",
-      surface: "#FFFFFF", surfaceRaised: "#FFFFFF", surfaceMuted: "#EEF2F6", text: "#101418", textMuted: "#69737D",
-      primary: "#087CFF", primaryDark: "#0064D6", primarySoft: "#E7F2FF", border: "#DEE5EC",
-      success: "#12B76A", warning: "#F5A524", danger: "#F04438", shadow: "#274158", orbOne: "#7BC1FF", orbTwo: "#B9A8FF",
-      tabBar: "rgba(250,252,254,0.84)", glassFill: "rgba(255,255,255,0.58)", glassFillStrong: "rgba(255,255,255,0.78)",
-      glassBorder: "rgba(255,255,255,0.86)", glassHighlight: "rgba(255,255,255,0.78)", glassTint: "#F0F7FF", glassShadow: "#53697C",
-    });
-  });
-
-  it("preserves the sky palette", () => {
-    expect(themes.sky).toMatchObject({
-      background: "#DFF3FF", backgroundStart: "#F1FBFF", backgroundMiddle: "#D7F0FF", backgroundEnd: "#B9DFFF",
-      surface: "#F9FCFF", surfaceRaised: "#FFFFFF", surfaceMuted: "#DFF0FF", text: "#082449", textMuted: "#57708D",
-      primary: "#006AC7", primaryDark: "#0059A8", primarySoft: "#DDF0FF", border: "#CFE5F8",
-      success: "#0DA968", warning: "#E89517", danger: "#E84A5F", shadow: "#0878D8", orbOne: "#45B8FF", orbTwo: "#83E6ED",
-      tabBar: "rgba(239,249,255,0.72)", glassFill: "rgba(238,249,255,0.5)", glassFillStrong: "rgba(246,252,255,0.76)",
-      glassBorder: "rgba(255,255,255,0.78)", glassHighlight: "rgba(255,255,255,0.9)", glassTint: "#DDF3FF", glassShadow: "#208BCB",
-    });
+  it.each(["light", "sky"] as const)("uses the restored green and gold brand in %s", mode => {
+    expect(themes[mode]).toMatchObject({ background: "#EDF5E9", primary: "#007A57", primaryDark: "#006345", orbOne: "#78DDB0", orbTwo: "#F0D48C" });
+    for (const surface of [themes[mode].surface, themes[mode].background]) {
+      expect(contrastRatio(String(themes[mode].text), String(surface))).toBeGreaterThanOrEqual(7);
+      expect(contrastRatio(String(themes[mode].textMuted), String(surface))).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

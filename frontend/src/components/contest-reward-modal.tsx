@@ -43,7 +43,7 @@ const confetti = Array.from({ length: 22 }, (_, index) => ({
   left: `${(index * 37) % 96}%` as `${number}%`,
   delay: (index % 7) * 65,
   rotate: (index * 71) % 240,
-  color: ["#1183F7", "#7A5AF8", "#FFCA3A", "#22C77A", "#FF5C8A"][index % 5]!,
+  color: ["#007A57", "#7A5AF8", "#FFCA3A", "#22C77A", "#FF5C8A"][index % 5]!,
 }));
 
 function rewardLabel(result: ContestRewardResult) {
@@ -156,7 +156,7 @@ export function ContestRewardModal() {
   const flightItems = useMemo(() => {
     if (!result) return [];
     if (result.rewardType === "cash") {
-      return [{ icon: "wallet" as const, x: -150, y: -360, color: "#1183F7" }];
+      return [{ icon: "wallet" as const, x: -150, y: -360, color: "#007A57" }];
     }
     if (result.rewardType === "box") {
       return [
@@ -281,7 +281,7 @@ export function ContestRewardModal() {
           ]}
         >
           <GlassSurface intensity={90} variant="strong" style={styles.card}>
-            <LinearGradient colors={["rgba(17,131,247,0.22)", "rgba(122,90,248,0.08)", "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={["rgba(0,122,87,0.22)", "rgba(240,212,140,0.08)", "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} />
             <View style={[styles.heroIcon, { backgroundColor: theme.primary }]}>
               <Ionicons name={rewardIcon(result.rewardType)} size={31} color="#FFFFFF" />
             </View>
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   confetti: { position: "absolute", top: 0, width: 8, height: 18, borderRadius: 3, zIndex: 3 },
   cardWrap: { width: "100%", maxWidth: 560, maxHeight: "82%", zIndex: 8 },
   card: { overflow: "hidden", borderRadius: 34, padding: 18, alignItems: "center", maxHeight: "100%" },
-  heroIcon: { width: 64, height: 64, borderRadius: 23, alignItems: "center", justifyContent: "center", marginBottom: 9, shadowColor: "#1183F7", shadowOpacity: 0.35, shadowRadius: 20 },
+  heroIcon: { width: 64, height: 64, borderRadius: 23, alignItems: "center", justifyContent: "center", marginBottom: 9, shadowColor: "#007A57", shadowOpacity: 0.35, shadowRadius: 20 },
   eyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 2, opacity: 0.54 },
   title: { fontSize: 25, lineHeight: 31, fontWeight: "900", textAlign: "center", marginTop: 5 },
   rewardValue: { fontSize: 28, lineHeight: 34, fontWeight: "900", textAlign: "center", marginTop: 2 },
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   person: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5 },
   personName: { flexShrink: 1, fontSize: 13, fontWeight: "800" },
   standingReward: { maxWidth: 120, fontSize: 11, fontWeight: "900", textAlign: "right" },
-  claimButton: { width: "100%", minHeight: 56, borderRadius: 21, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 11, shadowColor: "#1183F7", shadowOpacity: 0.28, shadowRadius: 16 },
+  claimButton: { width: "100%", minHeight: 56, borderRadius: 21, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 11, shadowColor: "#007A57", shadowOpacity: 0.28, shadowRadius: 16 },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
   disabled: { opacity: 0.62 },
   error: { color: "#D63A55", fontSize: 11, fontWeight: "800", marginTop: 7, textAlign: "center" },

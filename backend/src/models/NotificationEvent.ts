@@ -11,7 +11,8 @@ const notificationEventSchema = new Schema(
         "referral_signup",
         "admin_broadcast",
         "new_game_available",
-        "gift_received"
+        "gift_received",
+        "withdrawal_approved"
       ],
       required: true
     },

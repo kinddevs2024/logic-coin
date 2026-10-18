@@ -1,4 +1,7 @@
-import { Types } from "mongoose";
+import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
+import { ChallengeAdReward } from "../models/ChallengeAdReward.js";
+import { invalidateContestProgress } from "./contest-progress.service.js";
+import mongoose, { Types } from "mongoose";
 import { ApiError } from "../lib/api-error.js";
 import { addDays, currentMonthBounds, currentWeekBounds, localDayKey } from "../lib/date.js";
 import { nextLoginSlot, periodRewardEligible } from "../lib/coin-reward-policy.js";
@@ -60,6 +63,24 @@ export async function claimCoinReward(userId: Types.ObjectId, kind: "daily" | "w
   const reward = kind === "daily" ? offer.daily.find(day => day.dayKey === offer.dayKey)! : kind === "week" ? offer.weekly : offer.monthly;
   if (reward.status !== "available") throw new ApiError(409, "coin_reward_unavailable", "Подарок уже получен или пока недоступен");
   const periodKey = kind === "daily" ? offer.dayKey : (kind === "week" ? offer.weekly.from : offer.monthly.from);
-  const result = await creditCoins({ userId, amount: reward.coins, type: ledgerType, sourceId: `attendance:${kind}:${periodKey}`, description: `${kind} activity gift`, metadata: { rewardKind: kind, periodKey } });
-  return { credited: result.idempotentReplay ? 0 : reward.coins, coins: await getCoinBalance(userId) };
+  const session = await mongoose.startSession();
+  let credited = 0;
+  let challengeDay: string | undefined;
+  try {
+    await session.withTransaction(async () => {
+      credited = 0;
+      const now = new Date();
+      const set = await DailyChallengeSet.findOne({ dayKey: offer.dayKey, status: "published", $or: [{ endsAt: null }, { endsAt: { $gt: now } }] }).session(session);
+      const sourceId = `attendance:${kind}:${periodKey}`;
+      const result = await creditCoins({ userId, amount: reward.coins, type: ledgerType, sourceId, description: `${kind} activity gift`, metadata: { rewardKind: kind, periodKey, challengeDayKey: set?.dayKey ?? null } }, session);
+      if (result.idempotentReplay) return;
+      credited = reward.coins;
+      if (set) {
+        challengeDay = set.dayKey;
+        await ChallengeAdReward.create([{ userId, sessionId: `${sourceId}:${userId}`, dayKey: set.dayKey, amount: reward.coins }], { session });
+      }
+    });
+  } finally { await session.endSession(); }
+  if (challengeDay && credited) invalidateContestProgress(challengeDay);
+  return { credited, coins: await getCoinBalance(userId) };
 }

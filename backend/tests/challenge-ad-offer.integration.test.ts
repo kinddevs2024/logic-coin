@@ -35,6 +35,7 @@ describe.skipIf(!uri)("challenge offers and discontinued signup reward, isolated
     ]);
     const set = await DailyChallengeSet.create({ dayKey: challengeDayKey(), timezone: "UTC", selectionSeed: "qa", gameIds, endsAt: new Date(Date.now() + 3600000) });
     setId = set._id;
+    await User.updateOne({ _id: userId }, { $set: { challengeAdRewardDay: challengeDayKey(), challengeAdDailyCount: 0, challengeAdAvailableAt: new Date(Date.now() - 1) } });
   });
   const finish = (count = 6) => ChallengeAttempt.create(gameIds.slice(0, count).map((gameId, index) => ({ userId, gameId, dailyChallengeSetId: setId, gameKey: `qa-${index}`, dayKey: challengeDayKey(), mode: "challenge", status: "completed", startedAt: new Date(), completedAt: new Date() })));
   const verified = async () => {
@@ -43,10 +44,10 @@ describe.skipIf(!uri)("challenge offers and discontinued signup reward, isolated
     await RewardedAdSession.updateOne({ sessionId: ad.sessionId }, { $set: { status: "completed" } });
     return ad.sessionId;
   };
-  it("requires all challenge games before offering or starting an ad", async () => {
+  it("offers an ad to today's participant without requiring every game to be finished", async () => {
     await finish(5);
-    expect((await getChallengeAdOffer(userId)).eligible).toBe(false);
-    await expect(startRewardedAdSession(userId, "navigation-frequency")).rejects.toMatchObject({ code: "challenge_ad_not_eligible" });
+    expect((await getChallengeAdOffer(userId)).eligible).toBe(true);
+    expect((await startRewardedAdSession(userId, "navigation-frequency")).sessionId).toBeTruthy();
   });
   it("awards exactly 45 contest points once and enforces five minutes", async () => {
     await finish(); expect((await getChallengeAdOffer(userId)).available).toBe(true);
@@ -75,9 +76,9 @@ describe.skipIf(!uri)("challenge offers and discontinued signup reward, isolated
     expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
     expect(await ChallengeAdReward.countDocuments({ userId })).toBe(1);
   });
-  it("stops offers when the next challenge replaces the completed one", async () => {
+  it("stops rewards if the challenge is unpublished before claiming", async () => {
     await finish(); const id = await verified();
-    await DailyChallengeSet.updateOne({ _id: setId }, { $set: { gameIds: gameIds.map(() => new Types.ObjectId()) } });
+    await DailyChallengeSet.updateOne({ _id: setId }, { $set: { status: "settled" } });
     expect((await getChallengeAdOffer(userId)).eligible).toBe(false);
     await expect(claimRewardedAdCoins({ userId, sessionId: id })).rejects.toMatchObject({ code: "challenge_ad_not_eligible" });
     expect(await ChallengeAdReward.countDocuments({ userId })).toBe(0);

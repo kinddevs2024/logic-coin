@@ -10,6 +10,7 @@ vi.mock("../src/services/token.service.js", () => ({
 import { User } from "../src/models/User.js";
 import { Withdrawal } from "../src/models/Withdrawal.js";
 import { LedgerEntry } from "../src/models/LedgerEntry.js";
+import { NotificationEvent } from "../src/models/NotificationEvent.js";
 import { env } from "../src/config/env.js";
 import { centsToUnits } from "../src/lib/money.js";
 import { createSandboxWithdrawal } from "../src/services/withdrawal.service.js";
@@ -26,10 +27,10 @@ describe.skipIf(!uri)("admin withdrawal processing, isolated MongoDB", () => {
   beforeAll(async () => {
     if (!uri?.startsWith("mongodb://127.0.0.1:27938/")) throw Error("Only isolated QA MongoDB is permitted");
     await mongoose.connect(uri, { dbName: `logic_coin_qa_withdrawals_${Date.now()}` });
-    await Promise.all([User.init(), Withdrawal.init(), LedgerEntry.init()]);
+    await Promise.all([User.init(), Withdrawal.init(), LedgerEntry.init(), NotificationEvent.init()]);
   });
   beforeEach(async () => {
-    await Promise.all([User.deleteMany({}), Withdrawal.deleteMany({}), LedgerEntry.deleteMany({})]);
+    await Promise.all([User.deleteMany({}), Withdrawal.deleteMany({}), LedgerEntry.deleteMany({}), NotificationEvent.deleteMany({})]);
     await User.create([
       { _id: adminId, name: "QA Admin", email: "qa-admin@example.invalid", referralCode: "QAWITHDRAWADMIN", role: "admin" },
       { _id: userId, name: "QA User", email: "qa-user@example.invalid", referralCode: "QAWITHDRAWUSER", wallet: { availableUnits: units * 5 } },
@@ -53,6 +54,7 @@ describe.skipIf(!uri)("admin withdrawal processing, isolated MongoDB", () => {
   it("approves without debiting again; manual payment releases only the reserve", async () => {
     const { withdrawal } = await create(); const id = String(withdrawal._id);
     await review(id, "approve");
+    expect(await NotificationEvent.countDocuments({ eventKey: `withdrawal:${id}:approved`, audience: "specific_users", "payload.userIds": String(userId) })).toBe(1);
     expect(await wallet()).toMatchObject({ availableUnits: units * 4, lockedUnits: units });
     await review(id, "mark_paid", 1);
     expect(await wallet()).toMatchObject({ availableUnits: units * 4, lockedUnits: 0 });

@@ -44,8 +44,8 @@ export async function getHomeGiftOffer(userId: Types.ObjectId, includeInstagram 
   const completedAds = state.cycleId && state.cycleExpiresAt && state.cycleExpiresAt > now
     ? await RewardedAdSession.countDocuments({ userId, placement: "home-gift", homeGiftCycleId: state.cycleId, status: "completed", expiresAt: { $gt: now } }) : 0;
   const telegramDone = Boolean(state.telegramRewardedAt || state.telegramSkippedAt);
-  const kind = !telegramDone ? "telegram" : includeInstagram && !state.instagramRewardedAt ? "instagram" : "ads";
-  return { kind, rewardCoins: kind === "telegram" ? 50 : 75, instagramUrl: HOME_GIFT_INSTAGRAM_URL,
+  const kind = includeInstagram && !state.instagramRewardedAt ? "instagram" : !telegramDone ? "telegram" : "ads";
+  return { kind, rewardCoins: kind === "instagram" ? 100 : kind === "telegram" ? 50 : 75, instagramUrl: HOME_GIFT_INSTAGRAM_URL,
     eligible: Boolean(set), available: Boolean(set) && state.dailyClaimCount < DAILY_BONUS_LIMIT && state.availableAt <= now, availableAt: state.availableAt.toISOString(), serverNow: now.toISOString(),
     dailyClaimCount: state.dailyClaimCount, dailyLimit: DAILY_BONUS_LIMIT, exhausted: state.dailyClaimCount >= DAILY_BONUS_LIMIT,
     telegramLinked: Boolean(user.providers.telegramSub), channelUrl: "https://t.me/logic_coin_global", completedAds: Math.min(2, completedAds),
@@ -66,7 +66,7 @@ export async function skipHomeGiftTelegram(userId: Types.ObjectId) {
 export async function startHomeGiftInstagram(userId: Types.ObjectId) {
   await requireCurrentChallenge();
   const state = await stateFor(userId); const now = new Date();
-  if (!state || !(state.telegramRewardedAt || state.telegramSkippedAt) || state.instagramRewardedAt || state.availableAt > now || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "home_gift_unavailable", "Задание сейчас недоступно.");
+  if (!state || state.instagramRewardedAt || state.availableAt > now || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "home_gift_unavailable", "Задание сейчас недоступно.");
   const visitId = randomUUID();
   const updated = await HomeGiftState.findOneAndUpdate({ userId, instagramRewardedAt: { $exists: false }, availableAt: { $lte: now }, rewardDayKey: bonusDay(now).dayKey, dailyClaimCount: state.dailyClaimCount }, { $set: { instagramVisitId: visitId, instagramOpenedAt: now } }, { new: true });
   if (!updated) throw new ApiError(409, "home_gift_changed", "Откройте подарок заново.");
@@ -87,8 +87,8 @@ export async function claimHomeGiftInstagram(userId: Types.ObjectId, visitId: st
     const updated = await HomeGiftState.findOneAndUpdate({ userId, instagramVisitId: visitId, instagramRewardedAt: { $exists: false }, dailyClaimCount: state.dailyClaimCount, rewardDayKey: bonusDay(now).dayKey },
       { $set: { instagramRewardedAt: now, availableAt: nextBonusDeadline(now, state.dailyClaimCount + 1) }, $inc: { dailyClaimCount: 1 }, $unset: { instagramVisitId: 1, instagramOpenedAt: 1 } }, { new: true, session });
     if (!updated) return;
-    await ChallengeAdReward.create([{ userId, sessionId: `home-gift:instagram:${userId}`, dayKey: set.dayKey, amount: 75 }], { session });
-    credited = 75;
+    await ChallengeAdReward.create([{ userId, sessionId: `home-gift:instagram:${userId}`, dayKey: set.dayKey, amount: 100 }], { session });
+    credited = 100;
   }); } finally { await session.endSession(); }
   if (credited) invalidateContestProgress(rewardDay);
   return { credited, alreadyClaimed: credited === 0 };

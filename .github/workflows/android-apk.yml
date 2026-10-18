@@ -35,6 +35,7 @@ jobs:
       EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB }}
       EXPO_PUBLIC_APPODEAL_APP_KEY: ${{ secrets.EXPO_PUBLIC_APPODEAL_APP_KEY }}
       EXPO_PUBLIC_APPODEAL_TEST_MODE: "false"
+      EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
 
     steps:
       - name: Checkout
@@ -92,6 +93,20 @@ jobs:
         env:
           EXPO_OFFLINE: "1"
         run: npx expo install --check
+
+      - name: Configure owned Firebase Android application when available
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        shell: bash
+        run: |
+          if [[ -n "${GOOGLE_SERVICES_JSON_BASE64:-}" ]]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > "$RUNNER_TEMP/logic-google-services.json"
+            chmod 600 "$RUNNER_TEMP/logic-google-services.json"
+            echo "GOOGLE_SERVICES_JSON=$RUNNER_TEMP/logic-google-services.json" >> "$GITHUB_ENV"
+          fi
+          if [[ -z "${EXPO_PUBLIC_EAS_PROJECT_ID:-}" || -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]]; then
+            echo '::warning::Remote Android push is not configured. Inbox and local reminders do not prove remote push delivery.'
+          fi
 
       - name: Check types and regression tests before Gradle
         if: ${{ !inputs.build_only }}

@@ -16,6 +16,7 @@ import { AppearanceTransition } from "@/components/appearance-transition";
 import { AdRuntime } from "@/components/ad-runtime";
 import { RewardBurst } from "@/components/reward-burst";
 import { ContestRewardModal } from "@/components/contest-reward-modal";
+import { WithdrawalApprovedModal } from "@/components/withdrawal-approved-modal";
 import { ChallengeAdOffer } from "@/components/challenge-ad-offer";
 import { WebAnalytics } from "@/components/web-analytics";
 import { useGameProgressStore } from "@/games/progress-store";
@@ -221,6 +222,7 @@ export default function RootLayout() {
           <AdRuntime />
           <RewardBurst />
           <ContestRewardModal />
+          <WithdrawalApprovedModal />
           <ChallengeAdOffer />
           {pushInbox && authMode === "authenticated" ? <NotificationInbox onClose={() => setPushInbox(false)} /> : null}
           <WebAnalytics />

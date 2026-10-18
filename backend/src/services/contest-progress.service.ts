@@ -19,16 +19,11 @@ export function invalidateContestProgress(dayKey: string) {
 }
 
 async function buildSnapshot(dayKey: string) {
-  const [set, standings, users] = await Promise.all([
+  const [set, standings] = await Promise.all([
     DailyChallengeSet.findOne({ dayKey, status: "published" }).lean(),
     collectContestStandings(dayKey),
-    User.find({}).select("_id").lean(),
   ]);
-  const played = new Map(standings.map(row => [row.userId, row]));
-  const all = users.map(user => played.get(user._id.toString()) ?? {
-    userId: user._id.toString(), totalCoins: 0, completedGamesCount: 0, finishedAt: null,
-  });
-  const ranked = rankContestStandings(all, computeContestBands(all.length));
+  const ranked = rankContestStandings(standings, computeContestBands(standings.length));
   return { id: randomUUID(), createdAt: Date.now(), dayKey, set, standings, ranked };
 }
 
@@ -61,7 +56,6 @@ export async function getContestProgress(userId: Types.ObjectId, cursor?: Progre
   const rows = snapshot.ranked.slice(offset, end);
   const users = await User.find({ _id: { $in: rows.map(row => new Types.ObjectId(row.userId)) } }).select("name avatarUrl").lean();
   const byId = new Map(users.map(user => [user._id.toString(), user]));
-  // Idle accounts appear in the display, but do not change cash settlement rules.
   const reward = snapshot.set ? contestNeighborhood(snapshot.standings, userId.toString(), snapshot.set.cashPrizeMinUnits, snapshot.set.cashPrizeMaxUnits, snapshot.set.prizePoolUnits, snapshot.set.manualCashPrizes, snapshot.set.cashPrizeLimitUnits, snapshot.set.descendingCashPrizes === true) : null;
   return {
     dayKey, participantCount: snapshot.ranked.length,

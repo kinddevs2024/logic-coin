@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
+import { DailyChallengeSet } from "../src/models/DailyChallengeSet.js";
+import { ChallengeAdReward } from "../src/models/ChallengeAdReward.js";
+vi.mock("../src/services/contest-progress.service.js", () => ({ invalidateContestProgress: vi.fn() }));
 const mocks = vi.hoisted(() => ({ claims: [] as { sourceId: string }[], days: [] as { _id: string }[], credit: vi.fn(), balance: vi.fn() }));
 vi.mock("../src/models/CoinRewardLogin.js", () => ({ CoinRewardLogin: {
   findById: () => ({ lean: async () => ({ dayKey: "2026-10-10", slot: 1 }) }),
@@ -10,11 +13,18 @@ vi.mock("../src/models/CoinLedgerEntry.js", () => ({ CoinLedgerEntry: { find: ()
 vi.mock("../src/services/coin.service.js", () => ({ creditCoins: mocks.credit, getCoinBalance: mocks.balance }));
 import { claimCoinReward } from "../src/services/coin-rewards.service.js";
 describe("coin gift claims", () => {
-  beforeEach(() => { mocks.claims = []; mocks.days = []; mocks.credit.mockReset().mockResolvedValue({ idempotentReplay: false }); mocks.balance.mockReset().mockResolvedValue({ balance: 100 }); });
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(mongoose, "startSession").mockResolvedValue({ withTransaction: async (fn: () => Promise<void>) => fn(), endSession: async () => {} } as never);
+    vi.spyOn(DailyChallengeSet, "findOne").mockReturnValue({ session: async () => ({ dayKey: "2026-10-10" }) } as never);
+    vi.spyOn(ChallengeAdReward, "create").mockResolvedValue([] as never);
+    mocks.claims = []; mocks.days = []; mocks.credit.mockReset().mockResolvedValue({ idempotentReplay: false }); mocks.balance.mockReset().mockResolvedValue({ balance: 100 });
+  });
   it("uses server amount and daily source key rather than client supplied values", async () => {
     const user = new Types.ObjectId();
     expect((await claimCoinReward(user, "daily")).credited).toBe(100);
-    expect(mocks.credit).toHaveBeenCalledWith(expect.objectContaining({ userId: user, amount: 100, sourceId: "attendance:daily:2026-10-10", type: "attendance_coin_reward" }));
+    expect(mocks.credit).toHaveBeenCalledWith(expect.objectContaining({ userId: user, amount: 100, sourceId: "attendance:daily:2026-10-10", type: "attendance_coin_reward" }), expect.anything());
+    expect(ChallengeAdReward.create).toHaveBeenCalledWith([expect.objectContaining({ userId: user, dayKey: "2026-10-10", amount: 100 })], expect.anything());
   });
   it("blocks a second claim before any wallet write", async () => {
     mocks.claims = [{ sourceId: "attendance:daily:2026-10-10" }];
@@ -29,5 +39,11 @@ describe("coin gift claims", () => {
   it("reports zero rather than a second reward on an idempotent transaction replay", async () => {
     mocks.credit.mockResolvedValue({ idempotentReplay: true });
     expect((await claimCoinReward(new Types.ObjectId(), "daily")).credited).toBe(0);
+    expect(ChallengeAdReward.create).not.toHaveBeenCalled();
+  });
+  it("keeps the wallet gift when there is no active challenge, without assigning points to another day", async () => {
+    vi.spyOn(DailyChallengeSet, "findOne").mockReturnValue({ session: async () => null } as never);
+    expect((await claimCoinReward(new Types.ObjectId(), "daily")).credited).toBe(100);
+    expect(ChallengeAdReward.create).not.toHaveBeenCalled();
   });
 });
