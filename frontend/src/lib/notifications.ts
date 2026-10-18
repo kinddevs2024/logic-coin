@@ -5,7 +5,7 @@ import { getDeviceId } from "@/lib/device-id";
 import type { Language } from "@/types";
 import { getPushStatus, setPushStatus } from "@/lib/push-status";
 import { isExpoGo } from "@/lib/native-runtime";
-import { beforeReadCutoff, inboxNotificationIds, unseenInboxItems } from "./inbox-notification-tray";
+import { beforeReadCutoff, inboxNotificationCreatedAt, inboxNotificationIds, unseenInboxItems } from "./inbox-notification-tray";
 
 let activeInboxAccount: string | undefined;
 let localReadThrough: string | undefined;
@@ -220,18 +220,18 @@ export async function dismissInboxNotifications(ids?: string[], before?: string)
   if (!ids && before && (!localReadThrough || Date.parse(before) > Date.parse(localReadThrough))) localReadThrough = before;
   const Notifications = await import("expo-notifications");
   const selected = ids ? new Set(ids) : undefined;
-  const matches = (data: Record<string, unknown> | undefined, receivedAt: number) => {
-    const inboxIds = inboxNotificationIds(data);
+  const matches = (data: Record<string, unknown> | undefined, receivedAt: number, identifier?: string) => {
+    const inboxIds = inboxNotificationIds(data, identifier);
     return inboxIds.length > 0 && (!selected || inboxIds.some(id => selected.has(id))) &&
-      beforeReadCutoff(data?.createdAt, receivedAt, before);
+      beforeReadCutoff(inboxNotificationCreatedAt(data, identifier), receivedAt, before);
   };
   const [presented, scheduled] = await Promise.all([
     Notifications.getPresentedNotificationsAsync(), Notifications.getAllScheduledNotificationsAsync(),
   ]);
   await Promise.all([
-    ...presented.filter(notification => matches(notification.request.content.data, notification.date))
+    ...presented.filter(notification => matches(notification.request.content.data, notification.date, notification.request.identifier))
       .map(notification => Notifications.dismissNotificationAsync(notification.request.identifier)),
-    ...scheduled.filter(notification => matches(notification.content.data, Infinity))
+    ...scheduled.filter(notification => matches(notification.content.data, Infinity, notification.identifier))
       .map(notification => Notifications.cancelScheduledNotificationAsync(notification.identifier)),
   ]);
 }
@@ -242,7 +242,7 @@ export async function installNotificationHandlers(onOpen: (ids: string[]) => voi
   Notifications.setNotificationHandler({ handleNotification: async notification => ({ shouldShowBanner: !notification.request.content.data?.silent, shouldShowList: true, shouldPlaySound: !notification.request.content.data?.silent, shouldSetBadge: false }) });
   const respond = async (response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>) => {
     if (response) {
-      await onOpen(inboxNotificationIds(response.notification.request.content.data));
+      await onOpen(inboxNotificationIds(response.notification.request.content.data, response.notification.request.identifier));
       await Notifications.clearLastNotificationResponseAsync();
     }
   };
@@ -282,7 +282,7 @@ export async function startInboxNotificationSync(accessToken: string, accountId:
       if (stopped) return;
       const presented = await Notifications.getPresentedNotificationsAsync();
       const unreadIds = new Set(unread.map(item => item.id));
-      const alreadyPresented = new Set(presented.flatMap(item => inboxNotificationIds(item.request.content.data)));
+      const alreadyPresented = new Set(presented.flatMap(item => inboxNotificationIds(item.request.content.data, item.request.identifier)));
       if (!cursor) {
         const readIds = [...alreadyPresented].filter(id => !unreadIds.has(id));
         if (readIds.length) await dismissInboxNotifications(readIds);

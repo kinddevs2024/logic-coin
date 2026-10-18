@@ -8,12 +8,16 @@ export function fcmConfigured() {
 const auth = new GoogleAuth({ ...(env.FCM_SERVICE_ACCOUNT_FILE ? { keyFile: env.FCM_SERVICE_ACCOUNT_FILE } : {}), scopes: ["https://www.googleapis.com/auth/firebase.messaging"] });
 
 export function fcmMessage(token: string, notification: { title: string; body: string; tag: string; data: Record<string, unknown> }) {
+  const id = notification.data.inboxId;
+  const createdAt = notification.data.createdAt;
+  const tag = typeof id === "string" && /^(event|gift|result):[a-f\d]{24}$/i.test(id) && typeof createdAt === "string" && Number.isFinite(Date.parse(createdAt))
+    ? `logic-inbox:${id}@${createdAt}` : notification.tag;
   return { message: { token, notification: { title: notification.title, body: notification.body },
     // Expo Android maps FCM data.body JSON to notification.content.data.
     // Keep top-level routing strings too for native launch-intent handling.
     data: { ...Object.fromEntries(Object.entries(notification.data).filter(([, value]) => value != null).map(([key, value]) => [key, String(value)])),
-      body: JSON.stringify(notification.data), tag: notification.tag },
-    android: { priority: "HIGH", notification: { channel_id: "messages", tag: notification.tag, sound: "default" } } } };
+      body: JSON.stringify(notification.data), tag },
+    android: { priority: "HIGH", notification: { channel_id: "messages", tag, sound: "default" } } } };
 }
 
 export async function sendFcmPush(token: string, notification: Parameters<typeof fcmMessage>[1], fetchImplementation: typeof fetch = fetch) {

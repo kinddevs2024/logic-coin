@@ -163,3 +163,12 @@ it("does not claim remote delivery when native Firebase setup is missing", async
   await syncPushNotifications(input);
   expect(mocks.status).toBe("local_only");
 });
+
+it("dismisses background FCM tray entries only through the read-all cutoff", async () => {
+  const id = "1234567890abcdef12345678";
+  const native = (createdAt: string) => ({ date: Date.parse("2026-10-18T10:00:00Z"), request: { identifier: `expo-notifications://foreign_notifications?tag=${encodeURIComponent(`logic-inbox:event:${id}@${createdAt}`)}&id=17`, content: { data: {} } } });
+  const before = native("2026-10-18T07:00:00Z"), after = native("2026-10-18T09:00:00Z");
+  mocks.presented.mockResolvedValue([before, after, { ...before, request: { ...before.request, identifier: "foreign-other-application" } }]);
+  await dismissInboxNotifications(undefined, "2026-10-18T08:00:00Z");
+  expect(mocks.dismiss).toHaveBeenCalledExactlyOnceWith(before.request.identifier);
+});

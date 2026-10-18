@@ -28,3 +28,10 @@ it("uses authenticated HTTP v1 and recognizes invalid device tokens", async () =
   await expect(sendFcmPush("device", { title: "x", body: "y", tag: "z", data: {} }, fetchMock as unknown as typeof fetch)).rejects.toThrow("fcm:delivery_error");
   mocks.configured = false;
 });
+
+it("embeds a validated inbox identity and creation timestamp into the Android tag", () => {
+  const id = "1234567890abcdef12345678";
+  const message = fcmMessage("device", { title: "x", body: "y", tag: "fallback", data: { inboxId: `gift:${id}`, createdAt: "2026-10-18T07:00:00Z" } }).message;
+  expect(message.android.notification.tag).toBe(`logic-inbox:gift:${id}@2026-10-18T07:00:00Z`);
+  expect(message.data.tag).toBe(message.android.notification.tag);
+});
