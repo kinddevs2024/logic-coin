@@ -157,18 +157,25 @@ export async function syncPushNotifications(input: {
     }
   } else setPushStatus("disabled");
 
-  await devicesApi.updatePreferences(
-    deviceId,
-    {
-      platform: platformForDevice(),
-      pushToken,
-      notificationsEnabled: input.enabled && permitted,
-      dailyReminderEnabled: input.enabled,
-      reminderTime: input.reminderTime,
-      timezone: currentTimeZone(),
-    },
-    input.accessToken,
-  );
+  try {
+    await devicesApi.updatePreferences(
+      deviceId,
+      {
+        platform: platformForDevice(),
+        pushToken,
+        notificationsEnabled: input.enabled && permitted,
+        dailyReminderEnabled: input.enabled,
+        reminderTime: input.reminderTime,
+        timezone: currentTimeZone(),
+      },
+      input.accessToken,
+    );
+  } catch (error) {
+    // A registration/network failure is not a revocation of OS permission.
+    // Keep the permission prompt hidden and retry registration on resume.
+    if (permitted) { setPushStatus("local_only"); return true; }
+    throw error;
+  }
 
   if (pushToken) setPushStatus("ready");
   return permitted;

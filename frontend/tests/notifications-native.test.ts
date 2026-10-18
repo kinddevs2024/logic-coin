@@ -110,6 +110,13 @@ describe("native device notification permission and delivery", () => {
     expect(mocks.token).toHaveBeenCalledWith({ projectId: "test-project" });
     expect(mocks.status).toBe("ready");
   });
+  it("does not show an Enable-permission prompt again after a registration network failure", async () => {
+    mocks.projectId = "test-project";
+    mocks.token.mockResolvedValue({ data: "ExpoPushToken[test-only]" });
+    mocks.updatePreferences.mockRejectedValue(new Error("offline"));
+    expect(await syncPushNotifications(input)).toBe(true);
+    expect(mocks.status).toBe("local_only");
+  });
   it("presents all 43 existing unread rows silently and persists delivery deduplication", async () => {
     const items = Array.from({ length: 43 }, (_, index) => ({ id: `event:${index.toString(16).padStart(24, "0")}`, title: "Message", body: "Body", read: false, kind: "event", createdAt: "2026-10-18T08:00:00Z" }));
     mocks.list.mockImplementation(async (_token, _all, cursor) => {
