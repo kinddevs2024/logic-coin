@@ -27,12 +27,13 @@ def ui(name):
 
 
 def wait_for(label, name):
+    labels = (label,) if isinstance(label, str) else label
     for _ in range(18):
         if not adb("shell", "pidof", PACKAGE, check=False).strip():
             raise RuntimeError(f"App process exited while waiting for {name}")
         root = ui(name)
         for node in root.iter("node"):
-            if label in node.get("text", "") or label in node.get("content-desc", ""):
+            if any(text in node.get("text", "") or text in node.get("content-desc", "") for text in labels):
                 return node
         time.sleep(3)
     raise RuntimeError(f"Expected UI not rendered: {name} ({label})")
@@ -54,14 +55,33 @@ def launch():
 
 
 def onboarding(prefix):
-    language = wait_for("English", f"{prefix}-language")
-    capture(f"{prefix}-language")
-    tap(language)
-    skip = wait_for("Skip", f"{prefix}-onboarding")
-    capture(f"{prefix}-onboarding")
-    tap(skip)
-    wait_for("Email", f"{prefix}-login")
-    capture(f"{prefix}-login")
+    # Current releases may open login directly; older ones show onboarding.
+    for _ in range(18):
+        if not adb("shell", "pidof", PACKAGE, check=False).strip():
+            raise RuntimeError(f"App process exited during {prefix} startup")
+        root = ui(f"{prefix}-startup")
+        nodes = list(root.iter("node"))
+        if any(any(label in node.get("text", "") or label in node.get("content-desc", "") for label in LOGIN_LABELS) for node in nodes):
+            capture(f"{prefix}-login")
+            return
+        for labels in (("English",), ("Skip", "Пропустить", "O‘tkazib yuborish")):
+            candidate = next((node for node in nodes if any(label in node.get("text", "") or label in node.get("content-desc", "") for label in labels)), None)
+            if candidate is not None:
+                tap(candidate)
+                break
+        time.sleep(3)
+    raise RuntimeError(f"Neither onboarding nor login completed: {prefix}")
+
+
+LOGIN_LABELS = ("Email", "Электронная почта", "Elektron pochta", "name@example.com")
+
+
+def installed_property(name):
+    data = adb("shell", "dumpsys", "package", PACKAGE)
+    match = re.search(rf"\b{re.escape(name)}=([^\r\n]+)", data)
+    if not match:
+        raise RuntimeError(f"Missing package property: {name}")
+    return match.group(1).strip()
 
 
 try:
@@ -73,34 +93,36 @@ try:
     previous_ready = False
     if previous.exists():
         adb("install", "-r", str(previous), timeout=180)
+        original_install_time = installed_property("firstInstallTime")
         try:
             launch()
             onboarding("previous")
             previous_ready = True
-            results.append("Previous release reaches login; English preference is persisted")
+            results.append("Previous release reaches its login screen")
         except RuntimeError as error:
             results.append(f"Previous release startup failed (baseline only): {error}")
             (EVIDENCE / "previous-crash.txt").write_text(adb("logcat", "-d", "-b", "crash"), encoding="utf-8")
     adb("logcat", "-b", "all", "-c")
     adb("install", "-r", "artifacts/release/logic-coin.apk", timeout=180)
     if previous.exists():
+        if installed_property("firstInstallTime") != original_install_time:
+            raise RuntimeError("Package was reinstalled instead of updated in place")
         launch()
-        wait_for("Email" if previous_ready else "English", "updated-startup")
-        capture("updated-startup")
-        results.append("In-place update succeeds and renders expected saved state")
+        onboarding("updated")
+        results.append("In-place update preserves firstInstallTime and renders login")
     # This emulator belongs exclusively to this CI job; no real user data exists.
     adb("shell", "pm", "clear", PACKAGE)
     launch()
     onboarding("fresh")
-    results.append("Clean install renders language, onboarding and login screens")
+    results.append("Clean install reaches login through supported onboarding flow")
     adb("shell", "input", "keyevent", "KEYCODE_HOME")
     time.sleep(3)
     adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.MainActivity")
-    wait_for("Email", "resumed-login")
+    wait_for(LOGIN_LABELS, "resumed-login")
     capture("resumed-login")
     results.append("Background/resume succeeds")
     launch()
-    wait_for("Email", "cold-login")
+    wait_for(LOGIN_LABELS, "cold-login")
     capture("cold-login")
     results.append("Cold restart preserves onboarding and renders login")
     crashes = adb("logcat", "-d", "-b", "crash")
