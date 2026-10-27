@@ -20,7 +20,6 @@ import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { CountryFlagBadge } from "@/components/country-flag";
 import { useModalBlurTarget } from "@/components/glass-blur-target";
-import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { leaderboardApi } from "@/lib/api";
@@ -46,6 +45,10 @@ function EntryValue({ entry }: { entry: LeaderboardEntry }) {
 }
 
 export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  return visible ? <OpenLeaderboardModal visible onClose={onClose} /> : null;
+}
+
+function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useAppTheme();
   const blurTarget = useModalBlurTarget();
   const router = useRouter();
@@ -135,10 +138,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   };
 
   useEffect(() => {
-    if (!visible) { setContentReady(false); return; }
-    setContentReady(false);
     closing.current = false;
-    setMetric("yesterday");
     activeFilter.setValue(1);
     scrollY.current = 0;
     nativeScrollY.setValue(0);
@@ -157,14 +157,16 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
           mass: 0.9,
           useNativeDriver: Platform.OS !== "web",
         });
-    Animated.parallel([
+    const animation = Animated.parallel([
       entrance,
       Animated.timing(backdrop, {
         toValue: 1,
         duration: reduceMotion ? 0 : 210,
         useNativeDriver: Platform.OS !== "web",
       }),
-    ]).start(({ finished }) => { if (finished && !closing.current) setContentReady(true); });
+    ]);
+    animation.start(({ finished }) => { if (finished && !closing.current) setContentReady(true); });
+    return () => animation.stop();
   }, [activeFilter, backdrop, nativeScrollY, reduceMotion, translateY, visible]);
 
   const closeWithAction = (afterClose?: () => void) => {

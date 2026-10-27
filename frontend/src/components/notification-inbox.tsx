@@ -50,12 +50,12 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
   const rows = useRef(new Map<string, View>());
   const ready = useRef(false);
   const sectionRef = useRef(section);
-  sectionRef.current = section;
+  useEffect(() => { sectionRef.current = section; }, [section]);
   useEffect(() => {
     Animated.timing(selection, { toValue: section === "system" ? 0 : 1, duration: reduced ? 0 : 180, useNativeDriver: Platform.OS !== "web" }).start();
   }, [section, selection, reduced]);
   const closingRef = useRef(closing);
-  closingRef.current = closing;
+  useEffect(() => { closingRef.current = closing; }, [closing]);
   const c = copy[language];
   const seen = useRef(new Set<string>());
   const failed = useRef(new Set<string>());
