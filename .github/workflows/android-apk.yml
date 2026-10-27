@@ -169,9 +169,16 @@ jobs:
             artifacts/unsigned/logic-coin-unsigned.aab
             artifacts/unsigned/native-strings.xml
             artifacts/unsigned/native-update-config.json
-            artifacts/android-js-check/**
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload matching OTA export
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-apk-ota-export
+          path: artifacts/android-js-check/
+          if-no-files-found: error
+          retention-days: 14
 
   sign-android:
     name: Sign and verify APK and AAB
