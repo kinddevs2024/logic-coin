@@ -72,8 +72,8 @@ html[data-theme="dark"] ::selection {
 }
 
 .logic-nav-glass[data-theme="dark"] {
-  --nav-tint: rgba(17, 30, 50, 0.88);
-  --nav-edge: rgba(158, 188, 231, 0.22);
+  --nav-tint: rgba(16, 37, 27, 0.88);
+  --nav-edge: rgba(162, 212, 180, 0.22);
   --nav-shade: rgba(0, 0, 0, 0.22);
 }
 
@@ -82,8 +82,8 @@ html[data-theme="dark"] ::selection {
 }
 
 .logic-nav-glass[data-variant="lens"][data-theme="dark"] {
-  --nav-tint: rgba(93, 158, 244, 0.20);
-  --nav-edge: rgba(147, 193, 255, 0.36);
+  --nav-tint: rgba(0, 122, 87, 0.20);
+  --nav-edge: rgba(82, 228, 178, 0.36);
 }
 
 /* The upstream decorative layers use utility classes. Our own rim supplies
@@ -124,15 +124,15 @@ html[data-theme="dark"] ::selection {
 }
 
 .logic-nav-glass[data-theme="dark"] .logic-nav-glass-rim {
-  background: linear-gradient(145deg, rgba(182, 210, 250, 0.06), transparent 45%, rgba(83, 134, 211, 0.025)), var(--nav-tint);
-  box-shadow: inset 0 1px 0 rgba(188, 217, 255, 0.04);
+  background: linear-gradient(145deg, rgba(225, 239, 227, 0.06), transparent 45%, rgba(0, 122, 87, 0.025)), var(--nav-tint);
+  box-shadow: inset 0 1px 0 rgba(225, 239, 227, 0.04);
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .logic-nav-glass { --nav-tint: #eef5fc; }
-  .logic-nav-glass[data-theme="dark"] { --nav-tint: #172232; }
+  .logic-nav-glass[data-theme="dark"] { --nav-tint: #10251b; }
   .logic-nav-glass[data-variant="lens"] { --nav-tint: #d9eaff; }
-  .logic-nav-glass[data-variant="lens"][data-theme="dark"] { --nav-tint: #26435f; }
+  .logic-nav-glass[data-variant="lens"][data-theme="dark"] { --nav-tint: #193e2e; }
   .logic-nav-refraction .glass__warp {
     filter: none !important;
     backdrop-filter: none !important;

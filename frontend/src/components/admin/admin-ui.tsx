@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   retry: { minHeight: 38, borderRadius: 19, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 7, marginTop: 4 },
   chart: { height: 190, flexDirection: "row", alignItems: "flex-end", gap: 7, paddingTop: 14 },
   chartColumn: { flex: 1, height: "100%", alignItems: "center", justifyContent: "flex-end", gap: 7 },
-  barTrack: { flex: 1, width: "100%", maxWidth: 34, justifyContent: "flex-end", borderRadius: 9, backgroundColor: "rgba(115,145,174,0.09)", overflow: "hidden" },
+  barTrack: { flex: 1, width: "100%", maxWidth: 34, justifyContent: "flex-end", borderRadius: 9, backgroundColor: "rgba(82,108,92,0.09)", overflow: "hidden" },
   bar: { width: "100%", minHeight: 3, borderRadius: 9 },
   chartLabel: { fontSize: 9, lineHeight: 11, fontWeight: "700" },
 });

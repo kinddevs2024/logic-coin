@@ -212,7 +212,7 @@ export default function AdminChallengesScreen() {
                   <View style={styles.games}>
                     {(gamesQuery.data ?? []).filter((game) => game.enabled !== false && game.challengeEnabled).map((game) => {
                       const active = draft.selected.includes(game.key);
-                      return <Pressable key={game.key} accessibilityRole="checkbox" accessibilityState={{ checked: active }} onPress={() => toggleGame(game.key)} style={({ pressed }) => [styles.game, { borderColor: active ? game.color : theme.border, backgroundColor: active ? `${game.color}12` : theme.surfaceRaised }, pressed && styles.pressed]}><Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} size={19} color={game.color} /><AppText style={styles.gameTitle} numberOfLines={1}>{game.title}</AppText>{active ? <Ionicons name="checkmark-circle" size={18} color={game.color} /> : null}</Pressable>;
+                      return <Pressable key={game.key} accessibilityRole="checkbox" accessibilityState={{ checked: active }} onPress={() => toggleGame(game.key)} style={({ pressed }) => [styles.game, { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? String(theme.primarySoft) : theme.surfaceRaised }, pressed && styles.pressed]}><Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} size={19} color={theme.primary} /><AppText style={styles.gameTitle} numberOfLines={1}>{game.title}</AppText>{active ? <Ionicons name="checkmark-circle" size={18} color={theme.primary} /> : null}</Pressable>;
                     })}
                   </View>
                 </View>

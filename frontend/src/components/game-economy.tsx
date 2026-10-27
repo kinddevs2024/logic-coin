@@ -26,7 +26,7 @@ export function GameEconomyHud({
   const progress = ready ? saved : gameProgressFor({}, gameId);
   const cosmetic = cosmeticFor(gameId, progress.selectedCosmetic);
   const color = tone === "dark" ? "#272A39" : "#FFFFFF";
-  const surface = tone === "dark" ? "rgba(255,255,255,0.76)" : "rgba(24,24,32,0.66)";
+  const surface = tone === "dark" ? "rgba(255,255,255,0.76)" : "rgba(16,37,27,0.66)";
 
   return (
     <View style={styles.hudGroup}>
@@ -148,7 +148,7 @@ export function GameEconomyModal({
           ) : null}
 
           <View style={[styles.cosmeticNote, dark && { backgroundColor: theme.primarySoft }]}>
-            <MaterialCommunityIcons name="shield-check-outline" size={20} color={dark ? String(theme.primary) : "#705CF6"} />
+            <MaterialCommunityIcons name="shield-check-outline" size={20} color={dark ? String(theme.primary) : "#007A57"} />
             <View style={styles.cosmeticNoteCopy}>
               <AppText style={[styles.cosmeticNoteTitle, textStyle]}>Игровые coin</AppText>
               <AppText style={[styles.cosmeticNoteText, mutedStyle]}>Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.</AppText>
@@ -166,17 +166,17 @@ const styles = StyleSheet.create({
   coinPill: { minHeight: 40, borderRadius: 13, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: "rgba(255,255,255,0.46)" },
   coinValue: { fontSize: 13, lineHeight: 16, fontWeight: "900" },
   hudIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.46)" },
-  backdrop: { flex: 1, backgroundColor: "rgba(11,13,20,0.46)", justifyContent: "flex-end" },
+  backdrop: { flex: 1, backgroundColor: "rgba(16,37,27,0.46)", justifyContent: "flex-end" },
   sheet: { width: "100%", maxWidth: 720, alignSelf: "center", borderTopLeftRadius: 30, borderTopRightRadius: 30, backgroundColor: "#F7F7FA", paddingTop: 14, paddingHorizontal: 16, shadowColor: "#000000", shadowOpacity: 0.24, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
   sheetTop: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   walletTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
   sheetTitle: { color: "#20222E", fontSize: 21, lineHeight: 26, fontWeight: "900" },
-  closeButton: { width: 38, height: 38, borderRadius: 14, backgroundColor: "#E9EAF0", alignItems: "center", justifyContent: "center" },
+  closeButton: { width: 38, height: 38, borderRadius: 14, backgroundColor: "#E1EFE3", alignItems: "center", justifyContent: "center" },
   skinRow: { gap: 10, paddingBottom: 14 },
   skinCard: { width: 116, minHeight: 142, borderRadius: 21, borderWidth: 1, borderColor: "#E0E1E8", backgroundColor: "#FFFFFF", padding: 9, alignItems: "center", gap: 6 },
   skinPreview: { width: 74, height: 66, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   skinName: { color: "#262833", fontSize: 12, lineHeight: 15, fontWeight: "900", maxWidth: "100%" },
-  skinPrice: { minHeight: 21, borderRadius: 999, paddingHorizontal: 8, backgroundColor: "#F0F1F5", flexDirection: "row", alignItems: "center", gap: 4 },
+  skinPrice: { minHeight: 21, borderRadius: 999, paddingHorizontal: 8, backgroundColor: "#E1EFE3", flexDirection: "row", alignItems: "center", gap: 4 },
   skinPriceText: { color: "#555866", fontSize: 9, lineHeight: 12, fontWeight: "900" },
   confirmCard: { marginBottom: 12, borderRadius: 20, borderWidth: 1, borderColor: "#D9DBE5", backgroundColor: "#FFFFFF", padding: 11, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
   confirmPreview: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center" },
@@ -184,14 +184,14 @@ const styles = StyleSheet.create({
   confirmTitle: { color: "#20222E", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   confirmMeta: { color: "#737685", fontSize: 10, lineHeight: 14, fontWeight: "700" },
   confirmActions: { width: "100%", flexDirection: "row", justifyContent: "flex-end", gap: 8 },
-  cancelButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#ECEEF4" },
+  cancelButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#E1EFE3" },
   cancelText: { color: "#454855", fontSize: 12, lineHeight: 16, fontWeight: "900" },
   buyButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   buyText: { color: "#FFFFFF", fontSize: 12, lineHeight: 16, fontWeight: "900" },
-  cosmeticNote: { minHeight: 64, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: "#EEEAFE", flexDirection: "row", alignItems: "center", gap: 10 },
+  cosmeticNote: { minHeight: 64, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: "#D8F2E3", flexDirection: "row", alignItems: "center", gap: 10 },
   cosmeticNoteCopy: { flex: 1, gap: 2 },
-  cosmeticNoteTitle: { color: "#3B2E73", fontSize: 12, lineHeight: 15, fontWeight: "900" },
-  cosmeticNoteText: { color: "#6F6888", fontSize: 10, lineHeight: 14, fontWeight: "700" },
+  cosmeticNoteTitle: { color: "#153B2B", fontSize: 12, lineHeight: 15, fontWeight: "900" },
+  cosmeticNoteText: { color: "#526C5C", fontSize: 10, lineHeight: 14, fontWeight: "700" },
   notice: { color: "#236A42", fontSize: 11, lineHeight: 14, fontWeight: "900", textAlign: "center", marginTop: 4 },
   disabled: { opacity: 0.38 },
   pressed: { transform: [{ scale: 0.97 }] },

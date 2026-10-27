@@ -298,7 +298,7 @@ export function PreservedBonusesScreen() {
                 {monthly.requiredActiveDays ?? 0} {t("bonus.days")}
               </AppText>
             </View>
-            <AppText variant="label" color="#7A5AF8">
+            <AppText variant="label" color="#007A57">
               +{formatMoney(monthly.rewardUnits)}
             </AppText>
           </View>
@@ -307,7 +307,7 @@ export function PreservedBonusesScreen() {
               (monthly.activeDays ?? 0) /
               Math.max(1, monthly.requiredActiveDays ?? 1)
             }
-            color="#7A5AF8"
+            color="#007A57"
           />
           <AppButton
             compact

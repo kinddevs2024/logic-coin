@@ -17,11 +17,12 @@ import { useReferrals } from "@/hooks/use-referrals";
 import { useAppStore } from "@/store/app-store";
 import { formatMoney } from "@/lib/format";
 import { shareLink } from "@/lib/share-link";
+import { MIGRATED_APP_ORIGIN } from "@/lib/server-migration";
 
 export default function InviteScreen() {
   const router = useRouter();
   const theme = useAppTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const user = useAppStore((state) => state.user);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
@@ -31,7 +32,7 @@ export default function InviteScreen() {
   const friends = referral?.friends ?? [];
   const code = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";
   const inviteUrl = authenticated
-    ? (code !== "—" ? `https://www.logic-coin.online/invite/${encodeURIComponent(code)}?preview=2` : "")
+    ? (code !== "—" ? `${MIGRATED_APP_ORIGIN}/invite/${encodeURIComponent(code)}?preview=2` : "")
     : "";
 
   const share = () => {
@@ -109,13 +110,15 @@ export default function InviteScreen() {
 
       {friends.length ? (
         <GlassSurface intensity={58} variant="soft" style={styles.friendList}>
-          {friends.slice(0, 6).map((friend) => (
+          {friends.map((friend) => (
             <View key={friend.id} style={styles.friendRow}>
               <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={40} />
               <AppText variant="label" style={{ flex: 1 }}>{friend.name}</AppText>
               {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.success)} /> : null}
             </View>
           ))}
+          {referralQuery.hasNextPage ? <AppButton disabled={referralQuery.isFetchingNextPage} onPress={() => void referralQuery.fetchNextPage()}>{language === "ru" ? "Загрузить ещё" : language === "uz" ? "Yana yuklash" : "Load more"}</AppButton> : null}
+          {referralQuery.isFetchNextPageError ? <AppButton onPress={() => void referralQuery.fetchNextPage()}>{language === "ru" ? "Повторить" : language === "uz" ? "Qayta urinish" : "Retry"}</AppButton> : null}
         </GlassSurface>
       ) : null}
 

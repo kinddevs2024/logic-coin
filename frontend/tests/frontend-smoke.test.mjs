@@ -17,6 +17,17 @@ test("Android game results do not leave a stacked native modal after navigation"
 async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
+test("Android release explicitly declares advertising ID permission", async () => {
+  const app = await json("app.json");
+  assert.ok(app.expo.android.permissions.includes("com.google.android.gms.permission.AD_ID"));
+  assert.ok(!app.expo.android.blockedPermissions?.includes("com.google.android.gms.permission.AD_ID"));
+  assert.ok(app.expo.android.versionCode >= 8);
+});
+test("bottle feedback stays on one line without resizing the scene", async () => {
+  const source = await readFile(new URL("src/games/bottle-flip/screen.tsx", root), "utf8");
+  assert.match(source, /<AppText numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.7\} ellipsizeMode="tail" style=\{\[styles\.hint/);
+  assert.match(source, /hint: \{[^\n]*lineHeight: 24[^\n]*height: 24, flexShrink: 0/);
+});
 test("home gift uses matching generated closed and open transparent assets", async () => {
   const source = await readFile(new URL("src/components/floating-home-gift.tsx", root), "utf8");
   assert.match(source, /source=\{remaining > 0 \? GIFT_CLOSED : GIFT_OPEN\}/);

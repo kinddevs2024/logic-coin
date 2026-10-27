@@ -9,7 +9,6 @@ import { GlassSurface } from "@/components/glass-surface";
 import { gameCoverFor } from "@/constants/game-covers";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { accentForeground } from "@/lib/theme-colors";
 import { androidImageProps } from "@/lib/android-image";
 import type { ChallengeGameState, GameCatalogItem } from "@/types";
 
@@ -35,7 +34,7 @@ export function ChallengeCard({
   const theme = useAppTheme();
   const completed = state?.status === "completed";
   const cover = gameCoverFor(game.key);
-  const actionForeground = accentForeground(game.color, theme.mode);
+  const actionForeground = String(theme.onPrimary);
 
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(420)}>
@@ -58,8 +57,8 @@ export function ChallengeCard({
             { borderColor: completed ? `${String(theme.success)}55` : theme.border },
           ]}
         >
-          <View style={[styles.icon, compact && styles.iconCompact, { backgroundColor: `${game.color}18`, borderColor: `${game.color}32` }]}>
-            {cover ? <Image {...androidImageProps} source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={iconName(game.icon)} size={compact ? 21 : 25} color={game.color} />}
+          <View style={[styles.icon, compact && styles.iconCompact, { backgroundColor: theme.primarySoft, borderColor: theme.border }]}>
+            {cover ? <Image {...androidImageProps} source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={iconName(game.icon)} size={compact ? 21 : 25} color={theme.primary} />}
           </View>
           <View style={styles.copy}>
             <View style={styles.titleRow}>
@@ -72,7 +71,7 @@ export function ChallengeCard({
               <AppText style={[styles.rewardText, { color: String(theme.text) }]}>+{state?.coinsAwarded ?? 0}</AppText>
             </View>
           ) : null}
-          <View style={[styles.action, { backgroundColor: completed ? `${String(theme.success)}18` : game.color }]}>
+          <View style={[styles.action, { backgroundColor: completed ? theme.primarySoft : theme.primary }]}>
             {loading ? (
               <ActivityIndicator color={completed ? String(theme.success) : actionForeground} size="small" />
             ) : (

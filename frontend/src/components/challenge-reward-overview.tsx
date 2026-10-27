@@ -21,7 +21,7 @@ export function ChallengeRewardOverview({ token }: { token: string }) {
       await Promise.all([client.invalidateQueries({ queryKey: ["coin-rewards"] }), client.invalidateQueries({ queryKey: ["bootstrap"] }), client.invalidateQueries({ queryKey: ["challenges"] })]);
     },
   });
-  if (offer.isPending) return <ActivityIndicator color="#D8D1FF" />;
+  if (offer.isPending) return <ActivityIndicator color="#9FE6C5" />;
   if (offer.isError) return <Pressable accessibilityRole="button" onPress={() => void offer.refetch()}><Text style={styles.body}>{c.failed} · {c.retry}</Text></Pressable>;
   return <View style={styles.list}>
     <View style={styles.grid}>{offer.data.daily.map(day => <Pressable key={day.day} accessibilityRole="button" accessibilityLabel={`${c.day} ${day.day}, ${day.coins} coin, ${c[day.status === "available" ? "claim" : day.status]}`} disabled={day.status !== "available" || claim.isPending} onPress={() => claim.mutate("daily")} style={[styles.tile, day.status === "available" && styles.available, day.status === "claimed" && styles.claimed]}>
@@ -38,9 +38,9 @@ export function ChallengeRewardOverview({ token }: { token: string }) {
   </View>;
 }
 const styles = StyleSheet.create({
-  list: { gap: 12 }, title: { color: "#FFF", fontSize: 18, fontWeight: "800" }, body: { color: "#D2D3E0", fontSize: 12, lineHeight: 18 },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 8 }, tile: { width: "31.5%", aspectRatio: 1, padding: 6, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: "rgba(124,92,255,0.14)", borderWidth: 1, borderColor: "rgba(168,154,255,0.24)" },
-  available: { backgroundColor: "rgba(124,92,255,0.35)", borderColor: "#D8D1FF" }, claimed: { backgroundColor: "rgba(60,180,140,0.12)", borderColor: "#63E0B6" },
-  day: { color: "#FFF", fontWeight: "700", fontSize: 11, lineHeight: 14, height: 28, textAlign: "center", textAlignVertical: "center" }, amount: { color: "#FFE08A", fontWeight: "900", fontSize: 18 }, status: { color: "#D2D3E0", fontSize: 10, textAlign: "center" },
-  periods: { flexDirection: "row", gap: 10 }, period: { flex: 1, padding: 14, borderRadius: 20, alignItems: "center", gap: 10, backgroundColor: "rgba(124,92,255,0.14)", borderWidth: 1, borderColor: "rgba(168,154,255,0.24)" }, action: { color: "#D8D1FF", fontWeight: "700", fontSize: 12 }, error: { color: "#FF9AA8", fontSize: 12 },
+  list: { gap: 12 }, title: { color: "#FFF", fontSize: 18, fontWeight: "800" }, body: { color: "#B8CCBC", fontSize: 12, lineHeight: 18 },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 8 }, tile: { width: "31.5%", aspectRatio: 1, padding: 6, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: "rgba(0,122,87,0.14)", borderWidth: 1, borderColor: "rgba(0,122,87,0.24)" },
+  available: { backgroundColor: "rgba(0,122,87,0.35)", borderColor: "#9FE6C5" }, claimed: { backgroundColor: "rgba(60,180,140,0.12)", borderColor: "#63E0B6" },
+  day: { color: "#FFF", fontWeight: "700", fontSize: 11, lineHeight: 14, height: 28, textAlign: "center", textAlignVertical: "center" }, amount: { color: "#FFE08A", fontWeight: "900", fontSize: 18 }, status: { color: "#B8CCBC", fontSize: 10, textAlign: "center" },
+  periods: { flexDirection: "row", gap: 10 }, period: { flex: 1, padding: 14, borderRadius: 20, alignItems: "center", gap: 10, backgroundColor: "rgba(0,122,87,0.14)", borderWidth: 1, borderColor: "rgba(0,122,87,0.24)" }, action: { color: "#9FE6C5", fontWeight: "700", fontSize: 12 }, error: { color: "#FF9AA8", fontSize: 12 },
 });

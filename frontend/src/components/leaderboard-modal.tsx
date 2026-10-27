@@ -3,14 +3,14 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
+  FlatList,
   StyleSheet,
   View,
 } from "react-native";
@@ -31,41 +31,18 @@ import { useAppStore } from "@/store/app-store";
 import type { LeaderboardEntry, LeaderboardMetric } from "@/types";
 
 const copy = {
-  ru: { wealth: "Все", wallet: "Деньги", coins: "Coin", me: "Мой аккаунт", close: "Закрыть", login: "Войти", loginHint: "Войдите, чтобы увидеть рейтинг", empty: "В рейтинге пока никого нет", error: "Не удалось загрузить рейтинг", retry: "Повторить", more: "Загружаем ещё…" },
-  en: { wealth: "All", wallet: "Money", coins: "Coin", me: "My account", close: "Close", login: "Sign in", loginHint: "Sign in to view the ranking", empty: "The ranking is empty", error: "Could not load the ranking", retry: "Try again", more: "Loading more…" },
-  uz: { wealth: "Barchasi", wallet: "Pul", coins: "Coin", me: "Mening akkauntim", close: "Yopish", login: "Kirish", loginHint: "Reytingni ko‘rish uchun kiring", empty: "Reyting hozircha bo‘sh", error: "Reyting yuklanmadi", retry: "Qayta urinish", more: "Yana yuklanmoqda…" },
+  ru: { today: "Сегодня", yesterday: "Вчера", allTime: "Всё время", me: "Мой аккаунт", close: "Закрыть", login: "Войти", loginHint: "Войдите, чтобы увидеть рейтинг", empty: "В рейтинге пока никого нет", error: "Не удалось загрузить рейтинг", retry: "Повторить", more: "Загружаем ещё…" },
+  en: { today: "Today", yesterday: "Yesterday", allTime: "All time", me: "My account", close: "Close", login: "Sign in", loginHint: "Sign in to view the ranking", empty: "The ranking is empty", error: "Could not load the ranking", retry: "Try again", more: "Loading more…" },
+  uz: { today: "Bugun", yesterday: "Kecha", allTime: "Jami", me: "Mening akkauntim", close: "Yopish", login: "Kirish", loginHint: "Reytingni ko‘rish uchun kiring", empty: "Reyting hozircha bo‘sh", error: "Reyting yuklanmadi", retry: "Qayta urinish", more: "Yana yuklanmoqda…" },
 } as const;
 
-const metrics: LeaderboardMetric[] = ["wealth", "wallet", "coins"];
+const metrics: LeaderboardMetric[] = ["today", "yesterday", "allTime"];
 
-function EntryValue({ entry, metric }: { entry: LeaderboardEntry; metric: LeaderboardMetric }) {
-  if (metric === "wealth") {
-    return (
-      <View style={styles.combinedValue}>
-        <View style={styles.valueLine}>
-          <Ionicons name="wallet-outline" size={13} color="#1183F7" />
-          <AppText style={styles.valueText}>{formatMoney(entry.walletBalanceUnits)}</AppText>
-        </View>
-        <View style={styles.valueLine}>
-          <Ionicons name="diamond" size={13} color="#F5B800" />
-          <AppText style={styles.valueText}>{entry.coinBalance}</AppText>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.valueLine}>
-      <Ionicons
-        name={metric === "coins" ? "diamond" : "wallet-outline"}
-        size={14}
-        color={metric === "coins" ? "#F5B800" : "#1183F7"}
-      />
-      <AppText style={styles.valueText}>
-        {metric === "coins" ? entry.coinBalance : formatMoney(entry.walletBalanceUnits)}
-      </AppText>
-    </View>
-  );
+function EntryValue({ entry }: { entry: LeaderboardEntry }) {
+  return <View style={styles.combinedValue}>
+    <View style={styles.valueLine}><Ionicons name="wallet-outline" size={13} color="#007A57" /><AppText style={styles.valueText}>{formatMoney(entry.walletBalanceUnits)}</AppText></View>
+    <View style={styles.valueLine}><Ionicons name="diamond" size={13} color="#F5B800" /><AppText style={styles.valueText}>{entry.coinBalance}</AppText></View>
+  </View>;
 }
 
 export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -78,14 +55,16 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
-  const [metric, setMetric] = useState<LeaderboardMetric>("wealth");
+  const [metric, setMetric] = useState<LeaderboardMetric>("yesterday");
+  const [contentReady, setContentReady] = useState(false);
   const [filtersWidth, setFiltersWidth] = useState(0);
   const [contentDirection, setContentDirection] = useState(1);
   const [translateY] = useState(() => new Animated.Value(900));
   const [backdrop] = useState(() => new Animated.Value(0));
-  const [activeFilter] = useState(() => new Animated.Value(0));
+  const [activeFilter] = useState(() => new Animated.Value(1));
   const [contentProgress] = useState(() => new Animated.Value(1));
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlatList<LeaderboardEntry>>(null);
+  const selfRowRef = useRef<View>(null);
   const meOffset = useRef<{ y: number; height: number } | null>(null);
   const scrollY = useRef(0);
   const [nativeScrollY] = useState(() => new Animated.Value(0));
@@ -100,7 +79,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   const [selfDock, setSelfDock] = useState<SelfDock>("bottom");
   const pageSize = 15;
   const query = useInfiniteQuery({
-    queryKey: ["leaderboard", accessToken, pageSize],
+    queryKey: ["leaderboard", accessToken, pageSize, "periods"],
     queryFn: ({ pageParam, signal }) => leaderboardApi.getPage(pageParam, pageSize, accessToken!, signal),
     enabled: visible && authenticated,
     initialPageParam: 0,
@@ -113,7 +92,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   });
   const pages = query.data?.pages ?? [];
   const selectedBoard = pages[0]?.leaderboards[metric];
-  const entries = pages.flatMap((page) => page.leaderboards[metric].entries);
+  const entries = useMemo(() => query.data?.pages.flatMap(page => page.leaderboards[metric].entries) ?? [], [query.data, metric]);
   const self = selectedBoard?.me ?? null;
 
   const requestNextPage = useCallback((
@@ -156,8 +135,11 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   };
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) { setContentReady(false); return; }
+    setContentReady(false);
     closing.current = false;
+    setMetric("yesterday");
+    activeFilter.setValue(1);
     scrollY.current = 0;
     nativeScrollY.setValue(0);
     translateY.setValue(900);
@@ -182,8 +164,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
         duration: reduceMotion ? 0 : 210,
         useNativeDriver: Platform.OS !== "web",
       }),
-    ]).start();
-  }, [backdrop, nativeScrollY, reduceMotion, translateY, visible]);
+    ]).start(({ finished }) => { if (finished && !closing.current) setContentReady(true); });
+  }, [activeFilter, backdrop, nativeScrollY, reduceMotion, translateY, visible]);
 
   const closeWithAction = (afterClose?: () => void) => {
     if (closing.current) return;
@@ -201,6 +183,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
       }),
     ]).start(({ finished }) => {
       if (finished) {
+        setContentReady(false);
         onClose();
         afterClose?.();
       } else {
@@ -223,7 +206,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
     nativeScrollY.setValue(0);
     setSelfDock("bottom");
     scrollY.current = 0;
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    scrollRef.current?.scrollToOffset({ offset: 0, animated: false });
 
     Animated.spring(activeFilter, {
       toValue: nextIndex,
@@ -254,8 +237,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   });
 
   const edgeOpacity = nativeScrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: "clamp" });
-  const edgeSolid = theme.mode === "dark" ? "#19273E" : "#FFFFFF";
-  const edgeClear = theme.mode === "dark" ? "rgba(25,39,62,0)" : "rgba(255,255,255,0)";
+  const edgeSolid = theme.mode === "dark" ? "#182A21" : "#FFFFFF";
+  const edgeClear = theme.mode === "dark" ? "rgba(16,37,27,0)" : "rgba(255,255,255,0)";
   if (!visible) return null;
 
   return (
@@ -264,7 +247,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(4,16,38,0.32)", opacity: backdrop },
+            { backgroundColor: "rgba(16,37,27,0.32)", opacity: backdrop },
           ]}
         >
           <BlurView
@@ -323,11 +306,11 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                   style={styles.filter}
                 >
                   <Ionicons
-                    name={key === "wealth" ? "layers-outline" : key === "wallet" ? "wallet-outline" : "diamond-outline"}
+                    name={key === "today" ? "today-outline" : key === "yesterday" ? "calendar-outline" : "infinite-outline"}
                     size={16}
                     color={String(metric === key ? theme.primary : theme.textMuted)}
                   />
-                  <AppText style={[styles.filterText, { color: metric === key ? theme.text : theme.textMuted }]}>{c[key]}</AppText>
+                  <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.filterText, { color: metric === key ? theme.text : theme.textMuted }]}>{c[key]}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -354,7 +337,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                     <AppText color="#FFFFFF" variant="label">{c.login}</AppText>
                   </Pressable>
                 </View>
-              ) : query.isLoading ? (
+              ) : query.isLoading || !contentReady ? (
                 <View style={styles.state}><ActivityIndicator color={String(theme.primary)} /></View>
               ) : query.isError && !entries.length ? (
                 <View style={styles.state}>
@@ -365,7 +348,13 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                   </Pressable>
                 </View>
               ) : entries.length ? (
-                <Animated.ScrollView
+                <Animated.FlatList<LeaderboardEntry>
+                  data={entries}
+                  keyExtractor={entry => `${metric}-${entry.userId}`}
+                  initialNumToRender={6}
+                  maxToRenderPerBatch={3}
+                  updateCellsBatchingPeriod={32}
+                  windowSize={5}
                   ref={scrollRef}
                   testID="leaderboard-scroll"
                   onContentSizeChange={(_width, height) => { contentHeight.current = height; }}
@@ -392,14 +381,21 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                     if (movingDown) requestNextPage(contentOffset.y, layoutMeasurement.height, contentSize.height);
                     },
                   })}
-                >
-                  {entries.map((entry) => (
+                  renderItem={({ item: entry }) => (
                     <View
                       key={`${metric}-${entry.rank}-${entry.userId}`}
-                      onLayout={entry.isCurrentUser ? (event) => {
-                        meOffset.current = event.nativeEvent.layout;
-                        setNativeSelfLayout({ y: event.nativeEvent.layout.y, height: event.nativeEvent.layout.height });
-                        updateSelfVisibility(scrollY.current, viewportHeight.current);
+                      ref={entry.isCurrentUser ? selfRowRef : undefined}
+                      onLayout={entry.isCurrentUser ? () => {
+                        // FlatList cells have their own local coordinate system.
+                        // Resolve the self row relative to the scroll viewport instead.
+                        paginationRegion.current?.measureInWindow((_x, top) => {
+                          selfRowRef.current?.measureInWindow((_rx, y, _w, height) => {
+                            const layout = { y: y - top + scrollY.current, height };
+                            meOffset.current = layout;
+                            setNativeSelfLayout(layout);
+                            updateSelfVisibility(scrollY.current, viewportHeight.current);
+                          });
+                        });
                       } : undefined}
                       style={[
                         styles.row,
@@ -416,9 +412,10 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                         <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{entry.isCurrentUser ? `${language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: ` : ""}{entry.name}</AppText>
                         {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={15} /> : null}
                       </View>
-                      <EntryValue entry={entry} metric={metric} />
+                      <EntryValue entry={entry} />
                     </View>
-                  ))}
+                  )}
+                  ListFooterComponent={<>
                   {query.isFetchNextPageError ? (
                     <Pressable accessibilityRole="button" onPress={() => requestNextPage()} style={styles.moreLoading}>
                       <AppText muted>{c.error} · {c.retry}</AppText>
@@ -427,7 +424,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                   {query.isFetchingNextPage ? (
                     <View style={styles.moreLoading}><ActivityIndicator size="small" color={String(theme.primary)} /><AppText muted style={styles.moreText}>{c.more}</AppText></View>
                   ) : null}
-                </Animated.ScrollView>
+                  </>}
+                />
               ) : (
                 <View style={styles.state}>
                   <Ionicons name="podium-outline" size={36} color={String(theme.textMuted)} />
@@ -449,7 +447,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                     <AppText style={[styles.rank, { color: theme.textMuted }]}>{self.rank}</AppText>
                     <Avatar name={self.name} avatarUrl={self.avatarUrl} size={38} />
                     <View style={styles.nameBlock}><AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
-                    <EntryValue entry={self} metric={metric} />
+                    <EntryValue entry={self} />
                   </View>
                 </Animated.View>
               ) : null}
@@ -492,7 +490,7 @@ const styles = StyleSheet.create({
     bottom: 4,
     borderRadius: 17,
     borderWidth: 1,
-    shadowColor: "#157DFB",
+    shadowColor: "#007A57",
     shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },

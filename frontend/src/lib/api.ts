@@ -28,6 +28,7 @@ import type { GameId, GamesProgress } from "@/games/progress-store";
 import { useAppStore } from "@/store/app-store";
 import { Platform } from "react-native";
 import { getDeviceId } from "@/lib/device-id";
+import { MIGRATED_APP_ORIGIN, migratedResponseUrls } from "./server-migration";
 
 const defaultApiUrl =
   Platform.OS === "web"
@@ -35,7 +36,7 @@ const defaultApiUrl =
       ? "http://localhost:4000/api/v1"
       : "/api/v1"
     : process.env.NODE_ENV === "production"
-      ? "https://logic-coin.online/api/v1"
+      ? `${MIGRATED_APP_ORIGIN}/api/v1`
       : Platform.OS === "android"
         ? "http://10.0.2.2:4000/api/v1"
         : "http://localhost:4000/api/v1";
@@ -117,7 +118,7 @@ async function request<T>(
     );
   }
 
-  return ("data" in payload ? payload.data : payload) as T;
+  return migratedResponseUrls(("data" in payload ? payload.data : payload) as T);
 }
 
 export type AuthTokens = {
@@ -165,7 +166,7 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
           body.error?.code,
         );
       }
-      const result = ("data" in payload ? payload.data : payload) as AuthResult;
+      const result = migratedResponseUrls(("data" in payload ? payload.data : payload) as AuthResult);
       useAppStore.getState().authenticate({
         user: result.user,
         accessToken: result.tokens.accessToken,
@@ -364,7 +365,7 @@ export const tasksApi = {
 
 export const bootstrapApi = {
   get(token: string) {
-    return request<BootstrapPayload>("/bootstrap", { token });
+    return request<BootstrapPayload>("/bootstrap?scope=core", { token });
   },
 };
 
@@ -421,8 +422,8 @@ export const challengesApi = {
       dayKey: string; participantCount: number; projectedCashUnits: number;
       previous: { snapshot: string; offset: number; end?: number } | null;
       next: { snapshot: string; offset: number; end?: number } | null;
-      self: { rank: number; totalCoins: number; completedGamesCount: number } | null;
-      neighbors: { userId: string; rank: number; totalCoins: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
+      self: { rank: number; totalCoins: number; completedGamesCount: number; cashUnits: number } | null;
+      neighbors: { userId: string; rank: number; totalCoins: number; cashUnits: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
     }>(`/challenges/progress${cursor ? `?snapshot=${encodeURIComponent(cursor.snapshot)}&offset=${cursor.offset}${cursor.end !== undefined ? `&end=${cursor.end}` : ""}` : ""}`, { token });
   },
 
@@ -485,8 +486,11 @@ export type RewardedAdSessionDto = {
 };
 
 export const adsApi = {
+  declineChallengeOffer(token: string, rewardDayKey: string, claimedCount: number) {
+    return request("/ads/rewarded/offer/decline", { token, method: "POST", body: JSON.stringify({ rewardDayKey, claimedCount }) });
+  },
   challengeOffer(token: string) {
-    return request<{ eligible: boolean; available: boolean; challengeSetId: string | null; dayKey: string | null; rewardDayKey?: string; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
+    return request<{ eligible: boolean; available: boolean; claimedCount: number; resetsAt: string; challengeSetId: string | null; dayKey: string | null; rewardDayKey?: string; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
   },
   async startRewarded(placement: string, token: string, gameAttemptId?: string) {
     const payload = await request<{ session: RewardedAdSessionDto }>(
@@ -592,14 +596,14 @@ export const leaderboardApi = {
         } | null;
       }>;
     }>(
-      `/leaderboard?metric=all&limit=${limit}&offset=${offset}`,
+      `/leaderboard?metric=periods&limit=${limit}&offset=${offset}`,
       { token, signal },
     );
     const leaderboards = Object.fromEntries(
       (Object.keys(payload.leaderboards) as LeaderboardMetric[]).map((metric) => {
         const source = payload.leaderboards[metric];
         const valueOf = (entry: { walletBalanceUnits: number; coinBalance: number }) =>
-          metric === "coins" ? entry.coinBalance : entry.walletBalanceUnits;
+          entry.walletBalanceUnits;
         const mapEntry = (entry: (typeof source.entries)[number]) => ({
           rank: entry.rank,
           userId: entry.userId,
@@ -892,10 +896,13 @@ export const adminApi = {
 };
 
 export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
-export type HomeGiftOffer = { kind: "telegram" | "ads"; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
+export type HomeGiftOffer = { kind: "telegram" | "instagram" | "ads"; instagramUrl?: string; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
 export type HomeGiftLink = { flowId: string; pollToken: string; botUrl: string };
 export const homeGiftApi = {
-  offer: (token: string) => request<HomeGiftOffer>("/home-gift", { token }),
+  offer: (token: string) => request<HomeGiftOffer>("/home-gift?includeInstagram=true", { token }),
+  skipTelegram: (token: string) => request<{ skipped: boolean }>("/home-gift/telegram/skip", { token, method: "POST" }),
+  startInstagram: (token: string) => request<{ visitId: string; url: string }>("/home-gift/instagram/start", { token, method: "POST" }),
+  claimInstagram: (token: string, visitId: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/instagram/claim", { token, method: "POST", body: JSON.stringify({ visitId }) }),
   link: (token: string) => request<HomeGiftLink>("/home-gift/telegram/link", { token, method: "POST" }),
   finishLink: (token: string, flow: HomeGiftLink) => request<{ linked: boolean }>("/home-gift/telegram/finish-link", { token, method: "POST", body: JSON.stringify({ flowId: flow.flowId, pollToken: flow.pollToken }) }),
   claimTelegram: (token: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/telegram/claim", { token, method: "POST" }),
@@ -912,6 +919,9 @@ export const inboxApi = {
   },
   read(token: string, ids: string[]) {
     return request<{ marked: number }>("/notifications/read", { method: "POST", token, body: JSON.stringify({ ids }) });
+  },
+  readAll(token: string) {
+    return request<{ readThrough: string }>("/notifications/read-all", { method: "POST", token, body: JSON.stringify({}) });
   },
 };
 
@@ -958,9 +968,9 @@ export const bonusesApi = {
 };
 
 export const referralsApi = {
-  async overview(token: string) {
+  async overview(token: string, offset = 0) {
     const payload = await request<{ referral: ReferralOverview }>(
-      "/referrals",
+      `/referrals?offset=${offset}&limit=6`,
       { token },
     );
     return payload.referral;
@@ -1080,12 +1090,13 @@ export const meApi = {
 
 export const devicesApi = {
   pushConfig(token: string) {
-    return request<{ publicKey: string | null }>("/devices/push-config", { token });
+    return request<{ publicKey: string | null; fcmEnabled?: boolean }>("/devices/push-config", { token });
   },
   updatePreferences(
     deviceId: string,
     input: {
       platform: "android" | "ios" | "web";
+      fcmToken?: string | null;
       pushToken?: string | null;
       webPush?: { endpoint: string; keys: { p256dh: string; auth: string } } | null;
       notificationsEnabled: boolean;

@@ -15,7 +15,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   updates: {
     ...config.updates,
     enabled: true,
-    url: "https://logic-coin.online/updates",
+    url: "https://logic-coin.173.212.216.216.sslip.io/updates",
     checkAutomatically: "ON_LOAD",
     fallbackToCacheTimeout: 0,
     codeSigningCertificate: "./certs/update-certificate.pem",

@@ -19,9 +19,9 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const copy = {
-  ru: { completed: "пройдено", hint: "Здесь показан общий призовой фонд челленджа за этот день, а не ваш заработок. После завершения челленджа фонд распределяется между участниками по результатам или назначениям администратора.", you: "Вы", login: "Войдите, чтобы увидеть рейтинг", retry: "Обновить рейтинг", close: "Закрыть", info: "О призовом фонде" },
-  en: { completed: "completed", hint: "This is the total prize pool for this day’s challenge, not your earnings. After the challenge ends, prizes are allocated by results or the administrator’s assignments.", you: "You", login: "Sign in to see the ranking", retry: "Refresh ranking", close: "Close", info: "About the prize pool" },
-  uz: { completed: "bajarildi", hint: "Bu sizning daromadingiz emas, shu kunning sinovi uchun umumiy mukofot jamg‘armasi. Sinov tugagach mukofotlar natijalar yoki administrator belgilagan summalar bo‘yicha taqsimlanadi.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Mukofot jamg‘armasi haqida" },
+  ru: { completed: "пройдено", hint: "Первая сумма — ваш предполагаемый приз, если челлендж завершится сейчас. После слэша — общий фонд дня. Прогноз может измениться до подведения итогов и ещё не является вашим балансом.", you: "Вы", login: "Войдите, чтобы увидеть рейтинг", retry: "Обновить рейтинг", close: "Закрыть", info: "О призовом фонде" },
+  en: { completed: "completed", hint: "The first amount is your estimated prize if the challenge ended now; the amount after the slash is the daily prize pool. The estimate may change before final results and is not your balance.", you: "You", login: "Sign in to see the ranking", retry: "Refresh ranking", close: "Close", info: "About the prize pool" },
+  uz: { completed: "bajarildi", hint: "Birinchi summa — sinov hozir tugasa olishingiz mumkin bo‘lgan taxminiy sovrin; qiya chiziqdan keyingi summa — kun jamg‘armasi. Yakuniy natijalargacha taxmin o‘zgarishi mumkin va hali balansingizga qo‘shilmagan.", you: "Siz", login: "Reyting uchun tizimga kiring", retry: "Reytingni yangilash", close: "Yopish", info: "Mukofot jamg‘armasi haqida" },
 };
 type Cursor = { snapshot: string; offset: number; end?: number };
 const challengeRules = {
@@ -32,7 +32,7 @@ const challengeRules = {
       "Счёт начинается с нуля. Коины зависят от результата: правильных действий и прохождения игры. Результат и начисление сохраняются на сервере — для этого нужен интернет. Повтор уже зачтённой игры сам по себе не начисляет новую награду.",
       "Место в рейтинге определяется коинами текущего челленджа. При одинаковой сумме выше участник, прошедший больше игр; затем учитывается время завершения.",
       "Реклама и подарки могут дать дополнительные коины, время или разрешённый повтор. Рекламная награда начисляется только после подтверждённого просмотра; она не гарантируется, если реклама недоступна.",
-      "Денежные призы определяются настройками именно этого дня: автоматически из общего фонда либо вручную администратором. Ниже показаны актуальные суммы за первое, второе и третье места. Пока итоги не опубликованы, суммы могут меняться. Общий фонд — не твой баланс. Коины не равны долларам, участие не гарантирует получение денежного приза.",
+      "Денежные призы определяются настройками именно этого дня: автоматически из общего фонда либо вручную администратором. Выше показаны актуальные суммы за первое, второе и третье места. Пока итоги не опубликованы, суммы могут меняться. Общий фонд — не твой баланс. Коины не равны долларам, участие не гарантирует получение денежного приза.",
     ],
   },
   en: {
@@ -42,7 +42,7 @@ const challengeRules = {
       "Your score starts at zero. Coins depend on your performance and correct actions. Results and rewards are saved on the server, so internet access is required. Replaying an already credited game does not automatically earn a new reward.",
       "Ranking is based on coins earned in this challenge. Ties are resolved by the number of completed games, then completion time.",
       "Ads and gifts may provide extra coins, time or an authorized replay. Ad rewards require a verified viewing and are not guaranteed when ads are unavailable.",
-      "Cash prizes come from this day's settings: automatically from its prize pool or assigned manually by the administrator. Current first-, second- and third-place amounts appear below. Amounts may change until results are published. The pool is not your balance. Coins are not dollars, and participation does not guarantee a cash prize.",
+      "Cash prizes come from this day's settings: automatically from its prize pool or assigned manually by the administrator. Current first-, second- and third-place amounts appear above. Amounts may change until results are published. The pool is not your balance. Coins are not dollars, and participation does not guarantee a cash prize.",
     ],
   },
   uz: {
@@ -52,7 +52,7 @@ const challengeRules = {
       "Hisob noldan boshlanadi. Coinlar to‘g‘ri harakatlar va o‘yin natijasiga bog‘liq. Natija va mukofot serverda saqlanadi, buning uchun internet kerak. Avval hisoblangan o‘yinni takrorlash o‘z-o‘zidan yangi mukofot bermaydi.",
       "Reyting shu sinovda yig‘ilgan coinlar bo‘yicha tuziladi. Coinlar teng bo‘lsa, ko‘proq o‘yin tugatgan qatnashchi yuqorida turadi; keyin tugatish vaqti hisobga olinadi.",
       "Reklama va sovg‘alar qo‘shimcha coin, vaqt yoki ruxsat etilgan qayta o‘ynash imkonini berishi mumkin. Reklama mukofoti ko‘rish tasdiqlangandan so‘ng beriladi; reklama mavjud bo‘lmasa mukofot kafolatlanmaydi.",
-      "Pul sovrinlari aynan shu kunning sozlamalaridan olinadi: umumiy jamg‘armadan avtomatik hisoblanadi yoki administrator qo‘lda belgilaydi. Quyida birinchi, ikkinchi va uchinchi o‘rin uchun joriy summalar ko‘rsatilgan. Natijalar e’lon qilinmaguncha summalar o‘zgarishi mumkin. Jamg‘arma sizning balansingiz emas. Coin dollar emas; ishtirok pul sovrinini kafolatlamaydi.",
+      "Pul sovrinlari aynan shu kunning sozlamalaridan olinadi: umumiy jamg‘armadan avtomatik hisoblanadi yoki administrator qo‘lda belgilaydi. Yuqorida birinchi, ikkinchi va uchinchi o‘rin uchun joriy summalar ko‘rsatilgan. Natijalar e’lon qilinmaguncha summalar o‘zgarishi mumkin. Jamg‘arma sizning balansingiz emas. Coin dollar emas; ishtirok pul sovrinini kafolatlamaydi.",
     ],
   },
 };
@@ -96,12 +96,10 @@ function ChallengeReadyClock({ today, focused, onRules }: { today: TodayChalleng
     if (firstGame) router.push({ pathname: "/play/[gameKey]", params: { gameKey: firstGame.key, mode: "challenge" } } as never);
   }}><GlassSurface variant="strong" intensity={76} style={styles.ready}>
     <AppText style={styles.countdown} numberOfLines={1} adjustsFontSizeToFit>{countdown}</AppText>
-    <AppText variant="caption" muted>{labels.until}</AppText>
+    <AppText variant="caption" muted style={{ textAlign: "center" }}>{labels.until}</AppText>
     <View style={styles.pool}>
       <Ionicons name="trophy-outline" size={19} color={String(theme.primary)} />
-      <AppText variant="caption" muted>{labels.pool}</AppText>
-      <AppText variant="label">{formatMoney(today.prizes?.poolUnits ?? 0)}</AppText>
-      <Pressable accessibilityRole="button" accessibilityLabel={challengeRules[language].title} hitSlop={8} onPress={event => { event.stopPropagation(); onRules(); }} style={styles.infoButton}><Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} /></Pressable>
+      <View style={styles.readyPoolText}><View style={styles.poolLabel}><AppText variant="caption" muted numberOfLines={1} adjustsFontSizeToFit style={styles.poolCaption}>{language === "ru" ? "Фонд дня" : language === "uz" ? "Kun jamg‘armasi" : "Daily pool"}</AppText><Pressable accessibilityRole="button" accessibilityLabel={challengeRules[language].title} hitSlop={8} onPress={event => { event.stopPropagation(); onRules(); }} style={styles.infoButton}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /></Pressable></View><AppText variant="label">{formatMoney(0)} / {formatMoney(today.prizes?.poolUnits ?? 0)}</AppText></View>
     </View>
   </GlassSurface></Pressable>;
 }
@@ -166,7 +164,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
   const selfIndex = detailRows.findIndex(row => row.isSelf);
   const dockTravel = Math.max(1, detailsHeight - 80);
   const dockY = selfIndex < 0 ? dockTravel : Animated.subtract(summaryHeight + 12 + selfIndex * 84, detailsScrollY).interpolate({ inputRange: [0, dockTravel], outputRange: [0, dockTravel], extrapolate: "clamp" });
-  const fadeClear = theme.mode === "dark" ? "rgba(15,23,42,0)" : "rgba(240,249,255,0)";
+  const fadeClear = theme.mode === "dark" ? "rgba(16,37,27,0)" : "rgba(240,249,255,0)";
   const topFadeOpacity = detailsScrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: "clamp" });
   useEffect(() => { if (!details) detailsScrollY.setValue(0); }, [details, detailsScrollY]);
   const list = useRef<ScrollView>(null);
@@ -200,11 +198,10 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.45} style={styles.number}>{(progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language)}</AppText>
       </View>
       <View style={styles.money}>
-        <Ionicons name="cash-outline" size={19} color={String(theme.primary)} />
-        <AppText variant="heading" style={{ flexShrink: 1 }}>{today?.prizes ? formatMoney(today.prizes.poolUnits) : "—"}</AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel={rules.title} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
-          <Ionicons name="information-circle-outline" size={20} color={String(theme.textMuted)} />
-        </Pressable>
+        <Ionicons name="cash-outline" size={16} color={String(theme.primary)} />
+        <View style={styles.poolText}><View style={styles.poolLabel}><AppText variant="caption" muted numberOfLines={1} adjustsFontSizeToFit style={styles.poolCaption}>{language === "ru" ? "Фонд дня" : language === "uz" ? "Kun jamg‘armasi" : "Daily pool"}</AppText><Pressable accessibilityRole="button" accessibilityLabel={rules.title} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
+          <Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} />
+        </Pressable></View><AppText variant="label" adjustsFontSizeToFit numberOfLines={1}>{formatMoney(progress?.projectedCashUnits ?? 0)} / {formatMoney(today?.prizes?.poolUnits ?? 0)}</AppText></View>
       </View>
       <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>
     </View>
@@ -242,7 +239,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         <Pressable accessibilityRole="button" accessibilityLabel={c.close} onPress={() => setDetails(false)} style={styles.detailsClose}><Ionicons name="close" size={28} color={String(theme.primary)} /></Pressable>
         <View style={{ flex: 1 }} onLayout={event => setDetailsHeight(event.nativeEvent.layout.height)}>
         <Animated.FlatList data={detailRows} keyExtractor={row => row.userId} contentContainerStyle={styles.detailsContent} onContentSizeChange={(_width, height) => setDetailsContentHeight(height)} scrollEventThrottle={16} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: detailsScrollY } } }], { useNativeDriver: Platform.OS !== "web" })} initialNumToRender={8} maxToRenderPerBatch={4} windowSize={5} onEndReachedThreshold={0.3} onEndReached={loadDetailPage}
-        renderItem={({ item: row }) => <GlassSurface variant="strong" style={[styles.detailsRank, row.isSelf && { opacity: 0 }]}><AppText variant="label" style={{ width: 24, textAlign: "center", color: row.rank <= 3 ? "#EFA215" : theme.textMuted }}>{row.rank}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={44} /><AppText numberOfLines={1} style={{ flex: 1, fontWeight: "700" }}>{row.name}</AppText><View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Ionicons name="diamond-outline" size={16} color={String(theme.primary)} /><AppText variant="label">{row.totalCoins}</AppText></View></GlassSurface>}
+        renderItem={({ item: row }) => <GlassSurface variant="strong" style={[styles.detailsRank, row.isSelf && { opacity: 0 }]}><AppText variant="label" style={{ width: 24, textAlign: "center", color: row.rank <= 3 ? "#EFA215" : theme.textMuted }}>{row.rank}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={44} /><AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{row.name}</AppText><ChallengeRankingAmounts cashUnits={row.cashUnits ?? 0} totalCoins={row.totalCoins} /></GlassSurface>}
         ListHeaderComponent={
         <View onLayout={event => setSummaryHeight(event.nativeEvent.layout.height)}><GlassSurface variant="strong" style={styles.detailsSummary}>
           <View style={styles.detailsMetrics}>
@@ -252,7 +249,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
           </View>
           <View style={styles.detailsMetricRow}>
             <Ionicons name="cash-outline" size={24} color={String(theme.primary)} />
-            <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1 }}>{formatMoney(today?.prizes?.poolUnits ?? 0)}</AppText>
+            <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1 }}>{formatMoney(progress?.projectedCashUnits ?? 0)} / {formatMoney(today?.prizes?.poolUnits ?? 0)}</AppText>
           </View>
           <AppText variant="label">{today?.completedCount ?? 0}/{today?.totalCount ?? 0} {c.completed}</AppText>
           </View>
@@ -266,14 +263,29 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         {selfStats ? <Animated.View pointerEvents="none" style={[styles.detailsSelf, { transform: [{ translateY: dockY }] }]}><GlassSurface variant="strong" style={[styles.detailsRank, { borderColor: theme.primary, borderWidth: 1 }]}>
           <AppText variant="label" style={{ width: 24, textAlign: "center" }}>{selfStats.rank}</AppText>
           <Avatar name={selfRow?.name ?? currentUser.name} avatarUrl={selfRow?.avatarUrl ?? currentUser.avatarUrl} size={44} />
-          <AppText numberOfLines={1} style={{ flex: 1, fontWeight: "700" }}>{c.you}: {selfRow?.name ?? currentUser.name}</AppText>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Ionicons name="diamond-outline" size={16} color={String(theme.primary)} /><AppText variant="label">{selfStats.totalCoins}</AppText></View>
+          <AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{c.you}: {selfRow?.name ?? currentUser.name}</AppText>
+          <ChallengeRankingAmounts cashUnits={selfStats.cashUnits ?? 0} totalCoins={selfStats.totalCoins} />
         </GlassSurface></Animated.View> : null}
         </View>
       </SafeAreaView>
     </Modal> : null}
     <ChallengeRulesModal visible={info} dayKey={today?.dayKey} onClose={() => setInfo(false)} />
   </>;
+}
+
+function ChallengeRankingAmounts({ cashUnits, totalCoins }: { cashUnits: number; totalCoins: number }) {
+  const theme = useAppTheme();
+  const { language } = useTranslation();
+  return <View style={styles.detailsAmounts}>
+    <View style={styles.detailsAmountRow}>
+      <Ionicons name="cash-outline" size={16} color={String(theme.primary)} />
+      <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit>{formatMoney(cashUnits)}</AppText>
+    </View>
+    <View style={styles.detailsAmountRow}>
+      <Ionicons name="diamond-outline" size={16} color="#EFA215" />
+      <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit>{totalCoins.toLocaleString(language)}</AppText>
+    </View>
+  </View>;
 }
 
 function ChallengeRulesModal({ visible, dayKey, onClose }: { visible: boolean; dayKey?: string; onClose: () => void }) {
@@ -287,8 +299,8 @@ function ChallengeRulesModal({ visible, dayKey, onClose }: { visible: boolean; d
         <GlassSurface variant="strong" style={styles.explanation}>
           <AppText variant="heading" accessibilityRole="header">{rules.title}</AppText>
           <ScrollView style={styles.rulesScroll} contentContainerStyle={styles.rulesContent} showsVerticalScrollIndicator>
-            {rules.paragraphs.map((paragraph, index) => <AppText key={index}>{index + 1}. {paragraph}</AppText>)}
             {visible ? <ChallengeRulePrizes dayKey={dayKey} /> : null}
+            {rules.paragraphs.map((paragraph, index) => <AppText key={index}>{index + 1}. {paragraph}</AppText>)}
           </ScrollView>
           <Pressable accessibilityRole="button" onPress={onClose}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
         </GlassSurface>
@@ -311,14 +323,20 @@ const styles = StyleSheet.create({
   detailsRank: { height: 72, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 10, borderRadius: 18 },
   ready: { borderRadius: 30, padding: 24, minHeight: 216, alignItems: "center", justifyContent: "center", gap: 6 },
   countdown: { fontSize: 56, lineHeight: 66, fontWeight: "900", fontVariant: ["tabular-nums"] },
-  pool: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 16 },
+  pool: { flexDirection: "row", flexWrap: "nowrap", alignSelf: "center", maxWidth: "100%", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 16 },
+  readyPoolText: { minWidth: 0, flexShrink: 1, alignItems: "center" },
+  detailsAmounts: { alignItems: "flex-end", flexShrink: 0, gap: 2 },
+  detailsAmountRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   card: { borderRadius: 30, paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", overflow: "hidden" },
   metrics: { width: "47%", paddingRight: 8, minWidth: 0, height: HEIGHT, paddingVertical: 10, justifyContent: "space-between" },
   score: { flexDirection: "row", alignItems: "center", gap: 5 },
   number: { fontSize: 46, lineHeight: 56, fontWeight: "900", flexShrink: 1, minWidth: 0, letterSpacing: -1.5 },
   completed: { fontSize: 17, lineHeight: 24 },
-  money: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },
-  infoButton: { minWidth: 24, minHeight: 40, alignItems: "center", justifyContent: "center" },
+  money: { flexDirection: "row", flexWrap: "nowrap", alignItems: "center", gap: 3, minWidth: 0 },
+  poolText: { flex: 1, minWidth: 0 },
+  poolLabel: { flexDirection: "row", alignItems: "center", gap: 4, minWidth: 0 },
+  poolCaption: { flexShrink: 1 },
+  infoButton: { flexShrink: 0, width: 22, minWidth: 22, minHeight: 24, alignItems: "center", justifyContent: "center" },
   ranking: { width: "53%", borderLeftWidth: 1, paddingLeft: 8, minWidth: 0, minHeight: HEIGHT, justifyContent: "center" },
   viewport: { height: HEIGHT, flexGrow: 0, borderRadius: 14 },
   row: { height: ROW, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 5, borderRadius: 14, borderWidth: 1, borderColor: "transparent" },

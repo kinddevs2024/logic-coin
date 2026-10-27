@@ -162,7 +162,7 @@ function PlayableGameRoute() {
   const activeResult = result?.sessionId === sessionId ? result : null;
   const gamePaused = giftOpen || fortuneVisible || fortuneBusy || exitOpen || Boolean(activeResult);
   const gameTitle = GAME_BY_KEY[gameKey]?.title ?? arcadeA?.title ?? arcadeB?.title ?? "Игра";
-  const accent = GAME_BY_KEY[gameKey]?.color ?? arcadeA?.accent ?? arcadeB?.accent ?? "#7C5CFF";
+  const accent = GAME_BY_KEY[gameKey]?.color ?? arcadeA?.accent ?? arcadeB?.accent ?? "#007A57";
   const selectedSkin = cosmeticFor(progressId, progress?.selectedCosmetic ?? "classic");
   const challengeGames = challenges.today?.games ?? [];
   const currentChallengeGame = challengeGames.find((entry) => entry.key === gameKey);
@@ -485,11 +485,11 @@ function PlayableGameRoute() {
   const challengeStartSettled = mode !== "challenge" || !authenticated || challenges.startedGameKey === gameKey || challenges.startFailedGameKey === gameKey;
 
   if (!challenges.hydrated || !hydrated || !challengeStartSettled) {
-    return <LinearGradient colors={["#14192E", "#070A14"]} style={styles.fallback}><ActivityIndicator size="large" color={accent} /><Text style={styles.fallbackTitle}>Запускаем челлендж</Text><Text style={styles.fallbackText}>Подготавливаем игровую сессию</Text><Pressable accessibilityRole="button" onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Назад</Text></Pressable></LinearGradient>;
+    return <LinearGradient colors={["#182A21", "#0D1713"]} style={styles.fallback}><ActivityIndicator size="large" color={accent} /><Text style={styles.fallbackTitle}>Запускаем челлендж</Text><Text style={styles.fallbackText}>Подготавливаем игровую сессию</Text><Pressable accessibilityRole="button" onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Назад</Text></Pressable></LinearGradient>;
   }
 
   if (!renderedGame) {
-    return <LinearGradient colors={["#14192E", "#070A14"]} style={styles.fallback}><Ionicons name="game-controller-outline" size={48} color="#8E7CFF" /><Text style={styles.fallbackTitle}>Игра не подключена</Text><Text style={styles.fallbackText}>{gameKey || "Неизвестный ключ"}</Text><Pressable onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Назад</Text></Pressable></LinearGradient>;
+    return <LinearGradient colors={["#182A21", "#0D1713"]} style={styles.fallback}><Ionicons name="game-controller-outline" size={48} color="#52E4B2" /><Text style={styles.fallbackTitle}>Игра не подключена</Text><Text style={styles.fallbackText}>{gameKey || "Неизвестный ключ"}</Text><Pressable onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Назад</Text></Pressable></LinearGradient>;
   }
 
   return (
@@ -525,7 +525,7 @@ function GameResultModal({ title, accent, value, adBusy, challengeMode, nextLabe
   if (!value) return null;
   const content = (
       <View style={styles.resultBackdrop}>
-{value ? <Animated.View entering={FadeIn.duration(180)} style={styles.resultOuter}><BlurView tint="dark" intensity={74} style={styles.resultCard}><LinearGradient colors={[`${accent}32`, "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} /><View style={[styles.resultBadge, { backgroundColor: accent }]}><Ionicons name={value.won ? "trophy" : "sparkles"} size={28} color="#0A0B12" /></View><Text style={styles.resultGame}>{title}</Text><Text style={styles.resultTitle}>{value.won ? "ОТЛИЧНАЯ ИГРА" : "РЕЗУЛЬТАТ ГОТОВ"}</Text>{value.saving ? <ActivityIndicator accessibilityLabel="Сохраняем награду" size="large" color={accent} style={styles.pendingReward} /> : <Text style={[styles.resultScore, { color: accent }]}>{value.score}</Text>}<Text style={styles.resultScoreLabel}>COIN</Text><View style={styles.resultStats}><ResultStat label="Предыдущий coin" value={value.previous} /><ResultStat label="Лучший coin" value={value.best} /><ResultStat label="Получено" value={value.saving ? "…" : `+${value.coins}`} suffix="coin" accent={accent} detail={!value.saving && (value.fortuneCoins ?? 0) > 0 ? `+${value.fortuneCoins} coin из фортуны` : undefined} /></View>{(value.saving || value.message) ? <View style={styles.saveState}>{value.saving ? <ActivityIndicator size="small" color={accent} /> : <Ionicons name="checkmark-circle" size={17} color="#54D7A4" />}<Text style={styles.saveText}>{value.message}</Text></View> : null}{value.checkpointReward ? <Pressable disabled={adBusy || value.saving} onPress={onCheckpoint} style={({ pressed }) => [styles.doubleButton, { backgroundColor: accent }, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}>{adBusy ? <ActivityIndicator color="#0A0B12" /> : <><Ionicons name="play-circle" color="#0A0B12" size={21} /><Text style={styles.doubleText}>СМОТРЕТЬ РЕКЛАМУ · +75 COIN</Text></>}</Pressable> : null}{challengeMode ? <>{value.firstReplayAvailable ? <Pressable disabled={adBusy || value.saving} onPress={onReplayAd} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}><Ionicons name="play-circle-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Смотреть рекламу и сыграть ещё раз</Text></Pressable> : null}<Pressable disabled={value.saving} onPress={onGifts} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, value.saving && styles.disabled]}><Ionicons name="gift-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Подарки и повтор</Text></Pressable><AppodealBannerSlot placement="challenge-result" /><Pressable disabled={value.saving} onPress={onNext} style={({ pressed }) => [styles.nextButton, { backgroundColor: accent }, pressed && styles.pressed, value.saving && styles.disabled]}><Text style={styles.nextText}>{nextLabel.toUpperCase()}</Text><Ionicons name="arrow-forward" color="#0A0B12" size={20} /></Pressable></> : <View style={styles.resultButtons}><Pressable disabled={adBusy} onPress={onRetry} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, adBusy && styles.disabled]}>{adBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Смотреть рекламу и повторить игру</Text></>}</Pressable><Pressable onPress={onExit} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Ionicons name="grid-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Все игры</Text></Pressable></View>}</BlurView></Animated.View> : null}
+{value ? <Animated.View entering={FadeIn.duration(180)} style={styles.resultOuter}><BlurView tint="dark" intensity={74} style={styles.resultCard}><LinearGradient colors={[`${accent}32`, "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} /><View style={[styles.resultBadge, { backgroundColor: accent }]}><Ionicons name={value.won ? "trophy" : "sparkles"} size={28} color="#082219" /></View><Text style={styles.resultGame}>{title}</Text><Text style={styles.resultTitle}>{value.won ? "ОТЛИЧНАЯ ИГРА" : "РЕЗУЛЬТАТ ГОТОВ"}</Text>{value.saving ? <ActivityIndicator accessibilityLabel="Сохраняем награду" size="large" color={accent} style={styles.pendingReward} /> : <Text style={[styles.resultScore, { color: accent }]}>{value.score}</Text>}<Text style={styles.resultScoreLabel}>COIN</Text><View style={styles.resultStats}><ResultStat label="Предыдущий coin" value={value.previous} /><ResultStat label="Лучший coin" value={value.best} /><ResultStat label="Получено" value={value.saving ? "…" : `+${value.coins}`} suffix="coin" accent={accent} detail={!value.saving && (value.fortuneCoins ?? 0) > 0 ? `+${value.fortuneCoins} coin из фортуны` : undefined} /></View>{(value.saving || value.message) ? <View style={styles.saveState}>{value.saving ? <ActivityIndicator size="small" color={accent} /> : <Ionicons name="checkmark-circle" size={17} color="#54D7A4" />}<Text style={styles.saveText}>{value.message}</Text></View> : null}{value.checkpointReward ? <Pressable disabled={adBusy || value.saving} onPress={onCheckpoint} style={({ pressed }) => [styles.doubleButton, { backgroundColor: accent }, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}>{adBusy ? <ActivityIndicator color="#082219" /> : <><Ionicons name="play-circle" color="#082219" size={21} /><Text style={styles.doubleText}>СМОТРЕТЬ РЕКЛАМУ · +75 COIN</Text></>}</Pressable> : null}{challengeMode ? <>{value.firstReplayAvailable ? <Pressable disabled={adBusy || value.saving} onPress={onReplayAd} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, (adBusy || value.saving) && styles.disabled]}><Ionicons name="play-circle-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Смотреть рекламу и сыграть ещё раз</Text></Pressable> : null}<Pressable disabled={value.saving} onPress={onGifts} style={({ pressed }) => [styles.giftResultButton, pressed && styles.pressed, value.saving && styles.disabled]}><Ionicons name="gift-outline" color="#FFFFFF" size={19} /><Text style={styles.secondaryText}>Подарки и повтор</Text></Pressable><AppodealBannerSlot placement="challenge-result" /><Pressable disabled={value.saving} onPress={onNext} style={({ pressed }) => [styles.nextButton, { backgroundColor: accent }, pressed && styles.pressed, value.saving && styles.disabled]}><Text style={styles.nextText}>{nextLabel.toUpperCase()}</Text><Ionicons name="arrow-forward" color="#082219" size={20} /></Pressable></> : <View style={styles.resultButtons}><Pressable disabled={adBusy} onPress={onRetry} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, adBusy && styles.disabled]}>{adBusy ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="play-circle-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Смотреть рекламу и повторить игру</Text></>}</Pressable><Pressable onPress={onExit} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Ionicons name="grid-outline" color="#FFFFFF" size={18} /><Text style={styles.secondaryText}>Все игры</Text></Pressable></View>}</BlurView></Animated.View> : null}
       </View>
   );
   // The wheel/ad owns a native window. Keep Android results in the route so
@@ -536,26 +536,26 @@ function GameResultModal({ title, accent, value, adBusy, challengeMode, nextLabe
 }
 
 function ResultStat({ label, value, suffix, accent, detail }: { label: string; value: string | number; suffix?: string; accent?: string; detail?: string }) {
-  return <View style={styles.resultStat}><Text style={styles.resultStatLabel}>{label}</Text><View style={styles.resultStatValueRow}><Text numberOfLines={1} style={[styles.resultStatValue, accent ? { color: accent } : null]}>{value}</Text>{suffix ? <Text style={[styles.resultSuffix, accent ? { color: accent } : null]}>{suffix}</Text> : null}</View>{detail ? <Text style={{ color: accent ?? "#D8D1FF", fontSize: 11, lineHeight: 15, marginTop: 4 }}>{detail}</Text> : null}</View>;
+  return <View style={styles.resultStat}><Text style={styles.resultStatLabel}>{label}</Text><View style={styles.resultStatValueRow}><Text numberOfLines={1} style={[styles.resultStatValue, accent ? { color: accent } : null]}>{value}</Text>{suffix ? <Text style={[styles.resultSuffix, accent ? { color: accent } : null]}>{suffix}</Text> : null}</View>{detail ? <Text style={{ color: accent ?? "#9FE6C5", fontSize: 11, lineHeight: 15, marginTop: 4 }}>{detail}</Text> : null}</View>;
 }
 
 const styles = StyleSheet.create({
-  host: { flex: 1, backgroundColor: "#05070F" },
+  host: { flex: 1, backgroundColor: "#09120E" },
   embeddedGame: { flex: 1 },
   hostActions: { position: "absolute", right: 14, left: 72, zIndex: 40, flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8 },
-  modePill: { height: 38, paddingHorizontal: 12, borderRadius: 19, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(9,12,24,0.76)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  modePill: { height: 38, paddingHorizontal: 12, borderRadius: 19, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(16,37,27,0.76)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#FF526A", shadowColor: "#FF526A", shadowOpacity: 0.8, shadowRadius: 7 },
   modeText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900", letterSpacing: 1.4 },
-  giftButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(9,12,24,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", shadowColor: "#000000", shadowOpacity: 0.28, shadowRadius: 12 },
+  giftButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(16,37,27,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", shadowColor: "#000000", shadowOpacity: 0.28, shadowRadius: 12 },
   pressed: { transform: [{ scale: 0.95 }], opacity: 0.86 },
   disabled: { opacity: 0.55 },
-  notice: { position: "absolute", alignSelf: "center", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 14, backgroundColor: "rgba(15,19,38,0.92)", borderWidth: 1, borderColor: "rgba(124,92,255,0.32)" },
-  noticeText: { color: "#DDD8FF", fontSize: 11, fontWeight: "800" },
+  notice: { position: "absolute", alignSelf: "center", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 14, backgroundColor: "rgba(16,37,27,0.92)", borderWidth: 1, borderColor: "rgba(0,122,87,0.32)" },
+  noticeText: { color: "#CDE9D8", fontSize: 11, fontWeight: "800" },
   fallback: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 },
   fallbackTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "900" },
   fallbackText: { color: "rgba(255,255,255,0.42)", fontSize: 13 },
-  fallbackButton: { marginTop: 12, minWidth: 180, padding: 15, borderRadius: 16, alignItems: "center", backgroundColor: "#8E7CFF" },
-  fallbackButtonText: { color: "#080A12", fontSize: 13, fontWeight: "900" },
+  fallbackButton: { marginTop: 12, minWidth: 180, padding: 15, borderRadius: 16, alignItems: "center", backgroundColor: "#52E4B2" },
+  fallbackButtonText: { color: "#09120E", fontSize: 13, fontWeight: "900" },
   // On React Native Web, Modal can inherit the narrow game route width. Pin
   // the result layer to the browser viewport so it covers the entire screen.
   resultBackdrop: {
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 18,
-    backgroundColor: "rgba(1,3,10,0.72)",
+    backgroundColor: "rgba(16,37,27,0.72)",
     zIndex: 1_000,
     ...(Platform.OS === "web"
       ? ({ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh" } as unknown as ViewStyle)
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   resultOuter: { width: "100%", maxWidth: 430 },
   pendingReward: { height: 94, justifyContent: "center" },
   androidResultLayer: { ...StyleSheet.absoluteFill, zIndex: 1000, elevation: 20 },
-  resultCard: { overflow: "hidden", alignItems: "center", borderRadius: 32, padding: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(10,13,27,0.94)" },
+  resultCard: { overflow: "hidden", alignItems: "center", borderRadius: 32, padding: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(16,37,27,0.94)" },
   resultBadge: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 13, transform: [{ rotate: "-4deg" }] },
   resultGame: { color: "rgba(255,255,255,0.42)", fontSize: 10, fontWeight: "900", letterSpacing: 2.2, textTransform: "uppercase" },
   resultTitle: { color: "#FFFFFF", fontSize: 27, fontWeight: "900", letterSpacing: -0.6, textAlign: "center", marginTop: 4 },
@@ -587,9 +587,9 @@ const styles = StyleSheet.create({
   saveState: { minHeight: 32, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 11 },
   saveText: { flexShrink: 1, color: "rgba(255,255,255,0.48)", fontSize: 10, fontWeight: "700", textAlign: "center" },
   doubleButton: { width: "100%", minHeight: 54, borderRadius: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 5 },
-  doubleText: { color: "#0A0B12", fontSize: 12, fontWeight: "900", letterSpacing: 1.2 },
+  doubleText: { color: "#082219", fontSize: 12, fontWeight: "900", letterSpacing: 1.2 },
   nextButton: { width: "100%", minHeight: 54, borderRadius: 18, marginTop: 9, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  nextText: { color: "#0A0B12", fontSize: 12, fontWeight: "900", letterSpacing: 1.1 },
+  nextText: { color: "#082219", fontSize: 12, fontWeight: "900", letterSpacing: 1.1 },
   resultButtons: { width: "100%", flexDirection: "row", gap: 8, marginTop: 9 },
   giftResultButton: { width: "100%", minHeight: 50, borderRadius: 17, marginTop: 7, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: "rgba(255,255,255,0.075)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)" },
   secondaryButton: { flex: 1, minHeight: 50, borderRadius: 17, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: "rgba(255,255,255,0.075)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)" },

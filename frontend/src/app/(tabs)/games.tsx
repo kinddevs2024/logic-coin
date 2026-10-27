@@ -20,7 +20,6 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { gamesApi } from "@/lib/api";
 import { androidImageProps } from "@/lib/android-image";
-import { accentForeground, readableAccent } from "@/lib/theme-colors";
 import { useAppStore } from "@/store/app-store";
 import type { GameCatalogItem } from "@/types";
 
@@ -98,8 +97,8 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
   const progressKey = PROGRESS_KEY_BY_SERVER_KEY[game.key] ?? (game.key as GameId);
   const coins = useGameProgressStore((state) => ready ? state.games[progressKey]?.coins ?? EMPTY_GAME_PROGRESS.coins : EMPTY_GAME_PROGRESS.coins);
   const cover = gameCoverFor(game.key);
-  const accent = readableAccent(game.color, theme.mode);
-  const playForeground = accentForeground(game.color, theme.mode);
+  const accent = String(theme.primary);
+  const playForeground = String(theme.onPrimary);
   const play = () => router.push(game.key === "bottle-flip" ? "/practice/bottle-flip" as never : { pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never);
 
   return (
@@ -121,7 +120,7 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
           <Pressable accessibilityRole="button" accessibilityLabel={`Скины: ${game.title}`} onPress={() => onOpenSkins(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
             <Ionicons name="shirt-outline" color={accent} size={17} />
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={play} style={({ pressed }) => [styles.playButton, { backgroundColor: game.color }, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={play} style={({ pressed }) => [styles.playButton, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
             <Ionicons name="play" color={playForeground} size={15} />
             <AppText style={[styles.playText, { color: playForeground }]}>{c.play}</AppText>
           </Pressable>

@@ -6,7 +6,7 @@ import { AppText } from "./app-text";
 
 type Friend = { id: string; name: string; avatarUrl?: string | null };
 const decorations = ["👩🏻", "🧑🏽", "👨🏼", "👩🏾", "🧑🏻"];
-const colors = ["#CDE9FF", "#DFD5FF", "#C3F2EC", "#FFE4BB", "#FBD5E5"];
+const colors = ["#D8F2E3", "#E1EFE3", "#C3F2EC", "#FFE4BB", "#FBD5E5"];
 const slots = [
   { x: [0.02, 0.15, 0.08, 0.02], y: [32, 8, 47, 32], size: 48 },
   { x: [0.23, 0.34, 0.20, 0.23], y: [4, 39, 23, 4], size: 44 },

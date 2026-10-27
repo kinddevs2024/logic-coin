@@ -89,6 +89,7 @@ export type BonusOverview = {
 };
 
 export type ReferralOverview = {
+  nextOffset?: number | null;
   code: string;
   link: string;
   invitedCount: number;
@@ -256,7 +257,7 @@ export type PendingContestReward = {
   standings: ContestStanding[];
 };
 
-export type LeaderboardMetric = "wealth" | "wallet" | "coins";
+export type LeaderboardMetric = "today" | "yesterday" | "allTime";
 
 export type LeaderboardEntry = {
   rank: number;
@@ -278,14 +279,14 @@ export type LeaderboardPayload = {
 
 export type BootstrapPayload = {
   user: User & { preferences: UserPreferences; wallet: Wallet };
-  tasks: unknown[];
+  tasks?: unknown[];
   todayChallenges?: TodayChallenges;
-  bonuses: BonusOverview;
+  bonuses?: BonusOverview;
   activity: {
     totalActiveDays: number;
     streak: GraceStreak;
   };
-  referral: ReferralOverview;
+  referral?: ReferralOverview;
   economy: {
     currency: string;
     unitValueCents: number;

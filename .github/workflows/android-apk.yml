@@ -28,9 +28,9 @@ jobs:
     env:
       CI: "true"
       EXPO_NO_TELEMETRY: "1"
-      LOGIC_UPDATE_CHANNEL: ${{ startsWith(github.ref, 'refs/tags/') && 'production' || 'preview' }}
+      LOGIC_UPDATE_CHANNEL: production
       NODE_ENV: "production"
-      EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || secrets.EXPO_PUBLIC_API_URL }}
+      EXPO_PUBLIC_API_URL: https://logic-coin.173.212.216.216.sslip.io/api/v1
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
       EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB }}
       EXPO_PUBLIC_APPODEAL_APP_KEY: ${{ secrets.EXPO_PUBLIC_APPODEAL_APP_KEY }}
@@ -61,7 +61,16 @@ jobs:
             echo "Set the repository secret EXPO_PUBLIC_APPODEAL_APP_KEY before building the Android release." >&2
             exit 1
           fi
-          node -e 'const u=new URL(process.env.EXPO_PUBLIC_API_URL); if (!["logic-coin.online","www.logic-coin.online"].includes(u.hostname) || u.pathname.replace(/\/$/, "") !== "/api/v1") throw Error("APK must use the production /api/v1 endpoint"); if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.endsWith(".apps.googleusercontent.com")) throw Error("Missing Google web OAuth client ID");'
+          node -e 'const u=new URL(process.env.EXPO_PUBLIC_API_URL); if (u.hostname !== "logic-coin.173.212.216.216.sslip.io" || u.pathname.replace(/\/$/, "") !== "/api/v1") throw Error("APK must use the independent server API"); if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.endsWith(".apps.googleusercontent.com")) throw Error("Missing Google web OAuth client ID");'
+
+      - name: Configure existing Firebase project
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          test -n "$GOOGLE_SERVICES_JSON_BASE64"
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > frontend/google-services.json
+          node -e 'const j=require("./frontend/google-services.json"); if(j.private_key || !j.project_info || !j.client?.some(c=>c.client_info?.android_client_info?.package_name === "com.kinddevs.logiccoin")) throw Error("Expected Android Firebase client configuration");'
+          echo "GOOGLE_SERVICES_JSON=./google-services.json" >> "$GITHUB_ENV"
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -108,6 +117,24 @@ jobs:
         working-directory: frontend
         run: npx expo prebuild --platform android --no-install
 
+      - name: Verify independent native update configuration
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, xml.etree.ElementTree as ET
+          root=pathlib.Path('frontend/android/app/src/main')
+          ns='{http://schemas.android.com/apk/res/android}'
+          app=ET.parse(root/'AndroidManifest.xml').getroot().find('application')
+          metadata={m.get(ns+'name'):m.get(ns+'value') for m in app.findall('meta-data')}
+          assert metadata['expo.modules.updates.EXPO_UPDATE_URL']=='https://logic-coin.173.212.216.216.sslip.io/updates'
+          assert metadata.get('expo.modules.updates.DISABLE_ANTI_BRICKING_MEASURES','false')=='false'
+          cfg=json.loads(pathlib.Path('frontend/app.json').read_text())['expo']
+          assert cfg['android']['versionCode']==11
+          pathlib.Path('artifacts/unsigned').mkdir(parents=True,exist_ok=True)
+          (pathlib.Path('artifacts/unsigned')/'native-strings.xml').write_bytes((root/'res/values/strings.xml').read_bytes())
+          (pathlib.Path('artifacts/unsigned')/'native-update-config.json').write_text(json.dumps(metadata,indent=2))
+          print('Independent update URL, version code 11 and update safety verified.')
+          PY
+
       - name: Build release APK and Play Store bundle
         working-directory: frontend/android
         run: |
@@ -140,6 +167,9 @@ jobs:
           path: |
             artifacts/unsigned/logic-coin-unsigned.apk
             artifacts/unsigned/logic-coin-unsigned.aab
+            artifacts/unsigned/native-strings.xml
+            artifacts/unsigned/native-update-config.json
+            artifacts/android-js-check/**
           if-no-files-found: error
           retention-days: 7
 

@@ -1,10 +1,10 @@
 import { useState, useSyncExternalStore } from "react";
-import { Pressable, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
-import { configureDailyReminder, syncPushNotifications } from "@/lib/notifications";
+import { configureDailyReminder, openNotificationSettings, syncPushNotifications } from "@/lib/notifications";
 import { getPushStatus, subscribePushStatus, type PushStatus } from "@/lib/push-status";
 import { useAppStore } from "@/store/app-store";
 
@@ -17,16 +17,26 @@ const labels = {
 export function PushNotificationsControl() {
   const token = useAppStore(s => s.accessToken);
   const time = useAppStore(s => s.notificationTime);
+  const enabled = useAppStore(s => s.notificationsEnabled);
   const { language } = useTranslation();
   const theme = useAppTheme();
-  const status: PushStatus = useSyncExternalStore(subscribePushStatus, getPushStatus, () => "idle");
+  const pushStatus: PushStatus = useSyncExternalStore(subscribePushStatus, getPushStatus, () => "idle");
+  const status: PushStatus = enabled ? pushStatus : "disabled";
   const [busy, setBusy] = useState(false);
-  if (!token) return null;
+  if (!token || status === "ready" || status === "local_only") return null;
   const c = labels[language];
   const enable = async () => {
     if (busy) return;
     setBusy(true);
     try {
+      if (pushStatus === "denied" && Platform.OS !== "web") {
+        useAppStore.getState().setNotifications(true);
+        await Promise.all([
+          openNotificationSettings(),
+          meApi.updatePreferences({ notificationsEnabled: true, dailyReminderEnabled: true }, token),
+        ]);
+        return;
+      }
       const ready = await syncPushNotifications({ accessToken: token, enabled: true, reminderTime: time, requestPermission: true });
       if (ready) {
         useAppStore.getState().setNotifications(true);
@@ -37,9 +47,9 @@ export function PushNotificationsControl() {
       }
     } finally { setBusy(false); }
   };
-  return <View style={{ padding: 12, gap: 8 }}>
+  return <View style={{ padding: 12, gap: 8, borderRadius: 14, backgroundColor: theme.surfaceRaised }}>
     <AppText variant="caption" muted accessibilityLiveRegion="polite">{c[status]}</AppText>
-    {status !== "ready" && status !== "unsupported" && status !== "denied" && status !== "setup_required" ?
+    {status !== "unsupported" && status !== "setup_required" && !(status === "denied" && Platform.OS === "web") ?
       <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void enable().catch(() => {}); }} style={{ padding: 12, borderRadius: 14, backgroundColor: theme.primary }}>
         <AppText color="#FFFFFF" variant="label">{busy ? c.busy : c.enable}</AppText>
       </Pressable> : null}

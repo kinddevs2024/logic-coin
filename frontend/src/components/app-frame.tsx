@@ -12,7 +12,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect, useRef, useState, type PropsWithChildren, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PropsWithChildren, type ReactNode, type RefObject } from "react";
 import Reanimated, {
   FadeInDown,
   ReduceMotion,
@@ -148,9 +148,9 @@ function AmbientOrbs() {
       </Animated.View>
       <LinearGradient
         colors={[
-          theme.mode === "dark" ? "rgba(113,165,238,0.07)" : "rgba(255,255,255,0.5)",
-          theme.mode === "dark" ? "rgba(113,165,238,0.02)" : "rgba(255,255,255,0.02)",
-          theme.mode === "dark" ? "rgba(113,165,238,0)" : "rgba(73,164,255,0.08)",
+          theme.mode === "dark" ? "rgba(0,122,87,0.07)" : "rgba(255,255,255,0.5)",
+          theme.mode === "dark" ? "rgba(0,122,87,0.02)" : "rgba(255,255,255,0.02)",
+          theme.mode === "dark" ? "rgba(0,122,87,0)" : "rgba(0,122,87,0.08)",
         ]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -164,6 +164,7 @@ type AppFrameProps = PropsWithChildren<{
   scroll?: boolean;
   contentStyle?: ViewStyle;
   scrollProps?: ScrollViewProps;
+  scrollRef?: RefObject<ScrollView | null>;
   renderScrollContent?: (contentContainerStyle: StyleProp<ViewStyle>) => ReactNode;
   wide?: boolean;
   noPadding?: boolean;
@@ -178,6 +179,7 @@ export function AppFrame({
   scroll = true,
   contentStyle,
   scrollProps,
+  scrollRef,
   renderScrollContent,
   wide,
   noPadding,
@@ -219,6 +221,7 @@ export function AppFrame({
   const body = renderScrollContent ? renderScrollContent(content) : scroll ? (
     <ScrollView
       {...scrollProps}
+      ref={scrollRef}
       role="main"
       style={styles.scroll}
       contentContainerStyle={content}

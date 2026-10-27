@@ -9,7 +9,7 @@ import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { adminApi, type AdminGame, type AdminGameInput } from "@/lib/api";
 
-const fresh = (): AdminGameInput => ({ key: "", slug: "", title: { ru: "", en: "", uz: "" }, description: { ru: "", en: "", uz: "" }, icon: "game-controller-outline", color: "#0866FF", engine: "native", enabled: false, practiceEnabled: true, challengeEnabled: false, sortOrder: 0, difficulty: "medium", scoring: { higherIsBetter: true, maxCoins: 1000 } });
+const fresh = (): AdminGameInput => ({ key: "", slug: "", title: { ru: "", en: "", uz: "" }, description: { ru: "", en: "", uz: "" }, icon: "game-controller-outline", color: "#007A57", engine: "native", enabled: false, practiceEnabled: true, challengeEnabled: false, sortOrder: 0, difficulty: "medium", scoring: { higherIsBetter: true, maxCoins: 1000 } });
 
 export default function AdminGamesScreen() {
   const { adminToken } = useAdminSession();

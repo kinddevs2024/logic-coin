@@ -117,7 +117,7 @@ export function ProfileDrawer({
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(4,16,38,0.32)", opacity: backdrop },
+            { backgroundColor: "rgba(16,37,27,0.32)", opacity: backdrop },
           ]}
         >
           {visible && !(Platform.OS === "android" && editing) ? <BlurView
@@ -153,14 +153,14 @@ export function ProfileDrawer({
               showsVerticalScrollIndicator={false}
             >
               <LinearGradient
-                colors={theme.mode === "dark" ? ["#21416C", "#25385B", "#34365D"] : ["rgba(33,139,255,0.92)", "#155DD8", "#5745E9"]}
+                colors={theme.mode === "dark" ? ["#176648", "#193E2E", "#20372B"] : ["rgba(0,122,87,0.92)", "#006345", "#006345"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.profileCard}
               >
                 <LinearGradient
                   pointerEvents="none"
-                  colors={[theme.mode === "dark" ? "rgba(181,209,250,0.07)" : "rgba(255,255,255,0.5)", "rgba(255,255,255,0)"]}
+                  colors={[theme.mode === "dark" ? "rgba(225,239,227,0.07)" : "rgba(255,255,255,0.5)", "rgba(255,255,255,0)"]}
                   style={StyleSheet.absoluteFill}
                 />
                 <View style={styles.profileTop}>

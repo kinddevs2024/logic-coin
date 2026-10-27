@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
     overflow: "visible",
-    ...(Platform.OS === "web" ? ({ boxShadow: "0 8px 32px rgba(23,62,104,0.14), 0 2px 6px rgba(23,62,104,0.05)", touchAction: "none" } as unknown as ViewStyle) : null),
+    ...(Platform.OS === "web" ? ({ boxShadow: "0 8px 32px rgba(82,108,92,0.14), 0 2px 6px rgba(82,108,92,0.05)", touchAction: "none" } as unknown as ViewStyle) : null),
   },
   tabBarDesktop: {
     width: 110,
@@ -471,13 +471,13 @@ const styles = StyleSheet.create({
     top: 6,
     zIndex: 0,
     borderRadius: radii.pill,
-    shadowColor: "#5185AE",
+    shadowColor: "#60846B",
     shadowOpacity: 0.14,
     shadowRadius: 9,
     shadowOffset: { width: 0, height: 2 },
     ...(Platform.OS === "web"
       ? ({
-          boxShadow: "0 2px 10px rgba(40,92,140,0.13)",
+          boxShadow: "0 2px 10px rgba(82,108,92,0.13)",
         } as ViewStyle)
       : null),
   },
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   tabContentActive: { transform: [{ scale: 1.04 }] },
   tabLabel: { fontSize: 11, lineHeight: 15, fontWeight: "600" },
   activeLabel: {
-    textShadowColor: "rgba(77,151,255,0.2)",
+    textShadowColor: "rgba(0,122,87,0.2)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 5,
   },
@@ -552,13 +552,13 @@ const styles = StyleSheet.create({
     width: 118,
     height: 46,
   },
-  adOfferBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(4,12,26,0.52)" },
+  adOfferBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(16,37,27,0.52)" },
   adOfferCard: { width: "100%", maxWidth: 360, alignItems: "center", borderRadius: 32, padding: 24, overflow: "hidden" },
-  adOfferIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#147DFF" },
-  adOfferTitle: { marginTop: 16, color: "#0D1B35", fontSize: 23, fontWeight: "900" },
-  adOfferText: { marginTop: 8, color: "#5D6C83", fontSize: 14, lineHeight: 20, fontWeight: "600", textAlign: "center" },
-  adOfferPrimary: { marginTop: 20, width: "100%", minHeight: 54, borderRadius: 18, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#147DFF" },
+  adOfferIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#007A57" },
+  adOfferTitle: { marginTop: 16, color: "#153B2B", fontSize: 23, fontWeight: "900" },
+  adOfferText: { marginTop: 8, color: "#526C5C", fontSize: 14, lineHeight: 20, fontWeight: "600", textAlign: "center" },
+  adOfferPrimary: { marginTop: 20, width: "100%", minHeight: 54, borderRadius: 18, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#007A57" },
   adOfferPrimaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "900" },
   adOfferSkip: { paddingHorizontal: 18, paddingVertical: 13 },
-  adOfferSkipText: { color: "#65758B", fontSize: 13, fontWeight: "800" },
+  adOfferSkipText: { color: "#526C5C", fontSize: 13, fontWeight: "800" },
 });

@@ -35,8 +35,8 @@ export function NativeGlassLayer({
           StyleSheet.absoluteFill,
           {
             backgroundColor: dark
-              ? "rgba(12,28,52,0.96)"
-              : "rgba(245,251,255,0.96)",
+              ? "rgba(16,37,27,0.96)"
+              : "rgba(249,255,241,0.96)",
           },
         ]}
       />

@@ -58,9 +58,9 @@ export function PaymentCard({
   return (
     <Animated.View entering={FadeInDown.springify().damping(18)} style={[styles.card, cardStyle]}>
       <View style={styles.cardTop}>
-        <View style={styles.chip}><Ionicons name="hardware-chip-outline" size={26} color="#DCEAFF" /></View>
+        <View style={styles.chip}><Ionicons name="hardware-chip-outline" size={26} color="#D8F2E3" /></View>
         <View style={styles.brandWrap}>
-          <Ionicons name="radio-outline" size={19} color="#DCEAFF" />
+          <Ionicons name="radio-outline" size={19} color="#D8F2E3" />
           <AppText style={styles.brand}>{brand === "other" ? "CARD" : brand.toUpperCase()}</AppText>
         </View>
       </View>
@@ -77,7 +77,7 @@ export function PaymentCard({
         maxLength={23}
         placeholder="0000 0000 0000 0000"
         placeholderTextColor="rgba(235,244,255,0.45)"
-        selectionColor="#8AC7FF"
+        selectionColor="#9FE6C5"
         style={[styles.cardNumber, readOnly && styles.readOnly]}
       />
 
@@ -127,10 +127,10 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     borderRadius: 25,
     padding: 21,
-    backgroundColor: "#101A31",
+    backgroundColor: "#10251B",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.26)",
-    shadowColor: "#126FFF",
+    shadowColor: "#007A57",
     shadowOpacity: 0.22,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 13 },
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  chip: { width: 46, height: 36, borderRadius: 10, borderWidth: 1, borderColor: "rgba(220,234,255,0.34)", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
+  chip: { width: 46, height: 36, borderRadius: 10, borderWidth: 1, borderColor: "rgba(225,239,227,0.34)", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
   brandWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
   brand: { color: "#FFFFFF", fontSize: 15, lineHeight: 19, fontWeight: "900", letterSpacing: 0.8 },
   cardNumber: { color: "#FFFFFF", fontSize: 21, lineHeight: 27, fontWeight: "800", letterSpacing: 1.15, paddingVertical: 7, outlineStyle: "none" } as never,

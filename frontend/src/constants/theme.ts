@@ -1,3 +1,4 @@
+import { brandPreviewTheme } from "../lib/brand-preview-theme";
 import type { ColorValue } from "react-native";
 
 export type ThemeMode = "light" | "sky" | "dark";
@@ -34,7 +35,7 @@ export type ThemeTokens = {
   glassShadow: ColorValue;
 };
 
-export const themes: Record<ThemeMode, ThemeTokens> = {
+const baseThemes: Record<ThemeMode, ThemeTokens> = {
   light: {
     mode: "light",
     background: "#F5F7FA",
@@ -143,3 +144,5 @@ export const spacing = {
   xl: 24,
   xxl: 32,
 } as const;
+
+export const themes: Record<ThemeMode, ThemeTokens> = { light: brandPreviewTheme(baseThemes.light), sky: brandPreviewTheme(baseThemes.sky), dark: brandPreviewTheme(baseThemes.dark) };

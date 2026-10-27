@@ -4,44 +4,80 @@ import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 const copy = {
-  ru: { title: "Месячная активность", close: "Закрыть", paragraphs: [
-    "Показатель отражает, сколько дней в текущем месяце ты полностью завершил челлендж. Например, 8/31 означает: завершены 8 из 31 календарного дня.",
-    "Чтобы день засчитался, заверши все шесть игр его челленджа. Начатые игры, обычный режим и повтор одной игры не заменяют прохождение всего набора.",
-    "Если организатор объявляет месячный розыгрыш с этими условиями, для участия нужно завершать все шесть игр ежедневно, без пропусков. Победителей выбирают случайным образом среди выполнивших условия; количество коинов на выбор не влияет. Участие не гарантирует приз.",
-    "Суммы призов и сроки месячного розыгрыша организатор объявляет отдельно. Этот счётчик сам по себе не начисляет денежный приз. Актуальные дневные призы можно посмотреть в правилах соответствующего челленджа.",
-  ] },
-  en: { title: "Monthly activity", close: "Close", paragraphs: [
-    "This counter shows how many days you fully completed the challenge this month. For example, 8/31 means 8 of the month's 31 calendar days are complete.",
-    "A day counts only after all six games in that day's challenge are completed. Started games, practice mode and repeating one game do not complete the whole set.",
-    "If the organizer announces a monthly draw under these rules, participation requires completing all six games every day without skipping a day. Winners are selected randomly among eligible participants; coins do not affect the selection. Participation does not guarantee a prize.",
-    "Monthly prize amounts and draw dates are announced separately by the organizer. This counter does not itself award a cash prize. Current daily prizes appear in the corresponding challenge's rules.",
-  ] },
-  uz: { title: "Oylik faollik", close: "Yopish", paragraphs: [
-    "Bu ko‘rsatkich shu oyda chempionatni necha kun to‘liq yakunlaganingizni bildiradi. Masalan, 8/31 — oyning 31 kalendar kunidan 8 kuni to‘liq bajarilgan.",
-    "Kun hisoblanishi uchun shu kunning chempionatidagi oltita o‘yinning barchasini yakunlang. Boshlangan o‘yinlar, oddiy o‘yin rejimi yoki bitta o‘yinni takrorlash barcha o‘yinlarni bajarish o‘rnini bosmaydi.",
-    "Tashkilotchi shu shartlar bilan oylik tanlov e’lon qilsa, qatnashish uchun har kuni oltita o‘yinni bir kun ham qoldirmasdan yakunlash kerak. G‘oliblar shartlarni bajarganlar orasidan tasodifiy tanlanadi; coinlar soni bunga ta’sir qilmaydi. Ishtirok sovrin olishni kafolatlamaydi.",
-    "Oylik sovrin summalari va tanlov sanalarini tashkilotchi alohida e’lon qiladi. Bu hisoblagich o‘z-o‘zidan pul sovrini bermaydi. Joriy kunlik sovrinlarni tegishli chempionat qoidalaridan ko‘rishingiz mumkin.",
-  ] },
+  "uz": {
+    "title": "🗓 OYLIK FAOLLIK",
+    "close": "Yopish",
+    "paragraphs": [
+      "Bu raqam shu oyda chempionatni necha kun to‘liq yakunlaganingizni ko‘rsatadi. Masalan, 8/31 — oyning 31 kunidan 8 kun bajarilgan.",
+      "✅ Kun hisoblanishi uchun chempionatdagi 6 ta o‘yinning barchasini yakunlang.",
+      "Oy davomida bir kun ham qoldirmasangiz, oylik pul sovrinlari tanlovida ham qatnashasiz!",
+      "🎁 Sovrinlar:\n1-sovrin — 75 $\n2-sovrin — 30 $\n3-sovrin — 10 $\nQolgan pul sovrinlari — 1 $ gacha.",
+      "🎲 G‘oliblar oyning barcha kunlarini bajarganlar orasidan tasodifiy tanlanadi. Ballar hisobga olinmaydi — kam ball bilan ham yutishingiz mumkin! Sovrin hammaga berilmaydi.",
+      "🔄 Tanlov har oy o‘tkaziladi."
+    ]
+  },
+  "ru": {
+    "title": "🗓 МЕСЯЧНАЯ АКТИВНОСТЬ",
+    "close": "Закрыть",
+    "paragraphs": [
+      "Это число показывает, сколько дней в этом месяце вы полностью завершили чемпионат. Например, 8/31 — выполнены 8 из 31 дня месяца.",
+      "✅ Чтобы день засчитался, завершите все 6 игр чемпионата.",
+      "Не пропустите ни одного дня месяца, чтобы участвовать также в розыгрыше ежемесячных денежных призов!",
+      "🎁 Призы:\n1-й приз — 75 $\n2-й приз — 30 $\n3-й приз — 10 $\nОстальные денежные призы — до 1 $.",
+      "🎲 Победителей выбирают случайным образом среди завершивших все дни месяца. Баллы не учитываются — выиграть можно и с небольшим количеством баллов! Призы получают не все.",
+      "🔄 Розыгрыш проводится каждый месяц."
+    ]
+  },
+  "en": {
+    "title": "🗓 MONTHLY ACTIVITY",
+    "close": "Close",
+    "paragraphs": [
+      "This number shows how many days you fully completed the championship this month. For example, 8/31 means 8 of the month’s 31 days completed.",
+      "✅ Complete all 6 championship games for a day to count.",
+      "Complete every day of the month without missing one to enter the monthly cash prize draw as well!",
+      "🎁 Prizes:\n1st prize — $75\n2nd prize — $30\n3rd prize — $10\nOther cash prizes — up to $1.",
+      "🎲 Winners are selected randomly among those who completed every day of the month. Scores do not count — you can win even with a low score! Not everyone receives a prize.",
+      "🔄 The draw takes place every month."
+    ]
+  }
 };
 const weeklyCopy = {
-  ru: { title: "Недельная активность", close: "Закрыть", paragraphs: [
-    "Показатель отражает, сколько дней этой календарной недели ты полностью завершил челлендж. Например, 4/7 означает: завершены четыре из семи дней. Неделя начинается в понедельник.",
-    "День засчитывается после завершения всех шести игр его челленджа. Начатые игры, обычный режим и повтор одной игры не заменяют прохождение всего набора.",
-    "Если организатор объявляет недельный розыгрыш с этими условиями, для участия нужно завершить все шесть игр в каждый из семи дней недели, без пропусков. Победителей выбирают случайным образом среди выполнивших условия; количество коинов на выбор не влияет. Участие не гарантирует приз.",
-    "Суммы призов и сроки недельного розыгрыша организатор объявляет отдельно. Этот счётчик сам по себе не начисляет денежный приз. Дневные призы указаны в правилах соответствующего челленджа.",
-  ] },
-  en: { title: "Weekly activity", close: "Close", paragraphs: [
-    "This counter shows how many days you fully completed the challenge during this calendar week. For example, 4/7 means four of seven days are complete. The week starts on Monday.",
-    "A day counts only after all six games in that day's challenge are completed. Started games, practice mode and repeating one game do not complete the whole set.",
-    "If the organizer announces a weekly draw under these rules, participation requires completing all six games on every one of the week's seven days, without skipping a day. Winners are selected randomly among eligible participants; coins do not affect selection. Participation does not guarantee a prize.",
-    "Weekly prize amounts and draw dates are announced separately by the organizer. This counter does not itself award a cash prize. Daily prizes appear in the corresponding challenge's rules.",
-  ] },
-  uz: { title: "Haftalik faollik", close: "Yopish", paragraphs: [
-    "Bu ko‘rsatkich shu kalendar haftada chempionatni necha kun to‘liq yakunlaganingizni bildiradi. Masalan, 4/7 — yetti kundan to‘rt kuni bajarilgan. Hafta dushanbadan boshlanadi.",
-    "Kun hisoblanishi uchun shu kunning chempionatidagi oltita o‘yinning barchasini yakunlang. Boshlangan o‘yinlar, oddiy rejim yoki bitta o‘yinni takrorlash barcha o‘yinlarni bajarish o‘rnini bosmaydi.",
-    "Tashkilotchi shu shartlar bilan haftalik tanlov e’lon qilsa, qatnashish uchun haftaning barcha yetti kunida oltita o‘yinni bir kun ham qoldirmasdan yakunlash kerak. G‘oliblar shartlarni bajarganlar orasidan tasodifiy tanlanadi; coinlar soni bunga ta’sir qilmaydi. Ishtirok sovrin olishni kafolatlamaydi.",
-    "Haftalik sovrin summalari va tanlov sanalarini tashkilotchi alohida e’lon qiladi. Bu hisoblagich o‘z-o‘zidan pul sovrini bermaydi. Kunlik sovrinlar tegishli chempionat qoidalarida ko‘rsatiladi.",
-  ] },
+  "uz": {
+    "title": "📅 HAFTALIK FAOLLIK",
+    "close": "Yopish",
+    "paragraphs": [
+      "Bu raqam shu haftada chempionatni necha kun to‘liq yakunlaganingizni ko‘rsatadi. Masalan, 4/7 — 7 kundan 4 kun bajarilgan.",
+      "✅ Kun hisoblanishi uchun chempionatdagi 6 ta o‘yinning barchasini yakunlang.",
+      "Hafta davomida bir kun ham qoldirmasangiz, haftalik pul sovrinlari tanlovida qatnashasiz!",
+      "🎁 Sovrinlar:\n1-sovrin — 30 $\n2-sovrin — 15 $\n3-sovrin — 5 $\nQolgan pul sovrinlari — 0,50 $ gacha.",
+      "🎲 G‘oliblar barcha 7 kunni bajarganlar orasidan tasodifiy tanlanadi. Ballar hisobga olinmaydi — kam ball bilan ham yutishingiz mumkin! Sovrin hammaga berilmaydi.",
+      "🔄 Tanlov har hafta o‘tkaziladi."
+    ]
+  },
+  "ru": {
+    "title": "📅 НЕДЕЛЬНАЯ АКТИВНОСТЬ",
+    "close": "Закрыть",
+    "paragraphs": [
+      "Это число показывает, сколько дней на этой неделе вы полностью завершили чемпионат. Например, 4/7 — выполнены 4 из 7 дней.",
+      "✅ Чтобы день засчитался, завершите все 6 игр чемпионата.",
+      "Не пропустите ни одного дня недели, чтобы участвовать в розыгрыше еженедельных денежных призов!",
+      "🎁 Призы:\n1-й приз — 30 $\n2-й приз — 15 $\n3-й приз — 5 $\nОстальные денежные призы — до 0,50 $.",
+      "🎲 Победителей выбирают случайным образом среди завершивших все 7 дней. Баллы не учитываются — выиграть можно и с небольшим количеством баллов! Призы получают не все.",
+      "🔄 Розыгрыш проводится каждую неделю."
+    ]
+  },
+  "en": {
+    "title": "📅 WEEKLY ACTIVITY",
+    "close": "Close",
+    "paragraphs": [
+      "This number shows how many days you fully completed the championship this week. For example, 4/7 means 4 of 7 days completed.",
+      "✅ Complete all 6 championship games for a day to count.",
+      "Complete every day of the week without missing one to enter the weekly cash prize draw!",
+      "🎁 Prizes:\n1st prize — $30\n2nd prize — $15\n3rd prize — $5\nOther cash prizes — up to $0.50.",
+      "🎲 Winners are selected randomly among those who completed all 7 days. Scores do not count — you can win even with a low score! Not everyone receives a prize.",
+      "🔄 The draw takes place every week."
+    ]
+  }
 };
 export function MonthlyActivityInfo({ onClose, period = "month" }: { onClose: () => void; period?: "week" | "month" }) {
   const theme = useAppTheme();

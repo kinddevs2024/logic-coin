@@ -21,7 +21,7 @@ export default function RootHtml({ children }: { children: ReactNode }) {
           name="description"
           content="Logic Coin — ежедневные игровые челленджи, coins, рейтинг и умная копилка."
         />
-        <meta name="theme-color" content="#0860F0" />
+        <meta name="theme-color" content="#007A57" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Logic Coin" />
         <meta property="og:url" content="https://www.logic-coin.online/" />
