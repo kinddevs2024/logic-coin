@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type PropsWithChildren, type ReactNode } from "react";
 import { Platform, ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
@@ -36,6 +38,7 @@ export function GameShell({
   backgroundColor?: string;
   gameId?: GameId;
 }>) {
+  const { copyContent } = useUiCopy();
   const router = useRouter();
   const session = useGameSession();
   const theme = useAppTheme();
@@ -63,7 +66,7 @@ export function GameShell({
   const header = (
     <View style={styles.headerContent}>
       <IconButton name="chevron-back" label="Назад" onPress={session?.onExit ?? (() => router.canGoBack() ? router.back() : router.replace("/games"))} />
-      <AppText style={[styles.title, { color: variant === "app" ? theme.text : "#25212A" }]}>{title}</AppText>
+      <AppText style={[styles.title, { color: variant === "app" ? theme.text : "#25212A" }]}>{copyContent(title)}</AppText>
       <View style={[styles.meta, variant !== "app" && styles.metaGame]}>
         {meta}
         {gameId ? <GameEconomyHud gameId={gameId} tone={variant === "app" && theme.mode === "dark" ? "light" : "dark"} onOpen={() => setEconomyOpen(true)} /> : null}

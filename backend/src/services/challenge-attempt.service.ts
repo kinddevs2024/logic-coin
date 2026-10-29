@@ -7,7 +7,6 @@ import {
 } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
-import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
 import { User } from "../models/User.js";
 import { creditCoins } from "./coin.service.js";
 import { challengeDayKey, getDailyChallengeSet } from "./daily-challenge.service.js";
@@ -60,28 +59,14 @@ export function challengeCoinsForScore(score: number, maxCoins = MAX_GAME_COINS,
   // One authoritative formula is shared by challenge and practice modes.
   // Outcome flags are intentionally ignored because the client must not be
   // able to increase an economy reward by claiming a win.
-  // Use the same soft progression as the client. maxCoins remains a legacy
-  // validated catalog field, not a ceiling on the earned result.
   if (score === 0) return 0;
-  const targets: Record<string, number> = {
-    "one-second": 40_000, udar: 60_000, strike: 60_000, "reflex-hit": 60_000,
-    tsvet: 6_000, "color-stroop": 6_000, "color-focus": 6_000,
-    "volt-match": 6_000, "find-letter": 3_000, "brain-training": 1_000,
-    "space-find-number": 10_000, "find-number": 10_000,
-    "geography-quiz": 2_000, "geo-master": 2_000, "volt-numbers": 10_000,
-    "math-quiz": 1_000, "math-duel": 2_000, shadow: 2_000, "shadow-match": 2_000,
-    "2048": 5_000, tetris: 10_000,
-  };
-  const normalized = score * 1000 / (targets[gameKey] ?? 1000);
-  return Math.round(normalized <= 1000 ? normalized : 1000 + 200 * Math.log2(normalized / 1000));
+    const targets: Record<string, number> = {"2048":5000,"one-second":40000,"udar":60000,"strike":60000,"reflex-hit":60000,"tsvet":6000,"color-stroop":6000,"color-focus":6000,"volt-match":6000,"find-letter":3000,"brain-training":1000,"space-find-number":10000,"find-number":10000,"geography-quiz":2000,"geo-master":2000,"volt-numbers":10000,"math-quiz":1000,"math-duel":2000,"shadow":2000,"shadow-match":2000,"tetris":10000};
+    const normalized = score * 1000 / (targets[gameKey] ?? 1000);
+    return Math.round(normalized <= 1000 ? normalized : 1000 + 200 * Math.log2(normalized / 1000));
 }
 
 function cappedGameCoins(amount: number) {
   return Math.max(0, Math.round(amount));
-}
-
-export function remainingBaseChallengeCoins(requested: number, _alreadyEarned: number) {
-  return cappedGameCoins(requested);
 }
 
 export async function startChallengeAttempt(input: {
@@ -174,7 +159,7 @@ export async function completeChallengeAttempt(input: {
   const dayKey = challengeDayKey();
   const { game } = await dailyGame({ gameKey: input.gameKey, dayKey, completingUserId: input.userId });
   const maxCoins = Math.min(MAX_GAME_COINS, game.scoring?.maxCoins ?? MAX_GAME_COINS);
-  const requestedCoins = challengeCoinsForScore(input.score, maxCoins, input.gameKey);
+  const coinsAwarded = challengeCoinsForScore(input.score, maxCoins, input.gameKey);
 
   const session = await mongoose.startSession();
   let attemptResult:
@@ -190,15 +175,6 @@ export async function completeChallengeAttempt(input: {
     | undefined;
   try {
     await session.withTransaction(async () => {
-      const started = await ChallengeAttempt.findOne({ userId: input.userId, dayKey, gameId: game._id, mode: "challenge", status: "started" }).session(session);
-      const replayCount = Math.max(0, Number((started?.metadata as { replayCount?: number } | undefined)?.replayCount ?? 0));
-      const earned = replayCount > 0 ? [] : await CoinLedgerEntry.aggregate<{ total: number }>([
-        { $match: { userId: input.userId, type: "challenge_coin_reward", "metadata.dayKey": dayKey, "metadata.kind": "base" } },
-        { $group: { _id: null, total: { $sum: "$amount" } } },
-      ]).session(session);
-      // Credits share the user document in this transaction: concurrent results
-      // conflict and retry, so neither can spend the same remaining allowance.
-      const coinsAwarded = replayCount > 0 ? requestedCoins : remainingBaseChallengeCoins(requestedCoins, earned[0]?.total ?? 0);
       const attempt = await ChallengeAttempt.findOneAndUpdate(
         {
           userId: input.userId,
@@ -253,7 +229,7 @@ export async function completeChallengeAttempt(input: {
             type: "challenge_coin_reward",
             sourceId: rewardSourceId,
             description: `Challenge reward: ${game.key}`,
-            metadata: { dayKey, gameKey: game.key, kind: replayCount > 0 ? "replay-bonus" : "base" }
+            metadata: { dayKey, gameKey: game.key, kind: "base" }
           },
           session
         );

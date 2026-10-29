@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -23,6 +25,7 @@ const choices: {
 ];
 
 export default function LanguageScreen() {
+  const { copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const { t } = useTranslation();
   const setLanguage = useAppStore((state) => state.setLanguage);
@@ -53,10 +56,10 @@ export default function LanguageScreen() {
         <GlassSurface intensity={80} variant="strong" style={styles.card}>
           <View style={styles.heading}>
             <AppText variant="title" style={{ textAlign: "center" }}>
-              {t("language.title")}
+              {copyContent(t("language.title"))}
             </AppText>
             <AppText muted style={{ textAlign: "center" }}>
-              {t("language.subtitle")}
+              {copyContent(t("language.subtitle"))}
             </AppText>
           </View>
           <View style={styles.list}>
@@ -64,7 +67,7 @@ export default function LanguageScreen() {
               <Pressable
                 key={choice.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${choice.nativeName}. ${choice.helper}`}
+                accessibilityLabel={formatCopy("{0}. {1}", [choice.nativeName, choice.helper])}
                 onPress={() => select(choice.id)}
                 style={({ pressed }) => [
                   styles.choice,
@@ -80,9 +83,9 @@ export default function LanguageScreen() {
                   <Ionicons name="language-outline" size={21} color={String(theme.primary)} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <AppText variant="heading">{choice.nativeName}</AppText>
+                  <AppText variant="heading">{copyContent(choice.nativeName)}</AppText>
                   <AppText variant="caption" muted>
-                    {choice.helper}
+                    {copyContent(choice.helper)}
                   </AppText>
                 </View>
                 <View

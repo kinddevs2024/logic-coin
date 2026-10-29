@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -28,6 +30,7 @@ function formatCountdown(milliseconds: number) {
 }
 
 export function ChallengeEmptyState({ compact = false, nextAt }: { compact?: boolean; nextAt?: string | null }) {
+  const { copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const [fallbackTarget] = useState(() => Date.now() + millisecondsToNextMidnight());
@@ -50,13 +53,13 @@ export function ChallengeEmptyState({ compact = false, nextAt }: { compact?: boo
         <Ionicons name="timer-outline" size={compact ? 20 : 24} color={String(theme.primary)} />
       </View>
       <View style={styles.copy}>
-        <AppText style={[styles.eyebrow, { color: theme.primary }]}>{c.eyebrow.toUpperCase()}</AppText>
-        <AppText style={[styles.title, compact && styles.titleCompact, { color: theme.text }]}>{c.title}</AppText>
-        {!compact ? <AppText variant="caption" muted>{c.text}</AppText> : null}
+        <AppText style={[styles.eyebrow, { color: theme.primary }]}>{copyContent(c.eyebrow.toUpperCase())}</AppText>
+        <AppText style={[styles.title, compact && styles.titleCompact, { color: theme.text }]}>{copyContent(c.title)}</AppText>
+        {!compact ? <AppText variant="caption" muted>{copyContent(c.text)}</AppText> : null}
       </View>
       <View style={styles.timer}>
-        <AppText style={[styles.countdown, { color: theme.text }]}>{countdown}</AppText>
-        <AppText style={[styles.waiting, { color: theme.textMuted }]}>{c.waiting}</AppText>
+        <AppText style={[styles.countdown, { color: theme.text }]}>{copyContent(countdown)}</AppText>
+        <AppText style={[styles.waiting, { color: theme.textMuted }]}>{copyContent(c.waiting)}</AppText>
       </View>
     </View>
   );

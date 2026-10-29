@@ -1,3 +1,4 @@
+import { localizeBuiltIn, type CopyLanguage } from "../lib/localize-built-in.js";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import mongoose, { type Types } from "mongoose";
 import { env } from "../config/env.js";
@@ -24,6 +25,7 @@ type TelegramMessageUpdate = {
     from?: {
       id?: number | string;
       first_name?: string;
+      language_code?: string;
       last_name?: string;
       username?: string;
     };
@@ -116,6 +118,16 @@ async function configureTelegramBotUI() {
     }),
     signal: AbortSignal.timeout(8_000)
   }).catch(() => undefined);
+
+  for (const language of ["en", "uz"] as const) {
+    await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ language_code: language, commands: [
+        { command: "start", description: localizeBuiltIn("Запустить Logic Coin 🎮", language) },
+        { command: "play", description: localizeBuiltIn("Открыть приложение и баланс 💰", language) },
+      ] }), signal: AbortSignal.timeout(8000),
+    }).catch(() => undefined);
+  }
 }
 
 async function configureTelegramWebhook() {
@@ -165,7 +177,7 @@ function telegramName(identity: TelegramIdentity): string {
   return [identity.firstName, identity.lastName].filter(Boolean).join(" ").trim();
 }
 
-export async function authenticateTelegram(identity: TelegramIdentity, referralCode?: string) {
+export async function authenticateTelegram(identity: TelegramIdentity, referralCode?: string, language?: CopyLanguage) {
   let user = await User.findOne({ "providers.telegramSub": identity.id });
   const now = new Date();
   if (!user) {
@@ -174,6 +186,7 @@ export async function authenticateTelegram(identity: TelegramIdentity, referralC
       name: telegramName(identity) || identity.username || "Logic member",
       emailVerifiedAt: now,
       telegramSub: identity.id,
+      ...(language ? { language } : {}),
       ...(referralCode ? { referralCode } : {})
     });
     if (identity.photoUrl) {
@@ -224,7 +237,7 @@ async function resolveBotUsername(): Promise<string> {
   return cachedBotUsername;
 }
 
-export async function createTelegramLogin(referralCode?: string, deviceId?: string, returnTarget: "app" | "web" = "web", linkUserId?: Types.ObjectId) {
+export async function createTelegramLogin(referralCode?: string, deviceId?: string, returnTarget: "app" | "web" = "web", linkUserId?: Types.ObjectId, language: CopyLanguage = "ru") {
   requireBotToken();
   await ensureTelegramWebhook();
   const flowId = randomBytes(16).toString("base64url");
@@ -235,6 +248,7 @@ export async function createTelegramLogin(referralCode?: string, deviceId?: stri
     flowId,
     pollTokenHash: hashOpaqueToken(pollToken),
     returnTarget,
+    language,
     ...(linkUserId ? { linkUserId } : {}),
     ...(referralCode ? { referralCode: referralCode.trim().toUpperCase() } : {}),
     expiresAt
@@ -256,6 +270,7 @@ function parseStartIdentity(update: TelegramMessageUpdate): {
   chatId: string;
 } | null {
   const message = update.message;
+  let language: CopyLanguage = message?.from?.language_code?.startsWith("uz") ? "uz" : message?.from?.language_code?.startsWith("en") ? "en" : "ru";
   const text = message?.text?.trim() ?? "";
   const match = text.match(/^\/start(?:@[A-Za-z0-9_]+)?\s+lc_([A-Za-z0-9_-]{20,30})_([A-Za-z0-9_-]{14})$/);
   if (!match || !message?.from?.id || !message.chat?.id) return null;
@@ -282,39 +297,39 @@ export function telegramReturnButtons(resumeToken: string, returnTarget: "app" |
   return invited ? [authorize] : [[{ text: "🎮 Открыть Logic Coin", web_app: { url } }], authorize];
 }
 
-async function sendBotReturnLink(chatId: string, resumeToken: string, returnTarget: "app" | "web", invited = false) {
+async function sendBotReturnLink(chatId: string, resumeToken: string, returnTarget: "app" | "web", invited = false, language: CopyLanguage = "ru") {
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
   await fetch(botUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
+    body: serializeBotCopy({
       chat_id: chatId,
       text: "✅ Вход подтверждён! Возвращайтесь в Logic Coin.",
       reply_markup: { remove_keyboard: true }
-    }),
+    }, language),
     signal: AbortSignal.timeout(5_000)
   }).catch(() => undefined);
   await fetch(botUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
+    body: serializeBotCopy({
       chat_id: chatId,
       text: returnTarget === "app" ? "Вход подтверждён. Нажмите кнопку, чтобы вернуться в установленное приложение. Если Telegram блокирует открытие, вернитесь в APK вручную — вход уже подтверждён." : "Откройте Logic Coin для продолжения:",
       reply_markup: {
         inline_keyboard: telegramReturnButtons(resumeToken, returnTarget, invited)
       }
-    }),
+    }, language),
     signal: AbortSignal.timeout(5_000)
   }).catch(() => undefined);
 }
 
-async function sendBotWelcome(chatId: string) {
+async function sendBotWelcome(chatId: string, language: CopyLanguage = "ru") {
   const botUrl = `https://api.telegram.org/bot${requireBotToken()}/sendMessage`;
   const appUrl = telegramAppUrl();
   await fetch(botUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
+    body: serializeBotCopy({
       chat_id: chatId,
       text: "👋 **Добро пожаловать в Logic Coin!**\n\nИграйте в логические игры, участвуйте в челленджах, зарабатывайте монеты и проверяйте свой баланс прямо в Telegram.",
       parse_mode: "Markdown",
@@ -323,7 +338,7 @@ async function sendBotWelcome(chatId: string) {
           [{ text: "🎮 Открыть Logic Coin", web_app: { url: appUrl } }]
         ]
       }
-    }),
+    }, language),
     signal: AbortSignal.timeout(5_000)
   }).catch(() => undefined);
 }
@@ -339,12 +354,13 @@ export function buildTelegramReturnUrl(
 
 export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
   const message = update.message;
+  let language: CopyLanguage = message?.from?.language_code?.startsWith("uz") ? "uz" : message?.from?.language_code?.startsWith("en") ? "en" : "ru";
   const text = message?.text?.trim() ?? "";
   if (
     /^\/(start|play|app|help)(?:@[A-Za-z0-9_]+)?$/i.test(text) &&
     message?.chat?.id !== undefined
   ) {
-    await sendBotWelcome(String(message.chat.id));
+    await sendBotWelcome(String(message.chat.id), language);
     return { accepted: true, matched: false };
   }
   const parsed = parseStartIdentity(update);
@@ -367,15 +383,16 @@ export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
     { new: true }
   );
   if (!challenge) return { accepted: true, matched: false };
+  language = challenge.language ?? language;
   if (challenge.linkUserId) {
     await fetch(`https://api.telegram.org/bot${requireBotToken()}/sendMessage`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: parsed.chatId, text: "Telegram подтверждён. Вернитесь в Logic Coin и нажмите «Проверить», чтобы привязать его к своему аккаунту." }),
+      body: serializeBotCopy({ chat_id: parsed.chatId, text: "Telegram подтверждён. Вернитесь в Logic Coin и нажмите «Проверить», чтобы привязать его к своему аккаунту." }, language),
       signal: AbortSignal.timeout(5_000),
     }).catch(() => undefined);
     return { accepted: true, matched: true };
   }
-  await sendBotReturnLink(parsed.chatId, resumeToken, challenge.returnTarget === "app" ? "app" : "web", Boolean(challenge.referralCode));
+  await sendBotReturnLink(parsed.chatId, resumeToken, challenge.returnTarget === "app" ? "app" : "web", Boolean(challenge.referralCode), language);
   return { accepted: true, matched: true };
 }
 
@@ -442,7 +459,7 @@ async function consumeConfirmedChallenge(
     ...(challenge.telegramUser.photoUrl
       ? { photoUrl: challenge.telegramUser.photoUrl }
       : {})
-  }, challenge.referralCode ?? undefined);
+  }, challenge.referralCode ?? undefined, challenge.language ?? "ru");
   // Returning via Telegram's webview must not lose the originating APK's limit.
   await assertDeviceAccess(user._id, challenge.deviceId ?? undefined);
   return user;
@@ -544,3 +561,7 @@ export function assertTelegramWebhookSecret(value: string | undefined) {
 }
 
 export type TelegramUserId = Types.ObjectId;
+
+function serializeBotCopy(value: unknown, language: CopyLanguage) {
+  return JSON.stringify(value, (key, child: unknown) => typeof child === "string" && (key === "text" || key === "description") ? localizeBuiltIn(child, language) : child);
+}

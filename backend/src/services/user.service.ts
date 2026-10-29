@@ -1,3 +1,4 @@
+import type { CopyLanguage } from "../lib/localize-built-in.js";
 import type { ClientSession, Types } from "mongoose";
 import { User } from "../models/User.js";
 import { generateReferralCode, normalizeEmail } from "../lib/crypto.js";
@@ -7,6 +8,7 @@ import { NotificationEvent } from "../models/NotificationEvent.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
 
 interface CreateUserInput {
+  language?: CopyLanguage;
   email: string;
   name: string;
   passwordHash?: string;
@@ -36,6 +38,7 @@ export async function createUser(input: CreateUserInput) {
         email: normalizedEmail,
         role: env.ADMIN_EMAILS.includes(normalizedEmail) ? "admin" : "user",
         name: input.name.trim(),
+        ...(input.language ? { preferences: { language: input.language } } : {}),
         ...(input.countryCode ? { countryCode: input.countryCode.toUpperCase() } : {}),
         ...(input.passwordHash ? { passwordHash: input.passwordHash } : {}),
         ...(input.registrationTokenHash

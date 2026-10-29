@@ -18,7 +18,7 @@ import {
 } from "../lib/date.js";
 import { ActivityDay } from "../models/ActivityDay.js";
 import { BonusClaim } from "../models/BonusClaim.js";
-import { User } from "../models/User.js";
+import { User, type UserDocument } from "../models/User.js";
 import { serializeWallet } from "./serialization.service.js";
 import { creditReward } from "./wallet.service.js";
 
@@ -30,8 +30,8 @@ function bonusKey(kind: BonusKind, dayKey: string): string {
   return `monthly:${monthKey(dayKey)}`;
 }
 
-export async function getBonusOverview(userId: Types.ObjectId) {
-  const user = await User.findById(userId).select("preferences.timezone");
+export async function getBonusOverview(userId: Types.ObjectId, account?: Pick<UserDocument, "preferences">) {
+  const user = account ?? await User.findById(userId).select("preferences.timezone");
   if (!user) {
     throw new ApiError(404, "user_not_found", "User not found");
   }

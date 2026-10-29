@@ -1,5 +1,7 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -33,6 +35,7 @@ export function PaymentCard({
   onHolderNameChange,
   onExpirationChange,
 }: PaymentCardProps) {
+  const { copyText, copyContent } = useUiCopy();
   const focus = useSharedValue(0);
   const brand = savedBrand ?? detectCardBrand(cardNumber);
   const displayedNumber = readOnly && savedLast4
@@ -61,12 +64,12 @@ export function PaymentCard({
         <View style={styles.chip}><Ionicons name="hardware-chip-outline" size={26} color="#D8F2E3" /></View>
         <View style={styles.brandWrap}>
           <Ionicons name="radio-outline" size={19} color="#D8F2E3" />
-          <AppText style={styles.brand}>{brand === "other" ? "CARD" : brand.toUpperCase()}</AppText>
+          <AppText style={styles.brand}>{copyContent(brand === "other" ? "CARD" : brand.toUpperCase())}</AppText>
         </View>
       </View>
 
       <TextInput
-        accessibilityLabel="Номер банковской карты"
+        accessibilityLabel={copyText("Номер банковской карты")}
         editable={!readOnly}
         value={displayedNumber}
         onChangeText={(value) => onCardNumberChange(formatCardNumber(value))}
@@ -75,7 +78,7 @@ export function PaymentCard({
         keyboardType="number-pad"
         autoComplete="cc-number"
         maxLength={23}
-        placeholder="0000 0000 0000 0000"
+        placeholder={copyText("0000 0000 0000 0000")}
         placeholderTextColor="rgba(235,244,255,0.45)"
         selectionColor="#9FE6C5"
         style={[styles.cardNumber, readOnly && styles.readOnly]}
@@ -83,24 +86,24 @@ export function PaymentCard({
 
       <View style={styles.cardBottom}>
         <View style={styles.holderField}>
-          <AppText style={styles.fieldLabel}>ВЛАДЕЛЕЦ</AppText>
+          <AppText style={styles.fieldLabel}>{copyText("ВЛАДЕЛЕЦ")}</AppText>
           <TextInput
-            accessibilityLabel="Имя владельца карты"
+            accessibilityLabel={copyText("Имя владельца карты")}
             editable={!readOnly}
             value={holderName}
             onChangeText={(value) => onHolderNameChange(value.toUpperCase().replace(/[^A-ZА-ЯЁ\s'-]/gi, "").slice(0, 80))}
             onFocus={activate}
             onBlur={deactivate}
             autoCapitalize="characters"
-            placeholder="ИМЯ ФАМИЛИЯ"
+            placeholder={copyText("ИМЯ ФАМИЛИЯ")}
             placeholderTextColor="rgba(235,244,255,0.45)"
             style={[styles.holderInput, readOnly && styles.readOnly]}
           />
         </View>
         <View style={styles.expirationField}>
-          <AppText style={styles.fieldLabel}>СРОК</AppText>
+          <AppText style={styles.fieldLabel}>{copyText("СРОК")}</AppText>
           <TextInput
-            accessibilityLabel="Срок действия карты"
+            accessibilityLabel={copyText("Срок действия карты")}
             editable={!readOnly}
             value={expiration}
             onChangeText={(value) => onExpirationChange(formatExpiration(value))}
@@ -109,7 +112,7 @@ export function PaymentCard({
             keyboardType="number-pad"
             autoComplete="cc-exp"
             maxLength={5}
-            placeholder="MM/YY"
+            placeholder={copyText("MM/YY")}
             placeholderTextColor="rgba(235,244,255,0.45)"
             style={[styles.expirationInput, readOnly && styles.readOnly]}
           />

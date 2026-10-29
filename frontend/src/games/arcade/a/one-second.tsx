@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -51,6 +53,7 @@ function IntroRule({ icon, color, children }: { icon: React.ComponentProps<typeo
 }
 
 export function OneSecondGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const { copyText, copyContent } = useUiCopy();
   const markStarted = useGameSession()?.onStart;
   const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#7C6FFF", "#C9B8FF");
@@ -155,22 +158,22 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
         <GameHeader title="1 СЕКУНДА" accent={theme.primary} onExit={onExit} />
         <Animated.View entering={FadeIn.duration(260)} exiting={FadeOut.duration(180)} style={styles.introScreen}>
           <Text style={styles.introOne}>1</Text>
-          <Text style={[styles.introSecond, { color: theme.primary }]}>СЕКУНДА</Text>
-          <Text style={styles.introKicker}>ТЕСТ ВНУТРЕННИХ ЧАСОВ МОЗГА</Text>
+          <Text style={[styles.introSecond, { color: theme.primary }]}>{copyText("СЕКУНДА")}</Text>
+          <Text style={styles.introKicker}>{copyText("ТЕСТ ВНУТРЕННИХ ЧАСОВ МОЗГА")}</Text>
           <GlassPanel style={styles.rule}>
             <Text style={[styles.introTarget, { color: theme.primary }]}>1.000</Text>
-            <Text style={styles.introTargetLabel}>ИДЕАЛЬНЫЙ РЕЗУЛЬТАТ</Text>
+            <Text style={styles.introTargetLabel}>{copyText("ИДЕАЛЬНЫЙ РЕЗУЛЬТАТ")}</Text>
             <View style={styles.introDivider} />
-            <IntroRule icon="radio-button-on" color="#FF5572">Нажми и <Text style={styles.introStrong}>держи</Text> кнопку</IntroRule>
-            <IntroRule icon="stop" color={theme.secondary}>Отпусти ровно через <Text style={styles.introStrong}>1 секунду</Text></IntroRule>
-            {challengeMode ? <IntroRule icon="repeat" color="#5CA8FF"><Text style={styles.introStrong}>{challengeAttempts} попыток · до 3 минут</Text> — среднее отклонение решает</IntroRule> : null}
-            <IntroRule icon="trophy" color="#F5B800">Меньше <Text style={styles.introStrong}>30 мс</Text> — уровень мастера</IntroRule>
+            <IntroRule icon="radio-button-on" color="#FF5572">{copyText("Нажми и ")}<Text style={styles.introStrong}>{copyText("держи")}</Text> {copyText(" кнопку")}</IntroRule>
+            <IntroRule icon="stop" color={theme.secondary}>{copyText("Отпусти ровно через ")}<Text style={styles.introStrong}>{copyText("1 секунду")}</Text></IntroRule>
+            {challengeMode ? <IntroRule icon="repeat" color="#5CA8FF"><Text style={styles.introStrong}>{copyContent(challengeAttempts)} {copyText(" попыток · до 3 минут")}</Text> {copyText(" — среднее отклонение решает")}</IntroRule> : null}
+            <IntroRule icon="trophy" color="#F5B800">{copyText("Меньше ")}<Text style={styles.introStrong}>{copyText("30 мс")}</Text> {copyText(" — уровень мастера")}</IntroRule>
           </GlassPanel>
           <View style={styles.introStats}>
-            <View style={styles.introStat}><Text style={styles.introStatLabel}>ЛУЧШЕЕ ОТКЛОНЕНИЕ</Text><Text style={styles.introStatValue}>—</Text></View>
-            <View style={styles.introStat}><Text style={styles.introStatLabel}>ЛУЧШИЙ COIN</Text><Text style={styles.introStatValue}>{bestScore ? suggestedCoins(bestScore, true, "one-second") : "—"}</Text></View>
+            <View style={styles.introStat}><Text style={styles.introStatLabel}>{copyText("ЛУЧШЕЕ ОТКЛОНЕНИЕ")}</Text><Text style={styles.introStatValue}>—</Text></View>
+            <View style={styles.introStat}><Text style={styles.introStatLabel}>{copyText("ЛУЧШИЙ COIN")}</Text><Text style={styles.introStatValue}>{copyContent(bestScore ? suggestedCoins(bestScore, true, "one-second") : "—")}</Text></View>
           </View>
-          <ArcadeButton accent={theme.primary} onPress={start} style={styles.introButton}>НАЧАТЬ</ArcadeButton>
+          <ArcadeButton accent={theme.primary} onPress={start} style={styles.introButton}>{copyText("НАЧАТЬ")}</ArcadeButton>
         </Animated.View>
       </GameRoot>
     );
@@ -189,21 +192,21 @@ export function OneSecondGame({ initialBestScore = 0, paused = false, skin, chal
       <GameHeader title="1 СЕКУНДА" accent={theme.primary} onExit={onExit} />
       <View style={styles.hud}><HudStat label={challengeMode ? "Попытка" : "Режим"} value={challengeMode ? `${attempts.length + (feedback ? 0 : 1)}/${challengeAttempts}` : "∞"} /><HudStat label="COIN" value={suggestedCoins(score, true, "one-second")} color={theme.primary} /><HudStat label="Среднее" value={attempts.length ? `${average}мс` : "—"} /></View>
       <View style={styles.game}>
-        <Text style={[styles.phase, { color: activeColor }]}>{feedback ? hitLabel[feedback.kind] : holding ? "ОТПУСТИ ЧЕРЕЗ 1 СЕКУНДУ" : "НАЖМИ И ДЕРЖИ"}</Text>
-        <Pressable onPressIn={pressIn} onPressOut={pressOut} accessibilityRole="button" accessibilityLabel="Зажмите и отпустите через одну секунду">
+        <Text style={[styles.phase, { color: activeColor }]}>{copyContent(feedback ? hitLabel[feedback.kind] : holding ? "ОТПУСТИ ЧЕРЕЗ 1 СЕКУНДУ" : "НАЖМИ И ДЕРЖИ")}</Text>
+        <Pressable onPressIn={pressIn} onPressOut={pressOut} accessibilityRole="button" accessibilityLabel={copyText("Зажмите и отпустите через одну секунду")}>
           <Animated.View style={[styles.circleWrap, buttonStyle]}>
             <Svg width={176} height={176} style={StyleSheet.absoluteFill}>
               <Circle cx={88} cy={88} r={RADIUS} fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth={4} />
               <Circle cx={88} cy={88} r={RADIUS} fill="none" stroke={activeColor} strokeWidth={5} strokeLinecap="round" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={CIRCUMFERENCE * (1 - progress)} transform="rotate(-90 88 88)" />
             </Svg>
             <View style={[styles.circle, { borderColor: `${activeColor}55` }]}>
-              <Text style={[styles.circleLabel, { color: activeColor }]}>{feedback ? `${feedback.elapsed >= TARGET_MS ? "+" : "−"}${feedback.deviation}мс` : holding ? "ДЕРЖИ" : "СТАРТ"}</Text>
-              <Text style={styles.circleValue}>{feedback ? (feedback.elapsed / 1000).toFixed(3) : "1.0"}</Text>
-              {feedback ? <Animated.Text entering={FadeIn} style={[styles.points, { color: activeColor }]}>{feedback.points} очков</Animated.Text> : null}
+              <Text style={[styles.circleLabel, { color: activeColor }]}>{copyContent(feedback ? `${feedback.elapsed >= TARGET_MS ? "+" : "−"}${feedback.deviation}мс` : holding ? "ДЕРЖИ" : "СТАРТ")}</Text>
+              <Text style={styles.circleValue}>{copyContent(feedback ? (feedback.elapsed / 1000).toFixed(3) : "1.0")}</Text>
+              {feedback ? <Animated.Text entering={FadeIn} style={[styles.points, { color: activeColor }]}>{copyContent(feedback.points)} {copyText(" очков")}</Animated.Text> : null}
             </View>
           </Animated.View>
         </Pressable>
-        <View style={styles.deviation}><Text style={styles.deviationLabel}>−500 мс</Text><View style={styles.deviationLine}><View style={styles.deviationCenter} /></View><Text style={styles.deviationLabel}>+500 мс</Text></View>
+        <View style={styles.deviation}><Text style={styles.deviationLabel}>{copyText("−500 мс")}</Text><View style={styles.deviationLine}><View style={styles.deviationCenter} /></View><Text style={styles.deviationLabel}>{copyText("+500 мс")}</Text></View>
       </View>
       {challengeMode ? <ProgressBar progress={attempts.length / challengeAttempts} color={theme.primary} height={6} /> : null}
     </GameRoot>

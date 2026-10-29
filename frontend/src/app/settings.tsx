@@ -1,12 +1,11 @@
+import { useUiCopy , Alert } from "@/components/localized-native";
+import { useQueryClient } from "@tanstack/react-query";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -45,10 +44,12 @@ const legalCopy = {
 } as const;
 
 export default function SettingsScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
   const { isDesktop } = useResponsiveLayout();
   const { t, language } = useTranslation();
+  const queryClient = useQueryClient();
   const notificationsEnabled = useAppStore(
     (state) => state.notificationsEnabled,
   );
@@ -106,9 +107,13 @@ export default function SettingsScreen() {
     patchPreferences({ theme: nextTheme });
   };
 
-  const changeLanguage = (nextLanguage: Language) => {
+  const changeLanguage = async (nextLanguage: Language) => {
     setLanguage(nextLanguage);
-    patchPreferences({ language: nextLanguage });
+    if (authenticated && accessToken) {
+      try { await meApi.updatePreferences({ language: nextLanguage }, accessToken); }
+      catch { Alert.alert(t("settings.language"), copyText("Не удалось сохранить язык. Попробуйте ещё раз.")); }
+    }
+    await Promise.all(["games", "tasks", "challenges", "bootstrap", "inbox"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
   };
 
   const changeGoal = (amount: number) => {
@@ -146,10 +151,10 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <AppText variant="label">{t("settings.notifications")}</AppText>
+            <AppText variant="label">{copyContent(t("settings.notifications"))}</AppText>
           </View>
           <GlassSwitch
-            accessibilityLabel={t("settings.notifications")}
+            accessibilityLabel={copyText(t("settings.notifications"))}
             value={notificationsEnabled}
             disabled={busy}
             onValueChange={(value) => void toggleNotifications(value)}
@@ -165,7 +170,7 @@ export default function SettingsScreen() {
             isDesktop && styles.settingsCardDesktop,
           ]}
         >
-        <AppText variant="heading">{t("settings.theme")}</AppText>
+        <AppText variant="heading">{copyContent(t("settings.theme"))}</AppText>
         <View style={styles.themeGrid}>
           {themeModes.map((themeMode) => {
             const palette = themeMode === "auto" ? theme : themes[themeMode];
@@ -175,7 +180,7 @@ export default function SettingsScreen() {
                 key={themeMode}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selected }}
-                accessibilityLabel={t(`settings.theme.${themeMode}`)}
+                accessibilityLabel={copyText(t(`settings.theme.${themeMode}`))}
                 onPress={() => changeTheme(themeMode)}
                 style={({ pressed }) => [
                   styles.themeCard,
@@ -220,7 +225,7 @@ export default function SettingsScreen() {
                     minimumFontScale={0.75}
                     style={styles.themeLabelText}
                   >
-                    {t(`settings.theme.${themeMode}`)}
+                    {copyContent(t(`settings.theme.${themeMode}`))}
                   </AppText>
                   {selected ? (
                     <Ionicons
@@ -252,7 +257,7 @@ export default function SettingsScreen() {
             size={20}
             color={String(theme.primary)}
           />
-          <AppText variant="heading">{t("settings.language")}</AppText>
+          <AppText variant="heading">{copyContent(t("settings.language"))}</AppText>
         </View>
         <View style={styles.chips}>
           {languages.map((item) => (
@@ -281,7 +286,7 @@ export default function SettingsScreen() {
             size={20}
             color={String(theme.primary)}
           />
-          <AppText variant="heading">{t("home.goal")}</AppText>
+          <AppText variant="heading">{copyContent(t("home.goal"))}</AppText>
         </View>
         <View style={styles.chips}>
           {[1000, 2500, 5000].map((amount) => (
@@ -310,7 +315,7 @@ export default function SettingsScreen() {
               size={20}
               color={String(theme.primary)}
             />
-            <AppText variant="heading">{legal.title}</AppText>
+            <AppText variant="heading">{copyContent(legal.title)}</AppText>
           </View>
           <Pressable
             accessibilityRole="link"
@@ -325,7 +330,7 @@ export default function SettingsScreen() {
               size={20}
               color={String(theme.primary)}
             />
-            <AppText style={styles.legalText}>{legal.privacy}</AppText>
+            <AppText style={styles.legalText}>{copyContent(legal.privacy)}</AppText>
             <Ionicons
               name="chevron-forward"
               size={18}
@@ -341,7 +346,7 @@ export default function SettingsScreen() {
             ]}
           >
             <Ionicons name="trash-outline" size={20} color="#E5484D" />
-            <AppText style={styles.legalText}>{legal.deleteAccount}</AppText>
+            <AppText style={styles.legalText}>{copyContent(legal.deleteAccount)}</AppText>
             <Ionicons
               name="chevron-forward"
               size={18}

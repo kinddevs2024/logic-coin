@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -38,6 +40,7 @@ export function ProfileDrawer({
   onSettings: () => void;
   onInvite: () => void;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const blurTarget = useModalBlurTarget();
   const { t, language } = useTranslation();
@@ -171,23 +174,23 @@ export function ProfileDrawer({
                     </AppText>
                     <View style={styles.drawerCountry}>
                       <CountryFlagBadge countryCode={user.countryCode} size={16} />
-                      <AppText variant="caption" color="rgba(255,255,255,0.78)">{countryName(user.countryCode, language)}</AppText>
+                      <AppText variant="caption" color="rgba(255,255,255,0.78)">{copyContent(countryName(user.countryCode, language))}</AppText>
                     </View>
                   </View>
                 </View>
                 <View style={styles.balanceRow}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="caption" color="rgba(255,255,255,0.72)">
-                      {t("home.balance")}
+                      {copyContent(t("home.balance"))}
                     </AppText>
                     <AppText variant="title" color="#FFFFFF">
-                      {formatMoney(balance)}
+                      {copyContent(formatMoney(balance))}
                     </AppText>
                   </View>
                 <View style={styles.profileActions}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={t("profile.edit")}
+                    accessibilityLabel={copyText(t("profile.edit"))}
                     onPress={() => setEditing(true)}
                     style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
                   >
@@ -195,7 +198,7 @@ export function ProfileDrawer({
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Поделиться профилем"
+                    accessibilityLabel={copyText("Поделиться профилем")}
                     onPress={() => void sharePublicProfile(user.name, user.referralCode)}
                     style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
                   >
@@ -208,18 +211,17 @@ export function ProfileDrawer({
               <View style={styles.stats}>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>
-                    {coinBalance}
+                    {copyContent(coinBalance)}
                   </AppText>
                   <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                    coin
-                  </AppText>
+                    {copyText(" coin ")}</AppText>
                 </GlassSurface>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>
-                    {streak}
+                    {copyContent(streak)}
                   </AppText>
                   <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                    {t("home.drawer.streak")}
+                    {copyContent(t("home.drawer.streak"))}
                   </AppText>
                 </GlassSurface>
               </View>
@@ -229,14 +231,14 @@ export function ProfileDrawer({
                 icon="settings-outline"
                 onPress={() => closeWithAction(onSettings)}
               >
-                {t("profile.settings")}
+                {copyContent(t("profile.settings"))}
               </AppButton>
               <AppButton
                 icon="person-add-outline"
                 glow
                 onPress={() => closeWithAction(onInvite)}
               >
-                {t("home.drawer.invite")}
+                {copyContent(t("home.drawer.invite"))}
               </AppButton>
             </ScrollView>
           </GlassSurface>

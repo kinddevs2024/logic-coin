@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable inside gesture worklets. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
@@ -85,6 +87,7 @@ const tabMeta: Record<
 };
 
 function LogicTabBar({ state, navigation }: LogicTabBarProps) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -275,7 +278,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
             <Pressable
               key={route.key}
               accessibilityRole="tab"
-              accessibilityLabel={t(meta.label)}
+              accessibilityLabel={copyText(t(meta.label))}
               accessibilityState={{ selected: focused }}
               aria-selected={focused}
               {...(isWeb ? {
@@ -321,7 +324,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
                   numberOfLines={1}
                   style={[styles.tabLabel, focused && styles.activeLabel]}
                 >
-                  {t(meta.label)}
+                  {copyContent(t(meta.label))}
                 </AppText>
               </Animated.View>
             </Pressable>
@@ -333,8 +336,8 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         <Link href={PLAY_STORE_URL} target="_blank" asChild>
           <Pressable
             accessibilityRole="link"
-            accessibilityLabel="Скачать Logic Coin в Google Play"
-            accessibilityHint="Откроет страницу приложения в новой вкладке"
+            accessibilityLabel={copyText("Скачать Logic Coin в Google Play")}
+            accessibilityHint={copyText("Откроет страницу приложения в новой вкладке")}
             style={({ pressed }) => [
               styles.playStoreLink,
               pressed && styles.playStoreLinkPressed,

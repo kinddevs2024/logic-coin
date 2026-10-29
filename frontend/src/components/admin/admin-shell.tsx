@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { usePathname, useRouter } from "expo-router";
 import type { PropsWithChildren } from "react";
@@ -24,6 +26,7 @@ const NAV_ITEMS: { href: "/admin/games" | "/admin/users" | "/admin" | "/admin/ch
 ];
 
 export function AdminShell({ children }: PropsWithChildren) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const router = useRouter();
   const pathname = usePathname();
@@ -45,7 +48,7 @@ export function AdminShell({ children }: PropsWithChildren) {
         ]}
       >
         <Ionicons name={item.icon} size={20} color={String(active ? theme.primary : theme.textMuted)} />
-        <AppText variant="label" color={String(active ? theme.primary : theme.text)}>{item.label}</AppText>
+        <AppText variant="label" color={String(active ? theme.primary : theme.text)}>{copyContent(item.label)}</AppText>
       </Pressable>
     );
   });
@@ -53,31 +56,31 @@ export function AdminShell({ children }: PropsWithChildren) {
   return (
     <AppFrame wide contentStyle={styles.frame}>
       <View style={styles.topbar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Вернуться в приложение" onPress={() => router.replace("/(tabs)" as never)} style={({ pressed }) => [styles.backButton, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={copyText("Вернуться в приложение")} onPress={() => router.replace("/(tabs)" as never)} style={({ pressed }) => [styles.backButton, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
           <Ionicons name="chevron-back" size={22} color={String(theme.text)} />
         </Pressable>
         <View style={styles.brand}>
           <View style={[styles.brandIcon, { backgroundColor: theme.primary }]}><Ionicons name="shield-checkmark" size={19} color={String(theme.onPrimary)} /></View>
           <View>
-            <AppText variant="heading">Logic Coin Admin</AppText>
-            <AppText variant="caption" muted>Управление продуктом</AppText>
+            <AppText variant="heading">{copyText("Logic Coin Admin")}</AppText>
+            <AppText variant="caption" muted>{copyText("Управление продуктом")}</AppText>
           </View>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Заблокировать админку" onPress={lock} style={({ pressed }) => [styles.lockButton, { borderColor: theme.border }, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={copyText("Заблокировать админку")} onPress={lock} style={({ pressed }) => [styles.lockButton, { borderColor: theme.border }, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
           <Ionicons name="lock-closed-outline" size={18} color={String(theme.textMuted)} />
-          {isDesktop ? <AppText variant="caption" muted>Выйти</AppText> : null}
+          {isDesktop ? <AppText variant="caption" muted>{copyText("Выйти")}</AppText> : null}
         </Pressable>
       </View>
 
       <View style={[styles.workspace, isDesktop && styles.workspaceDesktop]}>
         {isDesktop ? (
           <GlassSurface variant="strong" intensity={72} style={styles.sidebar}>
-            <AppText style={[styles.navLabel, { color: theme.textMuted }]}>РАЗДЕЛЫ</AppText>
+            <AppText style={[styles.navLabel, { color: theme.textMuted }]}>{copyText("РАЗДЕЛЫ")}</AppText>
             {navigation}
             <View style={styles.sidebarSpacer} />
             <View style={[styles.securityNote, { backgroundColor: theme.primarySoft }]}>
               <Ionicons name="shield-checkmark-outline" size={18} color={String(theme.primary)} />
-              <AppText variant="caption" color={String(theme.primary)} style={styles.securityText}>Защищённая сессия</AppText>
+              <AppText variant="caption" color={String(theme.primary)} style={styles.securityText}>{copyText("Защищённая сессия")}</AppText>
             </View>
           </GlassSurface>
         ) : (

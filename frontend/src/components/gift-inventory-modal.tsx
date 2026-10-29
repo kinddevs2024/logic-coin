@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
@@ -82,6 +84,7 @@ function giftActionLabel(gift: GiftItem, usable: boolean, context: GiftContext) 
 }
 
 export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = false, completed = false, supportsTimeExtension = false, gameKey, onClose, onUse }: GiftInventoryModalProps) {
+  const { copyText, copyContent } = useUiCopy();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
@@ -130,28 +133,28 @@ export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = f
     <Modal visible={visible} transparent animationType="none" onRequestClose={close} statusBarTranslucent>
       <View style={styles.backdrop}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(16,37,27,0.55)", opacity: motion.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: "clamp" }) }]} />
-        <Pressable accessibilityLabel="Закрыть подарки" style={StyleSheet.absoluteFill} onPress={close} />
+        <Pressable accessibilityLabel={copyText("Закрыть подарки")} style={StyleSheet.absoluteFill} onPress={close} />
         <Animated.View style={{ maxHeight: "82%", transform: [{ translateY: motion.interpolate({ inputRange: [0, 1], outputRange: [0, height] }) }] }}>
         <BlurView intensity={68} tint="dark" style={[styles.sheet, { maxHeight: "100%", flexShrink: 1, paddingBottom: Math.max(18, insets.bottom + 8) }]}>
           <LinearGradient pointerEvents="none" colors={["rgba(0,122,87,0.22)", "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} />
           <View style={styles.handle} />
           <View style={styles.header}>
-            <View style={styles.titleGroup}><View style={styles.giftIcon}><Ionicons name="gift" color="#FFFFFF" size={23} /></View><View><Text style={styles.title}>Подарки</Text></View></View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={styles.close}><Ionicons name="close" color="rgba(255,255,255,0.78)" size={22} /></Pressable>
+            <View style={styles.titleGroup}><View style={styles.giftIcon}><Ionicons name="gift" color="#FFFFFF" size={23} /></View><View><Text style={styles.title}>{copyText("Подарки")}</Text></View></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={close} style={styles.close}><Ionicons name="close" color="rgba(255,255,255,0.78)" size={22} /></Pressable>
           </View>
 
-{!authenticated ? <View style={styles.empty}><Ionicons name="lock-closed-outline" size={34} color="#9FE6C5" /><Text style={styles.emptyTitle}>Подарки хранятся в аккаунте</Text><Text style={styles.emptyText}>Войдите, чтобы получать и использовать бонусы.</Text></View> : gifts.isLoading && !viewOnly ? <View style={styles.loading}><ActivityIndicator color="#9FE6C5" /><Text style={styles.emptyText}>Загружаем подарки</Text></View> : gifts.isError && !viewOnly ? <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={34} color="#FF8B9A" /><Text style={styles.emptyTitle}>Не удалось загрузить</Text><Pressable onPress={() => void gifts.refetch()} style={styles.retry}><Text style={styles.retryText}>Повторить</Text></Pressable></View> : (
+{!authenticated ? <View style={styles.empty}><Ionicons name="lock-closed-outline" size={34} color="#9FE6C5" /><Text style={styles.emptyTitle}>{copyText("Подарки хранятся в аккаунте")}</Text><Text style={styles.emptyText}>{copyText("Войдите, чтобы получать и использовать бонусы.")}</Text></View> : gifts.isLoading && !viewOnly ? <View style={styles.loading}><ActivityIndicator color="#9FE6C5" /><Text style={styles.emptyText}>{copyText("Загружаем подарки")}</Text></View> : gifts.isError && !viewOnly ? <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={34} color="#FF8B9A" /><Text style={styles.emptyTitle}>{copyText("Не удалось загрузить")}</Text><Pressable onPress={() => void gifts.refetch()} style={styles.retry}><Text style={styles.retryText}>{copyText("Повторить")}</Text></Pressable></View> : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
               {viewOnly && visible ? <ChallengeRewardOverview token={accessToken!} /> : null}
-              {available.length ? <Text style={styles.sectionLabel}>ДОСТУПНО · {available.length}</Text> : null}
+              {available.length ? <Text style={styles.sectionLabel}>{copyText("ДОСТУПНО · ")}{copyContent(available.length)}</Text> : null}
               
               {available.map((gift) => <GiftCard key={gift.id} gift={gift} viewOnly={viewOnly} usable={canUseGift(gift, context)} context={context} busy={useGift.isPending && useGift.variables?.id === gift.id} onUse={() => useGift.mutate(gift)} />)}
-              {!available.length && !viewOnly ? <View style={styles.empty}><Ionicons name="gift-outline" size={36} color="rgba(255,255,255,0.34)" /><Text style={styles.emptyTitle}>Пока пусто</Text></View> : null}
-              {used.length ? <Text style={[styles.sectionLabel, styles.usedLabel]}>ИСПОЛЬЗОВАНО · {used.length}</Text> : null}
+              {!available.length && !viewOnly ? <View style={styles.empty}><Ionicons name="gift-outline" size={36} color="rgba(255,255,255,0.34)" /><Text style={styles.emptyTitle}>{copyText("Пока пусто")}</Text></View> : null}
+              {used.length ? <Text style={[styles.sectionLabel, styles.usedLabel]}>{copyText("ИСПОЛЬЗОВАНО · ")}{copyContent(used.length)}</Text> : null}
               {used.map((gift) => <GiftCard key={gift.id} gift={gift} viewOnly={viewOnly} disabled />)}
             </ScrollView>
           )}
-          {useGift.error ? <Text style={styles.errorText}>Подарок не применился. Попробуйте ещё раз.</Text> : null}
+          {useGift.error ? <Text style={styles.errorText}>{copyText("Подарок не применился. Попробуйте ещё раз.")}</Text> : null}
         </BlurView>
         </Animated.View>
       </View>
@@ -160,14 +163,15 @@ export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = f
 }
 
 function GiftCard({ gift, viewOnly = false, busy = false, disabled = false, usable = true, context, onUse }: { gift: GiftItem; viewOnly?: boolean; busy?: boolean; disabled?: boolean; usable?: boolean; context?: GiftContext; onUse?: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const unavailable = disabled || gift.status !== "available";
   const presentation = giftPresentation(gift);
   const actionEnabled = !unavailable && usable && !busy;
   return (
     <View style={[styles.card, unavailable && styles.cardUsed]}>
       <LinearGradient colors={unavailable ? ["rgba(255,255,255,0.05)", "rgba(255,255,255,0.025)"] : ["rgba(0,122,87,0.28)", "rgba(0,122,87,0.10)"]} style={styles.cardIcon}><Ionicons name={presentation.icon} color={unavailable ? "rgba(255,255,255,0.34)" : "#9FE6C5"} size={28} /></LinearGradient>
-      <View style={styles.cardInfo}><Text style={[styles.cardTitle, unavailable && styles.dimmed]}>{presentation.title}</Text><Text numberOfLines={2} style={styles.cardDescription}>{gift.description || presentation.fallback}</Text></View>
-      {!viewOnly ? <Pressable accessibilityRole="button" accessibilityLabel={presentation.accessibility} accessibilityState={{ disabled: !actionEnabled, busy }} disabled={!actionEnabled} onPress={onUse} style={({ pressed }) => [styles.useButton, (!usable || unavailable) && styles.useButtonUsed, pressed && styles.pressed]}>{busy ? <ActivityIndicator size="small" color="#082219" /> : <Text style={[styles.useText, (!usable || unavailable) && styles.useTextUsed]}>{giftActionLabel(gift, usable, context ?? { sessionReady: false, completed: false, hasGame: false, supportsTimeExtension: false })}</Text>}</Pressable> : null}
+      <View style={styles.cardInfo}><Text style={[styles.cardTitle, unavailable && styles.dimmed]}>{copyContent(presentation.title)}</Text><Text numberOfLines={2} style={styles.cardDescription}>{copyContent(gift.description || presentation.fallback)}</Text></View>
+      {!viewOnly ? <Pressable accessibilityRole="button" accessibilityLabel={copyText(presentation.accessibility)} accessibilityState={{ disabled: !actionEnabled, busy }} disabled={!actionEnabled} onPress={onUse} style={({ pressed }) => [styles.useButton, (!usable || unavailable) && styles.useButtonUsed, pressed && styles.pressed]}>{busy ? <ActivityIndicator size="small" color="#082219" /> : <Text style={[styles.useText, (!usable || unavailable) && styles.useTextUsed]}>{copyContent(giftActionLabel(gift, usable, context ?? { sessionReady: false, completed: false, hasGame: false, supportsTimeExtension: false }))}</Text>}</Pressable> : null}
     </View>
   );
 }

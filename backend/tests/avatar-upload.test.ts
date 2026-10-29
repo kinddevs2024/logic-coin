@@ -9,6 +9,8 @@ vi.mock("../src/services/serialization.service.js", () => ({
   serializeUser: vi.fn(() => ({ id: "user-id" }))
 }));
 
+vi.mock("../src/models/UserAvatar.js", () => ({ UserAvatar: { updateOne: vi.fn().mockResolvedValue({}) } }));
+
 import meRoutes from "../src/routes/me.routes.js";
 
 describe("profile avatar upload", () => {
@@ -35,7 +37,7 @@ describe("profile avatar upload", () => {
     await request(app).patch("/profile").send({ avatarDataUrl }).expect(200);
     expect(userMocks.findByIdAndUpdate).toHaveBeenCalledWith(
       userId,
-      { $set: { avatarUrl: avatarDataUrl } },
+      { $set: { avatarUrl: expect.stringMatching(new RegExp(`/api/v1/avatars/${userId.toString()}/[a-f0-9]{24}/original$`)) } },
       { new: true, runValidators: true }
     );
   });

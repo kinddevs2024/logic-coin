@@ -1,9 +1,11 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Modal, Platform, Pressable, StyleSheet, View } from "react-native";
+
 import Animated, { FadeIn, FadeInUp, FadeOut } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
@@ -28,6 +30,7 @@ export function EditProfileModal({ visible, onClose }: { visible: boolean; onClo
 }
 
 function EditProfileModalContent({ onClose }: { onClose: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t, language } = useTranslation();
   const user = useAppStore((state) => state.user);
@@ -132,14 +135,14 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         <Animated.View entering={Platform.OS === "android" ? undefined : FadeInUp.springify().damping(20)} style={styles.wrap}>
           <GlassSurface intensity={88} variant="strong" style={styles.card}>
             <View style={styles.top}>
-              <AppText style={[styles.title, { color: theme.text }]}>{t("profile.edit")}</AppText>
-              <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} style={[styles.close, { backgroundColor: theme.primarySoft }]}><Ionicons name="close" size={19} color={String(theme.text)} /></Pressable>
+              <AppText style={[styles.title, { color: theme.text }]}>{copyContent(t("profile.edit"))}</AppText>
+              <Pressable accessibilityRole="button" accessibilityLabel={copyText(t("common.close"))} onPress={onClose} style={[styles.close, { backgroundColor: theme.primarySoft }]}><Ionicons name="close" size={19} color={String(theme.text)} /></Pressable>
             </View>
             <View style={styles.preview}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Изменить фото профиля"
-                accessibilityHint="Выберите фотографию и обрежьте её перед сохранением"
+                accessibilityLabel={copyText("Изменить фото профиля")}
+                accessibilityHint={copyText("Выберите фотографию и обрежьте её перед сохранением")}
                 accessibilityState={{ busy: picking, disabled: picking || saveMutation.isPending }}
                 disabled={picking || saveMutation.isPending}
                 onPress={() => void pickAvatar()}
@@ -152,11 +155,11 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
               </Pressable>
             </View>
             <View style={styles.field}>
-              <AppText variant="caption" muted>{t("profile.name")}</AppText>
-              <TextInput value={name} onChangeText={setName} maxLength={80} autoCapitalize="words" placeholder={t("profile.name")} placeholderTextColor={String(theme.textMuted)} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} />
+              <AppText variant="caption" muted>{copyContent(t("profile.name"))}</AppText>
+              <TextInput value={name} onChangeText={setName} maxLength={80} autoCapitalize="words" placeholder={copyText(t("profile.name"))} placeholderTextColor={String(theme.textMuted)} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} />
             </View>
             <View style={styles.field}>
-              <AppText variant="caption" muted>Страна</AppText>
+              <AppText variant="caption" muted>{copyText("Страна")}</AppText>
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: countryOpen }}
@@ -164,7 +167,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                 style={[styles.countryPicker, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
               >
                 <CountryFlagBadge countryCode={countryCode} size={22} />
-                <AppText style={styles.countryPickerText} numberOfLines={1}>{countryName(countryCode, language)}</AppText>
+                <AppText style={styles.countryPickerText} numberOfLines={1}>{copyContent(countryName(countryCode, language))}</AppText>
                 <Ionicons name={countryOpen ? "chevron-up" : "chevron-down"} size={18} color={String(theme.textMuted)} />
               </Pressable>
               {countryOpen ? (
@@ -176,7 +179,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                       countryListRef.current?.scrollToOffset({ offset: 0, animated: false });
                     }}
                     autoFocus
-                    placeholder="Поиск страны"
+                    placeholder={copyText("Поиск страны")}
                     placeholderTextColor={String(theme.textMuted)}
                     style={[styles.countrySearch, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
                   />
@@ -198,17 +201,17 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                     renderItem={({ item: { code } }) => (
                       <Pressable accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => { setCountryCode(code); setCountryOpen(false); setCountryQuery(""); }} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
                         <CountryFlagBadge countryCode={code} size={22} />
-                        <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
+                        <AppText variant="caption" numberOfLines={1}>{copyContent(countryName(code, language))}</AppText>
                       </Pressable>
                     )}
                   />
                 </>
               ) : null}
             </View>
-            {message ? <AppText style={[styles.error, theme.mode === "dark" && { color: theme.danger }]}>{message}</AppText> : null}
+            {message ? <AppText style={[styles.error, theme.mode === "dark" && { color: theme.danger }]}>{copyContent(message)}</AppText> : null}
             <Pressable disabled={saveMutation.isPending || !canSave} onPress={() => saveMutation.mutate()} style={[styles.save, { backgroundColor: theme.primary }, (saveMutation.isPending || !canSave) && { opacity: 0.55 }]}>
               {saveMutation.isPending ? <ActivityIndicator color={String(theme.onPrimary)} /> : <Ionicons name="checkmark" size={19} color={String(theme.onPrimary)} />}
-              <AppText color={String(theme.onPrimary)} variant="label">{t("common.save")}</AppText>
+              <AppText color={String(theme.onPrimary)} variant="label">{copyContent(t("common.save"))}</AppText>
             </Pressable>
           </GlassSurface>
         </Animated.View>

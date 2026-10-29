@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { Circle, FontContext, Hand, ink, NotebookPaper } from './notebook';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,6 +28,7 @@ function FigurePart({ rect }: { rect: [number, number, number, number] }) {
 const parts: [number, number, number, number][] = [[155, 45, 90, 86], [192, 125, 16, 131], [125, 145, 67, 87], [208, 145, 65, 87], [150, 255, 49, 103], [199, 255, 55, 103]];
 
 export function HangmanGame({ preview = false, challengeMode = false, hostPaused = false, onExit, onComplete }: { preview?: boolean; challengeMode?: boolean; hostPaused?: boolean; onExit?: () => void; onComplete?: (score: number, durationMs: number, won: boolean) => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const language = useAppStore(state => state.language) ?? 'ru';
   const userId = useAppStore(state => state.user.id);
   const token = useAppStore(state => state.accessToken);
@@ -105,7 +108,7 @@ export function HangmanGame({ preview = false, challengeMode = false, hostPaused
     const timer = setTimeout(() => setHintConfirm(false), 5000);
     return () => clearTimeout(timer);
   }, [hintConfirm]);
-  if (!saved || (!fontsLoaded && !fontError)) return <SafeAreaView style={s.safe}><ActivityIndicator accessibilityLabel={c.loading} color={ink} /></SafeAreaView>;
+  if (!saved || (!fontsLoaded && !fontError)) return <SafeAreaView style={s.safe}><ActivityIndicator accessibilityLabel={copyText(c.loading)} color={ink} /></SafeAreaView>;
   const index = saved.rounds.length - 1;
   const round = saved.rounds[index]!;
   const status = roundStatus(round);
@@ -159,28 +162,28 @@ export function HangmanGame({ preview = false, challengeMode = false, hostPaused
     <View style={{ width: 565, height: 1190, position: 'absolute', left: (size.width - 565) / 2, top: (size.height - 1190) / 2, transform: [{ scale }] }}>
     <NotebookPaper style={StyleSheet.absoluteFill} />
 
-      <View style={s.header}><View style={s.balance}><Ionicons name="ellipse" size={46} color="#F5BB18" /><Hand style={{ fontSize: 49 }}>{earned}</Hand><Hand style={{ fontSize: 26 }}>{c.coins}</Hand></View><Circle icon="pause" color="#24C970" label={c.pause} onPress={() => setPaused(true)} /></View>
-      <Hand style={s.level}>{c.level} {index + 1} / 3</Hand>
+      <View style={s.header}><View style={s.balance}><Ionicons name="ellipse" size={46} color="#F5BB18" /><Hand style={{ fontSize: 49 }}>{copyContent(earned)}</Hand><Hand style={{ fontSize: 26 }}>{copyContent(c.coins)}</Hand></View><Circle icon="pause" color="#24C970" label={c.pause} onPress={() => setPaused(true)} /></View>
+      <Hand style={s.level}>{copyContent(c.level)} {copyContent(index + 1)} / 3</Hand>
       <Image source={gallows} resizeMode="stretch" style={s.gallows} />
       {status === 'won' ? <Image source={victory} style={s.victory} /> : <>
         {round.mistakes >= 1 && <Ionicons pointerEvents="none" name="remove-outline" size={60} color="#111" style={{ position: 'absolute', left: 230, top: 198, transform: [{ rotate: '90deg' }] }} />}
         {parts.slice(0, Math.max(0, round.mistakes - 1)).map((rect, i) => <FigurePart key={i} rect={rect} />)}
       </>}
-      <View style={s.hint}><Hand style={{ fontSize: 32 }}>{busy ? '…' : `× ${hintCount}`}</Hand><Circle icon="bulb" color="#F5BC19" label={`${c.hint}: ${hintCount}`} onPress={() => void hint()} disabled={busy || status !== 'playing' || (!preview && gifts.isFetching)} /><Hand style={{ fontSize: 19, textAlign: 'center', width: 130 }}>{hintConfirm ? c.confirm : c.gifts}</Hand></View>
-      <View style={[s.clue, { height: round.word.clue.length > 23 ? 84 : 60 }]}><Hand style={{ fontSize: round.word.clue.length > 23 ? 29 : 36, textAlign: 'center' }}>{round.word.clue}</Hand></View>
+      <View style={s.hint}><Hand style={{ fontSize: 32 }}>{copyContent(busy ? '…' : `× ${hintCount}`)}</Hand><Circle icon="bulb" color="#F5BC19" label={`${c.hint}: ${hintCount}`} onPress={() => void hint()} disabled={busy || status !== 'playing' || (!preview && gifts.isFetching)} /><Hand style={{ fontSize: 19, textAlign: 'center', width: 130 }}>{copyContent(hintConfirm ? c.confirm : c.gifts)}</Hand></View>
+      <View style={[s.clue, { height: round.word.clue.length > 23 ? 84 : 60 }]}><Hand style={{ fontSize: round.word.clue.length > 23 ? 29 : 36, textAlign: 'center' }}>{copyContent(round.word.clue)}</Hand></View>
       <View style={s.word}>{Array.from(round.word.word).map((char, i) => {
         const isLetter = letters(char).length > 0; const visible = !isLetter || round.guessed.includes(char) || status === 'lost';
-        return <View key={i} style={{ width: Math.min(50, 450 / round.word.word.length), alignItems: 'center' }}><Hand style={{ fontSize: Math.min(48, 450 / round.word.word.length), color: status === 'lost' && !round.guessed.includes(char) ? '#EF4660' : ink }}>{visible ? char : ' '}</Hand>{isLetter && !visible && <View style={s.underline} />}</View>;
+        return <View key={i} style={{ width: Math.min(50, 450 / round.word.word.length), alignItems: 'center' }}><Hand style={{ fontSize: Math.min(48, 450 / round.word.word.length), color: status === 'lost' && !round.guessed.includes(char) ? '#EF4660' : ink }}>{copyContent(visible ? char : ' ')}</Hand>{isLetter && !visible && <View style={s.underline} />}</View>;
       })}</View>
-      {message ? <Hand style={s.message}>{message}</Hand> : null}
+      {message ? <Hand style={s.message}>{copyContent(message)}</Hand> : null}
       <View style={s.keyboard}>{keyboards[language].map((row, r) => <View key={r} style={s.keyRow}>{Array.from(row).map(letter => {
         const used = round.guessed.includes(letter); const correct = letters(round.word.word).includes(letter);
-        return <Pressable key={letter} accessibilityRole="button" accessibilityLabel={letter} accessibilityState={{ disabled: used || status !== 'playing' }} disabled={used || status !== 'playing' || busy || paused || hostPaused || tutorial !== null} onPress={() => guess(letter)} style={[s.key, { width: 550 / Math.max(10, row.length) }]}><Hand style={{ fontSize: language === 'ru' ? 43 : 51 }}>{letter}</Hand>{used && <Ionicons pointerEvents="none" name={correct ? 'ellipse-outline' : 'close'} size={correct ? 49 : 65} color={correct ? '#31CF88' : '#F64466'} style={s.mark} />}</Pressable>;
+        return <Pressable key={letter} accessibilityRole="button" accessibilityLabel={copyText(letter)} accessibilityState={{ disabled: used || status !== 'playing' }} disabled={used || status !== 'playing' || busy || paused || hostPaused || tutorial !== null} onPress={() => guess(letter)} style={[s.key, { width: 550 / Math.max(10, row.length) }]}><Hand style={{ fontSize: language === 'ru' ? 43 : 51 }}>{copyContent(letter)}</Hand>{used && <Ionicons pointerEvents="none" name={correct ? 'ellipse-outline' : 'close'} size={correct ? 49 : 65} color={correct ? '#31CF88' : '#F64466'} style={s.mark} />}</Pressable>;
       })}</View>)}</View>
-      {preview && <Hand style={s.preview}>{c.preview}</Hand>}
-      {status !== 'playing' && !(finished && onComplete) && <View style={s.result}><NotebookPaper style={s.resultPaper}><Hand style={{ fontSize: 47, color: '#111', textAlign: 'center' }}>{finished ? c.finish : status === 'won' ? c.win : c.lose}</Hand><Hand style={{ fontSize: 30, textAlign: 'center' }}>{finished ? `${earned} / 1000 ${c.coins}` : `+${wordCoins(round, index)} ${c.coins}`}</Hand>{finished && <Hand style={{ fontSize: 24, textAlign: 'center' }}>{saved.rounds.map((item, i) => wordCoins(item, i)).join(' + ')}{earned > saved.rounds.reduce((sum, item, i) => sum + wordCoins(item, i), 0) ? ` → ${earned}` : ` = ${earned}`} </Hand>}<View style={{ flexDirection: 'row', justifyContent: 'center', gap: 45, marginTop: 22 }}>{finished && <Circle icon="home" color="#FF9D1E" label={c.home} onPress={home} />}<Circle icon={finished ? 'refresh' : 'arrow-forward'} color="#FF9D1E" label={finished ? c.restart : c.next} onPress={next} /></View></NotebookPaper></View>}
-      {paused && <View style={s.backdrop}><NotebookPaper style={s.pausePaper}><View style={{ position: 'absolute', right: 6, top: 6 }}><Circle icon="close" color="#F54763" label={c.resume} onPress={() => setPaused(false)} /></View><Hand style={{ fontSize: 52, textAlign: 'center' }}>{c.pause}</Hand><SoundControl value={sound.volume} onChange={sound.updateVolume} label={c.sound} /><View style={{ flexDirection: 'row', justifyContent: 'center', gap: 55, marginTop: 135 }}><Circle icon="home" color="#FF9D1E" label={c.home} onPress={home} disabled={busy} /><Circle icon="refresh" color="#FF9D1E" label={c.restart} onPress={restart} disabled={busy || challengeMode} /></View><Pressable accessibilityRole="button" onPress={() => { commit({ ...saved, tutorialDone: false }); setTutorial(0); setPaused(false); }} style={{ marginTop: 50 }}><Hand style={{ textAlign: 'center', fontSize: 27 }}>{c.help}</Hand></Pressable></NotebookPaper></View>}
-      {tutorial !== null && <Pressable accessibilityRole="button" accessibilityLabel={c.tap} onPress={tutorialNext} style={s.tutorial}><TutorialMask step={tutorial} /><Hand style={[s.tutorialText, { top: tutorial === 1 ? 815 : tutorial === 0 ? 805 : tutorial === 4 ? 145 : 645 }]}>{c.tutorial[tutorial]}</Hand><Hand style={s.continue}>{c.tap}</Hand></Pressable>}
+      {preview && <Hand style={s.preview}>{copyContent(c.preview)}</Hand>}
+      {status !== 'playing' && !(finished && onComplete) && <View style={s.result}><NotebookPaper style={s.resultPaper}><Hand style={{ fontSize: 47, color: '#111', textAlign: 'center' }}>{copyContent(finished ? c.finish : status === 'won' ? c.win : c.lose)}</Hand><Hand style={{ fontSize: 30, textAlign: 'center' }}>{copyContent(finished ? `${earned} / 1000 ${c.coins}` : `+${wordCoins(round, index)} ${c.coins}`)}</Hand>{finished && <Hand style={{ fontSize: 24, textAlign: 'center' }}>{copyContent(saved.rounds.map((item, i) => wordCoins(item, i)).join(' + '))}{copyContent(earned > saved.rounds.reduce((sum, item, i) => sum + wordCoins(item, i), 0) ? ` → ${earned}` : ` = ${earned}`)} </Hand>}<View style={{ flexDirection: 'row', justifyContent: 'center', gap: 45, marginTop: 22 }}>{finished && <Circle icon="home" color="#FF9D1E" label={c.home} onPress={home} />}<Circle icon={finished ? 'refresh' : 'arrow-forward'} color="#FF9D1E" label={finished ? c.restart : c.next} onPress={next} /></View></NotebookPaper></View>}
+      {paused && <View style={s.backdrop}><NotebookPaper style={s.pausePaper}><View style={{ position: 'absolute', right: 6, top: 6 }}><Circle icon="close" color="#F54763" label={c.resume} onPress={() => setPaused(false)} /></View><Hand style={{ fontSize: 52, textAlign: 'center' }}>{copyContent(c.pause)}</Hand><SoundControl value={sound.volume} onChange={sound.updateVolume} label={c.sound} /><View style={{ flexDirection: 'row', justifyContent: 'center', gap: 55, marginTop: 135 }}><Circle icon="home" color="#FF9D1E" label={c.home} onPress={home} disabled={busy} /><Circle icon="refresh" color="#FF9D1E" label={c.restart} onPress={restart} disabled={busy || challengeMode} /></View><Pressable accessibilityRole="button" onPress={() => { commit({ ...saved, tutorialDone: false }); setTutorial(0); setPaused(false); }} style={{ marginTop: 50 }}><Hand style={{ textAlign: 'center', fontSize: 27 }}>{copyContent(c.help)}</Hand></Pressable></NotebookPaper></View>}
+      {tutorial !== null && <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.tap)} onPress={tutorialNext} style={s.tutorial}><TutorialMask step={tutorial} /><Hand style={[s.tutorialText, { top: tutorial === 1 ? 815 : tutorial === 0 ? 805 : tutorial === 4 ? 145 : 645 }]}>{copyContent(c.tutorial[tutorial])}</Hand><Hand style={s.continue}>{copyContent(c.tap)}</Hand></Pressable>}
     </View>
   </View></SafeAreaView></FontContext.Provider>;
 }

@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useState } from "react";
 import { Image, View } from "react-native";
 
@@ -33,13 +35,14 @@ export function Avatar({
 }
 
 function AvatarContent({ name, avatarUrl, size }: { name?: string; avatarUrl?: string | null; size: number }) {
+  const { copyText } = useUiCopy();
   const theme = useAppTheme();
   const [failed, setFailed] = useState(false);
   if (avatarUrl && !failed) {
     return (
       <Image
         {...androidImageProps}
-        accessibilityLabel={name ? `Фото ${name}` : "Фото профиля"}
+        accessibilityLabel={copyText(name ? `Фото ${name}` : "Фото профиля")}
         source={{ uri: migratedAppUrl(avatarUrl) }}
         style={{ flex: 1, width: "100%", borderRadius: size / 2 }}
         resizeMode="cover"

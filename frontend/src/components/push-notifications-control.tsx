@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useState, useSyncExternalStore } from "react";
 import { Platform, Pressable, View } from "react-native";
 import { AppText } from "@/components/app-text";
@@ -15,6 +17,7 @@ const labels = {
 };
 
 export function PushNotificationsControl() {
+  const { copyContent } = useUiCopy();
   const token = useAppStore(s => s.accessToken);
   const time = useAppStore(s => s.notificationTime);
   const enabled = useAppStore(s => s.notificationsEnabled);
@@ -48,10 +51,10 @@ export function PushNotificationsControl() {
     } finally { setBusy(false); }
   };
   return <View style={{ padding: 12, gap: 8, borderRadius: 14, backgroundColor: theme.surfaceRaised }}>
-    <AppText variant="caption" muted accessibilityLiveRegion="polite">{c[status]}</AppText>
+    <AppText variant="caption" muted accessibilityLiveRegion="polite">{copyContent(c[status])}</AppText>
     {status !== "unsupported" && status !== "setup_required" && !(status === "denied" && Platform.OS === "web") ?
       <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void enable().catch(() => {}); }} style={{ padding: 12, borderRadius: 14, backgroundColor: theme.primary }}>
-        <AppText color="#FFFFFF" variant="label">{busy ? c.busy : c.enable}</AppText>
+        <AppText color="#FFFFFF" variant="label">{copyContent(busy ? c.busy : c.enable)}</AppText>
       </Pressable> : null}
   </View>;
 }

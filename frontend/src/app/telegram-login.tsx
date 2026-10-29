@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
@@ -7,6 +9,7 @@ import { AppButton } from "@/components/buttons";
 import { GlassSurface } from "@/components/glass-surface";
 
 export default function TelegramLoginScreen() {
+  const { copyText } = useUiCopy();
   const params = useLocalSearchParams<{ telegram_token?: string | string[]; target?: string }>();
   const token = Array.isArray(params.telegram_token) ? params.telegram_token[0] : params.telegram_token;
   const router = useRouter();
@@ -30,10 +33,10 @@ export default function TelegramLoginScreen() {
   }, [openApplication, params.target]);
   return <AppFrame contentStyle={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
     <GlassSurface variant="strong" style={{ maxWidth: 440, width: "100%", padding: 24, borderRadius: 24, gap: 18 }}>
-      <AppText variant="heading" style={{ textAlign: "center" }}>Вход в Logic Coin подтверждён</AppText>
-      <AppText muted style={{ textAlign: "center" }}>Если вы начали вход в APK, вернитесь в приложение на телефоне.</AppText>
-      <AppButton onPress={openApplication}>Открыть приложение</AppButton>
-      {params.target !== "app" ? <AppButton variant="ghost" onPress={continueInBrowser}>Продолжить в браузере</AppButton> : null}
+      <AppText variant="heading" style={{ textAlign: "center" }}>{copyText("Вход в Logic Coin подтверждён")}</AppText>
+      <AppText muted style={{ textAlign: "center" }}>{copyText("Если вы начали вход в APK, вернитесь в приложение на телефоне.")}</AppText>
+      <AppButton onPress={openApplication}>{copyText("Открыть приложение")}</AppButton>
+      {params.target !== "app" ? <AppButton variant="ghost" onPress={continueInBrowser}>{copyText("Продолжить в браузере")}</AppButton> : null}
     </GlassSurface>
   </AppFrame>;
 }

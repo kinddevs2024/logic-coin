@@ -1,3 +1,4 @@
+import { localizeAppReturnHtml, requestLanguage } from "./request-language.js";
 import { randomBytes } from "node:crypto";
 import type { RequestHandler } from "express";
 export function appReturnUrl(origin: string, token?: string): string {
@@ -6,11 +7,11 @@ export function appReturnUrl(origin: string, token?: string): string {
   if (token) url.hash = new URLSearchParams({ telegram_token: token }).toString();
   return url.toString();
 }
-export const serveAppReturnPage: RequestHandler = (_request, response) => {
+export const serveAppReturnPage: RequestHandler = (request, response) => {
   const nonce = randomBytes(18).toString("base64");
   response.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow",
     "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'` });
-  response.type("html").send(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Открыть Logic Coin</title>
+  response.type("html").send(localizeAppReturnHtml(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Открыть Logic Coin</title>
 <style nonce="${nonce}">
 body{margin:0;background:radial-gradient(ellipse at 90% 0%,rgba(44,77,128,.35),transparent 40%),linear-gradient(160deg,#101d30,#0b1220 80%);color:#edf3fc;font:15px/22px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100vh;min-height:100svh;display:grid;place-items:center}
 main{box-sizing:border-box;width:calc(100% - 40px);max-width:440px;margin:24px 20px;padding:24px;background:rgba(25,39,62,.92);border:1px solid rgba(156,185,225,.2);box-shadow:inset 0 1px 1px rgba(255,255,255,.06);border-radius:24px;text-align:left}
@@ -47,5 +48,5 @@ a:focus-visible,summary:focus-visible{outline:3px solid #b3d4ff;outline-offset:4
    try { location.assign(intent); } catch (_) { /* keep explicit buttons */ }
  }
 })();
-</script></body></html>`);
+</script></body></html>`, requestLanguage(request)));
 };

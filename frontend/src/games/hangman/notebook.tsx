@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFonts } from 'expo-font';
 import { createContext, useContext, useState, type ReactNode } from 'react';
@@ -16,7 +18,8 @@ export function Hand({ children, style }: { children: ReactNode; style?: StylePr
   return <Text allowFontScaling={false} style={[{ color: ink, fontFamily }, style]}>{children}</Text>;
 }
 export function Circle({ icon, color, label, onPress, size = 88, disabled = false }: { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; label: string; onPress: () => void; size?: number; disabled?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={{ width: size, height: size, opacity: disabled ? 0.45 : 1, borderRadius: 100, borderWidth: 4, borderColor: '#101010', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAF580', transform: [{ rotate: '-3deg' }] }}><Ionicons name={icon} size={size * 0.66} color={color} /></Pressable>;
+  const { copyText } = useUiCopy();
+  return <Pressable accessibilityRole="button" accessibilityLabel={copyText(label)} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={{ width: size, height: size, opacity: disabled ? 0.45 : 1, borderRadius: 100, borderWidth: 4, borderColor: '#101010', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAF580', transform: [{ rotate: '-3deg' }] }}><Ionicons name={icon} size={size * 0.66} color={color} /></Pressable>;
 }
 
 // Match the game's 565 × 1190 drawing coordinates, including on small phones.

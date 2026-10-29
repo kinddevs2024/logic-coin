@@ -1,3 +1,6 @@
+import { useUiCopy } from "@/components/localized-native";
+import { useAppStore as localeStore } from "@/store/app-store";
+
 import { useEffect, type PropsWithChildren, type ReactNode } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -54,6 +57,7 @@ type GameScreenProps = PropsWithChildren<{
 }>;
 
 export function GameScreen({ title, accent = B_COLORS.cyan, onExit, right, scroll = false, skin, children }: GameScreenProps) {
+  const { copyText, copyContent } = useUiCopy();
   const session = useGameSession();
   const { width } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
@@ -71,7 +75,7 @@ export function GameScreen({ title, accent = B_COLORS.cyan, onExit, right, scrol
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Выйти из игры"
+          accessibilityLabel={copyText("Выйти из игры")}
           hitSlop={12}
           onPress={() => {
             lightTap();
@@ -81,7 +85,7 @@ export function GameScreen({ title, accent = B_COLORS.cyan, onExit, right, scrol
         >
           <ArcadeIcon name="chevron-left" size={25} color={B_COLORS.ink} />
         </Pressable>
-        <Text numberOfLines={1} style={[styles.headerTitle, { color: accent }]}>{title}</Text>
+        <Text numberOfLines={1} style={[styles.headerTitle, { color: accent }]}>{copyContent(title)}</Text>
         <View style={[styles.headerRight, { flexDirection: "row", alignItems: "center", gap: 8 }]}>{right ?? (session?.headerAction ? null : <View style={styles.headerSpacer} />)}{session?.headerAction}</View>
       </View>
       {children}
@@ -105,23 +109,25 @@ export function Panel({ children, style }: PropsWithChildren<{ style?: object }>
 }
 
 export function Metric({ label, value, color = B_COLORS.ink }: { label: string; value: string | number; color?: string }) {
+  const { copyContent } = useUiCopy();
   const session = useGameSession();
   const visibleLabel = label;
   const visibleValue = label === "COIN" && session?.practiceCoins !== undefined ? session.practiceCoins : value;
   return (
     <View style={styles.metric}>
-      <Text style={styles.metricLabel}>{visibleLabel}</Text>
-      <Text numberOfLines={1} style={[styles.metricValue, { color }]}>{visibleValue}</Text>
+      <Text style={styles.metricLabel}>{copyContent(visibleLabel)}</Text>
+      <Text numberOfLines={1} style={[styles.metricValue, { color }]}>{copyContent(visibleValue)}</Text>
     </View>
   );
 }
 
 export function CoinPill({ value }: { value: number }) {
+  const { copyContent } = useUiCopy();
   const session = useGameSession();
   return (
     <View style={styles.coinPill}>
       <ArcadeIcon name="circle-multiple" size={17} color={B_COLORS.gold} />
-      <Text style={styles.coinText}>{session?.practiceCoins ?? value}</Text>
+      <Text style={styles.coinText}>{copyContent(session?.practiceCoins ?? value)}</Text>
     </View>
   );
 }
@@ -141,6 +147,7 @@ export function GameButton({ label, onPress, accent = B_COLORS.cyan, secondary =
   secondary?: boolean;
   disabled?: boolean;
 }) {
+  const { copyContent } = useUiCopy();
   return (
     <Pressable
       accessibilityRole="button"
@@ -157,7 +164,7 @@ export function GameButton({ label, onPress, accent = B_COLORS.cyan, secondary =
         pressed && styles.pressed,
       ]}
     >
-      <Text style={[styles.buttonText, secondary && { color: accent }]}>{label}</Text>
+      <Text style={[styles.buttonText, secondary && { color: accent }]}>{copyContent(label)}</Text>
     </Pressable>
   );
 }
@@ -169,6 +176,7 @@ export function AnswerButton({ label, onPress, accent = B_COLORS.cyan, state = "
   state?: "idle" | "correct" | "wrong" | "dim";
   disabled?: boolean;
 }) {
+  const { copyContent } = useUiCopy();
   const bg = state === "correct" ? "rgba(78,242,163,.18)" : state === "wrong" ? "rgba(255,94,125,.18)" : B_COLORS.panelSoft;
   const border = state === "correct" ? B_COLORS.green : state === "wrong" ? B_COLORS.red : state === "dim" ? "rgba(255,255,255,.04)" : `${accent}55`;
   return (
@@ -178,7 +186,7 @@ export function AnswerButton({ label, onPress, accent = B_COLORS.cyan, state = "
       onPress={onPress}
       style={({ pressed }) => [styles.answer, { backgroundColor: bg, borderColor: border }, pressed && styles.pressed, state === "dim" && styles.disabled]}
     >
-      <Text style={styles.answerText}>{label}</Text>
+      <Text style={styles.answerText}>{copyContent(label)}</Text>
     </Pressable>
   );
 }
@@ -192,13 +200,14 @@ export function StartCard({ icon, title, subtitle, accent, details, options, onS
   options?: ReactNode;
   onStart: () => void;
 }) {
+  const { copyContent } = useUiCopy();
   const session = useGameSession();
   return (
     <Animated.View entering={FadeInDown.springify().damping(17)} style={styles.startWrap}>
       <View style={[styles.startIcon, { borderColor: `${accent}55`, backgroundColor: `${accent}14` }]}>
         <ArcadeIcon name={icon} size={42} color={accent} />
       </View>
-      <Text style={[styles.startTitle, { color: accent }]}>{title}</Text>
+      <Text style={[styles.startTitle, { color: accent }]}>{copyContent(title)}</Text>
       {options}
       <GameButton label="ИГРАТЬ" onPress={() => { session?.onStart(); onStart(); }} accent={accent} />
     </Animated.View>
@@ -215,15 +224,16 @@ export function ResultCard({ icon, title, score, coins, accent, stats, onReplay,
   onReplay: () => void;
   onExit?: () => void;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   return (
     <Animated.View entering={FadeIn.springify()} exiting={FadeOut} style={styles.resultBackdrop}>
       <Panel style={styles.resultCard}>
         <View style={[styles.resultIcon, { borderColor: `${accent}55`, backgroundColor: `${accent}14` }]}>
           <ArcadeIcon name={icon} size={36} color={accent} />
         </View>
-        <Text style={[styles.resultTitle, { color: accent }]}>{title}</Text>
-        <Text style={styles.resultScore}>{Math.max(0, coins).toLocaleString("ru-RU")}</Text>
-        <Text style={styles.resultLabel}>COIN</Text>
+        <Text style={[styles.resultTitle, { color: accent }]}>{copyContent(title)}</Text>
+        <Text style={styles.resultScore}>{copyContent(Math.max(0, coins).toLocaleString(localeStore.getState().language ?? "ru"))}</Text>
+        <Text style={styles.resultLabel}>{copyText("COIN")}</Text>
         <View style={styles.resultStats}>
           {stats.map((stat) => <Metric key={stat.label} label={stat.label} value={stat.value} color={accent} />)}
         </View>

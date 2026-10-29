@@ -1,3 +1,4 @@
+import { localizeBuiltIn } from "./localize-built-in";
 import type {
   ActivityOverview,
   BonusKind,
@@ -83,6 +84,7 @@ async function request<T>(
   const { token, skipAuthRefresh, ...fetchOptions } = options;
   const headers = new Headers(fetchOptions.headers);
   headers.set("Accept", "application/json");
+  headers.set("Accept-Language", useAppStore.getState().language ?? "ru");
   if (fetchOptions.body) {
     headers.set("Content-Type", "application/json");
   }
@@ -90,10 +92,13 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...fetchOptions,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError(localizeBuiltIn("Проверьте подключение к интернету.", useAppStore.getState().language ?? "ru"), 0, "network_unavailable");
+  }
 
   if (response.status === 401 && token && !skipAuthRefresh) {
     const refreshedToken = await refreshAccessToken(token);
@@ -111,7 +116,7 @@ async function request<T>(
   if (!response.ok) {
     const body = payload as ApiErrorBody;
     throw new ApiError(
-      body.error?.message || body.message || "Request failed",
+      localizeBuiltIn(body.error?.message || body.message || "Request failed", useAppStore.getState().language ?? "ru"),
       response.status,
       body.error?.code,
       body.error?.details,

@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, Animated, AppState, Easing, Platform, StyleSheet, View } from "react-native";
 import { useIsFocused } from "expo-router";
@@ -16,6 +18,7 @@ const slots = [
 ];
 
 function Bubble({ friend, index, width, moving }: { friend?: Friend; index: number; width: number; moving: boolean }) {
+  const { copyContent } = useUiCopy();
   const [phase] = useState(() => new Animated.Value(0));
   const slot = slots[index]!;
   useEffect(() => {
@@ -37,7 +40,7 @@ function Bubble({ friend, index, width, moving }: { friend?: Friend; index: numb
       ],
     }]}>
       {friend ? <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={slot.size - 4} /> :
-        <AppText style={{ fontSize: slot.size * 0.58, lineHeight: slot.size - 4 }}>{decorations[index]}</AppText>}
+        <AppText style={{ fontSize: slot.size * 0.58, lineHeight: slot.size - 4 }}>{copyContent(decorations[index])}</AppText>}
     </Animated.View>
   );
 }

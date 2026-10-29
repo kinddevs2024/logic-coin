@@ -1,7 +1,10 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
+import { useAppStore as localeStore } from "@/store/app-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type SetStateAction } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+
 
 import { AdminDataState, AdminPageHeader, formatUnits } from "@/components/admin/admin-ui";
 import { useAdminSession } from "@/components/admin/admin-session";
@@ -44,6 +47,7 @@ function statusLabel(status: string) {
 }
 
 export default function AdminChallengesScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { isDesktop } = useResponsiveLayout();
   const { adminToken } = useAdminSession();
@@ -162,8 +166,8 @@ export default function AdminChallengesScreen() {
       <View style={[styles.columns, isDesktop && styles.columnsDesktop]}>
         <GlassSurface intensity={68} variant="strong" style={[styles.panel, styles.historyPanel]}>
           <View style={styles.panelHeader}>
-            <View><AppText variant="heading">История</AppText><AppText variant="caption" muted>{range.from} — {range.to}</AppText></View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Обновить историю" onPress={() => void historyQuery.refetch()} style={({ pressed }) => [styles.iconButton, { backgroundColor: theme.primarySoft }, pressed && styles.pressed]}><Ionicons name="refresh" size={18} color={String(theme.primary)} /></Pressable>
+            <View><AppText variant="heading">{copyText("История")}</AppText><AppText variant="caption" muted>{copyContent(range.from)} — {copyContent(range.to)}</AppText></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={copyText("Обновить историю")} onPress={() => void historyQuery.refetch()} style={({ pressed }) => [styles.iconButton, { backgroundColor: theme.primarySoft }, pressed && styles.pressed]}><Ionicons name="refresh" size={18} color={String(theme.primary)} /></Pressable>
           </View>
           <AdminDataState loading={historyQuery.isPending} error={historyQuery.error} empty={historyQuery.data?.challenges.length === 0} emptyText="Опубликованных и сохранённых дней пока нет" onRetry={() => void historyQuery.refetch()} />
           <View style={styles.historyList}>
@@ -173,84 +177,84 @@ export default function AdminChallengesScreen() {
               return (
                 <Pressable key={entry.dayKey} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => selectDay(entry.dayKey)} style={({ pressed }) => [styles.historyRow, { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? theme.primarySoft : theme.surfaceRaised }, pressed && styles.pressed]}>
                   <View style={[styles.calendarIcon, { backgroundColor: `${String(statusColor)}14` }]}><Ionicons name="calendar-outline" size={19} color={String(statusColor)} /></View>
-                  <View style={styles.historyCopy}><AppText variant="label">{entry.dayKey}</AppText><AppText variant="caption" muted>{entry.games.length} игр · {entry.selectionMode === "random" ? "случайно" : "вручную"}</AppText></View>
-                  <View style={[styles.statusPill, { backgroundColor: `${String(statusColor)}14` }]}><AppText style={[styles.statusText, { color: statusColor }]}>{statusLabel(entry.status)}</AppText></View>
+                  <View style={styles.historyCopy}><AppText variant="label">{copyContent(entry.dayKey)}</AppText><AppText variant="caption" muted>{copyContent(entry.games.length)} {copyText(" игр · ")}{copyContent(entry.selectionMode === "random" ? "случайно" : "вручную")}</AppText></View>
+                  <View style={[styles.statusPill, { backgroundColor: `${String(statusColor)}14` }]}><AppText style={[styles.statusText, { color: statusColor }]}>{copyContent(statusLabel(entry.status))}</AppText></View>
                 </Pressable>
               );
             })}
           </View>
-          <Pressable accessibilityRole="button" onPress={() => selectDay(localDayKey())} style={[styles.todayButton, { borderColor: theme.border }]}><Ionicons name="today-outline" size={17} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.primary)}>Открыть сегодня</AppText></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => selectDay(localDayKey())} style={[styles.todayButton, { borderColor: theme.border }]}><Ionicons name="today-outline" size={17} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.primary)}>{copyText("Открыть сегодня")}</AppText></Pressable>
         </GlassSurface>
 
         <GlassSurface intensity={72} variant="strong" style={[styles.panel, styles.editorPanel]}>
           <View style={styles.panelHeader}>
-            <View><AppText variant="heading">Редактор дня</AppText><AppText variant="caption" muted>{challenge ? statusLabel(challenge.status) : "Новый челлендж"}</AppText></View>
-            {challenge ? <View style={[styles.statusPill, { backgroundColor: theme.primarySoft }]}><AppText style={[styles.statusText, { color: theme.primary }]}>{challenge.selectionMode === "random" ? "RANDOM" : "MANUAL"}</AppText></View> : null}
+            <View><AppText variant="heading">{copyText("Редактор дня")}</AppText><AppText variant="caption" muted>{copyContent(challenge ? statusLabel(challenge.status) : "Новый челлендж")}</AppText></View>
+            {challenge ? <View style={[styles.statusPill, { backgroundColor: theme.primarySoft }]}><AppText style={[styles.statusText, { color: theme.primary }]}>{copyContent(challenge.selectionMode === "random" ? "RANDOM" : "MANUAL")}</AppText></View> : null}
           </View>
           <AdminDataState loading={challengeQuery.isPending} error={challengeQuery.error} onRetry={() => void challengeQuery.refetch()} />
           {!challengeQuery.isPending && !challengeQuery.error ? (
             <>
               <View style={styles.field}>
-                <AppText variant="caption" muted>Дата</AppText>
-                <View style={[styles.inputWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Ionicons name="calendar-outline" size={18} color={String(theme.textMuted)} /><TextInput value={dayKey} onChangeText={selectDay} placeholder="YYYY-MM-DD" placeholderTextColor={String(theme.textMuted)} style={[styles.input, { color: theme.text }]} /></View>
+                <AppText variant="caption" muted>{copyText("Дата")}</AppText>
+                <View style={[styles.inputWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Ionicons name="calendar-outline" size={18} color={String(theme.textMuted)} /><TextInput value={dayKey} onChangeText={selectDay} placeholder={copyText("YYYY-MM-DD")} placeholderTextColor={String(theme.textMuted)} style={[styles.input, { color: theme.text }]} /></View>
               </View>
 
               <View style={styles.field}>
-                <AppText variant="caption" muted>Выбор игр</AppText>
+                <AppText variant="caption" muted>{copyText("Выбор игр")}</AppText>
                 <View style={[styles.segment, { borderColor: theme.border }]}>
                   {(["manual", "random"] as const).map((mode) => {
                     const active = draft.selectionMode === mode;
-                    return <Pressable key={mode} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDraft((current) => ({ ...current, selectionMode: mode }))} style={[styles.segmentItem, active && { backgroundColor: theme.primary }]}><Ionicons name={mode === "manual" ? "options-outline" : "shuffle-outline"} size={17} color={String(active ? theme.onPrimary : theme.textMuted)} /><AppText variant="caption" color={String(active ? theme.onPrimary : theme.textMuted)}>{mode === "manual" ? "Вручную" : "Случайно"}</AppText></Pressable>;
+                    return <Pressable key={mode} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDraft((current) => ({ ...current, selectionMode: mode }))} style={[styles.segmentItem, active && { backgroundColor: theme.primary }]}><Ionicons name={mode === "manual" ? "options-outline" : "shuffle-outline"} size={17} color={String(active ? theme.onPrimary : theme.textMuted)} /><AppText variant="caption" color={String(active ? theme.onPrimary : theme.textMuted)}>{copyContent(mode === "manual" ? "Вручную" : "Случайно")}</AppText></Pressable>;
                   })}
                 </View>
               </View>
 
               {draft.selectionMode === "manual" ? (
                 <View style={styles.field}>
-                  <View style={styles.fieldHeader}><AppText variant="caption" muted>Ровно 6 игр</AppText><AppText variant="caption" color={String(draft.selected.length === 6 ? theme.success : theme.primary)}>{draft.selected.length}/6</AppText></View>
+                  <View style={styles.fieldHeader}><AppText variant="caption" muted>{copyText("Ровно 6 игр")}</AppText><AppText variant="caption" color={String(draft.selected.length === 6 ? theme.success : theme.primary)}>{copyContent(draft.selected.length)}/6</AppText></View>
                   <AdminDataState loading={gamesQuery.isPending} error={gamesQuery.error} empty={gamesQuery.data?.length === 0} emptyText="Игры не добавлены в каталог" onRetry={() => void gamesQuery.refetch()} />
                   <View style={styles.games}>
-                    {(gamesQuery.data ?? []).filter((game) => game.enabled !== false && game.challengeEnabled).map((game) => {
+                    {(gamesQuery.data ?? []).filter((game) => game.enabled !== false && (game.challengeEnabled || game.key === "hangman")).map((game) => {
                       const active = draft.selected.includes(game.key);
-                      return <Pressable key={game.key} accessibilityRole="checkbox" accessibilityState={{ checked: active }} onPress={() => toggleGame(game.key)} style={({ pressed }) => [styles.game, { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? String(theme.primarySoft) : theme.surfaceRaised }, pressed && styles.pressed]}><Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} size={19} color={theme.primary} /><AppText style={styles.gameTitle} numberOfLines={1}>{game.title}</AppText>{active ? <Ionicons name="checkmark-circle" size={18} color={theme.primary} /> : null}</Pressable>;
+                      return <Pressable key={game.key} accessibilityRole="checkbox" accessibilityState={{ checked: active }} onPress={() => toggleGame(game.key)} style={({ pressed }) => [styles.game, { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? String(theme.primarySoft) : theme.surfaceRaised }, pressed && styles.pressed]}><Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} size={19} color={theme.primary} /><AppText style={styles.gameTitle} numberOfLines={1}>{copyContent(game.title)}</AppText>{active ? <Ionicons name="checkmark-circle" size={18} color={theme.primary} /> : null}</Pressable>;
                     })}
                   </View>
                 </View>
               ) : (
-                <View style={[styles.randomNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shuffle" size={21} color={String(theme.primary)} /><View style={styles.randomCopy}><AppText variant="label" color={String(theme.primary)}>Шесть игр выберет сервер</AppText><AppText variant="caption" color={String(theme.textMuted)}>Только активные игры, доступные для челленджа</AppText></View></View>
+                <View style={[styles.randomNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shuffle" size={21} color={String(theme.primary)} /><View style={styles.randomCopy}><AppText variant="label" color={String(theme.primary)}>{copyText("Шесть игр выберет сервер")}</AppText><AppText variant="caption" color={String(theme.textMuted)}>{copyText("Только активные игры, доступные для челленджа")}</AppText></View></View>
               )}
 
               <View style={styles.moneyFields}>
                 {([["Призовой фонд (центы USD)", "pool", draft.pool]] as const).map(([label, key, value]) => (
-                  <View key={key} style={styles.moneyField}><AppText variant="caption" muted>{label}</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={value} onChangeText={(next) => updateNumber(key, next)} placeholder="0" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>¢</AppText></View></View>
+                  <View key={key} style={styles.moneyField}><AppText variant="caption" muted>{copyContent(label)}</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={value} onChangeText={(next) => updateNumber(key, next)} placeholder={copyText("0")} placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>¢</AppText></View></View>
                 ))}
               </View>
               <View style={styles.moneyFields}>
-                <View style={styles.moneyField}><AppText variant="caption" muted>Coin по местам (1–6, через запятую)</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="numbers-and-punctuation" value={draft.coins} onChangeText={(value) => setDraft((current) => ({ ...current, coins: value }))} placeholder="100,50,25,10,5,1" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>coin</AppText></View></View>
-                <View style={styles.moneyField}><AppText variant="caption" muted>Повторных прохождений игры</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={draft.maxAttempts} onChangeText={(value) => setDraft((current) => ({ ...current, maxAttempts: value.replace(/[^0-9]/g, "") }))} placeholder="1" placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>раз</AppText></View></View>
-                <View style={styles.moneyField}><AppText variant="caption" muted>Попыток внутри «1 Секунды»</AppText><View accessibilityLabel="В челлендже всегда семь попыток" style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><AppText style={[styles.numberInput, { color: theme.text }]}>7</AppText><AppText variant="caption" muted>раз</AppText></View></View>
+                <View style={styles.moneyField}><AppText variant="caption" muted>{copyText("Coin по местам (1–6, через запятую)")}</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="numbers-and-punctuation" value={draft.coins} onChangeText={(value) => setDraft((current) => ({ ...current, coins: value }))} placeholder={copyText("100,50,25,10,5,1")} placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>{copyText("coin")}</AppText></View></View>
+                <View style={styles.moneyField}><AppText variant="caption" muted>{copyText("Повторных прохождений игры")}</AppText><View style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><TextInput keyboardType="number-pad" value={draft.maxAttempts} onChangeText={(value) => setDraft((current) => ({ ...current, maxAttempts: value.replace(/[^0-9]/g, "") }))} placeholder={copyText("1")} placeholderTextColor={String(theme.textMuted)} style={[styles.numberInput, { color: theme.text }]} /><AppText variant="caption" muted>{copyText("раз")}</AppText></View></View>
+                <View style={styles.moneyField}><AppText variant="caption" muted>{copyText("Попыток внутри «1 Секунды»")}</AppText><View accessibilityLabel={copyText("В челлендже всегда семь попыток")} style={[styles.numberWrap, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><AppText style={[styles.numberInput, { color: theme.text }]}>7</AppText><AppText variant="caption" muted>{copyText("раз")}</AppText></View></View>
               </View>
-              <AppText variant="caption" muted>В автоматическом режиме денежные призы распределяются по рейтингу. В блоке «Призы участников» можно заменить этот расчёт ручными суммами. В обоих режимах выплаты ограничены фондом.</AppText>
-              {!validMoney && (draft.minimum || draft.maximum || draft.pool) ? <AppText variant="caption" color={String(theme.danger)}>Фонд должен быть неотрицательной целой суммой в центах.</AppText> : null}
-              {notice ? <View style={[styles.notice, { backgroundColor: notice.includes("не удалось") || notice.includes("cannot") ? `${String(theme.danger)}12` : `${String(theme.success)}12` }]}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /><AppText variant="caption" style={styles.noticeCopy}>{notice}</AppText></View> : null}
+              <AppText variant="caption" muted>{copyText("В автоматическом режиме денежные призы распределяются по рейтингу. В блоке «Призы участников» можно заменить этот расчёт ручными суммами. В обоих режимах выплаты ограничены фондом.")}</AppText>
+              {!validMoney && (draft.minimum || draft.maximum || draft.pool) ? <AppText variant="caption" color={String(theme.danger)}>{copyText("Фонд должен быть неотрицательной целой суммой в центах.")}</AppText> : null}
+              {notice ? <View style={[styles.notice, { backgroundColor: notice.includes("не удалось") || notice.includes("cannot") ? `${String(theme.danger)}12` : `${String(theme.success)}12` }]}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /><AppText variant="caption" style={styles.noticeCopy}>{copyContent(notice)}</AppText></View> : null}
 
               <View style={styles.actions}>
-                <AppButton variant="secondary" icon="save-outline" disabled={!canSave} loading={save.isPending && save.variables === false} onPress={() => save.mutate(false)} style={[styles.action, !isDesktop && styles.actionMobile]}>Сохранить</AppButton>
-                <AppButton icon="paper-plane-outline" disabled={!canSave} loading={save.isPending && save.variables === true} onPress={() => save.mutate(true)} style={[styles.action, !isDesktop && styles.actionMobile]}>Опубликовать</AppButton>
+                <AppButton variant="secondary" icon="save-outline" disabled={!canSave} loading={save.isPending && save.variables === false} onPress={() => save.mutate(false)} style={[styles.action, !isDesktop && styles.actionMobile]}>{copyText("Сохранить")}</AppButton>
+                <AppButton icon="paper-plane-outline" disabled={!canSave} loading={save.isPending && save.variables === true} onPress={() => save.mutate(true)} style={[styles.action, !isDesktop && styles.actionMobile]}>{copyText("Опубликовать")}</AppButton>
               </View>
-              {challenge?.status === "published" ? <AppButton variant="ghost" icon="trophy-outline" disabled={hasUnsavedPrizes} loading={settle.isPending} onPress={() => setConfirmSettlement(true)} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать итоги сейчас</AppButton> : null}
-              {hasUnsavedPrizes ? <AppText muted>Сначала сохраните или отмените изменения призов.</AppText> : null}
+              {challenge?.status === "published" ? <AppButton variant="ghost" icon="trophy-outline" disabled={hasUnsavedPrizes} loading={settle.isPending} onPress={() => setConfirmSettlement(true)} style={!isDesktop ? styles.actionMobile : undefined}>{copyText("Рассчитать итоги сейчас")}</AppButton> : null}
+              {hasUnsavedPrizes ? <AppText muted>{copyText("Сначала сохраните или отмените изменения призов.")}</AppText> : null}
               {challenge ? <ManualPrizes key={dayKey} dayKey={dayKey} onDirtyChange={setHasUnsavedPrizes} /> : null}
               {confirmSettlement ? (
                 <View style={[styles.settlementConfirm, { backgroundColor: theme.primarySoft, borderColor: theme.border }]}>
-                  <View style={styles.settlementCopy}><AppText variant="label">Завершить челлендж?</AppText><AppText variant="caption" muted>Рейтинг и сохранённые призы будут зафиксированы. Участники смогут забрать награды. Изменить суммы после расчёта нельзя.</AppText></View>
+                  <View style={styles.settlementCopy}><AppText variant="label">{copyText("Завершить челлендж?")}</AppText><AppText variant="caption" muted>{copyText("Рейтинг и сохранённые призы будут зафиксированы. Участники смогут забрать награды. Изменить суммы после расчёта нельзя.")}</AppText></View>
                   <View style={[styles.settlementActions, !isDesktop && styles.settlementActionsMobile]}>
-                    <AppButton variant="secondary" compact onPress={() => setConfirmSettlement(false)} style={!isDesktop ? styles.actionMobile : undefined}>Отмена</AppButton>
-                    <AppButton compact icon="checkmark-circle-outline" disabled={hasUnsavedPrizes} loading={settle.isPending} onPress={() => settle.mutate()} style={!isDesktop ? styles.actionMobile : undefined}>Рассчитать</AppButton>
+                    <AppButton variant="secondary" compact onPress={() => setConfirmSettlement(false)} style={!isDesktop ? styles.actionMobile : undefined}>{copyText("Отмена")}</AppButton>
+                    <AppButton compact icon="checkmark-circle-outline" disabled={hasUnsavedPrizes} loading={settle.isPending} onPress={() => settle.mutate()} style={!isDesktop ? styles.actionMobile : undefined}>{copyText("Рассчитать")}</AppButton>
                   </View>
                 </View>
               ) : null}
-              {challenge ? <AppText variant="caption" muted>Фонд: {formatUnits(challenge.prizePoolUnits)} LC{challenge.endsAt ? ` · автостоп ${new Date(challenge.endsAt).toLocaleString("ru-RU")}` : ""}{challenge.updatedAt ? ` · обновлён ${new Date(challenge.updatedAt).toLocaleString("ru-RU")}` : ""}</AppText> : null}
+              {challenge ? <AppText variant="caption" muted>{copyText("Фонд: ")}{copyContent(formatUnits(challenge.prizePoolUnits))} {copyText(" LC")}{copyContent(challenge.endsAt ? ` · автостоп ${new Date(challenge.endsAt).toLocaleString(localeStore.getState().language ?? "ru")}` : "")}{copyContent(challenge.updatedAt ? ` · обновлён ${new Date(challenge.updatedAt).toLocaleString(localeStore.getState().language ?? "ru")}` : "")}</AppText> : null}
             </>
           ) : null}
         </GlassSurface>

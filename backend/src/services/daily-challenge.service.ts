@@ -4,7 +4,8 @@ import {
   DAILY_CHALLENGE_GAME_COUNT,
   DEFAULT_DAILY_PRIZE_MAX_UNITS,
   DEFAULT_DAILY_PRIZE_MIN_UNITS,
-  DEFAULT_DAILY_PRIZE_POOL_UNITS
+  DEFAULT_DAILY_PRIZE_POOL_UNITS,
+  NEW_CHALLENGE_CASH_LIMIT_UNITS
 } from "../config/constants.js";
 import { env } from "../config/env.js";
 import { currentMonthBounds, dayBoundsInTimeZone, localDayKey } from "../lib/date.js";
@@ -15,7 +16,7 @@ import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { Game } from "../models/Game.js";
 import { NotificationEvent } from "../models/NotificationEvent.js";
-import { User } from "../models/User.js";
+import { User, type UserDocument } from "../models/User.js";
 import { ChallengeAdReward } from "../models/ChallengeAdReward.js";
 import { serializeCoins, serializeGame } from "./serialization.service.js";
 import { settleExpiredDailyContests } from "./contest.service.js";
@@ -25,7 +26,7 @@ import { getMonthlyChallengeActivity } from "./monthly-challenge-activity.servic
 // One Second is deliberately a fixed seven-attempt challenge. Keeping the
 // rule server-side makes every published day consistent, including days that
 // were configured before this rule existed.
-const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 7;
+const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 10;
 
 export function challengeDayKey(date: Date = new Date()): string {
   return localDayKey(date, env.DEFAULT_TIMEZONE);
@@ -79,6 +80,8 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         cashPrizeMinUnits: DEFAULT_DAILY_PRIZE_MIN_UNITS,
         cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
+        cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS,
+        descendingCashPrizes: true,
         coinPrizeAmounts: [100, 100, 100, 100, 100, 100],
         maxAttemptsPerGame: 1,
         oneSecondAttemptLimit: ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT,
@@ -111,8 +114,8 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
   return set;
 }
 
-export async function getTodayChallengeOverview(userId: Types.ObjectId) {
-  const user = await User.findById(userId).select("preferences.language coins");
+export async function getTodayChallengeOverview(userId: Types.ObjectId, account?: Pick<UserDocument, "preferences" | "coins">) {
+  const user = account ?? await User.findById(userId).select("preferences.language coins");
   if (!user) {
     throw new ApiError(404, "user_not_found", "User not found");
   }
@@ -129,8 +132,12 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId) {
       : 0,
     getMonthlyChallengeActivity(userId, dayKey)
   ]);
-  const set = await getDailyChallengeSet(dayKey);
-  if (!set || set.status !== "published") {
+  // Reading a page must not perform prize settlement or publish a daily set.
+  // The server's existing daily-cycle worker owns both operations.
+  const set = await DailyChallengeSet.findOne({ dayKey });
+  const expired = set?.endsAt ? set.endsAt.getTime() <= Date.now()
+    : Boolean(set?.publishedAt && set.publishedAt.getTime() <= Date.now() - 86_400_000);
+  if (!set || set.status !== "published" || expired) {
     return {
       status: "no_challenge" as const,
       available: false,

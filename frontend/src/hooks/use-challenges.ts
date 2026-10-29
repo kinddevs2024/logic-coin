@@ -111,7 +111,10 @@ export function useChallenges() {
     () => buildGuestToday(language, results, gameDoubled, dayDoubled, coinBalance),
     [coinBalance, dayDoubled, gameDoubled, language, results],
   );
-  const today = authenticated ? query.data : guestToday;
+  const sourceToday = authenticated ? query.data : guestToday;
+  const today = useMemo(() => sourceToday ? { ...sourceToday, games: sourceToday.games.map(game => ({
+    ...game, title: game.titleI18n?.[language] ?? game.title, description: game.descriptionI18n?.[language] ?? game.description,
+  })) } : undefined, [sourceToday, language]);
 
   useEffect(() => {
     if (!hydrated || !today) return;

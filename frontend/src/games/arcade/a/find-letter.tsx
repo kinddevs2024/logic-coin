@@ -1,3 +1,6 @@
+import { useUiCopy } from "@/components/localized-native";
+import { useAppStore } from "@/store/app-store";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -12,7 +15,7 @@ import { useGameSession } from "@/games/session-context";
 import { useGameProgressStore } from "@/games/progress-store";
 
 const GAME_ID = "find-letter" as const;
-const LETTERS = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ".split("");
+const RUSSIAN_LETTERS = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ".split("");
 const LEVELS = [
   { name: "ЛЁГКИЙ", columns: 3, total: 9, seconds: 12 },
   { name: "СРЕДНИЙ", columns: 3, total: 12, seconds: 11 },
@@ -27,12 +30,15 @@ function configFor(round: number) { return LEVELS[Math.min(Math.floor(round / 2)
 
 function makeRound(round: number, previousAnswer?: string) {
   const config = configFor(round);
+  const language = useAppStore.getState().language ?? "ru";
+  const LETTERS = language === "ru" ? RUSSIAN_LETTERS : language === "uz" ? [..."ABDEFGHIJKLMNOPQRSTUVXYZ", "O‘", "G‘", "Sh", "Ch", "Ng"] : [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
   const answer = shuffleAvoidingFirst(LETTERS, previousAnswer)[0]!;
   const others = shuffle(LETTERS.filter((letter) => letter !== answer)).slice(0, config.total - 2);
   return { answer, letters: shuffle([answer, answer, ...others]) };
 }
 
 export function FindLetterGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const { copyText, copyContent, language } = useUiCopy();
   const practiceCoins = useGameSession()?.practiceCoins;
   const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#38BDF8", "#FBBF24");
@@ -121,7 +127,7 @@ export function FindLetterGame({ initialBestScore = 0, paused = false, skin, cha
     setScore(nextScore); setFeedback({ selected: letter, ok });
   };
 
-  if (phase === "intro") return <GameRoot colors={["#123B5F", "#0C1A2E", "#071830"]} skin={skin}><GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="ВНИМАНИЕ" title="НАЙДИ БУКВУ" subtitle="В сетке только одна буква встречается дважды. Найди её раньше, чем закончится время." accent={theme.primary} onStart={start}><Text style={[styles.letterMark, { color: theme.secondary }]}>А А</Text></IntroScreen></GameRoot>;
+  if (phase === "intro") return <GameRoot colors={["#123B5F", "#0C1A2E", "#071830"]} skin={skin}><GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="ВНИМАНИЕ" title="НАЙДИ БУКВУ" subtitle="В сетке только одна буква встречается дважды. Найди её раньше, чем закончится время." accent={theme.primary} onStart={start}><Text style={[styles.letterMark, { color: theme.secondary }]}>{copyText("А А")}</Text></IntroScreen></GameRoot>;
 
   const playedRounds = phase === "result" ? Math.min(round, TOTAL_ROUNDS) : round;
   const accuracy = playedRounds ? Math.round((correctCount / playedRounds) * 100) : 0;
@@ -136,17 +142,17 @@ export function FindLetterGame({ initialBestScore = 0, paused = false, skin, cha
   const remainingRatio = timeLeft / (config.seconds * 1000);
   return (
     <GameRoot colors={["#123B5F", "#0C1A2E", "#071830"]} skin={skin}>
-      <GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} right={<View style={styles.scoreBadge}><Ionicons name="diamond" color={theme.secondary} size={14} /><Text style={[styles.score, { color: theme.secondary }]}>{practiceCoins ?? suggestedCoins(score, true, "find-letter")}</Text></View>} />
+      <GameHeader title="НАЙДИ БУКВУ" accent={theme.primary} onExit={onExit} right={<View style={styles.scoreBadge}><Ionicons name="diamond" color={theme.secondary} size={14} /><Text style={[styles.score, { color: theme.secondary }]}>{copyContent(practiceCoins ?? suggestedCoins(score, true, "find-letter"))}</Text></View>} />
       {challengeMode ? <><View style={styles.hud}><HudStat label="Раунд" value={`${round + 1}/${TOTAL_ROUNDS}`} /><HudStat label="Верно" value={correctCount} color={theme.primary} /><LivesStat lives={lives} color="#FB7185" /><HudStat label="Время" value={formatClock(elapsedMs)} /></View><ProgressBar progress={round / TOTAL_ROUNDS} color={theme.secondary} /></> : null}
-      <View style={[styles.question, { borderColor: theme.primary }]}><Text style={styles.questionText}>Какая буква написана <Text style={[styles.highlight, { color: theme.secondary }]}>2 раза</Text>?</Text><Text style={[styles.difficulty, { color: theme.primary }]}>{config.name}</Text></View>
+      <View style={[styles.question, { borderColor: theme.primary }]}><Text style={styles.questionText}>{copyText("Какая буква написана ")}<Text style={[styles.highlight, { color: theme.secondary }]}>{copyText("2 раза")}</Text>{language === "uz" ? " yozilgan?" : "?"}</Text><Text style={[styles.difficulty, { color: theme.primary }]}>{copyContent(config.name)}</Text></View>
       <View style={styles.playRow} onLayout={({ nativeEvent: { layout } }) => setPlayArea(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}>
-        <View style={styles.timerWrap}><Svg width={58} height={58}><Circle cx={29} cy={29} r={23.5} fill="none" stroke="rgba(125,211,252,0.15)" strokeWidth={4.5} /><Circle cx={29} cy={29} r={23.5} fill="none" stroke={timeLeft <= 4_000 ? "#EF4444" : theme.primary} strokeWidth={4.5} strokeLinecap="round" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={CIRCUMFERENCE * (1 - remainingRatio)} transform="rotate(-90 29 29)" /></Svg><Text style={[styles.timerText, timeLeft <= 4_000 && { color: "#EF4444" }]}>{Math.ceil(timeLeft / 1000)}</Text></View>
+        <View style={styles.timerWrap}><Svg width={58} height={58}><Circle cx={29} cy={29} r={23.5} fill="none" stroke="rgba(125,211,252,0.15)" strokeWidth={4.5} /><Circle cx={29} cy={29} r={23.5} fill="none" stroke={timeLeft <= 4_000 ? "#EF4444" : theme.primary} strokeWidth={4.5} strokeLinecap="round" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={CIRCUMFERENCE * (1 - remainingRatio)} transform="rotate(-90 29 29)" /></Svg><Text style={[styles.timerText, timeLeft <= 4_000 && { color: "#EF4444" }]}>{copyContent(Math.ceil(timeLeft / 1000))}</Text></View>
         <View style={[styles.grid, { width: cellSize * config.columns + gap * (config.columns - 1) + 22, gap }]}>{puzzle.letters.map((letter, index) => {
           const reveal = feedback && letter === puzzle.answer; const selectedWrong = feedback && !feedback.ok && feedback.selected === letter;
-          return <Pressable key={`${letter}-${index}`} disabled={!!feedback} onPress={() => choose(letter)} style={({ pressed }) => [styles.cell, { width: cellSize, height: cellSize }, reveal && styles.correctCell, selectedWrong && styles.wrongCell, pressed && styles.pressed]}><Text style={[styles.cellText, { fontSize: Math.max(14, cellSize * 0.34) }, reveal && { color: "#86EFAC" }, selectedWrong && { color: "#FCA5A5" }]}>{letter}</Text></Pressable>;
+          return <Pressable key={`${letter}-${index}`} disabled={!!feedback} onPress={() => choose(letter)} style={({ pressed }) => [styles.cell, { width: cellSize, height: cellSize }, reveal && styles.correctCell, selectedWrong && styles.wrongCell, pressed && styles.pressed]}><Text style={[styles.cellText, { fontSize: Math.max(14, cellSize * 0.34) }, reveal && { color: "#86EFAC" }, selectedWrong && { color: "#FCA5A5" }]}>{copyContent(letter)}</Text></Pressable>;
         })}</View>
       </View>
-      <View style={styles.feedbackSpace}>{feedback ? <Animated.Text entering={FadeInDown.springify()} style={[styles.feedback, { color: feedback.ok ? "#86EFAC" : "#FCA5A5" }]}>{feedback.ok ? "ВЕРНО" : feedback.timeout ? `ВРЕМЯ · ${puzzle.answer}` : `ОТВЕТ · ${puzzle.answer}`}</Animated.Text> : null}</View>
+      <View style={styles.feedbackSpace}>{feedback ? <Animated.Text entering={FadeInDown.springify()} style={[styles.feedback, { color: feedback.ok ? "#86EFAC" : "#FCA5A5" }]}>{copyContent(feedback.ok ? "ВЕРНО" : feedback.timeout ? `ВРЕМЯ · ${puzzle.answer}` : `ОТВЕТ · ${puzzle.answer}`)}</Animated.Text> : null}</View>
     </GameRoot>
   );
 }

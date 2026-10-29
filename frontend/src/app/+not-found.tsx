@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -10,6 +12,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 
 export default function NotFoundScreen() {
+  const { copyContent } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
   const { t } = useTranslation();
@@ -21,8 +24,8 @@ export default function NotFoundScreen() {
         <View style={[styles.icon, { backgroundColor: theme.primarySoft }]}>
           <Ionicons name="help-outline" size={42} color={String(theme.primary)} />
         </View>
-        <AppText variant="title" style={styles.center}>{t("notFound.title")}</AppText>
-        <AppText muted style={styles.center}>{t("notFound.body")}</AppText>
+        <AppText variant="title" style={styles.center}>{copyContent(t("notFound.title"))}</AppText>
+        <AppText muted style={styles.center}>{copyContent(t("notFound.body"))}</AppText>
         <Pressable
           accessibilityRole="button"
           onPress={() => router.replace("/")}
@@ -32,7 +35,7 @@ export default function NotFoundScreen() {
           ]}
         >
           <Ionicons name="home-outline" size={20} color={String(theme.onPrimary)} />
-          <AppText variant="label" color={String(theme.onPrimary)}>{t("notFound.home")}</AppText>
+          <AppText variant="label" color={String(theme.onPrimary)}>{copyContent(t("notFound.home"))}</AppText>
         </Pressable>
       </GlassSurface>
     </AppFrame>

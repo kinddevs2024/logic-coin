@@ -1,5 +1,6 @@
 import { broadcastDailyChallengeUpdate } from "./live-updates.service.js";
 import { randomUUID } from "node:crypto";
+import { NEW_CHALLENGE_CASH_LIMIT_UNITS } from "../config/constants.js";
 import type { Types } from "mongoose";
 import { env } from "../config/env.js";
 import { addDays, dayBoundsInTimeZone } from "../lib/date.js";
@@ -24,7 +25,7 @@ import { dispatchNotificationEvent } from "./notification.service.js";
 
 // This game is always seven attempts in a daily challenge. Do not take this
 // value from an older DailyChallengeSet or an administration request.
-const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 7;
+const ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT = 10;
 import { collectContestStandings, settleExpiredDailyContests } from "./contest.service.js";
 import { contestCashPlan } from "../lib/contest-cash-plan.js";
 import { validateManualCashPrizes } from "../lib/manual-contest-prizes.js";
@@ -195,15 +196,19 @@ export async function configureDailyChallenge(input: {
   const maxAttemptsPerGame = input.maxAttemptsPerGame ?? 1;
   contestCashPlan(Math.max(1, (await collectContestStandings(input.dayKey)).length), input.cashPrizeMinUnits, input.cashPrizeMaxUnits, input.prizePoolUnits);
   const existing = await DailyChallengeSet.findOne({ dayKey: input.dayKey });
+  if ((existing?.cashPrizeLimitUnits ?? NEW_CHALLENGE_CASH_LIMIT_UNITS) === 250
+    && existing?.manualCashPrizes == null && input.prizePoolUnits < 425) {
+    throw new ApiError(400, "prize_pool_below_podium", "Фонд должен быть не меньше $4.25 для фиксированных первых четырёх мест.");
+  }
   if (existing?.prizesLocked) throw new ApiError(409, "prizes_locked", "Итоги уже рассчитываются; настройки заблокированы.");
-  if (existing?.manualCashPrizes != null) validateManualCashPrizes(existing.manualCashPrizes, input.prizePoolUnits);
+  if (existing?.manualCashPrizes != null) validateManualCashPrizes(existing.manualCashPrizes, input.prizePoolUnits, undefined, existing.cashPrizeLimitUnits);
   // Saving an active day updates it in place, never takes it offline.
   const publish = input.publish || existing?.status === "published";
   const oneSecondAttemptLimit = ONE_SECOND_CHALLENGE_ATTEMPT_LIMIT;
   if (!Number.isInteger(maxAttemptsPerGame) || maxAttemptsPerGame < 1 || maxAttemptsPerGame > 100) {
     throw new ApiError(400, "invalid_attempt_limit", "Challenge attempts per game must be between 1 and 100");
   }
-  const eligibleGames = await Game.find({ enabled: true, challengeEnabled: true })
+  const eligibleGames = await Game.find({ enabled: true, ...(input.selectionMode === "manual" ? { $or: [{ challengeEnabled: true }, { key: "hangman" }] } : { challengeEnabled: true }) })
     .sort({ sortOrder: 1, _id: 1 })
     .lean();
   if (eligibleGames.length < 6) {
@@ -251,6 +256,7 @@ export async function configureDailyChallenge(input: {
     : existing?.publishedAt ?? new Date();
   const endsAt = !isFirstPublication && existing?.endsAt ? existing.endsAt : new Date(firstPublishedAt.getTime() + 24 * 60 * 60 * 1_000);
   const update = {
+    ...(!existing ? { $setOnInsert: { cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS, descendingCashPrizes: true } } : {}),
     $set: {
       timezone: env.DEFAULT_TIMEZONE,
       status: publish ? ("published" as const) : ("draft" as const),

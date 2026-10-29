@@ -1,5 +1,6 @@
 import { env } from "../config/env.js";
 import { unitsToCents } from "../lib/money.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
 
 type ObjectWithId = {
   _id: { toString(): string };
@@ -55,7 +56,7 @@ export function serializeUser(userValue: unknown) {
     ...(email.endsWith("@telegram.logiccoin.local") ? {} : { email }),
     emailVerified: Boolean(user.emailVerifiedAt),
     name: user.name,
-    avatarUrl: user.avatarUrl ?? null,
+    avatarUrl: listAvatarUrl(user._id, user.avatarUrl as string | null | undefined),
     countryCode: user.countryCode ?? null,
     role: user.role ?? "user",
     referralCode: user.referralCode,

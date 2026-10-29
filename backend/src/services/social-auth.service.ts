@@ -1,3 +1,4 @@
+import type { CopyLanguage } from "../lib/localize-built-in.js";
 import { OAuth2Client } from "google-auth-library";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -78,7 +79,7 @@ async function processNewSocialReferral(userId: mongoose.Types.ObjectId): Promis
   }
 }
 
-export async function authenticateGoogle(idToken: string, referralCode?: string) {
+export async function authenticateGoogle(idToken: string, referralCode?: string, language?: CopyLanguage) {
   const validClientIds = [
     env.GOOGLE_CLIENT_ID,
     env.GOOGLE_CLIENT_ID_WEB,
@@ -119,6 +120,7 @@ export async function authenticateGoogle(idToken: string, referralCode?: string)
       name: payload.name || email.split("@")[0] || "Logic Coin user",
       emailVerifiedAt: new Date(),
       googleSub: payload.sub,
+      ...(language ? { language } : {}),
       ...(referralCode ? { referralCode } : {})
     });
     created = true;

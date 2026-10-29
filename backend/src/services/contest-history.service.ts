@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import { ApiError } from "../lib/api-error.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
 import { computeContestBands, rankContestStandings } from "../lib/contest.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { DailyContestResult } from "../models/DailyContestResult.js";
@@ -61,5 +62,5 @@ export async function getContestHistory(day: string | undefined, offset: number,
   const users = await User.find({ _id: { $in: entries.map(row => new Types.ObjectId(row.userId)) } }).select("name avatarUrl").lean();
   const byId = new Map(users.map(user => [user._id.toString(), user]));
   return { today, dayKey, days: sets.map(row => row.dayKey), dayStatuses, status, self, total, nextOffset: offset + entries.length < total ? offset + entries.length : null,
-    rows: entries.map(row => ({ ...row, name: byId.get(row.userId)?.name ?? "Player", avatarUrl: byId.get(row.userId)?.avatarUrl ?? null, isSelf: row.userId === userId.toString() })) };
+    rows: entries.map(row => ({ ...row, name: byId.get(row.userId)?.name ?? "Player", avatarUrl: listAvatarUrl(row.userId, byId.get(row.userId)?.avatarUrl), isSelf: row.userId === userId.toString() })) };
 }

@@ -1,8 +1,12 @@
+import { useUiCopy , Alert } from "@/components/localized-native";
+import { useAppStore as localeStore , useAppStore } from "@/store/app-store";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -18,7 +22,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { withdrawalsApi } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { detectCardBrand, digitsOnly, isValidCardNumber, isValidExpiration } from "@/lib/payment-card";
-import { useAppStore } from "@/store/app-store";
+
 import type { Withdrawal } from "@/types";
 
 const MINIMUM = 1_000;
@@ -32,16 +36,18 @@ function statusLabel(status: string) {
 }
 
 function CheckRow({ checked, label, onPress, detail }: { checked: boolean; label: string; onPress: () => void; detail?: string }) {
+  const { copyContent } = useUiCopy();
   const theme = useAppTheme();
   return (
     <Pressable accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={onPress} style={({ pressed }) => [styles.checkRow, pressed && styles.pressed]}>
       <Ionicons name={checked ? "checkbox" : "square-outline"} size={23} color={String(checked ? theme.primary : theme.textMuted)} />
-      <View style={styles.checkCopy}><AppText variant="label">{label}</AppText>{detail ? <AppText variant="caption" muted>{detail}</AppText> : null}</View>
+      <View style={styles.checkCopy}><AppText variant="label">{copyContent(label)}</AppText>{detail ? <AppText variant="caption" muted>{copyContent(detail)}</AppText> : null}</View>
     </Pressable>
   );
 }
 
 export default function WithdrawScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
   const { t } = useTranslation();
@@ -106,35 +112,35 @@ export default function WithdrawScreen() {
       <ScreenHeader title={t("withdraw.title")} onBack={() => router.back()} />
       <GlassSurface intensity={84} variant="strong" style={styles.balanceCard}>
         <View style={[styles.walletIcon, { backgroundColor: eligible ? theme.success : theme.primary }]}><Ionicons name="wallet" size={27} color={String(theme.onPrimary)} /></View>
-        <AppText variant="caption" muted>{t("withdraw.available")}</AppText>
-        <AppText variant="display" color={String(eligible ? theme.success : theme.primary)} style={styles.balanceValue}>{formatMoney(balance)}</AppText>
-        <View style={[styles.status, { backgroundColor: theme.glassFillStrong, borderColor: theme.glassBorder }]}><Ionicons name={eligible ? "checkmark-circle" : "lock-closed"} size={16} color={String(eligible ? theme.success : theme.primary)} /><AppText variant="caption" color={String(eligible ? theme.success : theme.primary)}>{eligible ? t("withdraw.ready") : t("withdraw.minimum")}</AppText></View>
+        <AppText variant="caption" muted>{copyContent(t("withdraw.available"))}</AppText>
+        <AppText variant="display" color={String(eligible ? theme.success : theme.primary)} style={styles.balanceValue}>{copyContent(formatMoney(balance))}</AppText>
+        <View style={[styles.status, { backgroundColor: theme.glassFillStrong, borderColor: theme.glassBorder }]}><Ionicons name={eligible ? "checkmark-circle" : "lock-closed"} size={16} color={String(eligible ? theme.success : theme.primary)} /><AppText variant="caption" color={String(eligible ? theme.success : theme.primary)}>{copyContent(eligible ? t("withdraw.ready") : t("withdraw.minimum"))}</AppText></View>
       </GlassSurface>
 
       {!eligible ? (
         <GlassSurface intensity={68} style={styles.card}>
-          <View style={styles.lockRow}><View style={[styles.lockIcon, { backgroundColor: theme.primarySoft }]}><Ionicons name="trending-up" size={24} color={String(theme.primary)} /></View><View style={styles.flex}><AppText variant="label">{t("withdraw.locked")}</AppText><AppText variant="title" color={String(theme.primary)}>{formatMoney(missing)}</AppText></View></View>
+          <View style={styles.lockRow}><View style={[styles.lockIcon, { backgroundColor: theme.primarySoft }]}><Ionicons name="trending-up" size={24} color={String(theme.primary)} /></View><View style={styles.flex}><AppText variant="label">{copyContent(t("withdraw.locked"))}</AppText><AppText variant="title" color={String(theme.primary)}>{copyContent(formatMoney(missing))}</AppText></View></View>
           <ProgressBar value={balance / minimum} height={10} />
-          <AppButton icon="flash-outline" onPress={() => router.replace("/tasks")} glow>{t("home.earn")}</AppButton>
+          <AppButton icon="flash-outline" onPress={() => router.replace("/tasks")} glow>{copyContent(t("home.earn"))}</AppButton>
         </GlassSurface>
       ) : (
         <GlassSurface intensity={72} style={styles.card}>
-          <View style={styles.formIntro}><View><AppText variant="heading">Карта для выплаты</AppText><AppText variant="caption" muted>Заполните данные прямо на карте</AppText></View><View style={[styles.timePill, { backgroundColor: theme.primarySoft }]}><Ionicons name="time-outline" size={16} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.primary)}>до {processingHours} ч</AppText></View></View>
-          {rememberedCard ? <View style={[styles.savedRow, { borderColor: theme.border }]}><Pressable accessibilityRole="button" onPress={() => setUseSavedCard(true)} style={[styles.savedChoice, useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="card-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">•••• {rememberedCard.last4}</AppText></Pressable><Pressable accessibilityRole="button" onPress={() => { setUseSavedCard(false); setCardNumber(""); }} style={[styles.savedChoice, !useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="add-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">Другая карта</AppText></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Удалить сохранённую карту" onPress={() => { setRememberedCard(null); setUseSavedCard(false); setRememberCard(false); }} style={styles.forgetButton}><Ionicons name="trash-outline" size={18} color={String(theme.danger)} /></Pressable></View> : null}
+          <View style={styles.formIntro}><View><AppText variant="heading">{copyText("Карта для выплаты")}</AppText><AppText variant="caption" muted>{copyText("Заполните данные прямо на карте")}</AppText></View><View style={[styles.timePill, { backgroundColor: theme.primarySoft }]}><Ionicons name="time-outline" size={16} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.primary)}>{copyText("до ")}{copyContent(processingHours)} {copyText(" ч")}</AppText></View></View>
+          {rememberedCard ? <View style={[styles.savedRow, { borderColor: theme.border }]}><Pressable accessibilityRole="button" onPress={() => setUseSavedCard(true)} style={[styles.savedChoice, useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="card-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">•••• {copyContent(rememberedCard.last4)}</AppText></Pressable><Pressable accessibilityRole="button" onPress={() => { setUseSavedCard(false); setCardNumber(""); }} style={[styles.savedChoice, !useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="add-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">{copyText("Другая карта")}</AppText></Pressable><Pressable accessibilityRole="button" accessibilityLabel={copyText("Удалить сохранённую карту")} onPress={() => { setRememberedCard(null); setUseSavedCard(false); setRememberCard(false); }} style={styles.forgetButton}><Ionicons name="trash-outline" size={18} color={String(theme.danger)} /></Pressable></View> : null}
           <PaymentCard cardNumber={cardNumber} holderName={useSavedCard && rememberedCard ? rememberedCard.holderName : holderName} expiration={useSavedCard && rememberedCard ? rememberedCard.expiration : expiration} savedLast4={useSavedCard ? rememberedCard?.last4 : undefined} savedBrand={useSavedCard ? rememberedCard?.brand : undefined} readOnly={useSavedCard && Boolean(rememberedCard)} onCardNumberChange={setCardNumber} onHolderNameChange={setHolderName} onExpirationChange={setExpiration} />
-          <FormField label={`${t("withdraw.amount")} · USD`} icon="cash-outline" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="2.00" />
+          <FormField label={`${t("withdraw.amount")} · USD`} icon="cash-outline" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder={copyText("2.00")} />
           <View style={styles.checks}>
             <CheckRow checked={rememberCard} onPress={() => setRememberCard((value) => !value)} label="Запомнить мою карту" detail="Сохраним только бренд, имя, срок и последние 4 цифры" />
-            <View style={styles.agreementRow}><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: agreementAccepted }} onPress={() => setAgreementAccepted((value) => !value)} style={({ pressed }) => [styles.agreementCheck, pressed && styles.pressed]}><Ionicons name={agreementAccepted ? "checkbox" : "square-outline"} size={23} color={String(agreementAccepted ? theme.primary : theme.textMuted)} /></Pressable><AppText variant="caption" style={styles.agreementCopy}>Я подтверждаю, что карта принадлежит мне, и принимаю </AppText><Pressable accessibilityRole="link" onPress={() => router.push("/withdrawal-agreement" as never)}><AppText variant="caption" color={String(theme.primary)} style={styles.agreementLink}>условия выплаты</AppText></Pressable></View>
+            <View style={styles.agreementRow}><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: agreementAccepted }} onPress={() => setAgreementAccepted((value) => !value)} style={({ pressed }) => [styles.agreementCheck, pressed && styles.pressed]}><Ionicons name={agreementAccepted ? "checkbox" : "square-outline"} size={23} color={String(agreementAccepted ? theme.primary : theme.textMuted)} /></Pressable><AppText variant="caption" style={styles.agreementCopy}>{copyText("Я подтверждаю, что карта принадлежит мне, и принимаю ")}</AppText><Pressable accessibilityRole="link" onPress={() => router.push("/withdrawal-agreement" as never)}><AppText variant="caption" color={String(theme.primary)} style={styles.agreementLink}>{copyText("условия выплаты")}</AppText></Pressable></View>
           </View>
-          <AppButton icon="send-outline" glow onPress={submit} loading={createWithdrawal.isPending} disabled={!eligible || !validCard || !agreementAccepted}>{t("withdraw.submit")}</AppButton>
-          <View style={[styles.securityNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={18} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.textMuted)} style={styles.flex}>Полный номер не сохраняется в Logic Coin. Заявка содержит только маскированные данные карты.</AppText></View>
+          <AppButton icon="send-outline" glow onPress={submit} loading={createWithdrawal.isPending} disabled={!eligible || !validCard || !agreementAccepted}>{copyContent(t("withdraw.submit"))}</AppButton>
+          <View style={[styles.securityNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={18} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.textMuted)} style={styles.flex}>{copyText("Полный номер не сохраняется в Logic Coin. Заявка содержит только маскированные данные карты.")}</AppText></View>
         </GlassSurface>
       )}
 
       <GlassSurface variant="soft" intensity={60} style={styles.history}>
-        <View style={styles.historyTitle}><AppText variant="heading">{t("withdraw.history")}</AppText><Ionicons name="receipt-outline" size={21} color={String(theme.textMuted)} /></View>
-        {withdrawals.length ? withdrawals.map((withdrawal) => <View key={withdrawal.id} style={[styles.historyRow, { borderTopColor: theme.border }]}><View style={styles.historyMeta}><AppText variant="label">{formatMoney(withdrawal.amountCents)}</AppText><AppText variant="caption" muted>{new Date(withdrawal.requestedAt).toLocaleDateString()} · {withdrawal.accountLabel ?? "Банковская карта"}</AppText></View><View style={[styles.statusChip, { backgroundColor: theme.primarySoft }]}><AppText variant="caption" color={String(theme.primary)}>{statusLabel(withdrawal.status)}</AppText></View></View>) : <View style={styles.empty}><View style={[styles.emptyIcon, { backgroundColor: theme.glassFillStrong }]}><Ionicons name="time-outline" size={28} color={String(theme.textMuted)} /></View><AppText variant="caption" muted>{overviewQuery.isLoading ? "Загружаем историю…" : t("withdraw.empty")}</AppText></View>}
+        <View style={styles.historyTitle}><AppText variant="heading">{copyContent(t("withdraw.history"))}</AppText><Ionicons name="receipt-outline" size={21} color={String(theme.textMuted)} /></View>
+        {withdrawals.length ? withdrawals.map((withdrawal) => <View key={withdrawal.id} style={[styles.historyRow, { borderTopColor: theme.border }]}><View style={styles.historyMeta}><AppText variant="label">{copyContent(formatMoney(withdrawal.amountCents))}</AppText><AppText variant="caption" muted>{copyContent(new Date(withdrawal.requestedAt).toLocaleDateString(localeStore.getState().language ?? "ru"))} · {withdrawal.accountLabel ?? copyText("Банковская карта")}</AppText></View><View style={[styles.statusChip, { backgroundColor: theme.primarySoft }]}><AppText variant="caption" color={String(theme.primary)}>{copyContent(statusLabel(withdrawal.status))}</AppText></View></View>) : <View style={styles.empty}><View style={[styles.emptyIcon, { backgroundColor: theme.glassFillStrong }]}><Ionicons name="time-outline" size={28} color={String(theme.textMuted)} /></View><AppText variant="caption" muted>{copyContent(overviewQuery.isLoading ? "Загружаем историю…" : t("withdraw.empty"))}</AppText></View>}
       </GlassSurface>
     </AppFrame>
   );

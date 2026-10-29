@@ -1,14 +1,16 @@
+import { useUiCopy , Alert } from "@/components/localized-native";
 import { isExpoGo } from "@/lib/native-runtime";
 import type { GoogleSignin as GoogleSigninType } from "@react-native-google-signin/google-signin";
-const GoogleSignin: typeof GoogleSigninType | null = isExpoGo ? null : require("@react-native-google-signin/google-signin").GoogleSignin;
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+
 
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { selectGoogleAccount } from "@/lib/google-account-selection";
+const GoogleSignin: typeof GoogleSigninType | null = isExpoGo ? null : require("@react-native-google-signin/google-signin").GoogleSignin;
 
 export function GoogleSignInButton({
   onCredential,
@@ -17,6 +19,7 @@ export function GoogleSignInButton({
   onCredential: (credential: string) => void;
   disabled?: boolean;
 }) {
+  const { copyText } = useUiCopy();
   const theme = useAppTheme();
   const [busy, setBusy] = useState(false);
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
@@ -45,7 +48,7 @@ export function GoogleSignInButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Google"
+      accessibilityLabel={copyText("Google")}
       onPress={() => void signIn()}
       disabled={disabled || busy || !clientId}
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
@@ -54,7 +57,7 @@ export function GoogleSignInButton({
         <View style={[styles.icon, { backgroundColor: "#FFFFFF" }]}>
           <Ionicons name="logo-google" color="#4285F4" size={20} />
         </View>
-        <AppText variant="label">Google</AppText>
+        <AppText variant="label">{copyText("Google")}</AppText>
         {busy ? (
           <ActivityIndicator size="small" color={String(theme.textMuted)} />
         ) : (

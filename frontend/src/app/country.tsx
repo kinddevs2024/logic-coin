@@ -1,8 +1,10 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation } from "@tanstack/react-query";
 import { Redirect, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
+
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -16,6 +18,7 @@ import { meApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export default function CountryScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t, language } = useTranslation();
   const router = useRouter();
@@ -66,8 +69,8 @@ export default function CountryScreen() {
         <View style={styles.logo}><LogicCoinLogo /></View>
         <GlassSurface intensity={80} variant="strong" style={styles.card}>
           <View style={styles.heading}>
-            <AppText variant="title" style={styles.center}>{t("country.title")}</AppText>
-            <AppText muted style={styles.center}>{t("country.subtitle")}</AppText>
+            <AppText variant="title" style={styles.center}>{copyContent(t("country.title"))}</AppText>
+            <AppText muted style={styles.center}>{copyContent(t("country.subtitle"))}</AppText>
           </View>
           <TextInput
             value={countryQuery}
@@ -76,7 +79,7 @@ export default function CountryScreen() {
               listRef.current?.scrollToOffset({ offset: 0, animated: false });
             }}
             autoCapitalize="words"
-            placeholder={t("country.search")}
+            placeholder={copyText(t("country.search"))}
             placeholderTextColor={String(theme.textMuted)}
             style={[styles.search, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
           />
@@ -93,7 +96,7 @@ export default function CountryScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             getItemLayout={(_, index) => ({ length: 52, offset: 59 * index, index })}
-            ListEmptyComponent={<AppText muted style={styles.noCountries}>{t("country.empty")}</AppText>}
+            ListEmptyComponent={<AppText muted style={styles.noCountries}>{copyContent(t("country.empty"))}</AppText>}
             renderItem={({ item: { code } }) => (
               <Pressable
                 accessibilityRole="radio"
@@ -105,12 +108,12 @@ export default function CountryScreen() {
                 }]}
               >
                 <CountryFlagBadge countryCode={code} size={22} />
-                <AppText variant="caption" numberOfLines={1} style={styles.countryLabel}>{countryName(code, language)}</AppText>
+                <AppText variant="caption" numberOfLines={1} style={styles.countryLabel}>{copyContent(countryName(code, language))}</AppText>
                 {countryCode === code ? <Ionicons name="checkmark-circle" size={19} color={String(theme.primary)} /> : null}
               </Pressable>
             )}
           />
-          {saveCountry.isError ? <AppText style={[styles.error, { color: theme.danger }]}>{t("country.error")}</AppText> : null}
+          {saveCountry.isError ? <AppText style={[styles.error, { color: theme.danger }]}>{copyContent(t("country.error"))}</AppText> : null}
           <Pressable
             accessibilityRole="button"
             disabled={!countryCode || saveCountry.isPending}
@@ -118,7 +121,7 @@ export default function CountryScreen() {
             style={[styles.continue, { backgroundColor: theme.primary }, (!countryCode || saveCountry.isPending) && styles.disabled]}
           >
             {saveCountry.isPending ? <ActivityIndicator color={String(theme.onPrimary)} /> : <Ionicons name="arrow-forward" size={19} color={String(theme.onPrimary)} />}
-            <AppText variant="label" color={String(theme.onPrimary)}>{t("country.continue")}</AppText>
+            <AppText variant="label" color={String(theme.onPrimary)}>{copyContent(t("country.continue"))}</AppText>
           </Pressable>
         </GlassSurface>
       </View>

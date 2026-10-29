@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
@@ -31,6 +33,7 @@ function createPuzzle(previousInk?: number): Puzzle {
 }
 
 export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const { copyText, copyContent } = useUiCopy();
   const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#EAB308", "#FDE68A");
   const sessionDuration = DURATION_MS + Math.max(0, extraTimeSeconds) * 1000;
@@ -143,18 +146,18 @@ export function ColorStroopGame({ initialBestScore = 0, extraTimeSeconds = 0, pa
   const multiplier = [1, 1, 1.5, 2, 3, 4, 5][streak] ?? 5;
   return (
     <GameRoot colors={["#17141E", "#09090B", "#09090B"]} skin={skin}>
-      <GameHeader title="ЦВЕТ" accent={theme.primary} onExit={onExit} right={<Text style={styles.timer}>{challengeMode ? Math.ceil(remainingMs / 1000) : "∞"}</Text>} />
+      <GameHeader title="ЦВЕТ" accent={theme.primary} onExit={onExit} right={<Text style={styles.timer}>{copyContent(challengeMode ? Math.ceil(remainingMs / 1000) : "∞")}</Text>} />
       <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score, true, "tsvet")} color={theme.primary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label="Верных" value={correct} /></View>
       {challengeMode ? <><View style={styles.lifeRow}>{[0, 1, 2].map((index) => <View key={index} style={[styles.life, index >= lives && styles.lifeLost]} />)}</View><ProgressBar progress={remainingMs / sessionDuration} color={remainingMs < 10_000 ? "#EF4444" : theme.primary} /></> : null}
       <View style={styles.stage}>
         <Animated.View key={`${puzzle.createdAt}-${flash}`} entering={FadeIn.duration(130)} exiting={FadeOut.duration(100)} style={[styles.wordCard, flash === "correct" && styles.correctCard, flash === "wrong" && styles.wrongCard]}>
-          <Text style={[styles.word, { color: COLORS[puzzle.ink].hex }]}>{COLORS[puzzle.word].name}</Text>
-          <Text style={styles.instruction}>НАЖМИ ЦВЕТ ТЕКСТА</Text>
+          <Text style={[styles.word, { color: COLORS[puzzle.ink].hex }]}>{copyContent(COLORS[puzzle.word].name)}</Text>
+          <Text style={styles.instruction}>{copyText("НАЖМИ ЦВЕТ ТЕКСТА")}</Text>
           <ProgressBar progress={roundRemaining / ROUND_MS} color={roundRemaining < 650 ? "#EF4444" : COLORS[puzzle.ink].hex} height={4} />
         </Animated.View>
-        {flash ? <Animated.Text entering={ZoomIn.springify()} style={[styles.flash, { color: flash === "correct" ? "#22C55E" : "#EF4444" }]}>{flash === "correct" ? "ВЕРНО" : "МИМО"}</Animated.Text> : null}
+        {flash ? <Animated.Text entering={ZoomIn.springify()} style={[styles.flash, { color: flash === "correct" ? "#22C55E" : "#EF4444" }]}>{copyContent(flash === "correct" ? "ВЕРНО" : "МИМО")}</Animated.Text> : null}
       </View>
-      <View style={styles.answers}>{puzzle.options.map((colorIndex) => <Pressable key={colorIndex} onPress={() => choose(colorIndex)} style={({ pressed }) => [styles.answer, pressed && styles.answerPressed]}><View style={[styles.answerDot, { backgroundColor: COLORS[colorIndex].hex }]} /><Text style={styles.answerText}>{COLORS[colorIndex].name}</Text></Pressable>)}</View>
+      <View style={styles.answers}>{puzzle.options.map((colorIndex) => <Pressable key={colorIndex} onPress={() => choose(colorIndex)} style={({ pressed }) => [styles.answer, pressed && styles.answerPressed]}><View style={[styles.answerDot, { backgroundColor: COLORS[colorIndex].hex }]} /><Text style={styles.answerText}>{copyContent(COLORS[colorIndex].name)}</Text></Pressable>)}</View>
     </GameRoot>
   );
 }

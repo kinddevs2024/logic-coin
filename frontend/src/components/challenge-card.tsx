@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import type { ComponentProps } from "react";
@@ -31,6 +33,7 @@ export function ChallengeCard({
   compact?: boolean;
   index?: number;
 }) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const completed = state?.status === "completed";
   const cover = gameCoverFor(game.key);
@@ -40,7 +43,7 @@ export function ChallengeCard({
     <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(420)}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${completed ? "Пройдено" : "Играть"}: ${game.title}`}
+        accessibilityLabel={formatCopy("{0}: {1}", [copyText(completed ? "Пройдено" : "Играть"), game.title])}
         disabled={loading || completed}
         onPress={() => {
           void Haptics.selectionAsync().catch(() => {});
@@ -62,13 +65,13 @@ export function ChallengeCard({
           </View>
           <View style={styles.copy}>
             <View style={styles.titleRow}>
-              <AppText variant="label" style={styles.title}>{game.title}</AppText>
+              <AppText variant="label" style={styles.title}>{copyContent(game.title)}</AppText>
             </View>
           </View>
           {completed ? (
             <View style={styles.reward}>
               <Ionicons name="diamond" size={14} color="#F5B800" />
-              <AppText style={[styles.rewardText, { color: String(theme.text) }]}>+{state?.coinsAwarded ?? 0}</AppText>
+              <AppText style={[styles.rewardText, { color: String(theme.text) }]}>+{copyContent(state?.coinsAwarded ?? 0)}</AppText>
             </View>
           ) : null}
           <View style={[styles.action, { backgroundColor: completed ? theme.primarySoft : theme.primary }]}>

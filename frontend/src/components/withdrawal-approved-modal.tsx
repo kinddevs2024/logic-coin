@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, View } from "react-native";
@@ -8,6 +10,7 @@ import { inboxApi, type InboxNotification } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export function WithdrawalApprovedModal() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const token = useAppStore(state => state.accessToken);
   const authenticated = useAppStore(state => state.authMode === "authenticated");
@@ -43,10 +46,10 @@ export function WithdrawalApprovedModal() {
       <View style={styles.backdrop}>
         <View accessibilityViewIsModal style={[styles.card, { backgroundColor: theme.surface }]}>
           <Ionicons name="checkmark-circle" size={64} color={theme.primary} />
-          <AppText style={[styles.title, { color: theme.text }]}>{notice?.title}</AppText>
-          <AppText style={[styles.body, { color: theme.textMuted }]}>{notice?.body}</AppText>
+          <AppText style={[styles.title, { color: theme.text }]}>{copyContent(notice?.title)}</AppText>
+          <AppText style={[styles.body, { color: theme.textMuted }]}>{copyContent(notice?.body)}</AppText>
           <Pressable accessibilityRole="button" onPress={dismiss} style={[styles.button, { backgroundColor: theme.primary }]}>
-            <AppText style={{ color: theme.onPrimary }}>OK</AppText>
+            <AppText style={{ color: theme.onPrimary }}>{copyText("OK")}</AppText>
           </Pressable>
         </View>
       </View>

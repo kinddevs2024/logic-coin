@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
@@ -25,6 +27,7 @@ import { readableAccent } from "@/lib/theme-colors";
 import { useAppStore } from "@/store/app-store";
 
 export default function ProfileScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t } = useTranslation();
   const { isDesktop } = useResponsiveLayout();
@@ -83,7 +86,7 @@ export default function ProfileScreen() {
               {user.email ? <AppText muted>{user.email}</AppText> : null}
               <View style={styles.countryLine}>
                 <CountryFlagBadge countryCode={user.countryCode} size={18} />
-                <AppText variant="caption" muted>{countryName(user.countryCode, useAppStore.getState().language ?? "ru")}</AppText>
+                <AppText variant="caption" muted>{copyContent(countryName(user.countryCode, useAppStore.getState().language ?? "ru"))}</AppText>
               </View>
             </View>
             <View style={styles.editButton}>
@@ -131,13 +134,13 @@ export default function ProfileScreen() {
                 style={styles.stat}
               >
                 <Ionicons name={stat.icon} size={19} color={stat.color} />
-                <AppText variant="heading">{stat.value}</AppText>
+                <AppText variant="heading">{copyContent(stat.value)}</AppText>
                 <AppText
                   variant="caption"
                   muted
                   style={{ textAlign: "center" }}
                 >
-                  {stat.label}
+                  {copyContent(stat.label)}
                 </AppText>
               </GlassSurface>
             ))}
@@ -149,7 +152,7 @@ export default function ProfileScreen() {
       <GlassSurface intensity={62} style={styles.referralSurface}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("profile.invite")}
+          accessibilityLabel={copyText(t("profile.invite"))}
           onPress={() => router.push("/invite")}
           style={({ pressed }) => [
             styles.referral,
@@ -160,11 +163,11 @@ export default function ProfileScreen() {
             <Ionicons name="gift" size={24} color={readableAccent("#007A57", theme.mode)} />
           </View>
           <View style={{ flex: 1 }}>
-            <AppText variant="label">{t("profile.invite")}</AppText>
+            <AppText variant="label">{copyContent(t("profile.invite"))}</AppText>
             <AppText variant="caption" muted>
-              {referralCode} ·{" "}
-              {friendCount}{" "}
-              {t("invite.people")}
+              {referralCode} ·{copyContent(" ")}
+              {copyContent(friendCount)}{copyContent(" ")}
+              {copyContent(t("invite.people"))}
             </AppText>
           </View>
           <Ionicons
@@ -176,20 +179,20 @@ export default function ProfileScreen() {
       </GlassSurface>
 
       <View style={styles.actions}>
-        <AppButton variant="secondary" icon="share-social-outline" onPress={() => void sharePublicProfile(user.name, user.referralCode)}>Поделиться профилем</AppButton>
+        <AppButton variant="secondary" icon="share-social-outline" onPress={() => void sharePublicProfile(user.name, user.referralCode)}>{copyText("Поделиться профилем")}</AppButton>
         <AppButton
           variant="secondary"
           icon="settings-outline"
           onPress={() => router.push("/settings")}
         >
-          {t("profile.settings")}
+          {copyContent(t("profile.settings"))}
         </AppButton>
         <AppButton
           variant="ghost"
           icon="log-out-outline"
           onPress={() => void signOut()}
         >
-          {t("profile.logout")}
+          {copyContent(t("profile.logout"))}
         </AppButton>
       </View>
       <EditProfileModal visible={editing} onClose={() => setEditing(false)} />

@@ -3,18 +3,23 @@ import { z } from "zod";
 import { ApiError } from "../lib/api-error.js";
 import { getLeaderboard, getLeaderboards } from "../services/leaderboard.service.js";
 
+import { getPeriodLeaderboards } from "../services/period-leaderboard.service.js";
 const router = Router();
 
 router.get("/", async (request, response) => {
   const query = z
     .object({
-      metric: z.enum(["all", "wealth", "wallet", "coins", "lifetime"]).default("wealth"),
+      metric: z.enum(["all", "wealth", "wallet", "coins", "lifetime", "periods"]).default("wealth"),
       limit: z.coerce.number().int().min(1).max(50).default(50),
       offset: z.coerce.number().int().min(0).default(0)
     })
     .safeParse(request.query);
   if (!query.success) {
     throw new ApiError(400, "validation_error", "Leaderboard query is invalid", query.error.flatten());
+  }
+  if (query.data.metric === "periods") {
+    response.json({ data: await getPeriodLeaderboards({ userId: request.auth!.userId, limit: query.data.limit, offset: query.data.offset }) });
+    return;
   }
   const data = query.data.metric === "all"
     ? await getLeaderboards({

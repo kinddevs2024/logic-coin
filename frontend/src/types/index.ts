@@ -155,6 +155,8 @@ export type GameCatalogItem = {
   difficulty: GameDifficulty;
   title: string;
   description: string;
+  titleI18n?: Partial<Record<Language, string>>;
+  descriptionI18n?: Partial<Record<Language, string>>;
   challengeEnabled: boolean;
   practiceEnabled: boolean;
 };

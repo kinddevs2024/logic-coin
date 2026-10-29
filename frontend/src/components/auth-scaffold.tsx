@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import type { PropsWithChildren, ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -16,6 +18,7 @@ export function AuthScaffold({
   subtitle?: string;
   headerAction?: ReactNode;
 }>) {
+  const { copyContent } = useUiCopy();
   return (
     <AppFrame
       contentStyle={styles.page}
@@ -32,14 +35,14 @@ export function AuthScaffold({
         ) : null}
         {title || subtitle ? (
           <View style={styles.heading}>
-            {title ? <AppText variant="heading">{title}</AppText> : null}
+            {title ? <AppText variant="heading">{copyContent(title)}</AppText> : null}
             {subtitle ? (
               <AppText
                 variant="caption"
                 muted
                 style={[{ textAlign: "center" }, styles.subtitle]}
               >
-                {subtitle}
+                {copyContent(subtitle)}
               </AppText>
             ) : null}
           </View>

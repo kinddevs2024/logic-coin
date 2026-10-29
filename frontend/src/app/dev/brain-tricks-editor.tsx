@@ -1,8 +1,10 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Clipboard from "expo-clipboard";
 import { Redirect } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+
 
 import { AppText } from "@/components/app-text";
 import { GameShell } from "@/components/game-shell";
@@ -17,6 +19,7 @@ const STARTER: PuzzleDefinition = {
 };
 
 export default function BrainTricksEditor() {
+  const { copyText, copyContent } = useUiCopy();
   const [level, setLevel] = useState<PuzzleDefinition>(STARTER);
   const [selectedId, setSelectedId] = useState("object-1");
   const validation = useMemo(() => validatePuzzleDefinition(level), [level]);
@@ -29,19 +32,19 @@ export default function BrainTricksEditor() {
     setLevel((current) => ({ ...current, objects: [...current.objects, { id, symbol: "🔷", position: { x: 50, y: 50 }, size: 14, color: "#93C5FD", visible: true, draggable: true, layer: "OBJECT" }] }));
     setSelectedId(id);
   };
-  return <GameShell title="Brain Tricks Editor" variant="app" meta={<AppText style={styles.dev}>DEV</AppText>}>
+  return <GameShell title="Brain Tricks Editor" variant="app" meta={<AppText style={styles.dev}>{copyText("DEV")}</AppText>}>
     <View style={styles.layout}>
       <GlassSurface variant="strong" style={styles.controls}>
-        <AppText style={styles.heading}>Параметры</AppText>
-        <TextInput accessibilityLabel="Название задачи" value={level.title} onChangeText={(title) => setLevel((current) => ({ ...current, title }))} style={styles.input} />
-        <TextInput accessibilityLabel="Текст задания" value={level.instruction} onChangeText={(instruction) => setLevel((current) => ({ ...current, instruction }))} style={styles.input} />
-        <View style={styles.row}><Pressable onPress={addObject} style={styles.button}><Ionicons name="add" size={18} color="#fff" /><AppText style={styles.buttonText}>Объект</AppText></Pressable><Pressable onPress={() => void Clipboard.setStringAsync(JSON.stringify(level, null, 2))} style={styles.button}><Ionicons name="copy-outline" size={18} color="#fff" /><AppText style={styles.buttonText}>JSON</AppText></Pressable></View>
-        <AppText style={styles.label}>Выбран: {selectedId}</AppText>
+        <AppText style={styles.heading}>{copyText("Параметры")}</AppText>
+        <TextInput accessibilityLabel={copyText("Название задачи")} value={level.title} onChangeText={(title) => setLevel((current) => ({ ...current, title }))} style={styles.input} />
+        <TextInput accessibilityLabel={copyText("Текст задания")} value={level.instruction} onChangeText={(instruction) => setLevel((current) => ({ ...current, instruction }))} style={styles.input} />
+        <View style={styles.row}><Pressable onPress={addObject} style={styles.button}><Ionicons name="add" size={18} color="#fff" /><AppText style={styles.buttonText}>{copyText("Объект")}</AppText></Pressable><Pressable onPress={() => void Clipboard.setStringAsync(JSON.stringify(level, null, 2))} style={styles.button}><Ionicons name="copy-outline" size={18} color="#fff" /><AppText style={styles.buttonText}>{copyText("JSON")}</AppText></Pressable></View>
+        <AppText style={styles.label}>{copyText("Выбран: ")}{copyContent(selectedId)}</AppText>
         <View style={styles.row}><Pressable onPress={() => move(-2, 0)} style={styles.nudge}><Ionicons name="arrow-back" size={18} /></Pressable><Pressable onPress={() => move(0, -2)} style={styles.nudge}><Ionicons name="arrow-up" size={18} /></Pressable><Pressable onPress={() => move(0, 2)} style={styles.nudge}><Ionicons name="arrow-down" size={18} /></Pressable><Pressable onPress={() => move(2, 0)} style={styles.nudge}><Ionicons name="arrow-forward" size={18} /></Pressable></View>
-        <Pressable onPress={() => selected && updateObject({ draggable: !selected.draggable })} style={styles.toggle}><AppText style={styles.label}>Draggable: {selected?.draggable ? "ON" : "OFF"}</AppText></Pressable>
-        <AppText style={[styles.validation, { color: validation.valid ? "#15803D" : "#B42318" }]}>{validation.valid ? "Definition valid" : validation.errors.join("\n")}</AppText>
+        <Pressable onPress={() => selected && updateObject({ draggable: !selected.draggable })} style={styles.toggle}><AppText style={styles.label}>{copyText("Draggable: ")}{copyContent(selected?.draggable ? "ON" : "OFF")}</AppText></Pressable>
+        <AppText style={[styles.validation, { color: validation.valid ? "#15803D" : "#B42318" }]}>{copyContent(validation.valid ? "Definition valid" : validation.errors.join("\n"))}</AppText>
       </GlassSurface>
-      <View style={[styles.canvas, { backgroundColor: level.background }]}>{level.objects.map((item) => <Pressable key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.editorObject, { left: `${item.position.x}%`, top: `${item.position.y}%` }, item.id === selectedId && styles.editorObjectSelected]}><AppText style={styles.symbol}>{item.symbol}</AppText><AppText style={styles.objectId}>{item.id}</AppText></Pressable>)}</View>
+      <View style={[styles.canvas, { backgroundColor: level.background }]}>{level.objects.map((item) => <Pressable key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.editorObject, { left: `${item.position.x}%`, top: `${item.position.y}%` }, item.id === selectedId && styles.editorObjectSelected]}><AppText style={styles.symbol}>{copyContent(item.symbol)}</AppText><AppText style={styles.objectId}>{copyContent(item.id)}</AppText></Pressable>)}</View>
     </View>
   </GameShell>;
 }

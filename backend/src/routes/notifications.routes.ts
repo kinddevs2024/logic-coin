@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { countUnreadInbox, listInbox, markInboxRead } from "../services/inbox.service.js";
+import { countUnreadInbox, listInbox, markInboxRead, markAllInboxRead } from "../services/inbox.service.js";
 import { validateBody } from "../middleware/validate.js";
 import { ApiError } from "../lib/api-error.js";
 const router = Router();
@@ -16,5 +16,8 @@ router.get("/", async (req, res) => {
 });
 router.post("/read", validateBody(z.object({ ids: z.array(id).min(1).max(30) }).strict()), async (req, res) => {
   res.json({ data: await markInboxRead(req.auth!.userId, req.body.ids) });
+});
+router.post("/read-all", validateBody(z.object({}).strict()), async (req, res) => {
+  res.json({ data: await markAllInboxRead(req.auth!.userId) });
 });
 export default router;

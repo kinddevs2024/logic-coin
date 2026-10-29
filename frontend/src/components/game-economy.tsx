@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useMemo, useState } from "react";
@@ -21,6 +23,7 @@ export function GameEconomyHud({
   tone?: "dark" | "light";
   onOpen: () => void;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const saved = useGameProgressStore((state) => gameProgressFor(state.games, gameId));
   const ready = useClientReady();
   const progress = ready ? saved : gameProgressFor({}, gameId);
@@ -30,11 +33,11 @@ export function GameEconomyHud({
 
   return (
     <View style={styles.hudGroup}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Монеты и скины" onPress={onOpen} style={({ pressed }) => [styles.coinPill, { backgroundColor: surface }, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText("Монеты и скины")} onPress={onOpen} style={({ pressed }) => [styles.coinPill, { backgroundColor: surface }, pressed && styles.pressed]}>
         <MaterialCommunityIcons name="hexagon-multiple" size={18} color="#F5B800" />
-        <AppText style={[styles.coinValue, { color }]}>{progress.coins}</AppText>
+        <AppText style={[styles.coinValue, { color }]}>{copyContent(progress.coins)}</AppText>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Открыть скины" onPress={onOpen} style={({ pressed }) => [styles.hudIcon, { backgroundColor: surface }, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText("Открыть скины")} onPress={onOpen} style={({ pressed }) => [styles.hudIcon, { backgroundColor: surface }, pressed && styles.pressed]}>
         <MaterialCommunityIcons name={cosmetic.icon} size={20} color={tone === "dark" ? cosmetic.primary : "#FFFFFF"} />
       </Pressable>
     </View>
@@ -50,6 +53,7 @@ export function GameEconomyModal({
   visible: boolean;
   onClose: () => void;
 }) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const dark = theme.mode === "dark";
   const textStyle = dark ? { color: theme.text } : undefined;
@@ -94,14 +98,14 @@ export function GameEconomyModal({
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={close}>
       <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.backdrop}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={StyleSheet.absoluteFill} />
+        <Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={close} style={StyleSheet.absoluteFill} />
         <View style={[styles.sheet, dark && { backgroundColor: theme.surface, borderColor: theme.glassBorder, borderWidth: 1 }, { paddingBottom: Math.max(18, insets.bottom + 10) }]}>
           <View style={styles.sheetTop}>
             <View style={styles.walletTitle}>
               <MaterialCommunityIcons name="hexagon-multiple" size={23} color="#F5B800" />
-              <AppText style={[styles.sheetTitle, textStyle]}>{progress.coins} coin</AppText>
+              <AppText style={[styles.sheetTitle, textStyle]}>{copyContent(progress.coins)} {copyText(" coin")}</AppText>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={[styles.closeButton, insetStyle]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={close} style={[styles.closeButton, insetStyle]}>
               <Ionicons name="close" size={22} color={dark ? String(theme.text) : "#282936"} />
             </Pressable>
           </View>
@@ -112,14 +116,14 @@ export function GameEconomyModal({
               const selected = progress.selectedCosmetic === skin.id;
               const accent = readableAccent(skin.primary, theme.mode);
               return (
-                <Pressable key={skin.id} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={`${skin.name}${unlocked ? "" : `, ${skin.price} coin`}`} onPress={() => chooseSkin(skin.id, skin.price)} style={({ pressed }) => [styles.skinCard, panelStyle, selected && { borderColor: accent, borderWidth: 3 }, pressed && styles.pressed]}>
+                <Pressable key={skin.id} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={formatCopy("{0}{1}", [copyText(skin.name), unlocked ? "" : `, ${skin.price} coin`])} onPress={() => chooseSkin(skin.id, skin.price)} style={({ pressed }) => [styles.skinCard, panelStyle, selected && { borderColor: accent, borderWidth: 3 }, pressed && styles.pressed]}>
                   <View style={[styles.skinPreview, { backgroundColor: dark ? `${accent}18` : skin.secondary }]}>
                     <MaterialCommunityIcons name={skin.icon} size={34} color={accent} />
                   </View>
-                  <AppText numberOfLines={1} style={[styles.skinName, textStyle]}>{skin.name}</AppText>
+                  <AppText numberOfLines={1} style={[styles.skinName, textStyle]}>{copyContent(skin.name)}</AppText>
                   <View style={[styles.skinPrice, insetStyle]}>
                     {unlocked ? <Ionicons name={selected ? "checkmark-circle" : "checkmark"} size={14} color={dark ? String(theme.success) : "#16A34A"} /> : <MaterialCommunityIcons name="hexagon-multiple" size={13} color={dark ? String(theme.warning) : "#E5A900"} />}
-                    <AppText style={[styles.skinPriceText, mutedStyle]}>{unlocked ? (selected ? "Выбран" : "Открыт") : skin.price}</AppText>
+                    <AppText style={[styles.skinPriceText, mutedStyle]}>{copyContent(unlocked ? (selected ? "Выбран" : "Открыт") : skin.price)}</AppText>
                   </View>
                 </Pressable>
               );
@@ -132,16 +136,16 @@ export function GameEconomyModal({
                 <MaterialCommunityIcons name={pendingSkin.icon} size={32} color={readableAccent(pendingSkin.primary, theme.mode)} />
               </View>
               <View style={styles.confirmCopy}>
-                <AppText style={[styles.confirmTitle, textStyle]}>Купить «{pendingSkin.name}»?</AppText>
-                <AppText style={[styles.confirmMeta, mutedStyle]}>{pendingSkin.price} coin · останется {Math.max(0, progress.coins - pendingSkin.price)}</AppText>
+                <AppText style={[styles.confirmTitle, textStyle]}>{copyText("Купить «")}{copyContent(pendingSkin.name)}»?</AppText>
+                <AppText style={[styles.confirmMeta, mutedStyle]}>{copyContent(pendingSkin.price)} {copyText(" coin · останется ")}{copyContent(Math.max(0, progress.coins - pendingSkin.price))}</AppText>
               </View>
               <View style={styles.confirmActions}>
-                <Pressable accessibilityRole="button" accessibilityLabel="Отменить покупку" onPress={() => setPendingSkinId(null)} style={({ pressed }) => [styles.cancelButton, insetStyle, pressed && styles.pressed]}>
-                  <AppText style={[styles.cancelText, textStyle]}>Отмена</AppText>
+                <Pressable accessibilityRole="button" accessibilityLabel={copyText("Отменить покупку")} onPress={() => setPendingSkinId(null)} style={({ pressed }) => [styles.cancelButton, insetStyle, pressed && styles.pressed]}>
+                  <AppText style={[styles.cancelText, textStyle]}>{copyText("Отмена")}</AppText>
                 </Pressable>
-                <Pressable accessibilityRole="button" accessibilityLabel={`Купить ${pendingSkin.name} за ${pendingSkin.price} coin`} disabled={progress.coins < pendingSkin.price} onPress={confirmPurchase} style={({ pressed }) => [styles.buyButton, { backgroundColor: pendingSkin.primary }, progress.coins < pendingSkin.price && styles.disabled, pressed && styles.pressed]}>
+                <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("Купить {0} за {1} coin", [copyText(pendingSkin.name), pendingSkin.price])} disabled={progress.coins < pendingSkin.price} onPress={confirmPurchase} style={({ pressed }) => [styles.buyButton, { backgroundColor: pendingSkin.primary }, progress.coins < pendingSkin.price && styles.disabled, pressed && styles.pressed]}>
                   <Ionicons name="bag-check-outline" size={17} color={accentForeground(pendingSkin.primary, theme.mode)} />
-                  <AppText style={[styles.buyText, { color: accentForeground(pendingSkin.primary, theme.mode) }]}>Купить</AppText>
+                  <AppText style={[styles.buyText, { color: accentForeground(pendingSkin.primary, theme.mode) }]}>{copyText("Купить")}</AppText>
                 </Pressable>
               </View>
             </Animated.View>
@@ -150,11 +154,11 @@ export function GameEconomyModal({
           <View style={[styles.cosmeticNote, dark && { backgroundColor: theme.primarySoft }]}>
             <MaterialCommunityIcons name="shield-check-outline" size={20} color={dark ? String(theme.primary) : "#007A57"} />
             <View style={styles.cosmeticNoteCopy}>
-              <AppText style={[styles.cosmeticNoteTitle, textStyle]}>Игровые coin</AppText>
-              <AppText style={[styles.cosmeticNoteText, mutedStyle]}>Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.</AppText>
+              <AppText style={[styles.cosmeticNoteTitle, textStyle]}>{copyText("Игровые coin")}</AppText>
+              <AppText style={[styles.cosmeticNoteText, mutedStyle]}>{copyText("Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.")}</AppText>
             </View>
           </View>
-          {notice ? <AppText style={[styles.notice, dark && { color: theme.text }]}>{notice}</AppText> : null}
+          {notice ? <AppText style={[styles.notice, dark && { color: theme.text }]}>{copyContent(notice)}</AppText> : null}
         </View>
       </Animated.View>
     </Modal>

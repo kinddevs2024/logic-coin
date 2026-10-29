@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, AppState, Easing, Image, PanResponder, Pressable, StyleSheet, View } from "react-native";
@@ -18,6 +20,7 @@ type Result = NonNullable<ReturnType<typeof evaluateSwipe>>;
 const initial: Result = { landed: false, verdict: "weak", rotation: 360, offsetX: 0, durationMs: 800, peak: 100 };
 const steps = Array.from({ length: 11 }, (_, i) => i / 10);
 export default function BottleFlipScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const { language } = useTranslation(); const c = copies[language]; const router = useRouter();
   const [phase, setPhase] = useState<Phase>("ready"); const mode = useRef<Phase>("ready");
   const [result, setResult] = useState<Result>(initial);
@@ -86,22 +89,22 @@ export default function BottleFlipScreen() {
   const rotation = Animated.add(flight.interpolate({ inputRange: [0, 1], outputRange: [0, result.rotation] }), settle.interpolate({ inputRange: [0, 1], outputRange: [0, finalAngle - result.rotation] })).interpolate({ inputRange: [0, 1440], outputRange: ["0deg", "1440deg"] });
   return <SafeAreaView style={[styles.page, { backgroundColor: art.background }]}>
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel={c.back} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/games")} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color={art.foreground} /></Pressable>
-      <AppText style={[styles.title, { color: art.foreground }]}>{c.title}</AppText>
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.back)} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/games")} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color={art.foreground} /></Pressable>
+      <AppText style={[styles.title, { color: art.foreground }]}>{copyContent(c.title)}</AppText>
       <View style={styles.headerActions}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Темы" onPress={() => { reset(); setThemesOpen(true); }} style={styles.iconButton}><Ionicons name="shirt-outline" size={22} color={art.foreground} /></Pressable>
-        <View style={styles.counter}><Ionicons name="diamond-outline" size={18} color={art.foreground} /><AppText style={[styles.score, { color: art.foreground }]}>{score} coin</AppText></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={copyText("Темы")} onPress={() => { reset(); setThemesOpen(true); }} style={styles.iconButton}><Ionicons name="shirt-outline" size={22} color={art.foreground} /></Pressable>
+        <View style={styles.counter}><Ionicons name="diamond-outline" size={18} color={art.foreground} /><AppText style={[styles.score, { color: art.foreground }]}>{copyContent(score)} {copyText(" coin")}</AppText></View>
       </View>
     </View>
     <View style={styles.scene} onLayout={(event) => { size.current = event.nativeEvent.layout; setSceneHeight(event.nativeEvent.layout.height); }}>
       <Image source={art.room} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} resizeMode="stretch" />
       <View pointerEvents="none" style={[styles.shadow, { top: sceneHeight * 0.88 - 4 }]} />
-      <Animated.View {...responder.panHandlers} accessibilityLabel={c.hint} style={[styles.bottle, { top: sceneHeight * 0.88 - 210, transform: [
+      <Animated.View {...responder.panHandlers} accessibilityLabel={copyText(c.hint)} style={[styles.bottle, { top: sceneHeight * 0.88 - 210, transform: [
         { translateX: flight.interpolate({ inputRange: [0, 1], outputRange: [0, result.offsetX] }) },
         { translateY: Animated.add(Animated.add(airborneY, drag), settle.interpolate({ inputRange: [0, 1], outputRange: [0, result.landed ? 0 : 50] })) }, { rotate: rotation },
       ] }]}><Image source={art.bottle} style={styles.bottleArt} resizeMode="contain" /></Animated.View>
     </View>
-    <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} ellipsizeMode="tail" style={[styles.hint, { color: phase === "result" && result.landed ? art.success : art.foreground }]}>{attemptsLabel}: {attempts} · {phase === "result" ? c[result.verdict] : c.hint}</AppText>
+    <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} ellipsizeMode="tail" style={[styles.hint, { color: phase === "result" && result.landed ? art.success : art.foreground }]}>{copyContent(attemptsLabel)}: {copyContent(attempts)} · {copyContent(phase === "result" ? c[result.verdict] : c.hint)}</AppText>
     <BottleThemes visible={themesOpen} onClose={() => setThemesOpen(false)} />
   </SafeAreaView>;
 }

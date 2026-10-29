@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, View } from "react-native";
 import Animated, {
@@ -19,12 +21,13 @@ export function ChoiceChip({
   selected?: boolean;
   onPress: () => void;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ checked: Boolean(selected) }}
-      accessibilityLabel={label}
+      accessibilityLabel={copyText(label)}
       onPress={onPress}
       style={({ pressed }) => ({
         minHeight: 44,
@@ -71,7 +74,7 @@ export function ChoiceChip({
           variant="caption"
           color={selected ? String(theme.primary) : undefined}
         >
-          {label}
+          {copyContent(label)}
         </AppText>
       </GlassSurface>
     </Pressable>

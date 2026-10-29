@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -24,6 +26,7 @@ const copy = {
 } as const;
 
 export default function ChallengesScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const router = useRouter();
@@ -37,13 +40,13 @@ export default function ChallengesScreen() {
   return (
     <AppFrame wide desktopNavigationInset contentStyle={styles.page} swipesDisabled={giftsOpen}>
       <View style={styles.header}>
-        <AppText variant="title" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.headerTitle}>{c.title}</AppText>
+        <AppText variant="title" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.headerTitle}>{copyContent(c.title)}</AppText>
           <View style={styles.headerActions}>
-          <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={language === "ru" ? "История челленджей" : language === "uz" ? "Sinovlar tarixi" : "Challenge history"} onPress={() => router.push("/challenge-history" as never)}><GlassSurface variant="strong" style={styles.headerIcon}><Ionicons name="time-outline" size={18} color={String(theme.text)} /></GlassSurface></Pressable>
-          <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={language === "ru" ? "Мои подарки" : language === "uz" ? "Sovg‘alarim" : "My gifts"} onPress={() => setGiftsOpen(true)}><GlassSurface variant="strong" style={styles.headerIcon}><Ionicons name="gift-outline" size={18} color={String(theme.text)} /></GlassSurface></Pressable>
+          <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={copyText(language === "ru" ? "История челленджей" : language === "uz" ? "Sinovlar tarixi" : "Challenge history")} onPress={() => router.push("/challenge-history" as never)}><GlassSurface variant="strong" style={styles.headerIcon}><Ionicons name="time-outline" size={18} color={String(theme.text)} /></GlassSurface></Pressable>
+          <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={copyText(language === "ru" ? "Мои подарки" : language === "uz" ? "Sovg‘alarim" : "My gifts")} onPress={() => setGiftsOpen(true)}><GlassSurface variant="strong" style={styles.headerIcon}><Ionicons name="gift-outline" size={18} color={String(theme.text)} /></GlassSurface></Pressable>
           <GlassSurface variant="strong" intensity={68} style={styles.coinPill}>
             <Ionicons name="diamond" size={13} color="#F5B800" />
-            <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.coinValue, { color: theme.text }]}>{today?.coins.balance ?? coinBalance}</AppText>
+            <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.coinValue, { color: theme.text }]}>{copyContent(today?.coins.balance ?? coinBalance)}</AppText>
           </GlassSurface>
           </View>
       </View>
@@ -55,7 +58,7 @@ export default function ChallengesScreen() {
       {Platform.OS === "web" ? <View style={{ marginTop: 16 }}><ChallengeAppRequired /></View> : null}
 
       {isLoading ? (
-        <View style={styles.loading}><ActivityIndicator color={String(theme.primary)} /><AppText muted>{c.empty}</AppText></View>
+        <View style={styles.loading}><ActivityIndicator color={String(theme.primary)} /><AppText muted>{copyContent(c.empty)}</AppText></View>
       ) : (
         <View style={[styles.grid, wide && styles.gridWide]}>
           {(today?.games ?? []).map((game, index) => (
@@ -76,7 +79,7 @@ export default function ChallengesScreen() {
         <View style={styles.emptyBlock}>
           <Pressable onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: theme.primary }]}>
             <Ionicons name="refresh" size={18} color={String(theme.onPrimary)} />
-            <AppText color={String(theme.onPrimary)} variant="label">{c.refresh}</AppText>
+            <AppText color={String(theme.onPrimary)} variant="label">{copyContent(c.refresh)}</AppText>
           </Pressable>
         </View>
       ) : null}

@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
@@ -13,6 +15,7 @@ export function SectionHeader({
   action?: string;
   onAction?: () => void;
 }) {
+  const { copyContent } = useUiCopy();
   const theme = useAppTheme();
   return (
     <View
@@ -23,7 +26,7 @@ export function SectionHeader({
         marginBottom: 13,
       }}
     >
-      <AppText variant="heading">{title}</AppText>
+      <AppText variant="heading">{copyContent(title)}</AppText>
       {action ? (
         <Pressable
           onPress={onAction}
@@ -37,7 +40,7 @@ export function SectionHeader({
           ]}
         >
           <AppText variant="caption" color={String(theme.primary)}>
-            {action}
+            {copyContent(action)}
           </AppText>
           <Ionicons name="chevron-forward" size={15} color={String(theme.primary)} />
         </Pressable>

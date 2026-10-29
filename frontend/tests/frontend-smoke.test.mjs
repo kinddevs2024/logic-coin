@@ -10,7 +10,7 @@ test("Android game results do not leave a stacked native modal after navigation"
   assert.match(resultComponent, /if \(!value\) return null/);
   assert.match(resultComponent, /Platform\.OS === "android"\s*\? <View accessibilityViewIsModal style=\{styles\.androidResultLayer\}/);
   assert.doesNotMatch(resultComponent, /<Modal visible=\{Boolean\(value\)\}/);
-  assert.match(resultComponent, /value\.saving \? <ActivityIndicator accessibilityLabel="Сохраняем награду"/);
+  assert.match(resultComponent, /value\.saving \? <ActivityIndicator accessibilityLabel=\{copyText\("Сохраняем награду"\)\}/);
   assert.match(resultComponent, /value=\{value\.saving \? "…"/);
 });
 
@@ -47,7 +47,7 @@ test("opening a gift cannot leave a stale press pause after an ad or app return"
   assert.match(source, /AppState\.addEventListener\("change", state => \{\s*setHoldingGift\(false\);/);
   assert.match(source, /finally \{ setHoldingGift\(false\); setBusy\(false\); \}/);
   assert.match(source, /ru: "Открыть", en: "Open", uz: "Ochish"/);
-  assert.match(source, /<AppText style=\{styles\.timerText\}>\{OPEN_GIFT_LABEL\[language\]\}/);
+  assert.match(source, /<AppText style=\{styles\.timerText\}>\{copyContent\(OPEN_GIFT_LABEL\[language\]\)\}/);
 });
 test("native app icons retain the original logo", async () => {
   const app = await json("app.json");

@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useRef, useState } from "react";
 import { Modal } from "react-native";
 import { ReactCrop, type PercentCrop } from "react-image-crop";
@@ -12,6 +14,7 @@ export function PhotoCropEditor(props: PhotoCropEditorProps) {
 }
 
 function CropDialog({ asset, onCancel, onConfirm }: Omit<PhotoCropEditorProps, "asset"> & { asset: CropAsset }) {
+  const { copyText } = useUiCopy();
   const theme = useAppTheme();
   const image = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<PercentCrop>();
@@ -43,11 +46,11 @@ function CropDialog({ asset, onCancel, onConfirm }: Omit<PhotoCropEditorProps, "
     <Modal transparent visible animationType="fade" onRequestClose={saving ? undefined : onCancel}>
       <div className="avatar-crop-backdrop">
         <section className="avatar-crop-dialog" aria-label="Редактирование аватарки" aria-busy={saving} style={{ background: String(theme.surface), color: String(theme.text) }}>
-          <h2>Настройте фото</h2>
-          <p style={{ color: String(theme.textMuted) }}>Перемещайте рамку и тяните за углы. Сохранится только выбранная область.</p>
+          <h2>{copyText("Настройте фото")}</h2>
+          <p style={{ color: String(theme.textMuted) }}>{copyText("Перемещайте рамку и тяните за углы. Сохранится только выбранная область.")}</p>
           <div className="avatar-crop-stage">
             <ReactCrop crop={crop} onChange={(_, percent) => setCrop(percent)} aspect={1} keepSelection minWidth={32} minHeight={32} disabled={saving} ruleOfThirds>
-              <img ref={image} src={asset.uri} alt="Фото для обрезки" draggable={false} onError={() => setError("Не удалось открыть фотографию")} onLoad={(event) => {
+              <img ref={image} src={asset.uri} alt={copyText("Фото для обрезки")} draggable={false} onError={() => setError("Не удалось открыть фотографию")} onLoad={(event) => {
                 const source = event.currentTarget;
                 setCrop({ unit: "%", ...initialAvatarCrop(source.naturalWidth, source.naturalHeight) });
               }} />
@@ -55,7 +58,7 @@ function CropDialog({ asset, onCancel, onConfirm }: Omit<PhotoCropEditorProps, "
           </div>
           {error ? <p role="alert" style={{ color: String(theme.danger) }}>{error}</p> : null}
           <div className="avatar-crop-actions">
-            <button type="button" disabled={saving} onClick={onCancel} style={{ background: String(theme.surfaceRaised), color: String(theme.text) }}>Отмена</button>
+            <button type="button" disabled={saving} onClick={onCancel} style={{ background: String(theme.surfaceRaised), color: String(theme.text) }}>{copyText("Отмена")}</button>
             <button type="button" disabled={!crop || saving || !!error} onClick={() => void confirm()} style={{ background: String(theme.primary), color: String(theme.onPrimary) }}>{saving ? "Сохраняем…" : "Готово"}</button>
           </div>
         </section>

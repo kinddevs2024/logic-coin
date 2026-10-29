@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { PropsWithChildren, ReactNode } from "react";
 import {
@@ -61,14 +63,15 @@ export function PixelPanel({
 }
 
 export function PixelStat({ label, value }: { label: string; value: ReactNode }) {
+  const { copyContent } = useUiCopy();
   const gameKey = useGameSession()?.gameKey;
   const coinMetric = /(рекорд|прошлый|best|score)/i.test(label);
   const visibleLabel = coinMetric ? (/(рекорд|best)/i.test(label) ? "ЛУЧШИЙ COIN" : "ПРОШЛЫЙ COIN") : label.toUpperCase();
   const visibleValue = coinMetric && typeof value === "number" ? gameCoinReward(value, false, gameKey) : value;
   return (
     <PixelPanel style={styles.stat}>
-      <AppText style={styles.statLabel}>{visibleLabel}</AppText>
-      <AppText style={styles.statValue}>{visibleValue}</AppText>
+      <AppText style={styles.statLabel}>{copyContent(visibleLabel)}</AppText>
+      <AppText style={styles.statValue}>{copyContent(visibleValue)}</AppText>
     </PixelPanel>
   );
 }
@@ -88,10 +91,11 @@ export function PixelIconButton({
   size?: number;
   active?: boolean;
 }) {
+  const { copyText } = useUiCopy();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={copyText(label)}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -124,10 +128,11 @@ export function PixelActionButton({
   disabled?: boolean;
   icon?: React.ComponentProps<typeof Ionicons>["name"];
 }) {
+  const { copyText, copyContent } = useUiCopy();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={copyText(label)}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -137,7 +142,7 @@ export function PixelActionButton({
       ]}
     >
       {icon ? <Ionicons name={icon} size={18} color={PIXEL_GAME_COLORS.ink} /> : null}
-      <AppText style={styles.actionLabel}>{label}</AppText>
+      <AppText style={styles.actionLabel}>{copyContent(label)}</AppText>
     </Pressable>
   );
 }

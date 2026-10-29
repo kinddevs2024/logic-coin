@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +22,7 @@ import type { GameId } from "@/games/progress-store";
 import { isTelegramMiniApp } from "@/lib/telegram-context";
 
 export default function PublicProfileScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const params = useLocalSearchParams<{ code?: string | string[] }>();
   const code = Array.isArray(params.code) ? params.code[0] : params.code;
@@ -42,14 +45,14 @@ export default function PublicProfileScreen() {
 
   return (
     <AppFrame wide>
-      {Platform.OS === "web" && typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent) ? <AppButton onPress={openApp}>Открыть в приложении</AppButton> : null}
+      {Platform.OS === "web" && typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent) ? <AppButton onPress={openApp}>{copyText("Открыть в приложении")}</AppButton> : null}
       {query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
-      {query.error ? <AppText color={String(theme.danger)}>Профиль не найден</AppText> : null}
+      {query.error ? <AppText color={String(theme.danger)}>{copyText("Профиль не найден")}</AppText> : null}
       {profile ? <>
         <GlassSurface variant="strong" intensity={82} style={styles.hero}>
           <Avatar name={profile.name} avatarUrl={profile.avatarUrl} size={92} />
           <AppText variant="title">{profile.name}</AppText>
-          <View style={styles.countryLine}><CountryFlagBadge countryCode={profile.countryCode} size={19} /><AppText muted>{countryName(profile.countryCode)}</AppText></View>
+          <View style={styles.countryLine}><CountryFlagBadge countryCode={profile.countryCode} size={19} /><AppText muted>{copyContent(countryName(profile.countryCode))}</AppText></View>
         </GlassSurface>
         <View style={styles.grid}>
           <Stat icon="wallet-outline" label="Баланс" value={formatMoney(profile.balanceUnits)} />
@@ -58,24 +61,25 @@ export default function PublicProfileScreen() {
           <Stat icon="flash-outline" label="Челленджей" value={String(profile.completedChallenges)} />
         </View>
         <GlassSurface variant="soft" intensity={58} style={styles.skinBlock}>
-          <AppText variant="heading">Скины игр</AppText>
+          <AppText variant="heading">{copyText("Скины игр")}</AppText>
           {profile.skins.length ? <View style={styles.skinsRow}>{profile.skins.map(key => {
             const [gameId, skinId] = key.split(":");
             const skin = cosmeticsFor(gameId as GameId).find(item => item.id === skinId);
-            return <View key={key} accessible accessibilityLabel={skin ? `${skin.name} — ${gameId}` : "Скин игры"} style={[styles.skinIcon, { backgroundColor: skin?.secondary ?? theme.primarySoft }]}>
+            return <View key={key} accessible accessibilityLabel={copyText(skin ? `${skin.name} — ${gameId}` : "Скин игры")} style={[styles.skinIcon, { backgroundColor: skin?.secondary ?? theme.primarySoft }]}>
               <MaterialCommunityIcons name={skin?.icon ?? "tshirt-crew-outline"} size={23} color={skin?.primary ?? String(theme.primary)} />
             </View>;
-          })}</View> : <AppText muted>Пока нет купленных скинов</AppText>}
+          })}</View> : <AppText muted>{copyText("Пока нет купленных скинов")}</AppText>}
         </GlassSurface>
-        <AppButton icon="share-outline" onPress={() => void sharePublicProfile(profile.name, profile.referralCode)}>Поделиться профилем</AppButton>
+        <AppButton icon="share-outline" onPress={() => void sharePublicProfile(profile.name, profile.referralCode)}>{copyText("Поделиться профилем")}</AppButton>
       </> : null}
     </AppFrame>
   );
 }
 
 function Stat({ icon, label, value }: { icon: React.ComponentProps<typeof Ionicons>["name"]; label: string; value: string }) {
+  const { copyContent } = useUiCopy();
   const theme = useAppTheme();
-  return <GlassSurface variant="soft" intensity={58} style={styles.stat}><Ionicons name={icon} size={20} color={String(theme.primary)} /><AppText variant="heading">{value}</AppText><AppText variant="caption" muted>{label}</AppText></GlassSurface>;
+  return <GlassSurface variant="soft" intensity={58} style={styles.stat}><Ionicons name={icon} size={20} color={String(theme.primary)} /><AppText variant="heading">{copyContent(value)}</AppText><AppText variant="caption" muted>{copyContent(label)}</AppText></GlassSurface>;
 }
 
 const styles = StyleSheet.create({

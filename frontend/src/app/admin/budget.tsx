@@ -1,7 +1,9 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+
 
 import { AdminBarChart, AdminDataState, AdminMetricCard, AdminPageHeader, formatUnits } from "@/components/admin/admin-ui";
 import { useAdminSession } from "@/components/admin/admin-session";
@@ -13,6 +15,7 @@ import { adminApi } from "@/lib/api";
 const RANGE_OPTIONS = [7, 30, 90] as const;
 
 export default function AdminBudgetScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { adminToken } = useAdminSession();
   const [days, setDays] = useState<(typeof RANGE_OPTIONS)[number]>(30);
@@ -30,7 +33,7 @@ export default function AdminBudgetScreen() {
           <View style={[styles.range, { borderColor: theme.border }, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }]}>
             {RANGE_OPTIONS.map((option) => (
               <Pressable key={option} accessibilityRole="button" accessibilityState={{ selected: days === option }} onPress={() => setDays(option)} style={[styles.rangeItem, days === option && { backgroundColor: theme.primary }]}>
-                <AppText variant="caption" color={String(days === option ? theme.onPrimary : theme.textMuted)}>{option}д</AppText>
+                <AppText variant="caption" color={String(days === option ? theme.onPrimary : theme.textMuted)}>{copyContent(option)}{copyText("д")}</AppText>
               </Pressable>
             ))}
           </View>
@@ -44,6 +47,7 @@ export default function AdminBudgetScreen() {
 }
 
 function BudgetContent({ budget }: { budget: Awaited<ReturnType<typeof adminApi.budget>> }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const queryClient = useQueryClient();
   const { adminToken } = useAdminSession();
@@ -81,47 +85,47 @@ function BudgetContent({ budget }: { budget: Awaited<ReturnType<typeof adminApi.
             <View style={[styles.balanceMetricIcon, { backgroundColor: theme.primarySoft }]}>
               <Ionicons name="wallet-outline" size={19} color={String(theme.primary)} />
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Изменить общий бюджет" onPress={() => setAdjusting(true)} style={({ pressed }) => [styles.editBudget, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={copyText("Изменить общий бюджет")} onPress={() => setAdjusting(true)} style={({ pressed }) => [styles.editBudget, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }, pressed && styles.pressed]}>
               <Ionicons name="create-outline" size={17} color={String(theme.primary)} />
             </Pressable>
           </View>
-          <AppText style={[styles.balanceMetricValue, { color: summary.platformBalanceUnits < 0 ? theme.danger : theme.text }]}>{formatUnits(summary.platformBalanceUnits)} LC</AppText>
-          <AppText variant="caption" muted>Общий бюджет</AppText>
-          <AppText style={[styles.balanceHint, { color: summary.platformBalanceUnits < 0 ? theme.danger : theme.success }]}>{summary.platformBalanceUnits < 0 ? "Бюджет в минусе" : "Доступно платформе"}</AppText>
+          <AppText style={[styles.balanceMetricValue, { color: summary.platformBalanceUnits < 0 ? theme.danger : theme.text }]}>{copyContent(formatUnits(summary.platformBalanceUnits))} {copyText(" LC")}</AppText>
+          <AppText variant="caption" muted>{copyText("Общий бюджет")}</AppText>
+          <AppText style={[styles.balanceHint, { color: summary.platformBalanceUnits < 0 ? theme.danger : theme.success }]}>{copyContent(summary.platformBalanceUnits < 0 ? "Бюджет в минусе" : "Доступно платформе")}</AppText>
         </GlassSurface>
       </View>
 
-      {notice ? <View style={[styles.notice, { backgroundColor: theme.primarySoft }]}><Ionicons name="information-circle-outline" size={17} color={String(theme.primary)} /><AppText variant="caption" style={styles.noticeText}>{notice}</AppText></View> : null}
+      {notice ? <View style={[styles.notice, { backgroundColor: theme.primarySoft }]}><Ionicons name="information-circle-outline" size={17} color={String(theme.primary)} /><AppText variant="caption" style={styles.noticeText}>{copyContent(notice)}</AppText></View> : null}
 
       <GlassSurface intensity={72} variant="strong" style={styles.chartPanel}>
         <View style={styles.panelHeader}>
           <View>
-            <AppText variant="heading">Доход по дням</AppText>
-            <AppText variant="caption" muted>{budget.range.from} — {budget.range.to}</AppText>
+            <AppText variant="heading">{copyText("Доход по дням")}</AppText>
+            <AppText variant="caption" muted>{copyContent(budget.range.from)} — {copyContent(budget.range.to)}</AppText>
           </View>
-          <View style={styles.legend}><View style={[styles.legendDot, { backgroundColor: theme.success }]} /><AppText variant="caption" muted>Реклама</AppText></View>
+          <View style={styles.legend}><View style={[styles.legendDot, { backgroundColor: theme.success }]} /><AppText variant="caption" muted>{copyText("Реклама")}</AppText></View>
         </View>
         <AdminDataState empty={chartDaily.length === 0} emptyText="Доходы ещё не записаны" />
         {chartDaily.length ? <AdminBarChart values={chartDaily.map((entry) => entry.adRevenueUnits)} labels={chartDaily.map((entry) => entry.dayKey.slice(8, 10))} color={String(theme.success)} /> : null}
       </GlassSurface>
 
       <GlassSurface intensity={68} variant="strong" style={styles.tablePanel}>
-        <View style={styles.panelHeader}><AppText variant="heading">Детализация</AppText><AppText variant="caption" muted>{daily.length} дней</AppText></View>
+        <View style={styles.panelHeader}><AppText variant="heading">{copyText("Детализация")}</AppText><AppText variant="caption" muted>{copyContent(daily.length)} {copyText(" дней")}</AppText></View>
         <AdminDataState empty={daily.length === 0} emptyText="Операций за период нет" />
         {daily.length ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.table}>
               <View style={[styles.row, styles.headerRow, { borderBottomColor: theme.border }]}>
-                {[["Дата", 108], ["Реклама", 112], ["Другой доход", 118], ["Операционные", 118], ["Челленджи", 112], ["Итого", 112]].map(([label, width]) => <AppText key={String(label)} style={[styles.cellHeader, { width: Number(width) }]}>{String(label)}</AppText>)}
+                {[["Дата", 108], ["Реклама", 112], ["Другой доход", 118], ["Операционные", 118], ["Челленджи", 112], ["Итого", 112]].map(([label, width]) => <AppText key={String(label)} style={[styles.cellHeader, { width: Number(width) }]}>{copyContent(String(label))}</AppText>)}
               </View>
               {[...daily].reverse().map((entry) => (
                 <View key={entry.dayKey} style={[styles.row, { borderBottomColor: theme.border }]}>
-                  <AppText variant="caption" style={{ width: 108 }}>{entry.dayKey}</AppText>
-                  <AppText variant="caption" color={String(theme.success)} style={{ width: 112, fontWeight: "800" }}>+{formatUnits(entry.adRevenueUnits)}</AppText>
-                  <AppText variant="caption" color={String(theme.success)} style={{ width: 118, fontWeight: "800" }}>+{formatUnits(entry.otherRevenueUnits)}</AppText>
-                  <AppText variant="caption" color={String(theme.danger)} style={{ width: 118, fontWeight: "800" }}>−{formatUnits(entry.operatingExpenseUnits)}</AppText>
-                  <AppText variant="caption" color={String(theme.warning)} style={{ width: 112, fontWeight: "800" }}>−{formatUnits(entry.challengeSpendUnits)}</AppText>
-                  <AppText variant="caption" color={String(entry.netUnits >= 0 ? theme.success : theme.danger)} style={{ width: 112, fontWeight: "900" }}>{entry.netUnits >= 0 ? "+" : ""}{formatUnits(entry.netUnits)}</AppText>
+                  <AppText variant="caption" style={{ width: 108 }}>{copyContent(entry.dayKey)}</AppText>
+                  <AppText variant="caption" color={String(theme.success)} style={{ width: 112, fontWeight: "800" }}>+{copyContent(formatUnits(entry.adRevenueUnits))}</AppText>
+                  <AppText variant="caption" color={String(theme.success)} style={{ width: 118, fontWeight: "800" }}>+{copyContent(formatUnits(entry.otherRevenueUnits))}</AppText>
+                  <AppText variant="caption" color={String(theme.danger)} style={{ width: 118, fontWeight: "800" }}>−{copyContent(formatUnits(entry.operatingExpenseUnits))}</AppText>
+                  <AppText variant="caption" color={String(theme.warning)} style={{ width: 112, fontWeight: "800" }}>−{copyContent(formatUnits(entry.challengeSpendUnits))}</AppText>
+                  <AppText variant="caption" color={String(entry.netUnits >= 0 ? theme.success : theme.danger)} style={{ width: 112, fontWeight: "900" }}>{copyContent(entry.netUnits >= 0 ? "+" : "")}{copyContent(formatUnits(entry.netUnits))}</AppText>
                 </View>
               ))}
             </View>
@@ -134,18 +138,18 @@ function BudgetContent({ budget }: { budget: Awaited<ReturnType<typeof adminApi.
           <Pressable style={styles.modalStop} onPress={() => undefined}>
             <GlassSurface variant="strong" intensity={88} style={styles.adjustmentSheet}>
               <View style={styles.sheetHeader}>
-                <View><AppText variant="heading">Изменить бюджет</AppText><AppText variant="caption" muted>Баланс может уходить в минус</AppText></View>
-                <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={() => setAdjusting(false)} style={[styles.closeButton, { backgroundColor: theme.surfaceRaised }]}><Ionicons name="close" size={20} color={String(theme.text)} /></Pressable>
+                <View><AppText variant="heading">{copyText("Изменить бюджет")}</AppText><AppText variant="caption" muted>{copyText("Баланс может уходить в минус")}</AppText></View>
+                <Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={() => setAdjusting(false)} style={[styles.closeButton, { backgroundColor: theme.surfaceRaised }]}><Ionicons name="close" size={20} color={String(theme.text)} /></Pressable>
               </View>
               <View style={[styles.direction, { borderColor: theme.border }]}>
                 {(["credit", "debit"] as const).map((item) => {
                   const active = direction === item;
-                  return <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDirection(item)} style={[styles.directionItem, active && { backgroundColor: item === "credit" ? theme.success : theme.danger }]}><Ionicons name={item === "credit" ? "add-circle-outline" : "remove-circle-outline"} size={18} color={String(active ? theme.onPrimary : theme.textMuted)} /><AppText variant="caption" color={String(active ? theme.onPrimary : theme.textMuted)}>{item === "credit" ? "Добавить" : "Убавить"}</AppText></Pressable>;
+                  return <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setDirection(item)} style={[styles.directionItem, active && { backgroundColor: item === "credit" ? theme.success : theme.danger }]}><Ionicons name={item === "credit" ? "add-circle-outline" : "remove-circle-outline"} size={18} color={String(active ? theme.onPrimary : theme.textMuted)} /><AppText variant="caption" color={String(active ? theme.onPrimary : theme.textMuted)}>{copyContent(item === "credit" ? "Добавить" : "Убавить")}</AppText></Pressable>;
                 })}
               </View>
-              <View style={styles.adjustmentField}><AppText variant="caption" muted>Сумма, LC</AppText><TextInput value={amount} onChangeText={(value) => setAmount(value.replace(/[^0-9]/g, ""))} keyboardType="number-pad" placeholder="0" placeholderTextColor={String(theme.textMuted)} style={[styles.adjustmentInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} /></View>
-              <View style={styles.adjustmentField}><AppText variant="caption" muted>Комментарий</AppText><TextInput value={note} onChangeText={setNote} placeholder="Например, пополнение учредителя" placeholderTextColor={String(theme.textMuted)} maxLength={240} style={[styles.adjustmentInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} /></View>
-              <Pressable accessibilityRole="button" disabled={!validAdjustment || adjust.isPending} onPress={() => adjust.mutate()} style={({ pressed }) => [styles.submitAdjustment, { backgroundColor: direction === "credit" ? theme.success : theme.danger }, (!validAdjustment || adjust.isPending) && styles.disabled, pressed && styles.pressed]}><Ionicons name={direction === "credit" ? "add" : "remove"} size={20} color={String(theme.onPrimary)} /><AppText variant="label" color={String(theme.onPrimary)}>{adjust.isPending ? "Сохраняем…" : direction === "credit" ? "Добавить к бюджету" : "Вычесть из бюджета"}</AppText></Pressable>
+              <View style={styles.adjustmentField}><AppText variant="caption" muted>{copyText("Сумма, LC")}</AppText><TextInput value={amount} onChangeText={(value) => setAmount(value.replace(/[^0-9]/g, ""))} keyboardType="number-pad" placeholder={copyText("0")} placeholderTextColor={String(theme.textMuted)} style={[styles.adjustmentInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} /></View>
+              <View style={styles.adjustmentField}><AppText variant="caption" muted>{copyText("Комментарий")}</AppText><TextInput value={note} onChangeText={setNote} placeholder={copyText("Например, пополнение учредителя")} placeholderTextColor={String(theme.textMuted)} maxLength={240} style={[styles.adjustmentInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} /></View>
+              <Pressable accessibilityRole="button" disabled={!validAdjustment || adjust.isPending} onPress={() => adjust.mutate()} style={({ pressed }) => [styles.submitAdjustment, { backgroundColor: direction === "credit" ? theme.success : theme.danger }, (!validAdjustment || adjust.isPending) && styles.disabled, pressed && styles.pressed]}><Ionicons name={direction === "credit" ? "add" : "remove"} size={20} color={String(theme.onPrimary)} /><AppText variant="label" color={String(theme.onPrimary)}>{copyContent(adjust.isPending ? "Сохраняем…" : direction === "credit" ? "Добавить к бюджету" : "Вычесть из бюджета")}</AppText></Pressable>
             </GlassSurface>
           </Pressable>
         </Pressable>

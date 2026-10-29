@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect } from "react";
@@ -15,6 +17,7 @@ import { captureRegistrationReferral } from "@/lib/referral-attribution";
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.kinddevs.logiccoin";
 
 export default function ReferralLandingScreen() {
+  const { copyText } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
   const params = useLocalSearchParams<{ code?: string | string[] }>();
@@ -41,7 +44,7 @@ export default function ReferralLandingScreen() {
   }, [code, router, validCode]);
 
   if (!validCode) {
-    return <AppFrame><AppText color={String(theme.danger)}>Некорректная реферальная ссылка.</AppText></AppFrame>;
+    return <AppFrame><AppText color={String(theme.danger)}>{copyText("Некорректная реферальная ссылка.")}</AppText></AppFrame>;
   }
 
   return (
@@ -49,12 +52,12 @@ export default function ReferralLandingScreen() {
       <View style={styles.center}>
         <GlassSurface variant="strong" intensity={82} style={styles.card}>
           <LogoMark size={78} />
-          <AppText variant="title" style={styles.title}>Вас пригласили в Logic Coin</AppText>
-          <AppText muted style={styles.copy}>Играйте в ежедневных челленджах и получайте призы вместе с другом.</AppText>
+          <AppText variant="title" style={styles.title}>{copyText("Вас пригласили в Logic Coin")}</AppText>
+          <AppText muted style={styles.copy}>{copyText("Играйте в ежедневных челленджах и получайте призы вместе с другом.")}</AppText>
           {Platform.OS === "web" ? (
-            <AppButton icon="download-outline" onPress={() => void Linking.openURL(PLAY_STORE_URL)}>Открыть в Google Play</AppButton>
+            <AppButton icon="download-outline" onPress={() => void Linking.openURL(PLAY_STORE_URL)}>{copyText("Открыть в Google Play")}</AppButton>
           ) : null}
-          <AppButton variant="secondary" icon="arrow-forward" onPress={() => router.replace({ pathname: "/login", params: { ref: code } })}>Продолжить на сайте</AppButton>
+          <AppButton variant="secondary" icon="arrow-forward" onPress={() => router.replace({ pathname: "/login", params: { ref: code } })}>{copyText("Продолжить на сайте")}</AppButton>
           <Ionicons name="gift-outline" size={25} color={String(theme.primary)} />
         </GlassSurface>
       </View>

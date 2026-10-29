@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { View } from "react-native";
 
 import { AppText } from "@/components/app-text";
@@ -15,6 +17,7 @@ export function ScreenHeader({
   onBack?: () => void;
   action?: React.ReactNode;
 }) {
+  const { copyContent } = useUiCopy();
   const { t } = useTranslation();
   return (
     <View
@@ -33,10 +36,10 @@ export function ScreenHeader({
         />
       ) : null}
       <View style={{ flex: 1 }}>
-        <AppText variant="title">{title}</AppText>
+        <AppText variant="title">{copyContent(title)}</AppText>
         {subtitle ? (
           <AppText variant="caption" muted>
-            {subtitle}
+            {copyContent(subtitle)}
           </AppText>
         ) : null}
       </View>

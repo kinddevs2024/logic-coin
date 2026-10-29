@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useIsFocused } from "expo-router";
 import { memo, useEffect, useState } from "react";
@@ -7,6 +9,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 
 export const HomeChallengeClock = memo(function HomeChallengeClock({ endsAt, onPress }: { endsAt?: string | null; onPress: () => void }) {
+  const { copyContent } = useUiCopy();
   const focused = useIsFocused();
   const theme = useAppTheme();
   const { language, t } = useTranslation();
@@ -33,10 +36,10 @@ export const HomeChallengeClock = memo(function HomeChallengeClock({ endsAt, onP
   }[language];
   const time = seconds === null ? null : [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, "0")).join(":");
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}>
-    <AppText numberOfLines={1} style={styles.label}>{seconds === null ? t("home.today") : seconds === 0 ? label.ended : label.until}</AppText>
+    <AppText numberOfLines={1} style={styles.label}>{copyContent(seconds === null ? t("home.today") : seconds === 0 ? label.ended : label.until)}</AppText>
     <View style={styles.right}>
       {seconds !== null && seconds > 0 ? <Ionicons name="time-outline" size={14} color={String(theme.primary)} /> : null}
-      <AppText numberOfLines={1} color={String(theme.primary)} style={styles.time}>{seconds === 0 ? label.result : time ?? t("home.allChallenges")}</AppText>
+      <AppText numberOfLines={1} color={String(theme.primary)} style={styles.time}>{copyContent(seconds === 0 ? label.result : time ?? t("home.allChallenges"))}</AppText>
       <Ionicons name="chevron-forward" size={14} color={String(theme.primary)} />
     </View>
   </Pressable>;

@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState, type RefObject } from "react";
 import { AccessibilityInfo, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
@@ -28,6 +30,7 @@ type Target = RefObject<View | null>;
 export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
   targets: Target[]; scrollRef: RefObject<ScrollView | null>; scrollY: RefObject<number>; onActiveChange: (active: boolean) => void;
 }) {
+  const { copyContent } = useUiCopy();
   const theme = useAppTheme();
   const language = useAppStore(s => s.language) ?? "ru";
   const userId = useAppStore(s => s.user.id);
@@ -98,16 +101,16 @@ export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
       </> : <View style={[StyleSheet.absoluteFill, styles.shade]} />}
       <Animated.View onLayout={event => setCardHeight(event.nativeEvent.layout.height)} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, left: cardX, top: cardY, opacity: ready ? 1 : 0, width: Math.min(width >= 1000 ? 360 : 440, width - 32), maxHeight: height * 0.5 }]}>
         <ScrollView bounces={false}>
-          <AppText muted style={styles.label}>{c.label} · {step + 1} / 3</AppText>
+          <AppText muted style={styles.label}>{copyContent(c.label)} · {copyContent(step + 1)} / 3</AppText>
           <Animated.View style={{ opacity }}>
-            <AppText accessibilityRole="header" style={styles.title}>{c.steps[step][0]}</AppText>
-            <AppText muted style={styles.body}>{c.steps[step][1]}</AppText>
+            <AppText accessibilityRole="header" style={styles.title}>{copyContent(c.steps[step][0])}</AppText>
+            <AppText muted style={styles.body}>{copyContent(c.steps[step][1])}</AppText>
           </Animated.View>
         </ScrollView>
         <View style={styles.actions}>
-          <Pressable accessibilityRole="button" onPress={finish} style={styles.secondary}><AppText muted>{c.skip}</AppText></Pressable>
-          {step > 0 ? <Pressable accessibilityRole="button" onPress={() => setStep(s => s - 1)} style={styles.secondary}><AppText>{c.back}</AppText></Pressable> : null}
-          <Pressable accessibilityRole="button" disabled={!ready} onPress={() => step === 2 ? finish() : setStep(s => s + 1)} style={({ pressed }) => [styles.next, { backgroundColor: theme.primary, opacity: pressed ? 0.82 : 1 }]}><AppText color={String(theme.onPrimary)} style={{ fontWeight: "700" }}>{step === 2 ? c.done : c.next}</AppText></Pressable>
+          <Pressable accessibilityRole="button" onPress={finish} style={styles.secondary}><AppText muted>{copyContent(c.skip)}</AppText></Pressable>
+          {step > 0 ? <Pressable accessibilityRole="button" onPress={() => setStep(s => s - 1)} style={styles.secondary}><AppText>{copyContent(c.back)}</AppText></Pressable> : null}
+          <Pressable accessibilityRole="button" disabled={!ready} onPress={() => step === 2 ? finish() : setStep(s => s + 1)} style={({ pressed }) => [styles.next, { backgroundColor: theme.primary, opacity: pressed ? 0.82 : 1 }]}><AppText color={String(theme.onPrimary)} style={{ fontWeight: "700" }}>{copyContent(step === 2 ? c.done : c.next)}</AppText></Pressable>
         </View>
       </Animated.View>
     </View>

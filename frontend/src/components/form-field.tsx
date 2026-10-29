@@ -1,12 +1,8 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState, type ComponentProps } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-  type TextInputProps,
-} from "react-native";
+import { Pressable, StyleSheet, View, type TextInputProps } from "react-native";
+
 
 import { AppText } from "@/components/app-text";
 import { radii } from "@/constants/theme";
@@ -23,6 +19,7 @@ export function FormField({
   icon: ComponentProps<typeof Ionicons>["name"];
   error?: string;
 }) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(Boolean(secureTextEntry));
@@ -31,7 +28,7 @@ export function FormField({
     <View style={styles.wrapper}>
       {label ? (
         <AppText variant="caption" muted>
-          {label}
+          {copyContent(label)}
         </AppText>
       ) : null}
       <View
@@ -54,7 +51,7 @@ export function FormField({
         />
         <TextInput
           {...props}
-          accessibilityLabel={props.accessibilityLabel ?? label ?? props.placeholder}
+          accessibilityLabel={copyText(props.accessibilityLabel ?? label ?? props.placeholder)}
           onFocus={(event) => {
             setFocused(true);
             props.onFocus?.(event);
@@ -71,7 +68,7 @@ export function FormField({
         {secureTextEntry ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${hidden ? "Show" : "Hide"} ${label}`}
+            accessibilityLabel={formatCopy("{0} {1}", [hidden ? "Show" : "Hide", label])}
             accessibilityState={{ expanded: !hidden }}
             onPress={() => setHidden((value) => !value)}
             hitSlop={8}
@@ -86,7 +83,7 @@ export function FormField({
       </View>
       {error ? (
         <AppText variant="caption" color={String(theme.danger)}>
-          {error}
+          {copyContent(error)}
         </AppText>
       ) : null}
     </View>

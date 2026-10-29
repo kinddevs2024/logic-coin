@@ -1,8 +1,15 @@
+import { useAppStore } from "@/store/app-store";
+import { copyText , Alert, Share } from "@/components/localized-native";
 import * as Clipboard from "expo-clipboard";
-import { Alert, Platform, Share } from "react-native";
+import { Platform } from "react-native";
+
 
 /** Share the canonical URL so the destination can fetch its server-rendered image. */
 export async function shareLink(title: string, message: string, url: string) {
+  title = copyText(title); message = copyText(message);
+  const shared = new URL(url);
+  shared.searchParams.set("lang", useAppStore.getState().language ?? "ru");
+  url = shared.toString();
   try {
     if (Platform.OS === "web") {
       if (typeof navigator !== "undefined" && navigator.share) {
@@ -19,10 +26,10 @@ export async function shareLink(title: string, message: string, url: string) {
   }
   try {
     await Clipboard.setStringAsync(url);
-    if (Platform.OS === "web") window.alert("Ссылка скопирована. Отправьте её в нужный чат.");
+    if (Platform.OS === "web") window.alert(copyText("Ссылка скопирована. Отправьте её в нужный чат."));
     else Alert.alert("Logic Coin", "Ссылка скопирована.");
   } catch {
-    if (Platform.OS === "web") window.prompt("Скопируйте ссылку", url);
+    if (Platform.OS === "web") window.prompt(copyText("Скопируйте ссылку"), url);
     else Alert.alert("Logic Coin", url);
   }
 }

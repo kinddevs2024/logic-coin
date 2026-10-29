@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused, useRouter } from "expo-router";
@@ -74,6 +76,7 @@ function ChallengeReady({ today }: { today: TodayChallenges }) {
 }
 
 function ChallengeReadyClock({ today, focused, onRules }: { today: TodayChallenges; focused: boolean; onRules: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
   const { language } = useTranslation();
@@ -92,19 +95,20 @@ function ChallengeReadyClock({ today, focused, onRules }: { today: TodayChalleng
     uz: { until: "Sinov tugashigacha", pool: "Mukofot jamg‘armasi" },
   }[language];
   const firstGame = today.games[0];
-  return <Pressable accessibilityRole="button" accessibilityLabel={language === "ru" ? "Начать челлендж с первой игры" : language === "uz" ? "Sinovni birinchi o‘yindan boshlash" : "Start challenge from the first game"} disabled={!firstGame || seconds === 0} onPress={() => {
+  return <Pressable accessibilityRole="button" accessibilityLabel={copyText(language === "ru" ? "Начать челлендж с первой игры" : language === "uz" ? "Sinovni birinchi o‘yindan boshlash" : "Start challenge from the first game")} disabled={!firstGame || seconds === 0} onPress={() => {
     if (firstGame) router.push({ pathname: "/play/[gameKey]", params: { gameKey: firstGame.key, mode: "challenge" } } as never);
   }}><GlassSurface variant="strong" intensity={76} style={styles.ready}>
-    <AppText style={styles.countdown} numberOfLines={1} adjustsFontSizeToFit>{countdown}</AppText>
-    <AppText variant="caption" muted style={{ textAlign: "center" }}>{labels.until}</AppText>
+    <AppText style={styles.countdown} numberOfLines={1} adjustsFontSizeToFit>{copyContent(countdown)}</AppText>
+    <AppText variant="caption" muted style={{ textAlign: "center" }}>{copyContent(labels.until)}</AppText>
     <View style={styles.pool}>
       <Ionicons name="trophy-outline" size={19} color={String(theme.primary)} />
-      <View style={styles.readyPoolText}><View style={styles.poolLabel}><AppText variant="caption" muted numberOfLines={1} adjustsFontSizeToFit style={styles.poolCaption}>{language === "ru" ? "Фонд дня" : language === "uz" ? "Kun jamg‘armasi" : "Daily pool"}</AppText><Pressable accessibilityRole="button" accessibilityLabel={challengeRules[language].title} hitSlop={8} onPress={event => { event.stopPropagation(); onRules(); }} style={styles.infoButton}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /></Pressable></View><AppText variant="label">{formatMoney(0)} / {formatMoney(today.prizes?.poolUnits ?? 0)}</AppText></View>
+      <View style={styles.readyPoolText}><View style={styles.poolLabel}><AppText variant="caption" muted numberOfLines={1} adjustsFontSizeToFit style={styles.poolCaption}>{copyContent(language === "ru" ? "Фонд дня" : language === "uz" ? "Kun jamg‘armasi" : "Daily pool")}</AppText><Pressable accessibilityRole="button" accessibilityLabel={copyText(challengeRules[language].title)} hitSlop={8} onPress={event => { event.stopPropagation(); onRules(); }} style={styles.infoButton}><Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} /></Pressable></View><AppText variant="label">{copyContent(formatMoney(0))} / {copyContent(formatMoney(today.prizes?.poolUnits ?? 0))}</AppText></View>
     </View>
   </GlassSurface></Pressable>;
 }
 
 function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const token = useAppStore(s => s.accessToken);
@@ -191,22 +195,22 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
     position.current = { firstRank: 0, y: 0, initialized: false, programmatic: false };
     void client.resetQueries({ queryKey, exact: true });
   };
-  return <><Pressable accessibilityRole="button" accessibilityLabel={c.info} onPress={() => setDetails(true)}><GlassSurface variant="strong" intensity={76} style={styles.card}>
+  return <><Pressable accessibilityRole="button" accessibilityLabel={copyText(c.info)} onPress={() => setDetails(true)}><GlassSurface variant="strong" intensity={76} style={styles.card}>
     <View style={styles.metrics}>
       <View style={styles.score}>
         <Ionicons name="diamond-outline" size={22} color={String(theme.primary)} />
-        <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.45} style={styles.number}>{(progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language)}</AppText>
+        <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.45} style={styles.number}>{copyContent((progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language))}</AppText>
       </View>
       <View style={styles.money}>
         <Ionicons name="cash-outline" size={16} color={String(theme.primary)} />
-        <View style={styles.poolText}><View style={styles.poolLabel}><AppText variant="caption" muted numberOfLines={1} adjustsFontSizeToFit style={styles.poolCaption}>{language === "ru" ? "Фонд дня" : language === "uz" ? "Kun jamg‘armasi" : "Daily pool"}</AppText><Pressable accessibilityRole="button" accessibilityLabel={rules.title} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
+        <View style={styles.poolText}><View style={styles.poolLabel}><AppText variant="caption" muted numberOfLines={1} adjustsFontSizeToFit style={styles.poolCaption}>{copyContent(language === "ru" ? "Фонд дня" : language === "uz" ? "Kun jamg‘armasi" : "Daily pool")}</AppText><Pressable accessibilityRole="button" accessibilityLabel={copyText(rules.title)} hitSlop={8} onPress={(event) => { event.stopPropagation(); setInfo(true); }} style={styles.infoButton}>
           <Ionicons name="information-circle-outline" size={18} color={String(theme.textMuted)} />
-        </Pressable></View><AppText variant="label" adjustsFontSizeToFit numberOfLines={1}>{formatMoney(progress?.projectedCashUnits ?? 0)} / {formatMoney(today?.prizes?.poolUnits ?? 0)}</AppText></View>
+        </Pressable></View><AppText variant="label" adjustsFontSizeToFit numberOfLines={1}>{copyContent(formatMoney(progress?.projectedCashUnits ?? 0))} / {copyContent(formatMoney(today?.prizes?.poolUnits ?? 0))}</AppText></View>
       </View>
-      <AppText variant="label" style={styles.completed}>{progress?.self?.completedGamesCount ?? today?.completedCount ?? 0}/{today?.totalCount ?? 0} <AppText variant="caption">{c.completed}</AppText></AppText>
+      <AppText variant="label" style={styles.completed}>{copyContent(progress?.self?.completedGamesCount ?? today?.completedCount ?? 0)}/{copyContent(today?.totalCount ?? 0)} <AppText variant="caption">{copyContent(c.completed)}</AppText></AppText>
     </View>
     <View style={[styles.ranking, { borderLeftColor: theme.glassBorder }]}>
-      {!token ? <AppText variant="caption" muted>{c.login}</AppText> : query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : <>
+      {!token ? <AppText variant="caption" muted>{copyContent(c.login)}</AppText> : query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : <>
         <ScrollView ref={list} nestedScrollEnabled style={styles.viewport} showsVerticalScrollIndicator={false} scrollEventThrottle={32} onContentSizeChange={reposition}
           onScroll={event => {
             const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -225,45 +229,45 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
           {rows.map(row => <View key={row.userId} style={[styles.row, row.isSelf && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}>
             <Avatar name={row.name} avatarUrl={row.avatarUrl} size={26} />
             <View style={styles.person}>
-              <AppText variant="caption" numberOfLines={2}>{row.rank} · {row.name}</AppText>
+              <AppText variant="caption" numberOfLines={2}>{copyContent(row.rank)} · {row.name}</AppText>
             </View>
           </View>)}
         </ScrollView>
         {query.isFetchingNextPage || query.isFetchingPreviousPage ? <ActivityIndicator style={styles.loading} size="small" color={String(theme.primary)} /> : null}
-        {query.isError ? <Pressable onPress={refresh}><AppText variant="caption">{c.retry}</AppText></Pressable> : null}
+        {query.isError ? <Pressable onPress={refresh}><AppText variant="caption">{copyContent(c.retry)}</AppText></Pressable> : null}
       </>}
     </View>
     </GlassSurface></Pressable>
     {details ? <Modal visible animationType="slide" onRequestClose={() => setDetails(false)}>
       <SafeAreaView style={[styles.detailsScreen, { backgroundColor: theme.background }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={c.close} onPress={() => setDetails(false)} style={styles.detailsClose}><Ionicons name="close" size={28} color={String(theme.primary)} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.close)} onPress={() => setDetails(false)} style={styles.detailsClose}><Ionicons name="close" size={28} color={String(theme.primary)} /></Pressable>
         <View style={{ flex: 1 }} onLayout={event => setDetailsHeight(event.nativeEvent.layout.height)}>
         <Animated.FlatList data={detailRows} keyExtractor={row => row.userId} contentContainerStyle={styles.detailsContent} onContentSizeChange={(_width, height) => setDetailsContentHeight(height)} scrollEventThrottle={16} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: detailsScrollY } } }], { useNativeDriver: Platform.OS !== "web" })} initialNumToRender={8} maxToRenderPerBatch={4} windowSize={5} onEndReachedThreshold={0.3} onEndReached={loadDetailPage}
-        renderItem={({ item: row }) => <GlassSurface variant="strong" style={[styles.detailsRank, row.isSelf && { opacity: 0 }]}><AppText variant="label" style={{ width: 24, textAlign: "center", color: row.rank <= 3 ? "#EFA215" : theme.textMuted }}>{row.rank}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={44} /><AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{row.name}</AppText><ChallengeRankingAmounts cashUnits={row.cashUnits ?? 0} totalCoins={row.totalCoins} /></GlassSurface>}
+        renderItem={({ item: row }) => <GlassSurface variant="strong" style={[styles.detailsRank, row.isSelf && { opacity: 0 }]}><AppText variant="label" style={{ width: 24, textAlign: "center", color: row.rank <= 3 ? "#EFA215" : theme.textMuted }}>{copyContent(row.rank)}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={44} /><AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{row.name}</AppText><ChallengeRankingAmounts cashUnits={row.cashUnits ?? 0} totalCoins={row.totalCoins} /></GlassSurface>}
         ListHeaderComponent={
         <View onLayout={event => setSummaryHeight(event.nativeEvent.layout.height)}><GlassSurface variant="strong" style={styles.detailsSummary}>
           <View style={styles.detailsMetrics}>
           <View style={styles.detailsMetricRow}>
             <Ionicons name="diamond-outline" size={24} color={String(theme.primary)} />
-            <AppText variant="heading" numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1, fontSize: 28, lineHeight: 36 }}>{(progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language)} coin</AppText>
+            <AppText variant="heading" numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1, fontSize: 28, lineHeight: 36 }}>{copyContent((progress?.self?.totalCoins ?? today?.totalCoinsToday ?? 0).toLocaleString(language))} {copyText(" coin")}</AppText>
           </View>
           <View style={styles.detailsMetricRow}>
             <Ionicons name="cash-outline" size={24} color={String(theme.primary)} />
-            <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1 }}>{formatMoney(progress?.projectedCashUnits ?? 0)} / {formatMoney(today?.prizes?.poolUnits ?? 0)}</AppText>
+            <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1 }}>{copyContent(formatMoney(progress?.projectedCashUnits ?? 0))} / {copyContent(formatMoney(today?.prizes?.poolUnits ?? 0))}</AppText>
           </View>
-          <AppText variant="label">{today?.completedCount ?? 0}/{today?.totalCount ?? 0} {c.completed}</AppText>
+          <AppText variant="label">{copyContent(today?.completedCount ?? 0)}/{copyContent(today?.totalCount ?? 0)} {copyContent(c.completed)}</AppText>
           </View>
           <View style={styles.detailsGames}>
-          {(today?.games ?? []).map(game => <View key={game.key} accessibilityLabel={`${game.title}: ${game.state.coinsAwarded} coin`} style={styles.detailsGame}><Image source={gameCoverFor(game.key)} style={styles.detailsGameIcon} resizeMode="contain" /><AppText variant="label">+{game.state.coinsAwarded}</AppText></View>)}
+          {(today?.games ?? []).map(game => <View key={game.key} accessibilityLabel={formatCopy("{0}: {1} coin", [game.title, game.state.coinsAwarded])} style={styles.detailsGame}><Image source={gameCoverFor(game.key)} style={styles.detailsGameIcon} resizeMode="contain" /><AppText variant="label">+{copyContent(game.state.coinsAwarded)}</AppText></View>)}
           </View>
         </GlassSurface></View>}
-        ListFooterComponent={ranking.isError ? <Pressable onPress={() => void client.resetQueries({ queryKey: rankingKey, exact: true })}><AppText>{c.retry}</AppText></Pressable> : ranking.isPending || ranking.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null} />
+        ListFooterComponent={ranking.isError ? <Pressable onPress={() => void client.resetQueries({ queryKey: rankingKey, exact: true })}><AppText>{copyContent(c.retry)}</AppText></Pressable> : ranking.isPending || ranking.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null} />
         <Animated.View pointerEvents="none" style={[styles.detailsFadeTop, { opacity: topFadeOpacity }]}><LinearGradient colors={[String(theme.background), fadeClear]} style={StyleSheet.absoluteFill} /></Animated.View>
         <LinearGradient pointerEvents="none" colors={[fadeClear, String(theme.background)]} style={styles.detailsFadeBottom} />
         {selfStats ? <Animated.View pointerEvents="none" style={[styles.detailsSelf, { transform: [{ translateY: dockY }] }]}><GlassSurface variant="strong" style={[styles.detailsRank, { borderColor: theme.primary, borderWidth: 1 }]}>
-          <AppText variant="label" style={{ width: 24, textAlign: "center" }}>{selfStats.rank}</AppText>
+          <AppText variant="label" style={{ width: 24, textAlign: "center" }}>{copyContent(selfStats.rank)}</AppText>
           <Avatar name={selfRow?.name ?? currentUser.name} avatarUrl={selfRow?.avatarUrl ?? currentUser.avatarUrl} size={44} />
-          <AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{c.you}: {selfRow?.name ?? currentUser.name}</AppText>
+          <AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{copyContent(c.you)}: {selfRow?.name ?? currentUser.name}</AppText>
           <ChallengeRankingAmounts cashUnits={selfStats.cashUnits ?? 0} totalCoins={selfStats.totalCoins} />
         </GlassSurface></Animated.View> : null}
         </View>
@@ -274,35 +278,37 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
 }
 
 function ChallengeRankingAmounts({ cashUnits, totalCoins }: { cashUnits: number; totalCoins: number }) {
+  const { copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { language } = useTranslation();
   return <View style={styles.detailsAmounts}>
     <View style={styles.detailsAmountRow}>
       <Ionicons name="cash-outline" size={16} color={String(theme.primary)} />
-      <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit>{formatMoney(cashUnits)}</AppText>
+      <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit>{copyContent(formatMoney(cashUnits))}</AppText>
     </View>
     <View style={styles.detailsAmountRow}>
       <Ionicons name="diamond-outline" size={16} color="#EFA215" />
-      <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit>{totalCoins.toLocaleString(language)}</AppText>
+      <AppText variant="label" numberOfLines={1} adjustsFontSizeToFit>{copyContent(totalCoins.toLocaleString(language))}</AppText>
     </View>
   </View>;
 }
 
 function ChallengeRulesModal({ visible, dayKey, onClose }: { visible: boolean; dayKey?: string; onClose: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const rules = challengeRules[language];
   const c = copy[language];
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.close)} style={StyleSheet.absoluteFill} onPress={onClose} />
         <GlassSurface variant="strong" style={styles.explanation}>
-          <AppText variant="heading" accessibilityRole="header">{rules.title}</AppText>
+          <AppText variant="heading" accessibilityRole="header">{copyContent(rules.title)}</AppText>
           <ScrollView style={styles.rulesScroll} contentContainerStyle={styles.rulesContent} showsVerticalScrollIndicator>
             {visible ? <ChallengeRulePrizes dayKey={dayKey} /> : null}
-            {rules.paragraphs.map((paragraph, index) => <AppText key={index}>{index + 1}. {paragraph}</AppText>)}
+            {rules.paragraphs.map((paragraph, index) => <AppText key={index}>{copyContent(index + 1)}. {copyContent(paragraph)}</AppText>)}
           </ScrollView>
-          <Pressable accessibilityRole="button" onPress={onClose}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
+          <Pressable accessibilityRole="button" onPress={onClose}><AppText variant="label" color={String(theme.primary)}>{copyContent(c.close)}</AppText></Pressable>
         </GlassSurface>
       </View>
     </Modal>;

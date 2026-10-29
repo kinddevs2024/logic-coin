@@ -29,6 +29,9 @@ const ledgerEntrySchema = new Schema(
 ledgerEntrySchema.index({ userId: 1, createdAt: -1, _id: -1 });
 ledgerEntrySchema.index({ userId: 1, type: 1, sourceId: 1 }, { unique: true });
 
+ledgerEntrySchema.index({ createdAt: -1, userId: 1 });
+ledgerEntrySchema.index({ type: 1, "metadata.dayKey": 1 });
+
 export type LedgerEntryDocument = InferSchemaType<typeof ledgerEntrySchema>;
 export const LedgerEntry =
   (models.LedgerEntry as Model<LedgerEntryDocument> | undefined) ??

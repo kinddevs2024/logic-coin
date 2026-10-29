@@ -8,7 +8,7 @@ import {
   rankContestStandings
 } from "../src/lib/contest.js";
 import { pickSeededSubset } from "../src/lib/seeded-random.js";
-import { challengeCoinsForScore, remainingBaseChallengeCoins } from "../src/services/challenge-attempt.service.js";
+import { challengeCoinsForScore } from "../src/services/challenge-attempt.service.js";
 import { calculateReferralPrizeShare } from "../src/services/referral.service.js";
 
 describe("daily challenge selection", () => {
@@ -32,11 +32,8 @@ describe("challenge coin rules", () => {
     expect(challengeCoinsForScore(99, 1000, "hangman")).toBe(100);
     expect(() => challengeCoinsForScore(1000, -1, "hangman")).toThrow();
   });
-  it("does not cut game earnings at the old daily allowance", () => {
-    expect(remainingBaseChallengeCoins(1000, 0)).toBe(1000);
-    expect(remainingBaseChallengeCoins(1000, 5750)).toBe(1000);
-    expect(remainingBaseChallengeCoins(500, 6000)).toBe(500);
-    expect(remainingBaseChallengeCoins(1200, 6500)).toBe(1200);
+  it("does not cut calibrated game rewards at the old daily allowance", () => {
+    expect(challengeCoinsForScore(50000, 1000, "math")).toBe(2129);
   });
   it("calibrates ordinary rewards without a hard thousand-coin ceiling", () => {
     expect(challengeCoinsForScore(0)).toBe(0);

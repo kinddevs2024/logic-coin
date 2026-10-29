@@ -4,6 +4,7 @@ import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { User } from "../models/User.js";
 import { GameProgress } from "../models/GameProgress.js";
 import { ApiError } from "../lib/api-error.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
 
 const router = Router();
 const codeSchema = z.string().trim().regex(/^[A-Z0-9-]{4,32}$/i);
@@ -29,7 +30,7 @@ router.get("/:referralCode", async (request, response) => {
     data: {
       profile: {
         name: user.name,
-        avatarUrl: user.avatarUrl ?? null,
+        avatarUrl: listAvatarUrl(user._id, user.avatarUrl),
         countryCode: user.countryCode ?? null,
         referralCode: user.referralCode,
         balanceUnits: user.wallet?.availableUnits ?? 0,

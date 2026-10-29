@@ -6,6 +6,7 @@ import { isValidTimeZone } from "../lib/timezone.js";
 import { validateBody } from "../middleware/validate.js";
 import { User } from "../models/User.js";
 import { serializeUser } from "../services/serialization.service.js";
+import { storeAvatar } from "../services/avatar.service.js";
 
 const router = Router();
 
@@ -67,7 +68,7 @@ router.patch(["/", "/profile"], validateBody(profileSchema), async (request, res
   const unset: Record<string, 1> = {};
   if (input.name !== undefined) set.name = input.name;
   if (input.avatarDataUrl === null) unset.avatarUrl = 1;
-  else if (input.avatarDataUrl !== undefined) set.avatarUrl = input.avatarDataUrl;
+  else if (input.avatarDataUrl !== undefined) set.avatarUrl = await storeAvatar(request.auth!.userId, input.avatarDataUrl);
   if (input.savingsGoalCents !== undefined) {
     set["preferences.savingsGoalCents"] = input.savingsGoalCents;
   }

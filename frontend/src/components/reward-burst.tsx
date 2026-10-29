@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useEffect, useState } from "react";
 import { Animated, Platform, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -9,6 +11,7 @@ import { useAppStore } from "@/store/app-store";
 import { formatMoney } from "@/lib/format";
 
 export function RewardBurst() {
+  const { copyContent } = useUiCopy();
   const reward = useAppStore((state) => state.latestReward);
   const clear = useAppStore((state) => state.clearLatestReward);
   const theme = useAppTheme();
@@ -76,10 +79,10 @@ export function RewardBurst() {
         </View>
         <View>
           <AppText variant="caption" muted>
-            {t("task.added")}
+            {copyContent(t("task.added"))}
           </AppText>
           <AppText variant="heading" color={String(theme.primary)}>
-            +{formatMoney(reward.amount)}
+            +{copyContent(formatMoney(reward.amount))}
           </AppText>
         </View>
       </Animated.View>

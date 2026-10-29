@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -53,6 +55,7 @@ const slides: Slide[] = [
 ];
 
 export default function OnboardingScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const [index, setIndex] = useState(0);
   const theme = useAppTheme();
   const { t } = useTranslation();
@@ -107,7 +110,7 @@ export default function OnboardingScreen() {
         </View>
         <Pressable onPress={finish} hitSlop={10}>
           <AppText variant="label" muted>
-            {t("common.skip")}
+            {copyContent(t("common.skip"))}
           </AppText>
         </Pressable>
       </View>
@@ -136,20 +139,20 @@ export default function OnboardingScreen() {
         >
           <Image
             source={slide.image}
-            accessibilityLabel={slide.imageLabel}
+            accessibilityLabel={copyText(slide.imageLabel)}
             resizeMode="cover"
             style={styles.visualImage}
           />
         </View>
         <View style={styles.copy}>
           <AppText variant="display" style={{ textAlign: "center" }}>
-            {t(slide.title)}
+            {copyContent(t(slide.title))}
           </AppText>
           <AppText
             muted
             style={{ textAlign: "center", fontSize: 16, lineHeight: 24 }}
           >
-            {t(slide.body)}
+            {copyContent(t(slide.body))}
           </AppText>
         </View>
       </Animated.View>
@@ -160,9 +163,9 @@ export default function OnboardingScreen() {
           icon={index === slides.length - 1 ? "checkmark" : "arrow-forward"}
           glow
         >
-          {index === slides.length - 1
+          {copyContent(index === slides.length - 1
             ? t("common.done")
-            : t("common.next")}
+            : t("common.next"))}
         </AppButton>
       </View>
     </AppFrame>

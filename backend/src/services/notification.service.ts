@@ -1,9 +1,14 @@
+import { localizeBuiltIn } from "../lib/localize-built-in.js";
+import { renderNotificationTemplate } from "../lib/notification-template.js";
 import type { Types } from "mongoose";
 import { env } from "../config/env.js";
 import { Device } from "../models/Device.js";
 import { DailyContestResult } from "../models/DailyContestResult.js";
 import { NotificationEvent } from "../models/NotificationEvent.js";
 import { PushReceipt } from "../models/PushReceipt.js";
+import { NotificationRead } from "../models/NotificationRead.js";
+import { User } from "../models/User.js";
+import { sendFcmPush } from "./fcm-push.service.js";
 import { sendWebPush } from "./web-push.service.js";
 
 function expoToken(value: unknown): value is string {
@@ -28,28 +33,77 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
   let targetCount = 0, sentCount = 0, failedCount = 0;
   const errors = new Set<string>();
   try {
-    const payload = (event.payload ?? {}) as { dayKey?: string; gameKey?: string; title?: string; body?: string; userIds?: string[] };
+    const payload = (event.payload ?? {}) as { dayKey?: string; gameKey?: string; giftId?: string; title?: string; body?: string; userIds?: string[] };
     // Malformed targeted events must never become broadcasts.
     const recipients = event.audience === "specific_users"
       ? (payload.userIds ?? []).filter(id => /^[a-f\d]{24}$/i.test(id))
       : event.audience === "contest_participants"
         ? payload.dayKey ? await DailyContestResult.distinct("userId", { dayKey: payload.dayKey }) : []
         : null;
-    const devices = await Device.find({
+    let devices = await Device.find({
       notificationsEnabled: true,
-      $or: [{ pushToken: { $exists: true, $ne: "" } }, { "webPush.endpoint": { $exists: true } }],
+      $or: [{ fcmToken: { $exists: true, $ne: "" } }, { pushToken: { $exists: true, $ne: "" } }, { "webPush.endpoint": { $exists: true } }],
       ...(recipients ? { userId: { $in: recipients } } : {})
-    }).select("pushToken webPush").lean();
-    const tokens = [...new Set(devices.map(d => d.pushToken).filter(expoToken))];
+    }).select("fcmToken pushToken webPush userId").lean();
+    const inboxId = event.type === "gift_received" && payload.giftId ? `gift:${payload.giftId}`
+      : event.type === "gift_received" && /^gift:[a-f\d]{24}$/i.test(event.eventKey ?? "") ? event.eventKey
+      : `event:${event._id}`;
+    const deviceUsers = [...new Set(devices.map(device => device.userId?.toString()).filter((id): id is string => Boolean(id)))];
+    if (deviceUsers.length) {
+      // A queued delivery must not bring back a notice already read in the app.
+      const [readUsers, excludedUsers] = await Promise.all([
+        NotificationRead.distinct("userId", { userId: { $in: deviceUsers }, notificationId: inboxId }),
+        User.find({ _id: { $in: deviceUsers }, $or: [
+          { inboxReadThrough: { $gte: event.createdAt } },
+          ...(event.audience === "all_users" ? [{ createdAt: { $gt: event.createdAt } }] : []),
+        ] }).select("_id").lean(),
+      ]);
+      const excluded = new Set([...readUsers.map(String), ...excludedUsers.map(user => String(user._id))]);
+      devices = devices.filter(device => !excluded.has(String(device.userId)));
+    }
+    const profiles = deviceUsers.length ? await User.find({ _id: { $in: deviceUsers } }).select("name countryCode preferences.language").lean() : [];
+    const profilesById = new Map(profiles.map(user => [String(user._id), user]));
+    const profileByDestination = new Map<string, (typeof profiles)[number]>();
+    for (const device of devices) {
+      const profile = profilesById.get(String(device.userId));
+      if (!profile) continue;
+      for (const [kind, token] of [["fcm", device.fcmToken], ["expo", device.pushToken], ["web", device.webPush?.endpoint]] as const) {
+        if (token) profileByDestination.set(`${kind}:${token}`, profile);
+      }
+    }
+    const profileFor = (kind: "fcm" | "expo" | "web", token: string) => profileByDestination.get(`${kind}:${token}`);
+    const tokens = [...new Set(devices.filter(d => !d.fcmToken).map(d => d.pushToken).filter(expoToken))];
     const webSubscriptions = [...new Map(devices.filter(d => d.webPush?.endpoint).map(d => [d.webPush!.endpoint, d.webPush!])).values()];
-    targetCount = tokens.length + webSubscriptions.length;
+    const fcmTokens = [...new Set(devices.map(d => d.fcmToken).filter((token): token is string => Boolean(token)))];
+    targetCount = tokens.length + fcmTokens.length + webSubscriptions.length;
     const notification = {
       title: payload.title ?? "Logic Coin", body: payload.body ?? "У вас новое уведомление.", tag: `logic-${event._id}`,
-      data: { type: event.type, eventId: String(event._id), dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
+      data: { type: event.type, eventId: String(event._id),
+        inboxId,
+        createdAt: event.createdAt.toISOString(),
+        dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
     };
+    const personalized = (kind: "fcm" | "expo" | "web", token: string) => {
+      const profile = profileFor(kind, token);
+      if (event.type !== "admin_broadcast") {
+        const language = profile?.preferences.language ?? "ru";
+        return { ...notification, title: localizeBuiltIn(notification.title, language), body: localizeBuiltIn(notification.body, language) };
+      }
+      return { ...notification, title: renderNotificationTemplate(notification.title, profile), body: renderNotificationTemplate(notification.body, profile) };
+    };
+    for (const group of batches(fcmTokens, 10)) await Promise.all(group.map(async token => {
+      try {
+        const outcome = await sendFcmPush(token, personalized("fcm", token), fetchImplementation);
+        if (outcome === "accepted") sentCount++;
+        else {
+          failedCount++; errors.add("fcm:unregistered");
+          await Device.updateMany({ fcmToken: token }, { $unset: { fcmToken: 1 } });
+        }
+      } catch { failedCount++; errors.add("fcm:delivery_error"); }
+    }));
     for (const group of batches(webSubscriptions, 10)) await Promise.all(group.map(async subscription => {
       try {
-        await sendWebPush({ endpoint: subscription.endpoint, keys: { p256dh: subscription.keys!.p256dh!, auth: subscription.keys!.auth! } }, notification);
+        await sendWebPush({ endpoint: subscription.endpoint, keys: { p256dh: subscription.keys!.p256dh!, auth: subscription.keys!.auth! } }, personalized("web", subscription.endpoint));
         sentCount++;
       } catch (error) {
         failedCount++;
@@ -62,7 +116,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       try {
         const response = await fetchImplementation(env.EXPO_PUSH_API_URL, {
           method: "POST", headers: headers(), signal: AbortSignal.timeout(8000),
-          body: JSON.stringify(group.map(to => ({ to, title: notification.title, body: notification.body, data: notification.data, sound: "default", channelId: "messages", priority: "high" })))
+          body: JSON.stringify(group.map(to => ({ to, title: personalized("expo", to).title, body: personalized("expo", to).body, data: notification.data, sound: "default", channelId: "messages", priority: "high" })))
         });
         if (!response.ok) { failedCount += group.length; errors.add(`expo:http_${response.status}`); continue; }
         const body = await response.json() as { data?: Array<{ status?: string; id?: string; details?: { error?: string } }> };

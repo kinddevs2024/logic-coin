@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
@@ -80,14 +82,15 @@ const weeklyCopy = {
   }
 };
 export function MonthlyActivityInfo({ onClose, period = "month" }: { onClose: () => void; period?: "week" | "month" }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const c = (period === "week" ? weeklyCopy : copy)[language];
   return <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-    <View style={styles.backdrop}><Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={onClose} />
-      <GlassSurface variant="strong" style={styles.card}><AppText variant="heading" accessibilityRole="header">{c.title}</AppText>
-        <ScrollView contentContainerStyle={styles.paragraphs}>{c.paragraphs.map((text, index) => <AppText key={index}>{text}</AppText>)}</ScrollView>
-        <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}><AppText variant="label" color={String(theme.primary)}>{c.close}</AppText></Pressable>
+    <View style={styles.backdrop}><Pressable accessibilityRole="button" accessibilityLabel={copyText(c.close)} style={StyleSheet.absoluteFill} onPress={onClose} />
+      <GlassSurface variant="strong" style={styles.card}><AppText variant="heading" accessibilityRole="header">{copyContent(c.title)}</AppText>
+        <ScrollView contentContainerStyle={styles.paragraphs}>{c.paragraphs.map((text, index) => <AppText key={index}>{copyContent(text)}</AppText>)}</ScrollView>
+        <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}><AppText variant="label" color={String(theme.primary)}>{copyContent(c.close)}</AppText></Pressable>
       </GlassSurface>
     </View>
   </Modal>;

@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -21,6 +23,7 @@ const LEVELS = [
 ] as const;
 
 export function FindNumberGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = resolveArcadeSkin(skin, "#00FFE0", "#7B5FFF");
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState<"intro" | "playing" | "level" | "result">("intro");
@@ -97,26 +100,26 @@ export function FindNumberGame({ initialBestScore = 0, paused = false, skin, cha
     else loadLevel(levelIndex + 1);
   };
 
-  if (phase === "intro") return <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}><GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="НАЙДИ ЧИСЛО" title="КОСМОС" subtitle="Найди все числа по порядку. Восемь планет, три жизни и всё меньше времени." accent={theme.primary} onStart={start}><View style={styles.featureRow}><Text style={styles.feature}>8 УРОВНЕЙ</Text><Text style={styles.feature}>3 ЖИЗНИ</Text><Text style={styles.feature}>КОМБО</Text></View></IntroScreen></GameRoot>;
+  if (phase === "intro") return <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}><GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="НАЙДИ ЧИСЛО" title="КОСМОС" subtitle="Найди все числа по порядку. Восемь планет, три жизни и всё меньше времени." accent={theme.primary} onStart={start}><View style={styles.featureRow}><Text style={styles.feature}>{copyText("8 УРОВНЕЙ")}</Text><Text style={styles.feature}>{copyText("3 ЖИЗНИ")}</Text><Text style={styles.feature}>{copyText("КОМБО")}</Text></View></IntroScreen></GameRoot>;
 
   if (phase === "result") return <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}><GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} /><ResultScreen title={levelIndex >= LEVELS.length - 1 && found.length === level.count ? "ГАЛАКТИКА ПОКОРЕНА" : "МИССИЯ ЗАВЕРШЕНА"} score={score} accent={theme.primary} onRestart={start} onExit={onExit} stats={[{ label: "Уровень", value: levelIndex + 1 }, { label: "Время", value: formatClock(elapsedMs) }, { label: "Рекорд", value: Math.max(best, score) }]} /></GameRoot>;
 
-  if (phase === "level") return <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}><GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} /><Animated.View entering={ZoomIn.springify()} style={styles.levelScreen}><Ionicons name="planet-outline" color={theme.primary} size={64} /><Text style={styles.levelTitle}>{level.name}</Text><Text style={styles.levelSubtitle}>УРОВЕНЬ ПРОЙДЕН</Text><Text style={styles.levelScore}>{suggestedCoins(score, true, "space-find-number")} coin</Text><ArcadeButton accent={theme.primary} onPress={continueLevel} style={styles.nextButton}>{levelIndex >= LEVELS.length - 1 ? "ФИНИШ" : "ДАЛЬШЕ"}</ArcadeButton></Animated.View></GameRoot>;
+  if (phase === "level") return <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}><GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} /><Animated.View entering={ZoomIn.springify()} style={styles.levelScreen}><Ionicons name="planet-outline" color={theme.primary} size={64} /><Text style={styles.levelTitle}>{copyContent(level.name)}</Text><Text style={styles.levelSubtitle}>{copyText("УРОВЕНЬ ПРОЙДЕН")}</Text><Text style={styles.levelScore}>{copyContent(suggestedCoins(score, true, "space-find-number"))} {copyText(" coin")}</Text><ArcadeButton accent={theme.primary} onPress={continueLevel} style={styles.nextButton}>{copyContent(levelIndex >= LEVELS.length - 1 ? "ФИНИШ" : "ДАЛЬШЕ")}</ArcadeButton></Animated.View></GameRoot>;
 
   const maxGrid = Math.min(width - 32, height * 0.53, 500);
   const gap = level.columns >= 6 ? 5 : 8;
   const cellSize = Math.floor((maxGrid - gap * (level.columns - 1)) / level.columns);
   return (
     <GameRoot colors={["#151149", "#030A1A", "#031425"]} skin={skin}>
-      <GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} right={<Text style={[styles.countdown, timeLeft <= 10_000 && styles.danger]}>{Math.ceil(timeLeft / 1000)}</Text>} />
+      <GameHeader title="КОСМОС" accent={theme.primary} onExit={onExit} right={<Text style={[styles.countdown, timeLeft <= 10_000 && styles.danger]}>{copyContent(Math.ceil(timeLeft / 1000))}</Text>} />
       <View style={styles.hud}>{challengeMode ? <LivesStat lives={lives} color="#FF5572" /> : null}<HudStat label="COIN" value={suggestedCoins(score, true, "space-find-number")} color={theme.primary} /><HudStat label="Время" value={formatClock(elapsedMs)} color={theme.secondary} /></View>
-      <View style={styles.prompt}><Text style={styles.promptLabel}>НАЙДИ ПЛАНЕТУ</Text><Text style={styles.target}>{current}</Text><Text style={styles.levelBadge}>{levelIndex + 1} · {level.name}</Text></View>
+      <View style={styles.prompt}><Text style={styles.promptLabel}>{copyText("НАЙДИ ПЛАНЕТУ")}</Text><Text style={styles.target}>{copyContent(current)}</Text><Text style={styles.levelBadge}>{copyContent(levelIndex + 1)} · {copyContent(level.name)}</Text></View>
       <ProgressBar progress={found.length / level.count} color={theme.primary} />
       <View style={styles.gridStage}>
         <View style={[styles.grid, { width: cellSize * level.columns + gap * (level.columns - 1), gap }]}>{numbers.map((value) => {
           const isFound = found.includes(value);
           const isFeedback = feedback?.value === value;
-          return <Pressable key={value} accessibilityRole="button" accessibilityLabel={`Число ${value}`} onPress={() => choose(value)} disabled={isFound} style={({ pressed }) => [styles.cell, { width: cellSize, height: cellSize, borderRadius: level.columns >= 6 ? 9 : 13 }, isFound && styles.cellFound, isFeedback && (feedback.ok ? styles.cellCorrect : styles.cellWrong), pressed && styles.cellPressed]}><Text style={[styles.cellText, { fontSize: Math.max(12, cellSize * 0.28) }, isFound && styles.cellTextFound]}>{value}</Text></Pressable>;
+          return <Pressable key={value} accessibilityRole="button" accessibilityLabel={formatCopy("Число {0}", [value])} onPress={() => choose(value)} disabled={isFound} style={({ pressed }) => [styles.cell, { width: cellSize, height: cellSize, borderRadius: level.columns >= 6 ? 9 : 13 }, isFound && styles.cellFound, isFeedback && (feedback.ok ? styles.cellCorrect : styles.cellWrong), pressed && styles.cellPressed]}><Text style={[styles.cellText, { fontSize: Math.max(12, cellSize * 0.28) }, isFound && styles.cellTextFound]}>{copyContent(value)}</Text></Pressable>;
         })}</View>
       </View>
       <ProgressBar progress={timeLeft / (level.seconds * 1000)} color={timeLeft <= 10_000 ? "#FF3250" : theme.secondary} />

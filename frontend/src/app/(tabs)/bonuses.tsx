@@ -1,8 +1,10 @@
+import { useUiCopy , Alert } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Redirect } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -29,6 +31,7 @@ export default function BonusesScreen() {
 }
 
 export function PreservedBonusesScreen() {
+  const { copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t } = useTranslation();
   const storedStreak = useAppStore((state) => state.streak);
@@ -127,14 +130,14 @@ export function PreservedBonusesScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <AppText variant="caption" muted>
-            {t("bonus.streak")}
+            {copyContent(t("bonus.streak"))}
           </AppText>
           <View style={styles.streakRow}>
             <AppText variant="display" color={String(theme.primary)}>
-              {streak}
+              {copyContent(streak)}
             </AppText>
             <AppText variant="heading">
-              {t("bonus.days")}
+              {copyContent(t("bonus.days"))}
             </AppText>
           </View>
         </View>
@@ -148,13 +151,13 @@ export function PreservedBonusesScreen() {
           ]}
         >
           <AppText variant="caption" muted>
-            {t("bonus.next")}
+            {copyContent(t("bonus.next"))}
           </AppText>
           <AppText variant="label" color={String(theme.primary)}>
-            +{formatMoney(daily.rewardUnits)}
+            +{copyContent(formatMoney(daily.rewardUnits))}
           </AppText>
           <AppText variant="caption" muted>
-            {t("bonus.nextIn")}
+            {copyContent(t("bonus.nextIn"))}
           </AppText>
         </View>
       </GlassSurface>
@@ -169,18 +172,18 @@ export function PreservedBonusesScreen() {
           disabled={!daily.available || daily.claimed}
           onPress={() => claim("daily", daily.rewardUnits)}
         >
-          {daily.claimed
+          {copyContent(daily.claimed
             ? t("task.received")
-            : `${t("task.perform")} · +${formatMoney(daily.rewardUnits)}`}
+            : `${t("task.perform")} · +${formatMoney(daily.rewardUnits)}`)}
         </AppButton>
       </View>
 
       <GlassSurface intensity={68} style={styles.card}>
         <View style={styles.cardHeader}>
           <View>
-            <AppText variant="heading">{t("bonus.calendar")}</AppText>
+            <AppText variant="heading">{copyContent(t("bonus.calendar"))}</AppText>
             <AppText variant="caption" muted>
-              {t("profile.active")}
+              {copyContent(t("profile.active"))}
             </AppText>
           </View>
           <View
@@ -192,7 +195,7 @@ export function PreservedBonusesScreen() {
               color={String(theme.primary)}
             />
             <AppText variant="caption" color={String(theme.primary)}>
-              {activeDayNumbers.size} / {calendarDays}
+              {copyContent(activeDayNumbers.size)} / {copyContent(calendarDays)}
             </AppText>
           </View>
         </View>
@@ -204,7 +207,7 @@ export function PreservedBonusesScreen() {
               muted
               style={styles.calendarCell}
             >
-              {day}
+              {copyContent(day)}
             </AppText>
           ))}
         </View>
@@ -240,7 +243,7 @@ export function PreservedBonusesScreen() {
                     variant="caption"
                     color={today ? String(theme.onPrimary) : undefined}
                   >
-                    {day}
+                    {copyContent(day)}
                   </AppText>
                 </View>
               </View>
@@ -257,14 +260,14 @@ export function PreservedBonusesScreen() {
         >
           <View style={styles.progressTitle}>
             <View>
-              <AppText variant="label">{t("bonus.week")}</AppText>
+              <AppText variant="label">{copyContent(t("bonus.week"))}</AppText>
               <AppText variant="caption" muted>
-                {weekly.activeDays ?? 0} / {weekly.requiredActiveDays ?? 0}{" "}
-                {t("bonus.days")}
+                {copyContent(weekly.activeDays ?? 0)} / {copyContent(weekly.requiredActiveDays ?? 0)}{copyContent(" ")}
+                {copyContent(t("bonus.days"))}
               </AppText>
             </View>
             <AppText variant="label" color={String(theme.primary)}>
-              +{formatMoney(weekly.rewardUnits)}
+              +{copyContent(formatMoney(weekly.rewardUnits))}
             </AppText>
           </View>
           <ProgressBar
@@ -282,7 +285,7 @@ export function PreservedBonusesScreen() {
             disabled={!weekly.available || weekly.claimed}
             onPress={() => claim("weekly", weekly.rewardUnits)}
           >
-            {weekly.claimed ? t("task.received") : t("task.perform")}
+            {copyContent(weekly.claimed ? t("task.received") : t("task.perform"))}
           </AppButton>
         </GlassSurface>
         <GlassSurface
@@ -292,14 +295,14 @@ export function PreservedBonusesScreen() {
         >
           <View style={styles.progressTitle}>
             <View>
-              <AppText variant="label">{t("bonus.month")}</AppText>
+              <AppText variant="label">{copyContent(t("bonus.month"))}</AppText>
               <AppText variant="caption" muted>
-                {monthly.activeDays ?? 0} /{" "}
-                {monthly.requiredActiveDays ?? 0} {t("bonus.days")}
+                {copyContent(monthly.activeDays ?? 0)} /{copyContent(" ")}
+                {copyContent(monthly.requiredActiveDays ?? 0)} {copyContent(t("bonus.days"))}
               </AppText>
             </View>
             <AppText variant="label" color="#007A57">
-              +{formatMoney(monthly.rewardUnits)}
+              +{copyContent(formatMoney(monthly.rewardUnits))}
             </AppText>
           </View>
           <ProgressBar
@@ -318,7 +321,7 @@ export function PreservedBonusesScreen() {
             disabled={!monthly.available || monthly.claimed}
             onPress={() => claim("monthly", monthly.rewardUnits)}
           >
-            {monthly.claimed ? t("task.received") : t("task.perform")}
+            {copyContent(monthly.claimed ? t("task.received") : t("task.perform"))}
           </AppButton>
         </GlassSurface>
       </View>
@@ -337,9 +340,9 @@ export function PreservedBonusesScreen() {
           />
         </View>
         <View style={{ flex: 1 }}>
-          <AppText variant="label">{t("bonus.grace")}</AppText>
+          <AppText variant="label">{copyContent(t("bonus.grace"))}</AppText>
           <AppText variant="caption" muted>
-            {t("bonus.graceBody")}
+            {copyContent(t("bonus.graceBody"))}
           </AppText>
         </View>
         <View style={[styles.available, { backgroundColor: theme.primarySoft }]}>

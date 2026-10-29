@@ -16,6 +16,7 @@ const telegramLoginChallengeSchema = new Schema(
     flowId: { type: String, required: true, maxlength: 64 },
     referralCode: { type: String, maxlength: 32 },
     deviceId: { type: String, maxlength: 160 },
+    language: { type: String, enum: ["ru", "en", "uz"], default: "ru" },
     returnTarget: { type: String, enum: ["app", "web"], default: "web" },
     linkUserId: { type: Schema.Types.ObjectId, ref: "User" },
     pollTokenHash: { type: String, required: true, select: false },

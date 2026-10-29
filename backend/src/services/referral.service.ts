@@ -2,46 +2,51 @@ import mongoose, { Types } from "mongoose";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
 import { LedgerEntry } from "../models/LedgerEntry.js";
-import { User } from "../models/User.js";
+import { User, type UserDocument } from "../models/User.js";
 import { unitsToCents } from "../lib/money.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
 import { processReferralSignupReward } from "./user.service.js";
 import {
   REFERRAL_DIRECT_PRIZE_SHARE_PERCENT,
   REFERRAL_SECOND_LEVEL_PRIZE_SHARE_PERCENT
 } from "../config/constants.js";
 
-export async function getReferralOverview(userId: Types.ObjectId) {
-  const user = await User.findById(userId).select(
+export async function getReferralOverview(userId: Types.ObjectId, account?: Pick<UserDocument, "referralCode" | "wallet">, page = { offset: 0, limit: 6 }) {
+  const user = account ?? await User.findById(userId).select(
     "referralCode wallet.referralEarnedUnits coins.referralEarned"
   );
   if (!user) {
     throw new ApiError(404, "user_not_found", "User not found");
   }
-  const [friends, history] = await Promise.all([
+  const [friends, history, invitedCount, verifiedInvitedCount] = await Promise.all([
     User.find({ referredBy: userId })
       .select("name avatarUrl emailVerifiedAt createdAt")
-      .sort({ createdAt: -1 })
-      .limit(100)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(page.offset)
+      .limit(page.limit)
       .lean(),
     LedgerEntry.find({ userId, type: "referral_bonus" })
       .sort({ createdAt: -1 })
       .limit(100)
-      .lean()
+      .lean(),
+    User.countDocuments({ referredBy: userId }),
+    User.countDocuments({ referredBy: userId, emailVerifiedAt: { $ne: null } }),
   ]);
   const earnedUnits = user.wallet.referralEarnedUnits;
 
   return {
     code: user.referralCode,
     link: `${env.APP_PUBLIC_URL.replace(/\/$/, "")}/invite/${encodeURIComponent(user.referralCode)}`,
-    invitedCount: friends.length,
-    verifiedInvitedCount: friends.filter((friend) => Boolean(friend.emailVerifiedAt)).length,
+    invitedCount,
+    verifiedInvitedCount,
+    nextOffset: page.offset + friends.length < invitedCount ? page.offset + friends.length : null,
     earnedUnits,
     earnedCents: unitsToCents(earnedUnits),
     signupRewardUnits: 0,
     friends: friends.map((friend) => ({
       id: friend._id.toString(),
       name: friend.name,
-      avatarUrl: friend.avatarUrl ?? null,
+      avatarUrl: listAvatarUrl(friend._id, friend.avatarUrl),
       verified: Boolean(friend.emailVerifiedAt),
       joinedAt: friend.createdAt
     })),

@@ -1,3 +1,4 @@
+import { localizeBuiltIn } from "@/lib/localize-built-in";
 import "react-native-reanimated";
 import "../global.css";
 import "@/lib/referral-attribution";
@@ -189,6 +190,23 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === "web") {
       document.documentElement.lang = language;
+      const original = document.documentElement.dataset.sourceTitle ?? document.title;
+      document.documentElement.dataset.sourceTitle = original;
+      document.title = localizeBuiltIn(original, language);
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:image"], meta[property="og:image:secure_url"], meta[name="twitter:image"]')) {
+        try {
+          const image = new URL(meta.dataset.sourceImage ?? meta.content, window.location.origin);
+          meta.dataset.sourceImage ??= meta.content;
+          if (image.pathname.includes("/api/v1/share/profile/")) image.searchParams.set("lang", language);
+          else if (image.pathname.includes("/share/logic-coin-guide-") || image.pathname.includes("/api/v1/share/platform/")) image.pathname = `/api/v1/share/platform/${language}.jpg`;
+          meta.content = image.toString();
+        } catch { /* Preserve metadata from an unknown host or malformed URL. */ }
+      }
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:title"], meta[property="og:description"], meta[name="twitter:title"], meta[name="twitter:description"]')) {
+        const source = meta.dataset.sourceCopy ?? meta.content;
+        meta.dataset.sourceCopy = source;
+        meta.content = localizeBuiltIn(source, language);
+      }
     }
   }, [language]);
 

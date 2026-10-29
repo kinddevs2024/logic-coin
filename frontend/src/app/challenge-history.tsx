@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
@@ -20,6 +22,7 @@ const labels = {
   uz: { title: "Sinovlar tarixi", live: "Joriy reyting · kun tugamagan", final: "Yakuniy reyting", pending: "Natijalar hali e’lon qilinmagan", missing: "Bu kuni sinov bo‘lmagan", empty: "Qatnashchilar yo‘q", retry: "Qayta urinish", more: "Yana ko‘rsatish", calendar: "Sanani tanlash", close: "Yopish", login: "Tarix uchun tizimga kiring", year: "Yil", month: "Oy", back: "Oldingi", next: "Keyingi" },
 };
 export default function ChallengeHistory() {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
   const { isDesktop, isTablet } = useResponsiveLayout();
@@ -69,7 +72,7 @@ export default function ChallengeHistory() {
     setYear(date.getUTCFullYear()); setMonth(date.getUTCMonth()); setCalendar(true);
   };
   const page = <>
-    <View style={styles.header}><IconButton name="chevron-back" label={c.back} onPress={() => router.back()} /><AppText style={styles.title}>{c.title}</AppText><IconButton name="calendar-outline" label={c.calendar} onPress={openCalendar} /></View>
+    <View style={styles.header}><IconButton name="chevron-back" label={c.back} onPress={() => router.back()} /><AppText style={styles.title}>{copyContent(c.title)}</AppText><IconButton name="calendar-outline" label={c.calendar} onPress={openCalendar} /></View>
     <View onLayout={event => setStripWidth(event.nativeEvent.layout.width)} style={{ marginHorizontal: -pageInset, marginBottom: 10, height: 64 }}>
     {stripWidth > 0 && selected ? <ScrollView key={`${selected}:${stripWidth}`} ref={dateStrip} horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast" snapToInterval={stripWidth / 7} contentOffset={{ x: 45 * stripWidth / 7, y: 0 }} contentContainerStyle={{ paddingHorizontal: 3 * stripWidth / 7 }} onMomentumScrollEnd={({ nativeEvent }) => {
       let index = Math.max(0, Math.min(days.length - 1, Math.round(nativeEvent.contentOffset.x / (stripWidth / 7))));
@@ -85,31 +88,31 @@ export default function ChallengeHistory() {
         const chosen = value === selected;
         const status = data?.dayStatuses?.[value] ?? (chosen ? data?.status : undefined);
         const unfinished = status === "live" || status === "pending";
-        return <Pressable key={value} disabled={disabled} accessibilityRole="button" accessibilityLabel={`${formatDay(value)}${status ? `, ${c[status]}` : ""}`} accessibilityState={{ selected: chosen, disabled }} onPress={() => select(value)} style={[styles.dayChip, { width: stripWidth / 7, opacity: disabled ? 0.3 : 1, backgroundColor: chosen ? theme.primarySoft : "transparent", gap: 5 }]}><AppText style={{ fontSize: chosen ? 24 : 18, fontWeight: chosen ? "800" : "500" }} color={String(chosen ? theme.primary : theme.textMuted)}>{Number(value.slice(8))}</AppText><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#E7B43B", opacity: !disabled && unfinished ? 1 : 0 }} /></Pressable>;
+        return <Pressable key={value} disabled={disabled} accessibilityRole="button" accessibilityLabel={formatCopy("{0}{1}", [formatDay(value), status ? `, ${c[status]}` : ""])} accessibilityState={{ selected: chosen, disabled }} onPress={() => select(value)} style={[styles.dayChip, { width: stripWidth / 7, opacity: disabled ? 0.3 : 1, backgroundColor: chosen ? theme.primarySoft : "transparent", gap: 5 }]}><AppText style={{ fontSize: chosen ? 24 : 18, fontWeight: chosen ? "800" : "500" }} color={String(chosen ? theme.primary : theme.textMuted)}>{copyContent(Number(value.slice(8)))}</AppText><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#E7B43B", opacity: !disabled && unfinished ? 1 : 0 }} /></Pressable>;
       })}
     </ScrollView> : null}
     </View>
-    {data && (data.status === "pending" || data.status === "missing") ? <AppText muted style={styles.status}>{c[data.status]}</AppText> : null}
-    {!token ? <AppText>{c.login}</AppText> : query.isPending || query.isPlaceholderData ? <ActivityIndicator color={String(theme.primary)} /> : null}
+    {data && (data.status === "pending" || data.status === "missing") ? <AppText muted style={styles.status}>{copyContent(c[data.status])}</AppText> : null}
+    {!token ? <AppText>{copyContent(c.login)}</AppText> : query.isPending || query.isPlaceholderData ? <ActivityIndicator color={String(theme.primary)} /> : null}
     <View onLayout={event => setRankingTop(event.nativeEvent.layout.y)}>
     {rows.map(row => <GlassSurface key={row.userId} style={[styles.row, { height: 64 }, row.isSelf && data?.self && { opacity: 0 }]}>
-      <AppText style={styles.rank}>{row.rank}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={38} />
-      <AppText numberOfLines={1} style={styles.name}>{row.name}</AppText><AppText variant="label">{row.totalCoins.toLocaleString(locale)} coin</AppText>
+      <AppText style={styles.rank}>{copyContent(row.rank)}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={38} />
+      <AppText numberOfLines={1} style={styles.name}>{row.name}</AppText><AppText variant="label">{copyContent(row.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText>
     </GlassSurface>)}
     </View>
-    {data && !rows.length && (data.status === "final" || data.status === "live") ? <AppText muted>{c.empty}</AppText> : null}
-    {query.isError ? <Pressable onPress={() => void query.refetch()} style={styles.date}><AppText>{c.retry}</AppText></Pressable> : null}
-    {query.hasNextPage ? <Pressable disabled={query.isFetchingNextPage} onPress={loadMore} style={styles.date}>{query.isFetchingNextPage ? <ActivityIndicator /> : <AppText>{c.more}</AppText>}</Pressable> : null}
+    {data && !rows.length && (data.status === "final" || data.status === "live") ? <AppText muted>{copyContent(c.empty)}</AppText> : null}
+    {query.isError ? <Pressable onPress={() => void query.refetch()} style={styles.date}><AppText>{copyContent(c.retry)}</AppText></Pressable> : null}
+    {query.hasNextPage ? <Pressable disabled={query.isFetchingNextPage} onPress={loadMore} style={styles.date}>{query.isFetchingNextPage ? <ActivityIndicator /> : <AppText>{copyContent(c.more)}</AppText>}</Pressable> : null}
     <Modal visible={calendar} transparent animationType="fade" onRequestClose={() => setCalendar(false)}>
       <View style={styles.backdrop}><View style={[styles.calendar, { backgroundColor: theme.background }]}>
         <ScreenHeader title={c.calendar} action={<IconButton name="close" label={c.close} onPress={() => setCalendar(false)} />} />
-        <View style={styles.controls}><IconButton name="chevron-back" label={`${c.back}: ${c.year}`} onPress={() => setYear(value => Math.max(1970, value - 1))} /><AppText variant="label">{year}</AppText><IconButton name="chevron-forward" label={`${c.next}: ${c.year}`} onPress={() => setYear(value => Math.min(Number((data?.today ?? "9999").slice(0, 4)), value + 1))} /></View>
-        <View style={styles.controls}><IconButton name="chevron-back" label={`${c.back}: ${c.month}`} onPress={() => { if (month === 0) { setMonth(11); setYear(value => Math.max(1970, value - 1)); } else setMonth(month - 1); }} /><AppText>{new Date(year, month, 1).toLocaleDateString(locale, { month: "long" })}</AppText><IconButton name="chevron-forward" label={`${c.next}: ${c.month}`} onPress={() => { if (month === 11) { setMonth(0); setYear(value => value + 1); } else setMonth(month + 1); }} /></View>
+        <View style={styles.controls}><IconButton name="chevron-back" label={`${c.back}: ${c.year}`} onPress={() => setYear(value => Math.max(1970, value - 1))} /><AppText variant="label">{copyContent(year)}</AppText><IconButton name="chevron-forward" label={`${c.next}: ${c.year}`} onPress={() => setYear(value => Math.min(Number((data?.today ?? "9999").slice(0, 4)), value + 1))} /></View>
+        <View style={styles.controls}><IconButton name="chevron-back" label={`${c.back}: ${c.month}`} onPress={() => { if (month === 0) { setMonth(11); setYear(value => Math.max(1970, value - 1)); } else setMonth(month - 1); }} /><AppText>{copyContent(new Date(year, month, 1).toLocaleDateString(locale, { month: "long" }))}</AppText><IconButton name="chevron-forward" label={`${c.next}: ${c.month}`} onPress={() => { if (month === 11) { setMonth(0); setYear(value => value + 1); } else setMonth(month + 1); }} /></View>
         <View style={styles.grid}>{Array.from({ length: firstWeekday + monthDays }, (_, index) => {
           const number = index - firstWeekday + 1;
           const value = `${String(year).padStart(4, "0")}-${String(month + 1).padStart(2, "0")}-${String(number).padStart(2, "0")}`;
           const disabled = number <= 0 || !data?.today || value > data.today;
-          return <Pressable key={index} disabled={disabled} accessibilityRole="button" accessibilityLabel={number > 0 ? value : undefined} onPress={() => select(value)} style={[styles.day, { opacity: disabled ? 0.3 : 1, backgroundColor: value === selected ? theme.primarySoft : "transparent" }]}><AppText>{number > 0 ? number : ""}</AppText></Pressable>;
+          return <Pressable key={index} disabled={disabled} accessibilityRole="button" accessibilityLabel={copyText(number > 0 ? value : undefined)} onPress={() => select(value)} style={[styles.day, { opacity: disabled ? 0.3 : 1, backgroundColor: value === selected ? theme.primarySoft : "transparent" }]}><AppText>{copyContent(number > 0 ? number : "")}</AppText></Pressable>;
         })}</View>
       </View></View>
     </Modal>
@@ -120,7 +123,7 @@ export default function ChallengeHistory() {
       if (eventWithScroll.nativeEvent.contentSize.height - eventWithScroll.nativeEvent.contentOffset.y - eventWithScroll.nativeEvent.layoutMeasurement.height < 240) loadMore();
     } })}>{page}</Animated.ScrollView>
     {data?.self ? <Animated.View pointerEvents="none" style={{ position: "absolute", left: pageInset, right: pageInset, top: 0, transform: [{ translateY: dockY }] }}>
-      <GlassSurface variant="strong" style={[styles.row, { height: 64, borderColor: theme.primary, borderWidth: 1 }]}><AppText style={styles.rank}>{data.self.rank}</AppText><Avatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} size={38} /><AppText numberOfLines={1} style={styles.name}>{currentUser.name}</AppText><AppText variant="label">{data.self.totalCoins.toLocaleString(locale)} coin</AppText></GlassSurface>
+      <GlassSurface variant="strong" style={[styles.row, { height: 64, borderColor: theme.primary, borderWidth: 1 }]}><AppText style={styles.rank}>{copyContent(data.self.rank)}</AppText><Avatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} size={38} /><AppText numberOfLines={1} style={styles.name}>{currentUser.name}</AppText><AppText variant="label">{copyContent(data.self.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText></GlassSurface>
     </Animated.View> : null}
   </View>} />;
 }

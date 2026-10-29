@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { View } from "react-native";
 
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -13,12 +15,13 @@ export function ProgressBar({
   color?: string;
   accessibilityLabel?: string;
 }) {
+  const { copyText } = useUiCopy();
   const theme = useAppTheme();
   const progress = Math.min(1, Math.max(0, value));
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={copyText(accessibilityLabel)}
       accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
       style={{
         height,

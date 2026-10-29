@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { HomeTutorial } from "@/components/home-tutorial";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -31,23 +33,25 @@ import { useAppStore } from "@/store/app-store";
 import { inboxApi } from "@/lib/api";
 
 function ProgressDonut({ value, progress, color, accessibilityLabel }: { value: string; progress: number; color: string; accessibilityLabel: string }) {
+  const { copyText, copyContent } = useUiCopy();
   const size = 56;
   const strokeWidth = 7;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const dash = Math.max(0, Math.min(1, progress)) * circumference;
   return (
-    <View accessible accessibilityLabel={accessibilityLabel} style={styles.donut}>
+    <View accessible accessibilityLabel={copyText(accessibilityLabel)} style={styles.donut}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(0,122,87,0.18)" strokeWidth={strokeWidth} fill="none" />
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${circumference - dash}`} rotation="-90" origin={`${size / 2}, ${size / 2}`} />
       </Svg>
-      <AppText style={[styles.donutValue, { color }]}>{value}</AppText>
+      <AppText style={[styles.donutValue, { color }]}>{copyContent(value)}</AppText>
     </View>
   );
 }
 
 export default function HomeScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t, language } = useTranslation();
   const router = useRouter();
@@ -99,7 +103,7 @@ export default function HomeScreen() {
     } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={tourActive || drawerOpen || leaderboardOpen || inboxOpen}>
       <View style={styles.header}>
         <View style={styles.headerSide}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t("tabs.profile")} onPress={() => setDrawerOpen(true)}><Avatar name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={copyText(t("tabs.profile"))} onPress={() => setDrawerOpen(true)}><Avatar name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
         <View ref={rankingTarget} collapsable={false}><RankingPreview metric="yesterday" onPress={() => setLeaderboardOpen(true)} /></View>
         <View style={[styles.headerSide, styles.headerSideEnd]}>
@@ -114,7 +118,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {refreshing ? <AppText accessibilityLiveRegion="polite" muted>Обновляем…</AppText> : null}
+      {refreshing ? <AppText accessibilityLiveRegion="polite" muted>{copyText("Обновляем…")}</AppText> : null}
 
       {!tourActive ? <HomeDesktopAds position="top" /> : null}
       <View onLayout={({ nativeEvent: { layout } }) => { giftScene.current.top = layout.y; }} style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
@@ -130,7 +134,7 @@ export default function HomeScreen() {
                 onPress={() => router.push("/challenges" as never)}
                 style={styles.action}
               >
-                {t("home.earn")}
+                {copyContent(t("home.earn"))}
               </AppButton>
               <AppButton
                 icon="wallet"
@@ -138,7 +142,7 @@ export default function HomeScreen() {
                 glow
                 style={styles.action}
               >
-                {t("home.withdraw")}
+                {copyContent(t("home.withdraw"))}
               </AppButton>
             </View>
           </SavingsScene>
@@ -181,22 +185,22 @@ export default function HomeScreen() {
             style={[styles.activityStrip, { borderColor: theme.glassBorder }]}
           >
             <View style={styles.activityItem}>
-              <Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={language === "uz" ? "Haftalik faollik haqida" : language === "en" ? "About weekly activity" : "О недельной активности"} onPress={() => setActivityInfoOpen("week")} style={styles.activityLabelRow}><AppText adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={2} style={styles.activityTitle}>{language === "uz" ? "Haftalik\nfaollik" : language === "en" ? "Weekly\nactivity" : "Недельная\nактивность"}{"\u00a0"}<Ionicons name="information-circle-outline" size={14} color={String(theme.textMuted)} /></AppText><AppText style={{ fontSize: 11, color: theme.primary, fontWeight: "700" }}>{language === "ru" ? "Подробнее" : language === "uz" ? "Batafsil" : "Details"}</AppText></Pressable>
+              <Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={copyText(language === "uz" ? "Haftalik faollik haqida" : language === "en" ? "About weekly activity" : "О недельной активности")} onPress={() => setActivityInfoOpen("week")} style={styles.activityLabelRow}><AppText adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={2} style={styles.activityTitle}>{copyContent(language === "uz" ? "Haftalik\nfaollik" : language === "en" ? "Weekly\nactivity" : "Недельная\nактивность")}{copyContent("\u00a0")}<Ionicons name="information-circle-outline" size={14} color={String(theme.textMuted)} /></AppText><AppText style={{ fontSize: 11, color: theme.primary, fontWeight: "700" }}>{copyContent(language === "ru" ? "Подробнее" : language === "uz" ? "Batafsil" : "Details")}</AppText></Pressable>
               <ProgressDonut
                 value={today?.weeklyCompletedDays === undefined ? "—" : `${today.weeklyCompletedDays}/7`}
                 progress={(today?.weeklyCompletedDays ?? 0) / 7}
                 color={String(theme.primary)}
-                accessibilityLabel={language === "uz" ? "Haftada yopilgan kunlar" : language === "en" ? "Completed days this week" : "Завершённые дни за неделю"}
+                accessibilityLabel={copyText(language === "uz" ? "Haftada yopilgan kunlar" : language === "en" ? "Completed days this week" : "Завершённые дни за неделю")}
               />
             </View>
             <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
             <View style={styles.activityItem}>
-              <Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={language === "uz" ? "Oylik faollik haqida" : language === "en" ? "About monthly activity" : "О месячной активности"} onPress={() => setActivityInfoOpen("month")} style={styles.activityLabelRow}><AppText adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={2} style={styles.activityTitle}>{language === "uz" ? "Oylik\nfaollik" : language === "en" ? "Monthly\nactivity" : "Месячная\nактивность"}{"\u00a0"}<Ionicons name="information-circle-outline" size={14} color={String(theme.textMuted)} /></AppText><AppText style={{ fontSize: 11, color: theme.primary, fontWeight: "700" }}>{language === "ru" ? "Подробнее" : language === "uz" ? "Batafsil" : "Details"}</AppText></Pressable>
+              <Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={copyText(language === "uz" ? "Oylik faollik haqida" : language === "en" ? "About monthly activity" : "О месячной активности")} onPress={() => setActivityInfoOpen("month")} style={styles.activityLabelRow}><AppText adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={2} style={styles.activityTitle}>{copyContent(language === "uz" ? "Oylik\nfaollik" : language === "en" ? "Monthly\nactivity" : "Месячная\nактивность")}{copyContent("\u00a0")}<Ionicons name="information-circle-outline" size={14} color={String(theme.textMuted)} /></AppText><AppText style={{ fontSize: 11, color: theme.primary, fontWeight: "700" }}>{copyContent(language === "ru" ? "Подробнее" : language === "uz" ? "Batafsil" : "Details")}</AppText></Pressable>
               <ProgressDonut
                 value={today?.monthlyCompletedDays === undefined ? "—" : `${today.monthlyCompletedDays}/${today.monthlyDaysInMonth}`}
                 progress={today?.monthlyDaysInMonth ? Math.min(1, (today.monthlyCompletedDays ?? 0) / today.monthlyDaysInMonth) : 0}
                 color={theme.mode === "dark" ? "#9FE6C5" : "#007A57"}
-                  accessibilityLabel={language === "uz" ? "Oyda to‘liq yopilgan kunlar" : language === "en" ? "Fully completed challenge days this month" : "Полностью завершённые дни челленджа за месяц"}
+                  accessibilityLabel={copyText(language === "uz" ? "Oyda to‘liq yopilgan kunlar" : language === "en" ? "Fully completed challenge days this month" : "Полностью завершённые дни челленджа за месяц")}
               />
             </View>
           </GlassSurface>

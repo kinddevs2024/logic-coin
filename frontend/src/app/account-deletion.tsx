@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useRouter } from "expo-router";
 import { Linking, StyleSheet, View } from "react-native";
 
@@ -51,6 +53,7 @@ const copy = {
 } as const;
 
 export default function AccountDeletionScreen() {
+  const { copyContent } = useUiCopy();
   const router = useRouter();
   const { language } = useTranslation();
   const c = copy[language];
@@ -60,17 +63,17 @@ export default function AccountDeletionScreen() {
     <AppFrame wide>
       <ScreenHeader title={c.title} onBack={() => router.back()} />
       <GlassSurface intensity={64} variant="strong" style={styles.card}>
-        <AppText>{c.intro}</AppText>
+        <AppText>{copyContent(c.intro)}</AppText>
         <View style={styles.steps}>
           {c.steps.map((step, index) => (
             <View key={step} style={styles.step}>
               <View style={styles.number}>
                 <AppText variant="caption" color="#FFFFFF">
-                  {index + 1}
+                  {copyContent(index + 1)}
                 </AppText>
               </View>
               <AppText muted style={styles.stepText}>
-                {step}
+                {copyContent(step)}
               </AppText>
             </View>
           ))}
@@ -80,10 +83,10 @@ export default function AccountDeletionScreen() {
           glow
           onPress={() => void Linking.openURL(mailto)}
         >
-          {c.button}
+          {copyContent(c.button)}
         </AppButton>
         <AppText variant="caption" muted>
-          {c.note}
+          {copyContent(c.note)}
         </AppText>
       </GlassSurface>
     </AppFrame>

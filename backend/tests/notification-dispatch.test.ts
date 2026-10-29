@@ -21,12 +21,17 @@ vi.mock("../src/models/NotificationEvent.js", () => ({
 }));
 vi.mock("../src/models/Device.js", () => ({ Device: { find: mocks.deviceFind } }));
 
+const recipientProfiles = vi.hoisted(() => ({ values: [] as Array<{ _id: Types.ObjectId; name: string; countryCode: string; preferences: { language: "ru" | "en" | "uz" } }> }));
+vi.mock("../src/models/User.js", () => ({ User: { find: () => ({ select: (fields: string) => ({ lean: async () => fields.includes("name") ? recipientProfiles.values : [] }) }) } }));
+vi.mock("../src/models/NotificationRead.js", () => ({ NotificationRead: { distinct: async () => [] } }));
+
 import { dispatchNotificationEvent } from "../src/services/notification.service.js";
 
 describe("Expo notification dispatcher", () => {
   const eventId = new Types.ObjectId();
 
   beforeEach(() => {
+    recipientProfiles.values = [];
     mocks.eventFindOneAndUpdate.mockReset();
     mocks.eventUpdateOne.mockReset();
     mocks.deviceFind.mockReset();
@@ -34,6 +39,7 @@ describe("Expo notification dispatcher", () => {
       lean: vi.fn().mockResolvedValue({
         _id: eventId,
         status: "processing",
+        createdAt: new Date("2026-10-29T00:00:00Z"),
         targetCount: 2,
         payload: { dayKey: "2026-08-21", title: "Новый челлендж доступен" }
       })
@@ -82,4 +88,21 @@ describe("Expo notification dispatcher", () => {
       })
     );
   });
+  it("uses each recipient's language in one broadcast", async () => {
+    const first = new Types.ObjectId(), second = new Types.ObjectId();
+    recipientProfiles.values = [
+      { _id: first, name: "Ali", countryCode: "UZ", preferences: { language: "en" } },
+      { _id: second, name: "Vali", countryCode: "UZ", preferences: { language: "uz" } },
+    ];
+    mocks.deviceFind.mockReturnValue({ select: () => ({ lean: async () => [
+      { userId: first, pushToken: "ExpoPushToken[player_one]" },
+      { userId: second, pushToken: "ExpoPushToken[player_two]" },
+    ] }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [{ status: "ok" }, { status: "ok" }] }) });
+    await dispatchNotificationEvent(eventId, fetchMock as unknown as typeof fetch);
+    const messages = JSON.parse(String(fetchMock.mock.calls[0]?.[1].body));
+    expect(messages[0].title).toBe("A new challenge is available");
+    expect(messages[1].title).toBe("Yangi sinov mavjud");
+  });
+
 });

@@ -1,5 +1,7 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import { useEffect, useState } from "react";
-import { TextInput, View, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
@@ -18,6 +20,7 @@ function cents(value: string) {
 const money = (units: number) => `$${(units / 100).toFixed(2)}`;
 
 export function ManualPrizes({ dayKey, onDirtyChange }: { dayKey: string; onDirtyChange: (dirty: boolean) => void }) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const { adminToken } = useAdminSession();
   const client = useQueryClient();
@@ -48,38 +51,38 @@ export function ManualPrizes({ dayKey, onDirtyChange }: { dayKey: string; onDirt
   });
   const rows = (data?.participants ?? []).filter(row => `${row.name} ${row.userId} ${row.rank}`.toLowerCase().includes(search.toLowerCase()));
   return <View style={[styles.panel, { borderColor: theme.border }]}>
-    <AppText variant="heading">Призы участников</AppText>
+    <AppText variant="heading">{copyText("Призы участников")}</AppText>
     <AdminDataState loading={query.isPending} error={query.error} onRetry={() => void query.refetch()} />
     {data ? <>
-      <AppText muted>{data.locked ? "Итоги зафиксированы — изменение недоступно." : `Режим: ${data.mode === "manual" ? "ручной" : "автоматический"}. Суммы вводятся в долларах.`}</AppText>
-      <AppText>Фонд {money(data.prizePoolUnits)} · Назначено {Number.isFinite(total) ? money(total) : "—"} · Остаток {Number.isFinite(total) ? money(data.prizePoolUnits - total) : "—"}</AppText>
-      {data.cashPrizeLimitUnits != null ? <AppText>Максимум одному участнику: {money(data.cashPrizeLimitUnits)}</AppText> : null}
-      {!data.locked ? <AppText variant="caption" muted>Ручной режим заменяет автоматические денежные призы. 0 — без денежного приза; новые участники получат 0, пока админ не назначит сумму. Место и коины не изменяются.</AppText> : null}
-      <TextInput accessibilityLabel="Найти участника" placeholder="Имя, место или ID" placeholderTextColor={String(theme.textMuted)} value={search} onChangeText={value => { setSearch(value); setLimit(20); }} style={[styles.input, { color: theme.text, borderColor: theme.border }]} />
+      <AppText muted>{copyContent(data.locked ? "Итоги зафиксированы — изменение недоступно." : `Режим: ${data.mode === "manual" ? "ручной" : "автоматический"}. Суммы вводятся в долларах.`)}</AppText>
+      <AppText>{copyText("Фонд ")}{copyContent(money(data.prizePoolUnits))} {copyText(" · Назначено ")}{copyContent(Number.isFinite(total) ? money(total) : "—")} {copyText(" · Остаток ")}{copyContent(Number.isFinite(total) ? money(data.prizePoolUnits - total) : "—")}</AppText>
+      {data.cashPrizeLimitUnits != null ? <AppText>{copyText("Максимум одному участнику: ")}{copyContent(money(data.cashPrizeLimitUnits))}</AppText> : null}
+      {!data.locked ? <AppText variant="caption" muted>{copyText("Ручной режим заменяет автоматические денежные призы. 0 — без денежного приза; новые участники получат 0, пока админ не назначит сумму. Место и коины не изменяются.")}</AppText> : null}
+      <TextInput accessibilityLabel={copyText("Найти участника")} placeholder={copyText("Имя, место или ID")} placeholderTextColor={String(theme.textMuted)} value={search} onChangeText={value => { setSearch(value); setLimit(20); }} style={[styles.input, { color: theme.text, borderColor: theme.border }]} />
       {rows.slice(0, limit).map(row => <View key={row.userId} style={[styles.row, { borderColor: theme.border }]}>
-        <View style={{ flex: 1, minWidth: 0 }}><AppText variant="label">{row.rank}. {row.name}</AppText><AppText variant="caption" muted>{row.totalCoins} коинов · …{row.userId.slice(-6)}</AppText></View>
+        <View style={{ flex: 1, minWidth: 0 }}><AppText variant="label">{copyContent(row.rank)}. {row.name}</AppText><AppText variant="caption" muted>{copyContent(row.totalCoins)} {copyText(" коинов · …")}{copyContent(row.userId.slice(-6))}</AppText></View>
         <AppText>$</AppText>
-        <TextInput accessibilityLabel={`Приз для ${row.name}, место ${row.rank}, USD`} editable={!data.locked && !save.isPending} keyboardType="decimal-pad" value={amounts[row.userId] ?? "0.00"} onChangeText={value => {
+        <TextInput accessibilityLabel={formatCopy("Приз для {0}, место {1}, USD", [row.name, row.rank])} editable={!data.locked && !save.isPending} keyboardType="decimal-pad" value={amounts[row.userId] ?? "0.00"} onChangeText={value => {
           setDraft(current => ({ revision: current?.revision ?? data.revision, amounts: { ...(current?.amounts ?? baseline), [row.userId]: value } }));
           setConfirm(null); setNotice("");
         }} style={[styles.input, styles.amount, { color: theme.text, borderColor: theme.border }]} />
       </View>)}
-      {!rows.length ? <AppText muted>Участники не найдены.</AppText> : null}
-      {rows.length > limit ? <AppButton variant="ghost" onPress={() => setLimit(value => value + 20)}>Ещё участники</AppButton> : null}
-      {!valid ? <AppText color={String(theme.danger)}>Введите суммы с точностью до цента. Общая сумма не должна превышать фонд.</AppText> : null}
-      {!valid && data.cashPrizeLimitUnits != null ? <AppText color={String(theme.danger)}>Приз одному участнику не должен превышать {money(data.cashPrizeLimitUnits)}.</AppText> : null}
+      {!rows.length ? <AppText muted>{copyText("Участники не найдены.")}</AppText> : null}
+      {rows.length > limit ? <AppButton variant="ghost" onPress={() => setLimit(value => value + 20)}>{copyText("Ещё участники")}</AppButton> : null}
+      {!valid ? <AppText color={String(theme.danger)}>{copyText("Введите суммы с точностью до цента. Общая сумма не должна превышать фонд.")}</AppText> : null}
+      {!valid && data.cashPrizeLimitUnits != null ? <AppText color={String(theme.danger)}>{copyText("Приз одному участнику не должен превышать ")}{copyContent(money(data.cashPrizeLimitUnits))}.</AppText> : null}
       {!data.locked ? <>
-        <AppButton disabled={!valid || save.isPending || !data.participants.length} onPress={() => setConfirm("manual")}>Сохранить ручные призы</AppButton>
-        <AppButton variant="ghost" disabled={save.isPending || (data.mode === "automatic" && !dirty)} onPress={() => setConfirm("automatic")}>Вернуть автоматический расчёт</AppButton>
-        {dirty ? <AppButton variant="ghost" disabled={save.isPending} onPress={() => { setDraft(null); setConfirm(null); }}>Отменить несохранённые изменения</AppButton> : null}
+        <AppButton disabled={!valid || save.isPending || !data.participants.length} onPress={() => setConfirm("manual")}>{copyText("Сохранить ручные призы")}</AppButton>
+        <AppButton variant="ghost" disabled={save.isPending || (data.mode === "automatic" && !dirty)} onPress={() => setConfirm("automatic")}>{copyText("Вернуть автоматический расчёт")}</AppButton>
+        {dirty ? <AppButton variant="ghost" disabled={save.isPending} onPress={() => { setDraft(null); setConfirm(null); }}>{copyText("Отменить несохранённые изменения")}</AppButton> : null}
         {confirm ? <View style={styles.confirm}>
-          <AppText>{confirm === "manual" ? `Назначить денежные призы на ${money(total)}? Остаток не распределяется автоматически.` : "Удалить ручные назначения и вернуть автоматическое распределение?"}</AppText>
-          <AppButton loading={save.isPending} onPress={() => save.mutate(confirm)}>Подтвердить назначения</AppButton>
-          <AppButton variant="ghost" disabled={save.isPending} onPress={() => setConfirm(null)}>Отмена</AppButton>
+          <AppText>{copyContent(confirm === "manual" ? `Назначить денежные призы на ${money(total)}? Остаток не распределяется автоматически.` : "Удалить ручные назначения и вернуть автоматическое распределение?")}</AppText>
+          <AppButton loading={save.isPending} onPress={() => save.mutate(confirm)}>{copyText("Подтвердить назначения")}</AppButton>
+          <AppButton variant="ghost" disabled={save.isPending} onPress={() => setConfirm(null)}>{copyText("Отмена")}</AppButton>
         </View> : null}
       </> : null}
     </> : null}
-    {notice ? <AppText accessibilityRole="alert">{notice}</AppText> : null}
+    {notice ? <AppText accessibilityRole="alert">{copyContent(notice)}</AppText> : null}
   </View>;
 }
 const styles = StyleSheet.create({

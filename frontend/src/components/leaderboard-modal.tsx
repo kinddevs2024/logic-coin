@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
@@ -38,9 +40,10 @@ const copy = {
 const metrics: LeaderboardMetric[] = ["today", "yesterday", "allTime"];
 
 function EntryValue({ entry }: { entry: LeaderboardEntry }) {
+  const { copyContent } = useUiCopy();
   return <View style={styles.combinedValue}>
-    <View style={styles.valueLine}><Ionicons name="wallet-outline" size={13} color="#007A57" /><AppText style={styles.valueText}>{formatMoney(entry.walletBalanceUnits)}</AppText></View>
-    <View style={styles.valueLine}><Ionicons name="diamond" size={13} color="#F5B800" /><AppText style={styles.valueText}>{entry.coinBalance}</AppText></View>
+    <View style={styles.valueLine}><Ionicons name="wallet-outline" size={13} color="#007A57" /><AppText style={styles.valueText}>{copyContent(formatMoney(entry.walletBalanceUnits))}</AppText></View>
+    <View style={styles.valueLine}><Ionicons name="diamond" size={13} color="#F5B800" /><AppText style={styles.valueText}>{copyContent(entry.coinBalance)}</AppText></View>
   </View>;
 }
 
@@ -49,6 +52,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
 }
 
 function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const blurTarget = useModalBlurTarget();
   const router = useRouter();
@@ -264,7 +268,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
               : {})}
             style={StyleSheet.absoluteFill}
           />
-          <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={close} />
+          <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.close)} style={StyleSheet.absoluteFill} onPress={close} />
         </Animated.View>
 
         <Animated.View
@@ -312,7 +316,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                     size={16}
                     color={String(metric === key ? theme.primary : theme.textMuted)}
                   />
-                  <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.filterText, { color: metric === key ? theme.text : theme.textMuted }]}>{c[key]}</AppText>
+                  <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.filterText, { color: metric === key ? theme.text : theme.textMuted }]}>{copyContent(c[key])}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -334,9 +338,9 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
               {!authenticated ? (
                 <View style={styles.state}>
                   <Ionicons name="person-circle-outline" size={38} color={String(theme.primary)} />
-                  <AppText muted style={styles.stateText}>{c.loginHint}</AppText>
+                  <AppText muted style={styles.stateText}>{copyContent(c.loginHint)}</AppText>
                   <Pressable onPress={signIn} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color="#FFFFFF" variant="label">{c.login}</AppText>
+                    <AppText color="#FFFFFF" variant="label">{copyContent(c.login)}</AppText>
                   </Pressable>
                 </View>
               ) : query.isLoading || !contentReady ? (
@@ -344,9 +348,9 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
               ) : query.isError && !entries.length ? (
                 <View style={styles.state}>
                   <Ionicons name="cloud-offline-outline" size={36} color={String(theme.textMuted)} />
-                  <AppText muted style={styles.stateText}>{c.error}</AppText>
+                  <AppText muted style={styles.stateText}>{copyContent(c.error)}</AppText>
                   <Pressable onPress={() => void query.refetch()} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color="#FFFFFF" variant="label">{c.retry}</AppText>
+                    <AppText color="#FFFFFF" variant="label">{copyContent(c.retry)}</AppText>
                   </Pressable>
                 </View>
               ) : entries.length ? (
@@ -408,10 +412,10 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                         },
                       ]}
                     >
-                      <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F5A623" : theme.textMuted }]}>{entry.rank}</AppText>
+                      <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F5A623" : theme.textMuted }]}>{copyContent(entry.rank)}</AppText>
                       <Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={38} />
                       <View style={styles.nameBlock}>
-                        <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{entry.isCurrentUser ? `${language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: ` : ""}{entry.name}</AppText>
+                        <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(entry.isCurrentUser ? `${language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: ` : "")}{entry.name}</AppText>
                         {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={15} /> : null}
                       </View>
                       <EntryValue entry={entry} />
@@ -420,18 +424,18 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                   ListFooterComponent={<>
                   {query.isFetchNextPageError ? (
                     <Pressable accessibilityRole="button" onPress={() => requestNextPage()} style={styles.moreLoading}>
-                      <AppText muted>{c.error} · {c.retry}</AppText>
+                      <AppText muted>{copyContent(c.error)} · {copyContent(c.retry)}</AppText>
                     </Pressable>
                   ) : null}
                   {query.isFetchingNextPage ? (
-                    <View style={styles.moreLoading}><ActivityIndicator size="small" color={String(theme.primary)} /><AppText muted style={styles.moreText}>{c.more}</AppText></View>
+                    <View style={styles.moreLoading}><ActivityIndicator size="small" color={String(theme.primary)} /><AppText muted style={styles.moreText}>{copyContent(c.more)}</AppText></View>
                   ) : null}
                   </>}
                 />
               ) : (
                 <View style={styles.state}>
                   <Ionicons name="podium-outline" size={36} color={String(theme.textMuted)} />
-                  <AppText muted style={styles.stateText}>{c.empty}</AppText>
+                  <AppText muted style={styles.stateText}>{copyContent(c.empty)}</AppText>
                 </View>
               )}
 
@@ -446,9 +450,9 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                     : selfDock === "top" ? { top: 10 } : { bottom: 0 },
                   { backgroundColor: "transparent" }]}>
                   <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: "transparent" }, Platform.OS !== "web" && nativeSelfLayout ? { minHeight: nativeSelfLayout.height } : null]}>
-                    <AppText style={[styles.rank, { color: theme.textMuted }]}>{self.rank}</AppText>
+                    <AppText style={[styles.rank, { color: theme.textMuted }]}>{copyContent(self.rank)}</AppText>
                     <Avatar name={self.name} avatarUrl={self.avatarUrl} size={38} />
-                    <View style={styles.nameBlock}><AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
+                    <View style={styles.nameBlock}><AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(language === "ru" ? "Я" : language === "uz" ? "Men" : "Me")}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
                     <EntryValue entry={self} />
                   </View>
                 </Animated.View>

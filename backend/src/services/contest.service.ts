@@ -4,6 +4,7 @@ import {
   CONTEST_STANDARD_CASE_KIND,
 } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
 import {
   buildContestGiftBundle,
   buildContestRandomReward,
@@ -344,7 +345,7 @@ async function contestStandings(dayKey: string) {
     return {
       ...serializeContestResult(entry),
       name: user?.name ?? "Игрок",
-      avatarUrl: user?.avatarUrl ?? null,
+      avatarUrl: user ? listAvatarUrl(user._id, user.avatarUrl) : null,
       countryCode: user?.countryCode ?? null
     };
   });

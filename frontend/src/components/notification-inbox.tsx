@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
@@ -23,6 +25,7 @@ const copy = {
 };
 
 export function NotificationInbox({ onClose, anchor }: { onClose: () => void; anchor?: { x: number; y: number; width: number; height: number } }) {
+  const { copyText, copyContent } = useUiCopy();
   const closeAction = useRef(onClose);
   useEffect(() => { closeAction.current = onClose; }, [onClose]);
   const token = useAppStore(s => s.accessToken);
@@ -119,21 +122,21 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
   const anchorTop = anchor ? anchor.y : Math.max(insets.top, 12);
   return <Modal transparent visible hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close} statusBarTranslucent>
     <View style={[styles.overlay, { paddingTop: anchorTop + (anchor?.height ?? 48) + 12 }]}>
-      <Pressable accessibilityLabel="Закрыть уведомления" accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
+      <Pressable accessibilityLabel={copyText("Закрыть уведомления")} accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
       {token ? <View style={[styles.readAllPosition, { top: anchorTop, right: Math.max(16, width - (anchor?.x ?? width - 68) + 8), minHeight: Math.max(anchor?.height ?? 48, 48) }]}>
         <View onLayout={e => setFilterWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={[styles.readAllButton, { backgroundColor: theme.surface, borderColor: theme.border, flexDirection: "row", gap: 4, padding: 4, width: "100%", minHeight: 46 }]}>
           {filterWidth > 0 ? <Animated.View pointerEvents="none" style={{ position: "absolute", top: 4, bottom: 4, left: 4, width: (filterWidth - 12) / 2, borderRadius: 20, backgroundColor: theme.primarySoft, transform: [{ translateX: selection.interpolate({ inputRange: [0, 1], outputRange: [0, (filterWidth - 4) / 2] }) }] }} /> : null}
-          {(["system", "messages"] as const).map(key => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: section === key }} onPress={() => setSection(key)} style={{ flex: 1, alignItems: "center", justifyContent: "center", minHeight: 36, paddingHorizontal: 6, paddingVertical: 7, borderRadius: 20 }}><AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} variant="caption" style={{ fontWeight: "700", lineHeight: 20, includeFontPadding: false, textAlignVertical: "center" }}>{c[key]}</AppText></Pressable>)}
+          {(["system", "messages"] as const).map(key => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: section === key }} onPress={() => setSection(key)} style={{ flex: 1, alignItems: "center", justifyContent: "center", minHeight: 36, paddingHorizontal: 6, paddingVertical: 7, borderRadius: 20 }}><AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} variant="caption" style={{ fontWeight: "700", lineHeight: 20, includeFontPadding: false, textAlignVertical: "center" }}>{copyContent(c[key])}</AppText></Pressable>)}
         </View>
       </View> : null}
       <View style={[styles.close, anchor ? { position: "absolute", left: anchor.x, top: anchorTop, width: anchor.width, height: anchor.height } : { position: "absolute", right: 20, top: anchorTop }]}>
         <IconButton name="close" label="Закрыть" onPress={close} />
       </View>
       <Animated.View accessibilityViewIsModal style={[styles.panel, { transform: [{ translateY: offset }] }]}>
-        {!token ? <GlassSurface style={styles.card}><AppText>Войдите, чтобы увидеть уведомления</AppText></GlassSurface> : null}
+        {!token ? <GlassSurface style={styles.card}><AppText>{copyText("Войдите, чтобы увидеть уведомления")}</AppText></GlassSurface> : null}
         {token && query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
-        {query.error ? <Pressable onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())}><AppText color={String(theme.danger)}>Не удалось загрузить. Нажмите, чтобы повторить.</AppText></Pressable> : null}
-        {readError ? <Pressable onPress={() => read([...failed.current])}><AppText color={String(theme.danger)}>Не удалось сохранить просмотр. Повторить</AppText></Pressable> : null}
+        {query.error ? <Pressable onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())}><AppText color={String(theme.danger)}>{copyText("Не удалось загрузить. Нажмите, чтобы повторить.")}</AppText></Pressable> : null}
+        {readError ? <Pressable onPress={() => read([...failed.current])}><AppText color={String(theme.danger)}>{copyText("Не удалось сохранить просмотр. Повторить")}</AppText></Pressable> : null}
         <View ref={viewport} collapsable={false} style={styles.listViewport}>
         <FlatList ref={list} data={section === "system" ? items : []} keyExtractor={item => item.id} style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 12) }]}
           initialNumToRender={4} maxToRenderPerBatch={2} windowSize={3} removeClippedSubviews={Platform.OS === "android"}
@@ -146,13 +149,13 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
           onViewableItemsChanged={viewable} viewabilityConfig={config}
           renderItem={({ item }) => <View collapsable={false} ref={row => { if (row && !item.read) rows.current.set(item.id, row); else rows.current.delete(item.id); }} onLayout={checkVisible}><GlassSurface style={styles.card} variant="strong">
             <View style={styles.cardHeading}>
-              <AppText variant="label" style={styles.cardTitle}>{item.kind === "gift" ? "🎁 " : item.kind === "result" ? "🏆 " : ""}{item.title}</AppText>
-              <AppText variant="caption" muted style={styles.timestamp}>{formatNotificationTime(item.createdAt, { now, language, uses24hourClock: calendar.uses24hourClock })}</AppText>
+              <AppText variant="label" style={styles.cardTitle}>{copyContent(item.kind === "gift" ? "🎁 " : item.kind === "result" ? "🏆 " : "")}{item.title}</AppText>
+              <AppText variant="caption" muted style={styles.timestamp}>{copyContent(formatNotificationTime(item.createdAt, { now, language, uses24hourClock: calendar.uses24hourClock }))}</AppText>
             </View>
             <AppText>{item.body}</AppText>
           </GlassSurface></View>}
           ListHeaderComponent={section === "system" ? <PushNotificationsControl /> : null}
-          ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>{section === "messages" ? c.empty : language === "ru" ? "Уведомлений пока нет" : language === "uz" ? "Bildirishnomalar yo‘q" : "No notifications yet"}</AppText></GlassSurface> : null}
+          ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>{copyContent(section === "messages" ? c.empty : language === "ru" ? "Уведомлений пока нет" : language === "uz" ? "Bildirishnomalar yo‘q" : "No notifications yet")}</AppText></GlassSurface> : null}
           ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null}
         />
         </View>

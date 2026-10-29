@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useAppStore } from '../../store/app-store';
@@ -10,10 +12,12 @@ export const endCopy = {
   uz: { finish: 'Sinov tugadi!', practice: 'O‘yin tugadi!', base: 'Uchta so‘z uchun', fortune: 'Omad', total: 'Jami olindi', saving: 'Natija saqlanmoqda…', saved: 'Natija saqlandi', retry: 'Reklama ko‘rib qayta o‘ynash', gifts: 'Sovg‘alar va takror', next: 'Keyingi o‘yin', challenges: 'Sinovlarga qaytish', games: 'Barcha o‘yinlar', wheel: 'Omad g‘ildiragi', spin: 'G‘ildirakni aylantirish', claim: 'Reklama → sovrinni olish', later: 'Natijaga qaytish', extra: 'O‘yin mukofotidan tashqari bonus', unavailable: 'Hozir reklama mavjud emas', noSync: 'Mukofot sinxronlanmadi. Keyinroq urinib ko‘ring.' },
 };
 export function NotebookAction({ label, icon, onPress, disabled = false }: { label: string; icon: React.ComponentProps<typeof Ionicons>['name']; onPress: () => void; disabled?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => ({ minHeight: 68, borderWidth: 3, borderColor: '#111', borderRadius: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, paddingHorizontal: 12, marginTop: 15, opacity: disabled ? 0.45 : pressed ? 0.65 : 1 })}><Ionicons name={icon} size={33} color="#FF9D1E" /><Hand style={{ fontSize: 28, textAlign: 'center', flexShrink: 1 }}>{label}</Hand></Pressable>;
+  const { copyText, copyContent } = useUiCopy();
+  return <Pressable accessibilityRole="button" accessibilityLabel={copyText(label)} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => ({ minHeight: 68, borderWidth: 3, borderColor: '#111', borderRadius: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 13, paddingHorizontal: 12, marginTop: 15, opacity: disabled ? 0.45 : pressed ? 0.65 : 1 })}><Ionicons name={icon} size={33} color="#FF9D1E" /><Hand style={{ fontSize: 28, textAlign: 'center', flexShrink: 1 }}>{copyContent(label)}</Hand></Pressable>;
 }
 type Result = { coins: number; fortuneCoins?: number; saving: boolean; message: string; firstReplayAvailable: boolean };
 export function HangmanResult({ value, challengeMode, hasNextGame, adBusy, fortuneAvailable, onFortune, onReplay, onRetry, onGifts, onNext, onExit }: { value: Result; challengeMode: boolean; hasNextGame: boolean; adBusy: boolean; fortuneAvailable: boolean; onFortune: () => void; onReplay: () => void; onRetry: () => void; onGifts: () => void; onNext: () => void; onExit: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const language = useAppStore(state => state.language) ?? 'ru';
   const c = endCopy[language];
   const fortune = value.fortuneCoins ?? 0;
@@ -21,12 +25,12 @@ export function HangmanResult({ value, challengeMode, hasNextGame, adBusy, fortu
   const disabled = value.saving || adBusy;
   const status = value.saving ? c.saving : /не начислена|Синхронизацию/.test(value.message) ? c.noSync : /недоступ/.test(value.message) ? c.unavailable : c.saved;
   return <NotebookLayer onClose={onExit}><NotebookPaper style={[notebookPanel, { top: 150, padding: 30 }]}>
-    <Hand style={{ fontSize: 45, textAlign: 'center', color: '#111' }}>{challengeMode ? c.finish : c.practice}</Hand>
-    <Hand style={{ fontSize: 77, textAlign: 'center', marginTop: 8 }}>{value.saving ? '…' : value.coins}</Hand>
-    <Hand style={{ fontSize: 25, textAlign: 'center', marginBottom: 15 }}>{c.total}</Hand>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Hand style={{ fontSize: 28 }}>{c.base}</Hand><Hand style={{ fontSize: 28 }}>{value.saving ? '…' : base} / 1000</Hand></View>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Hand style={{ fontSize: 28 }}>{c.fortune}</Hand><Hand style={{ fontSize: 28 }}>+{fortune}</Hand></View>
-    <View accessibilityLiveRegion="polite" style={{ minHeight: 50, marginTop: 15, alignItems: 'center', justifyContent: 'center' }}>{value.saving ? <ActivityIndicator color={ink} accessibilityLabel={c.saving} /> : <Hand style={{ fontSize: 23, textAlign: 'center' }}>{status}</Hand>}</View>
+    <Hand style={{ fontSize: 45, textAlign: 'center', color: '#111' }}>{copyContent(challengeMode ? c.finish : c.practice)}</Hand>
+    <Hand style={{ fontSize: 77, textAlign: 'center', marginTop: 8 }}>{copyContent(value.saving ? '…' : value.coins)}</Hand>
+    <Hand style={{ fontSize: 25, textAlign: 'center', marginBottom: 15 }}>{copyContent(c.total)}</Hand>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Hand style={{ fontSize: 28 }}>{copyContent(c.base)}</Hand><Hand style={{ fontSize: 28 }}>{copyContent(value.saving ? '…' : base)} / 1000</Hand></View>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Hand style={{ fontSize: 28 }}>{copyContent(c.fortune)}</Hand><Hand style={{ fontSize: 28 }}>+{copyContent(fortune)}</Hand></View>
+    <View accessibilityLiveRegion="polite" style={{ minHeight: 50, marginTop: 15, alignItems: 'center', justifyContent: 'center' }}>{value.saving ? <ActivityIndicator color={ink} accessibilityLabel={copyText(c.saving)} /> : <Hand style={{ fontSize: 23, textAlign: 'center' }}>{copyContent(status)}</Hand>}</View>
     {fortuneAvailable && <NotebookAction label={c.wheel} icon="gift-outline" onPress={onFortune} disabled={disabled} />}
     {challengeMode ? <>
       {value.firstReplayAvailable && <NotebookAction label={c.retry} icon="play-circle-outline" onPress={onReplay} disabled={disabled} />}

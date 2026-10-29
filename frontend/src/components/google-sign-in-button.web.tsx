@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useEffect, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -27,6 +29,7 @@ export function GoogleSignInButton({
   onCredential: (credential: string) => void;
   disabled?: boolean;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const hostRef = useRef<View>(null);
   const { language } = useTranslation();
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
@@ -124,7 +127,7 @@ export function GoogleSignInButton({
       {failed ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={language === "ru" ? "Войти через Google" : "Sign in with Google"}
+          accessibilityLabel={copyText(language === "ru" ? "Войти через Google" : "Sign in with Google")}
           disabled={!clientId || disabled}
           onPress={() => {
             credentialRef.current = null;
@@ -138,7 +141,7 @@ export function GoogleSignInButton({
             <Ionicons name="logo-google" color="#4285F4" size={20} />
           </View>
           <AppText variant="label" style={styles.fallbackLabel}>
-            {language === "ru" ? "Войти через Google" : "Sign in with Google"}
+            {copyContent(language === "ru" ? "Войти через Google" : "Sign in with Google")}
           </AppText>
           <Ionicons name="arrow-forward" color="#69737D" size={18} />
         </Pressable>

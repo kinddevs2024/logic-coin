@@ -159,7 +159,7 @@ export async function seedDefaultGames(): Promise<void> {
             ...game,
             slug: game.key,
             enabled: true,
-            challengeEnabled: game.key !== "hangman",
+            challengeEnabled: true,
             practiceEnabled: true,
             sortOrder: (index + 1) * 10,
             scoring: { higherIsBetter: true, maxCoins: 1_000 }

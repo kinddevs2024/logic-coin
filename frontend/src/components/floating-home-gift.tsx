@@ -1,8 +1,10 @@
+import { useUiCopy , Alert } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Alert, Animated, AppState, Easing, Image, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, AppState, Easing, Image, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "./app-text";
@@ -23,6 +25,7 @@ const copy = {
 };
 
 export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; bounds?: { top: number; bottom: number; width?: number }; blurTarget?: RefObject<View | null> }) {
+  const { copyText, copyContent } = useUiCopy();
   const focused = useIsFocused();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [availableAt] = useState(() => Date.now() + INTERVAL_MS);
@@ -158,22 +161,22 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
       { translateY: reduced ? 0 : flight.interpolate({ inputRange: [0, 1], outputRange: [path.from, path.to].map(fraction => fraction * Math.max(0, (bounds?.bottom ?? height * 0.7) - (bounds?.top ?? insets.top + 140) - 117)) }) },
     ] }]}>
       <Animated.View style={{ overflow: "visible", transform: [{ rotate: reduced ? "0deg" : flight.interpolate({ inputRange: [0, 1], outputRange: ["-9deg", "9deg"] }) }] }}>
-      <Pressable accessibilityRole="button" accessibilityLabel={remaining > 0 ? c.gift : `${OPEN_GIFT_LABEL[language]} · ${c.gift}`} accessibilityState={{ disabled: remaining > 0 }} disabled={remaining > 0} onPress={() => { setHoldingGift(false); setOpen(true); }}
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText(remaining > 0 ? c.gift : `${OPEN_GIFT_LABEL[language]} · ${c.gift}`)} accessibilityState={{ disabled: remaining > 0 }} disabled={remaining > 0} onPress={() => { setHoldingGift(false); setOpen(true); }}
         hitSlop={12} onPressIn={() => setHoldingGift(true)} onPressOut={() => setHoldingGift(false)}
         style={({ pressed }) => [styles.gift, pressed && styles.pressed]}>
         <Image source={remaining > 0 ? GIFT_CLOSED : GIFT_OPEN} resizeMode="contain" style={styles.giftImage} accessible={false} />
       </Pressable>
       </Animated.View>
-      {remaining > 0 ? <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</AppText></View> : <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{OPEN_GIFT_LABEL[language]}</AppText></View>}
+      {remaining > 0 ? <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{copyContent(Math.floor(remaining / 60))}:{copyContent(String(remaining % 60).padStart(2, "0"))}</AppText></View> : <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{copyContent(OPEN_GIFT_LABEL[language])}</AppText></View>}
     </Animated.View> : null}
     {open ? <Modal visible transparent animationType="fade" onRequestClose={() => setOpen(false)}>
       <View style={styles.backdrop}>
-        <Pressable accessibilityLabel={c.close} accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
+        <Pressable accessibilityLabel={copyText(c.close)} accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
         <View style={[styles.card, { backgroundColor: theme.surfaceRaised }]}>
           <Image source={GIFT_OPEN} resizeMode="contain" style={styles.giftImage} accessible={false} />
-          <AppText variant="heading">{c.gift}</AppText>
-          <AppText style={styles.pending}>{!token ? c.login : offer.isError ? c.failed : !offer.data ? c.wait : !offer.data.eligible ? c.inactive : offer.data.kind === "telegram" ? c.telegram : offer.data.kind === "instagram" ? "Instagram · +100" : c.ads}</AppText>
-          {offer.data?.eligible ? <AppText style={styles.pending}>{offer.data.kind === "telegram"
+          <AppText variant="heading">{copyContent(c.gift)}</AppText>
+          <AppText style={styles.pending}>{copyContent(!token ? c.login : offer.isError ? c.failed : !offer.data ? c.wait : !offer.data.eligible ? c.inactive : offer.data.kind === "telegram" ? c.telegram : offer.data.kind === "instagram" ? "Instagram · +100" : c.ads)}</AppText>
+          {offer.data?.eligible ? <AppText style={styles.pending}>{copyContent(offer.data.kind === "telegram"
             ? language === "ru" ? "Открой канал, подпишись и вернись сюда. Нажми «Подтвердить»: после проверки подписки 50 коинов добавятся в текущий челлендж. Награда за подписку выдаётся один раз. Если Telegram не привязан, потребуется подтверждение через бота."
               : language === "uz" ? "Kanalni oching, obuna bo‘ling va qayting. «Tasdiqlash»ni bosing: obuna tekshirilgach, joriy chempionatga 50 coin qo‘shiladi. Bu mukofot bir marta beriladi. Telegram bog‘lanmagan bo‘lsa, bot orqali tasdiqlash kerak."
               : "Open the channel, subscribe and return here. Press Confirm: after verification, 50 coins are added to the current challenge. This subscription reward is given once. An unlinked Telegram account needs confirmation through the bot."
@@ -182,17 +185,17 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
               : "Open our Instagram and return for 75 coins. Following is optional and not verified. The visit reward is available once."
             : language === "ru" ? "Нажми «Смотреть» и полностью просмотри две рекламы подряд. После подтверждения обоих просмотров 75 коинов добавятся в текущий челлендж, и окно закроется. Незавершённый просмотр не даёт награду."
               : language === "uz" ? "«Ko‘rish»ni bosing va ketma-ket ikkita reklamani oxirigacha ko‘ring. Ikkala ko‘rish tasdiqlangach, joriy chempionatga 75 coin qo‘shiladi va oyna yopiladi. Tugallanmagan reklama uchun mukofot berilmaydi."
-              : "Press Watch and finish two ads in a row. After both views are verified, 75 coins are added to the current challenge and this window closes. Unfinished views do not earn a reward."}</AppText> : null}
+              : "Press Watch and finish two ads in a row. After both views are verified, 75 coins are added to the current challenge and this window closes. Unfinished views do not earn a reward.")}</AppText> : null}
           {token && offer.data?.eligible ? <>
             {offer.data.kind === "telegram" ? <>
-              {!telegramOpened ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { await Linking.openURL(offer.data!.channelUrl); setTelegramOpened(true); })} style={styles.close}><AppText color={String(theme.primary)}>{language === "ru" ? "Открыть Telegram" : language === "uz" ? "Telegramni ochish" : "Open Telegram"}</AppText></Pressable>
-              : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={checkTelegram} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : language === "ru" ? "Подтвердить" : language === "uz" ? "Tasdiqlash" : "Confirm"}</AppText></Pressable>}
-              {telegramOpened ? <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={() => void perform(async () => { await homeGiftApi.skipTelegram(token!); setLinkFlow(null); setTelegramOpened(false); await refreshRewards(); setOpen(false); })} style={styles.close}><AppText color={String(theme.textMuted)}>{language === "ru" ? "Пропустить без награды" : language === "uz" ? "Mukofotsiz o‘tkazish" : "Skip without reward"}</AppText></Pressable> : null}
-            </> : offer.data.kind === "instagram" ? <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={instagramTask} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : !instagramVisit ? language === "ru" ? "Открыть Instagram" : language === "uz" ? "Instagramni ochish" : "Open Instagram" : language === "ru" ? "Я подписался · получить 100" : language === "uz" ? "100 coin olish" : "I followed · claim 100 coins"}</AppText></Pressable>
-            : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={watchAds} style={styles.close}><AppText color={String(theme.primary)}>{busy ? c.wait : `${c.watch} · ${offer.data.completedAds}/2`}</AppText></Pressable>}
+              {!telegramOpened ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => void perform(async () => { await Linking.openURL(offer.data!.channelUrl); setTelegramOpened(true); })} style={styles.close}><AppText color={String(theme.primary)}>{copyContent(language === "ru" ? "Открыть Telegram" : language === "uz" ? "Telegramni ochish" : "Open Telegram")}</AppText></Pressable>
+              : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={checkTelegram} style={styles.close}><AppText color={String(theme.primary)}>{copyContent(busy ? c.wait : language === "ru" ? "Подтвердить" : language === "uz" ? "Tasdiqlash" : "Confirm")}</AppText></Pressable>}
+              {telegramOpened ? <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={() => void perform(async () => { await homeGiftApi.skipTelegram(token!); setLinkFlow(null); setTelegramOpened(false); await refreshRewards(); setOpen(false); })} style={styles.close}><AppText color={String(theme.textMuted)}>{copyContent(language === "ru" ? "Пропустить без награды" : language === "uz" ? "Mukofotsiz o‘tkazish" : "Skip without reward")}</AppText></Pressable> : null}
+            </> : offer.data.kind === "instagram" ? <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={instagramTask} style={styles.close}><AppText color={String(theme.primary)}>{copyContent(busy ? c.wait : !instagramVisit ? language === "ru" ? "Открыть Instagram" : language === "uz" ? "Instagramni ochish" : "Open Instagram" : language === "ru" ? "Я подписался · получить 100" : language === "uz" ? "100 coin olish" : "I followed · claim 100 coins")}</AppText></Pressable>
+            : <Pressable disabled={busy || remaining > 0} accessibilityRole="button" onPress={watchAds} style={styles.close}><AppText color={String(theme.primary)}>{copyContent(busy ? c.wait : `${c.watch} · ${offer.data.completedAds}/2`)}</AppText></Pressable>}
           </> : null}
-          {message ? <AppText style={styles.pending}>{message}</AppText> : null}
-          <Pressable accessibilityLabel={c.close} accessibilityRole="button" disabled={busy} onPress={() => setOpen(false)} hitSlop={8} style={{ position: "absolute", top: 12, right: 12, padding: 8 }}><Ionicons name="close" size={22} color={theme.text} /></Pressable>
+          {message ? <AppText style={styles.pending}>{copyContent(message)}</AppText> : null}
+          <Pressable accessibilityLabel={copyText(c.close)} accessibilityRole="button" disabled={busy} onPress={() => setOpen(false)} hitSlop={8} style={{ position: "absolute", top: 12, right: 12, padding: 8 }}><Ionicons name="close" size={22} color={theme.text} /></Pressable>
         </View>
       </View>
     </Modal> : null}

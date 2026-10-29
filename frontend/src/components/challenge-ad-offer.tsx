@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { notifyManager, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +21,7 @@ const COPY = {
 };
 
 export function ChallengeAdOffer() {
+  const { copyContent } = useUiCopy();
   const token = useAppStore(state => state.accessToken);
   const userId = useAppStore(state => state.user.id);
   const authenticated = useAppStore(state => state.authMode === "authenticated");
@@ -121,13 +124,13 @@ export function ChallengeAdOffer() {
   return <Modal visible={visible && enabled} transparent animationType="fade" statusBarTranslucent onRequestClose={() => { if (!busyRef.current) defer(); }}>
     <View style={styles.backdrop}><View style={[styles.card, { backgroundColor: theme.surfaceRaised }]}>
       <Ionicons name="play-circle" size={48} color={String(theme.primary)} />
-      <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>{copy.title}</Text>
-      <Text style={[styles.body, { color: theme.textMuted }]}>{copy.body}</Text>
-      {error ? <Text accessibilityRole="alert" style={[styles.body, { color: theme.text }]}>{error}</Text> : null}
+      <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>{copyContent(copy.title)}</Text>
+      <Text style={[styles.body, { color: theme.textMuted }]}>{copyContent(copy.body)}</Text>
+      {error ? <Text accessibilityRole="alert" style={[styles.body, { color: theme.text }]}>{copyContent(error)}</Text> : null}
       <Pressable accessibilityRole="button" disabled={busy} onPress={() => void watch()} style={[styles.watch, { backgroundColor: theme.primary }]}>
-        {busy ? <ActivityIndicator color={String(theme.onPrimary)} /> : <Text style={[styles.label, { color: theme.onPrimary }]}>{copy.watch}</Text>}
+        {busy ? <ActivityIndicator color={String(theme.onPrimary)} /> : <Text style={[styles.label, { color: theme.onPrimary }]}>{copyContent(copy.watch)}</Text>}
       </Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => defer()} style={styles.skip}><Text style={{ color: theme.textMuted }}>{copy.skip}</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => defer()} style={styles.skip}><Text style={{ color: theme.textMuted }}>{copyContent(copy.skip)}</Text></Pressable>
     </View></View>
   </Modal>;
 }

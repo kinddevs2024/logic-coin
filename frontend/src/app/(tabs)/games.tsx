@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { isGameVisible } from "@/constants/game-availability";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
@@ -68,6 +70,7 @@ function mapServerGame(entry: GameCatalogItem): LocalizedGame | null {
 }
 
 function GamesHeader() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const router = useRouter();
   const { language } = useTranslation();
@@ -79,10 +82,10 @@ function GamesHeader() {
       action={
         <GlassSurface intensity={64} variant="strong" style={styles.count}>
           <Ionicons name="diamond" size={18} color={String(theme.primary)} />
-          <AppText style={[styles.countText, { color: theme.primary }]}>{coinBalance} coin</AppText>
+          <AppText style={[styles.countText, { color: theme.primary }]}>{copyContent(coinBalance)} {copyText(" coin")}</AppText>
         </GlassSurface>
       }
-    />{process.env.EXPO_PUBLIC_LOCAL_GAMES_PREVIEW === '1' && <Pressable accessibilityRole="button" onPress={() => router.push('/preview-games' as never)} style={{ padding: 18, backgroundColor: '#007A57', borderRadius: 18, marginBottom: 14 }}><AppText style={{ color: '#fff', textAlign: 'center', fontWeight: '800' }}>{language === 'ru' ? 'Виселица — тест' : language === 'uz' ? 'So‘zni top — sinov' : 'Hangman — preview'}</AppText></Pressable>}</View>
+    />{process.env.EXPO_PUBLIC_LOCAL_GAMES_PREVIEW === '1' && <Pressable accessibilityRole="button" onPress={() => router.push('/preview-games' as never)} style={{ padding: 18, backgroundColor: '#007A57', borderRadius: 18, marginBottom: 14 }}><AppText style={{ color: '#fff', textAlign: 'center', fontWeight: '800' }}>{copyContent(language === 'ru' ? 'Виселица — тест' : language === 'uz' ? 'So‘zni top — sinov' : 'Hangman — preview')}</AppText></Pressable>}</View>
   );
 }
 
@@ -92,6 +95,7 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
   wide: boolean;
   onOpenSkins: (gameId: GameId) => void;
 }) {
+  const { copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const router = useRouter();
   const { language } = useTranslation();
@@ -106,25 +110,25 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
   return (
     <View collapsable={false} style={[styles.cell, wide && styles.cellWide]}>
       <GlassSurface intensity={68} variant="strong" style={styles.card}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={play} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("{0}: {1}", [c.play, game.title])} onPress={play} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
           <View style={[styles.icon, { backgroundColor: `${accent}18`, borderColor: `${accent}38` }]}>
             {cover ? <Image source={cover} resizeMode="cover" {...androidImageProps} style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} color={accent} size={28} />}
           </View>
           <View style={styles.copy}>
-            <AppText style={[styles.title, { color: theme.text }]} numberOfLines={2}>{game.title}</AppText>
+            <AppText style={[styles.title, { color: theme.text }]} numberOfLines={2}>{copyContent(game.title)}</AppText>
             <View style={styles.bestRow}>
               <Ionicons name="diamond-outline" size={13} color={accent} />
-              <AppText style={[styles.best, { color: accent }]}>{c.best} {coins}</AppText>
+              <AppText style={[styles.best, { color: accent }]}>{copyContent(c.best)} {copyContent(coins)}</AppText>
             </View>
           </View>
         </Pressable>
         <View style={styles.cardActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Скины: ${game.title}`} onPress={() => onOpenSkins(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("Скины: {0}", [game.title])} onPress={() => onOpenSkins(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
             <Ionicons name="shirt-outline" color={accent} size={17} />
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={play} style={({ pressed }) => [styles.playButton, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("{0}: {1}", [c.play, game.title])} onPress={play} style={({ pressed }) => [styles.playButton, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
             <Ionicons name="play" color={playForeground} size={15} />
-            <AppText style={[styles.playText, { color: playForeground }]}>{c.play}</AppText>
+            <AppText style={[styles.playText, { color: playForeground }]}>{copyContent(c.play)}</AppText>
           </Pressable>
         </View>
       </GlassSurface>

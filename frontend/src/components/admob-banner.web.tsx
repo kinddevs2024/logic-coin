@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { createElement } from "react";
+import { useEffect, useState , createElement } from "react";
+
 
 const CLIENT = "ca-pub-3345266316761728";
 const SLOT = "5234789961";
@@ -17,7 +17,7 @@ export function AdmobBannerSlot() {
   useEffect(() => {
     if (!desktop) return;
     try {
-      const adWindow = window as Window & { adsbygoogle?: Array<Record<string, unknown>> };
+      const adWindow = window as Window & { adsbygoogle?: Record<string, unknown>[] };
       (adWindow.adsbygoogle = adWindow.adsbygoogle || []).push({});
     } catch {
       // AdSense may be unavailable while the site is still under review.

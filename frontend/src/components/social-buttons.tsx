@@ -1,8 +1,10 @@
+import { useUiCopy , Alert } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
+
 
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
@@ -25,11 +27,12 @@ function ProviderButton({
   busy?: boolean;
   disabled?: boolean;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={copyText(label)}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
@@ -40,7 +43,7 @@ function ProviderButton({
     >
       <GlassSurface intensity={48} variant="soft" style={styles.button}>
         <View style={styles.providerIcon}>{icon}</View>
-        <AppText variant="label" style={styles.label}>{label}</AppText>
+        <AppText variant="label" style={styles.label}>{copyContent(label)}</AppText>
         {busy ? (
           <ActivityIndicator size="small" color={String(theme.textMuted)} />
         ) : (
@@ -56,6 +59,7 @@ export function SocialButtons({
 }: {
   onAuthenticated?: (result: AuthResult) => void;
 }) {
+  const { copyContent } = useUiCopy();
   const { t } = useTranslation();
   const router = useRouter();
   const authenticate = useAppStore((state) => state.authenticate);
@@ -152,7 +156,7 @@ export function SocialButtons({
       />
       {googleError ? (
         <AppText variant="caption" color="#C0392B" style={styles.error}>
-          {googleError}
+          {copyContent(googleError)}
         </AppText>
       ) : null}
       <ProviderButton

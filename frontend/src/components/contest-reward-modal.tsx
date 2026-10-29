@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
@@ -63,12 +65,13 @@ function rewardIcon(type: ContestRewardType) {
 }
 
 function RouletteItem({ kind }: { kind: (typeof rouletteKinds)[number] }) {
+  const { copyContent } = useUiCopy();
   const icon = kind === "hint" ? "bulb" : kind === "coin" ? "diamond" : kind === "replay" ? "refresh" : "time";
   const label = kind === "hint" ? "ПОДСКАЗКА" : kind === "coin" ? "COIN" : kind === "replay" ? "ПОВТОР" : "ВРЕМЯ";
   return (
     <View style={styles.rouletteItem}>
       <Ionicons name={icon} size={25} color="#FFFFFF" />
-      <AppText style={styles.rouletteLabel}>{label}</AppText>
+      <AppText style={styles.rouletteLabel}>{copyContent(label)}</AppText>
     </View>
   );
 }
@@ -104,15 +107,17 @@ function ResultContents({ result }: { result: ContestRewardResult }) {
 }
 
 function PrizeChip({ icon, value }: { icon: "diamond" | "refresh" | "time" | "bulb"; value: string }) {
+  const { copyContent } = useUiCopy();
   return (
     <View style={styles.prizeChip}>
       <Ionicons name={icon} size={17} color="#FFFFFF" />
-      <AppText style={styles.prizeChipText}>{value}</AppText>
+      <AppText style={styles.prizeChipText}>{copyContent(value)}</AppText>
     </View>
   );
 }
 
 export function ContestRewardModal() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const accessToken = useAppStore((state) => state.accessToken);
   const authenticated = useAppStore((state) => state.authMode === "authenticated" && Boolean(state.accessToken));
@@ -288,9 +293,9 @@ export function ContestRewardModal() {
             <View style={[styles.heroIcon, { backgroundColor: theme.primary }]}>
               <Ionicons name={rewardIcon(result.rewardType)} size={31} color="#FFFFFF" />
             </View>
-            <AppText style={styles.eyebrow}>ИТОГИ ЧЕЛЛЕНДЖА</AppText>
-            <AppText style={styles.title}>Вы заняли {result.rank} место</AppText>
-            <AppText style={[styles.rewardValue, { color: theme.primary }]}>{rewardLabel(result)}</AppText>
+            <AppText style={styles.eyebrow}>{copyText("ИТОГИ ЧЕЛЛЕНДЖА")}</AppText>
+            <AppText style={styles.title}>{copyText("Вы заняли ")}{copyContent(result.rank)} {copyText(" место")}</AppText>
+            <AppText style={[styles.rewardValue, { color: theme.primary }]}>{copyContent(rewardLabel(result))}</AppText>
 
             {result.rewardType === "random" && showResult ? (
               <View style={styles.rouletteWindow}>
@@ -304,33 +309,33 @@ export function ContestRewardModal() {
             {showResult ? <ResultContents result={result} /> : null}
 
             <View style={styles.standingsHeader}>
-              <AppText variant="label">Результаты игроков</AppText>
-              <AppText variant="caption" muted>{reward.standings.length}</AppText>
+              <AppText variant="label">{copyText("Результаты игроков")}</AppText>
+              <AppText variant="caption" muted>{copyContent(reward.standings.length)}</AppText>
             </View>
             <ScrollView style={styles.standings} contentContainerStyle={styles.standingsContent} showsVerticalScrollIndicator={false}>
               {reward.standings.map((entry) => (
                 <View key={entry.id} style={[styles.standingRow, entry.userId === result.userId && { backgroundColor: theme.primarySoft }]}>
-                  <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F3B61F" : theme.textMuted }]}>{entry.rank}</AppText>
+                  <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F3B61F" : theme.textMuted }]}>{copyContent(entry.rank)}</AppText>
                   <Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={34} />
                   <View style={styles.person}>
                     <AppText style={styles.personName} numberOfLines={1}>{entry.name}</AppText>
                     {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={13} /> : null}
                   </View>
-                  <AppText style={styles.standingReward}>{rewardLabel(entry)}</AppText>
+                  <AppText style={styles.standingReward}>{copyContent(rewardLabel(entry))}</AppText>
                 </View>
               ))}
             </ScrollView>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Забрать приз"
+              accessibilityLabel={copyText("Забрать приз")}
               disabled={claim.isPending || showResult}
               onPress={() => claim.mutate()}
               style={({ pressed }) => [styles.claimButton, { backgroundColor: theme.primary }, pressed && styles.pressed, (claim.isPending || showResult) && styles.disabled]}
             >
-              {claim.isPending ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="gift" size={20} color="#FFFFFF" /><AppText color="#FFFFFF" variant="label">Забрать</AppText></>}
+              {claim.isPending ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="gift" size={20} color="#FFFFFF" /><AppText color="#FFFFFF" variant="label">{copyText("Забрать")}</AppText></>}
             </Pressable>
-            {claim.isError ? <AppText style={styles.error}>Не удалось забрать приз. Попробуйте ещё раз.</AppText> : null}
+            {claim.isError ? <AppText style={styles.error}>{copyText("Не удалось забрать приз. Попробуйте ещё раз.")}</AppText> : null}
           </GlassSurface>
         </Animated.View>
 

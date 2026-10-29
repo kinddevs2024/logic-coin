@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -14,6 +16,7 @@ import { authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export default function SetPasswordScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const params = useLocalSearchParams<{ email?: string; next?: string }>();
   const email = params.email ?? "";
   const router = useRouter();
@@ -52,7 +55,7 @@ export default function SetPasswordScreen() {
       headerAction={(
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("common.back")}
+          accessibilityLabel={copyText(t("common.back"))}
           onPress={() => router.replace("/login")}
           style={styles.backButton}
         >
@@ -72,7 +75,7 @@ export default function SetPasswordScreen() {
       />
       {save.error ? (
         <AppText variant="caption" color={String(theme.danger)} style={styles.error}>
-          {save.error.message || t("auth.invalid")}
+          {copyContent(save.error.message || t("auth.invalid"))}
         </AppText>
       ) : null}
       <AppButton
@@ -82,7 +85,7 @@ export default function SetPasswordScreen() {
         icon="checkmark-circle-outline"
         glow
       >
-        {t("common.save")}
+        {copyContent(t("common.save"))}
       </AppButton>
     </AuthScaffold>
   );

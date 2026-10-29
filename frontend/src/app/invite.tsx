@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
@@ -20,6 +22,7 @@ import { shareLink } from "@/lib/share-link";
 import { MIGRATED_APP_ORIGIN } from "@/lib/server-migration";
 
 export default function InviteScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
   const { t, language } = useTranslation();
@@ -57,21 +60,20 @@ export default function InviteScreen() {
           color={String(theme.primary)}
           style={{ textAlign: "center" }}
         >
-          Logic is better together
-        </AppText>
+          {copyText(" Logic is better together ")}</AppText>
         <AppText muted style={{ textAlign: "center" }}>
-          {t("invite.subtitle")}
+          {copyContent(t("invite.subtitle"))}
         </AppText>
       </GlassSurface>
 
       <GlassSurface intensity={68} style={styles.codeCard}>
         {inviteUrl ? (
-          <View testID="invite-qr" accessible accessibilityRole="image" accessibilityLabel={t("invite.share")} style={styles.qr}>
+          <View testID="invite-qr" accessible accessibilityRole="image" accessibilityLabel={copyText(t("invite.share"))} style={styles.qr}>
             <InviteQr value={inviteUrl} />
           </View>
         ) : null}
         <AppButton icon="share-social-outline" glow onPress={share}>
-          {t("invite.share")}
+          {copyContent(t("invite.share"))}
         </AppButton>
       </GlassSurface>
 
@@ -85,10 +87,10 @@ export default function InviteScreen() {
             />
           </View>
           <AppText variant="title">
-            {authenticated ? referral?.invitedCount ?? 0 : 0}
+            {copyContent(authenticated ? referral?.invitedCount ?? 0 : 0)}
           </AppText>
           <AppText variant="caption" muted>
-            {t("invite.invited")}
+            {copyContent(t("invite.invited"))}
           </AppText>
         </GlassSurface>
         <GlassSurface variant="soft" intensity={56} style={styles.stat}>
@@ -100,10 +102,9 @@ export default function InviteScreen() {
             />
           </View>
           <AppText variant="title">
-            {formatMoney(authenticated ? referral?.earnedUnits ?? 0 : 0)} · {authenticated ? referral?.earnedCoins ?? 0 : 0} coin
-          </AppText>
+            {copyContent(formatMoney(authenticated ? referral?.earnedUnits ?? 0 : 0))} · {copyContent(authenticated ? referral?.earnedCoins ?? 0 : 0)} {copyText(" coin ")}</AppText>
           <AppText variant="caption" muted>
-            {t("invite.reward")}
+            {copyContent(t("invite.reward"))}
           </AppText>
         </GlassSurface>
       </View>
@@ -117,8 +118,8 @@ export default function InviteScreen() {
               {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.success)} /> : null}
             </View>
           ))}
-          {referralQuery.hasNextPage ? <AppButton disabled={referralQuery.isFetchingNextPage} onPress={() => void referralQuery.fetchNextPage()}>{language === "ru" ? "Загрузить ещё" : language === "uz" ? "Yana yuklash" : "Load more"}</AppButton> : null}
-          {referralQuery.isFetchNextPageError ? <AppButton onPress={() => void referralQuery.fetchNextPage()}>{language === "ru" ? "Повторить" : language === "uz" ? "Qayta urinish" : "Retry"}</AppButton> : null}
+          {referralQuery.hasNextPage ? <AppButton disabled={referralQuery.isFetchingNextPage} onPress={() => void referralQuery.fetchNextPage()}>{copyContent(language === "ru" ? "Загрузить ещё" : language === "uz" ? "Yana yuklash" : "Load more")}</AppButton> : null}
+          {referralQuery.isFetchNextPageError ? <AppButton onPress={() => void referralQuery.fetchNextPage()}>{copyContent(language === "ru" ? "Повторить" : language === "uz" ? "Qayta urinish" : "Retry")}</AppButton> : null}
         </GlassSurface>
       ) : null}
 
@@ -131,9 +132,7 @@ export default function InviteScreen() {
           />
         </View>
         <AppText variant="caption" muted style={{ flex: 1 }}>
-          15% денежного приза друга начисляются вам; от приза друга второго
-          уровня — ещё 5%. За само приглашение бонуса нет. Баланс победителя не уменьшается.
-        </AppText>
+          {copyText(" 15% денежного приза друга начисляются вам; от приза друга второго уровня — ещё 5%. За само приглашение бонуса нет. Баланс победителя не уменьшается. ")}</AppText>
       </GlassSurface>
     </AppFrame>
   );

@@ -14,8 +14,10 @@ const limits = new Map<string, { start: number; count: number }>();
 
 async function snapshot(userId: Types.ObjectId) {
   const { executeLiveCommand } = await import("./live-command.service.js");
-  const today = await executeLiveCommand(userId, "today", {});
-  const reward = await executeLiveCommand(userId, "pendingReward", {});
+  const [today, reward] = await Promise.all([
+    executeLiveCommand(userId, "today", {}),
+    executeLiveCommand(userId, "pendingReward", {}),
+  ]);
   return { today, reward };
 }
 

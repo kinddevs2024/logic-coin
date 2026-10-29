@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
@@ -10,6 +12,7 @@ const copy = {
   uz: { title: "Har kuni kiring", day: "Kun", claim: "Olish", claimed: "Olindi", locked: "Yopiq", missed: "O‘tkazib yuborildi", weekly: "Haftalik faollik", monthly: "Oylik faollik", rule: "Har kuni kamida bitta o‘yinni yakunlang. Mukofot davr oxirida ochiladi.", login: "Har kirgan kuningiz uchun 100 coin. Bir kunni qoldirsangiz, ketma-ketlik qaytadan boshlanadi.", retry: "Qayta urinish", failed: "Sovg‘alar yuklanmadi", wait: "Kutib turing…" },
 };
 export function ChallengeRewardOverview({ token }: { token: string }) {
+  const { copyContent, formatCopy } = useUiCopy();
   const { language } = useTranslation();
   const c = copy[language];
   const client = useQueryClient();
@@ -22,19 +25,19 @@ export function ChallengeRewardOverview({ token }: { token: string }) {
     },
   });
   if (offer.isPending) return <ActivityIndicator color="#9FE6C5" />;
-  if (offer.isError) return <Pressable accessibilityRole="button" onPress={() => void offer.refetch()}><Text style={styles.body}>{c.failed} · {c.retry}</Text></Pressable>;
+  if (offer.isError) return <Pressable accessibilityRole="button" onPress={() => void offer.refetch()}><Text style={styles.body}>{copyContent(c.failed)} · {copyContent(c.retry)}</Text></Pressable>;
   return <View style={styles.list}>
-    <View style={styles.grid}>{offer.data.daily.map(day => <Pressable key={day.day} accessibilityRole="button" accessibilityLabel={`${c.day} ${day.day}, ${day.coins} coin, ${c[day.status === "available" ? "claim" : day.status]}`} disabled={day.status !== "available" || claim.isPending} onPress={() => claim.mutate("daily")} style={[styles.tile, day.status === "available" && styles.available, day.status === "claimed" && styles.claimed]}>
-      <Text numberOfLines={2} style={styles.day}>{c.day} {day.day}</Text>
+    <View style={styles.grid}>{offer.data.daily.map(day => <Pressable key={day.day} accessibilityRole="button" accessibilityLabel={formatCopy("{0} {1}, {2} coin, {3}", [c.day, day.day, day.coins, c[day.status === "available" ? "claim" : day.status]])} disabled={day.status !== "available" || claim.isPending} onPress={() => claim.mutate("daily")} style={[styles.tile, day.status === "available" && styles.available, day.status === "claimed" && styles.claimed]}>
+      <Text numberOfLines={2} style={styles.day}>{copyContent(c.day)} {copyContent(day.day)}</Text>
       {claim.isPending && day.status === "available" ? <ActivityIndicator color="#F1CD65" /> : <Ionicons name={day.status === "claimed" ? "checkmark-circle" : day.status === "available" ? "gift" : "lock-closed-outline"} size={28} color={day.status === "claimed" ? "#63E0B6" : "#F1CD65"} />}
-      <Text style={styles.amount}>+{day.coins}</Text>
+      <Text style={styles.amount}>+{copyContent(day.coins)}</Text>
     </Pressable>)}
-    {([offer.data.weekly, offer.data.monthly]).map(reward => <Pressable key={reward.kind} accessibilityRole="button" accessibilityLabel={`${reward.kind === "week" ? c.weekly : c.monthly}, ${reward.coins} coin, ${reward.activeDays}/${reward.totalDays}, ${c[reward.status === "available" ? "claim" : reward.status]}`} disabled={reward.status !== "available" || claim.isPending} onPress={() => claim.mutate(reward.kind)} style={[styles.tile, reward.status === "available" && styles.available, reward.status === "claimed" && styles.claimed]}>
-      <Text numberOfLines={2} style={styles.day}>{reward.kind === "week" ? c.weekly : c.monthly}</Text>
+    {([offer.data.weekly, offer.data.monthly]).map(reward => <Pressable key={reward.kind} accessibilityRole="button" accessibilityLabel={formatCopy("{0}, {1} coin, {2}/{3}, {4}", [reward.kind === "week" ? c.weekly : c.monthly, reward.coins, reward.activeDays, reward.totalDays, c[reward.status === "available" ? "claim" : reward.status]])} disabled={reward.status !== "available" || claim.isPending} onPress={() => claim.mutate(reward.kind)} style={[styles.tile, reward.status === "available" && styles.available, reward.status === "claimed" && styles.claimed]}>
+      <Text numberOfLines={2} style={styles.day}>{copyContent(reward.kind === "week" ? c.weekly : c.monthly)}</Text>
       {reward.status === "available" && claim.isPending ? <ActivityIndicator color="#F1CD65" /> : <Ionicons name={reward.status === "claimed" ? "checkmark-circle" : reward.status === "available" ? "gift-outline" : "lock-closed-outline"} size={28} color={reward.status === "claimed" ? "#63E0B6" : "#F1CD65"} />}
-      <Text style={styles.amount}>+{reward.coins}</Text>
+      <Text style={styles.amount}>+{copyContent(reward.coins)}</Text>
     </Pressable>)}</View>
-    {claim.error ? <Text style={styles.error}>{claim.error instanceof Error ? claim.error.message : c.failed}</Text> : null}
+    {claim.error ? <Text style={styles.error}>{copyContent(claim.error instanceof Error ? claim.error.message : c.failed)}</Text> : null}
   </View>;
 }
 const styles = StyleSheet.create({

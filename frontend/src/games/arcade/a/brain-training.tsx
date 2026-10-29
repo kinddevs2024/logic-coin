@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -48,6 +50,7 @@ function makeExpressions(count: number, previousTarget?: number) {
 }
 
 export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const awardCoins = useGameProgressStore((state) => state.awardCoins);
   const theme = resolveArcadeSkin(skin, "#C8A96E", "#7EB8F7");
   const sessionDuration = SESSION_MS + Math.max(0, extraTimeSeconds) * 1000;
@@ -157,14 +160,14 @@ export function BrainTrainingGame({ initialBestScore = 0, extraTimeSeconds = 0, 
   return (
     <GameRoot colors={["#17132E", "#080E1F", "#071323"]} skin={skin}>
       <GameHeader title="МОЗГОВОЙ ШТУРМ" accent={theme.primary} onExit={onExit} />
-      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score, true, "brain-training")} color={theme.primary} /><View style={[styles.targetBox, { borderColor: theme.primary }]}><Text style={styles.targetLabel}>НАЙТИ</Text><Text style={styles.target}>{target}</Text><ProgressBar progress={roundRemaining / ROUND_MS} color={theme.primary} height={3} /></View><HudStat label={challengeMode ? "Время" : "Режим"} value={challengeMode ? Math.ceil(remainingMs / 1000) : "∞"} color="#6EDBA8" /></View>
+      <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score, true, "brain-training")} color={theme.primary} /><View style={[styles.targetBox, { borderColor: theme.primary }]}><Text style={styles.targetLabel}>{copyText("НАЙТИ")}</Text><Text style={styles.target}>{copyContent(target)}</Text><ProgressBar progress={roundRemaining / ROUND_MS} color={theme.primary} height={3} /></View><HudStat label={challengeMode ? "Время" : "Режим"} value={challengeMode ? Math.ceil(remainingMs / 1000) : "∞"} color="#6EDBA8" /></View>
       {challengeMode ? <ProgressBar progress={remainingMs / sessionDuration} color={theme.secondary} /> : null}
       <View style={[styles.arena, { width: arenaWidth, height: arenaHeight }]}>
         {bubbles.map((bubble) => {
           const palette = PALETTES[bubble.palette]!;
-          return <Animated.View key={bubble.id} entering={ZoomIn.springify().damping(14)} exiting={ZoomOut.duration(180)} style={[styles.bubblePosition, { width: bubble.size, height: bubble.size, left: bubble.x - bubble.size / 2, top: bubble.y - bubble.size / 2 }]}><Pressable accessibilityRole="button" accessibilityLabel={`Выражение ${bubble.label}`} onPress={() => choose(bubble)} style={styles.bubblePress}><LinearGradient colors={[palette[0], palette[1]]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={styles.bubble}><View style={styles.gloss} /><Text style={styles.expression}>{bubble.label}</Text></LinearGradient></Pressable></Animated.View>;
+          return <Animated.View key={bubble.id} entering={ZoomIn.springify().damping(14)} exiting={ZoomOut.duration(180)} style={[styles.bubblePosition, { width: bubble.size, height: bubble.size, left: bubble.x - bubble.size / 2, top: bubble.y - bubble.size / 2 }]}><Pressable accessibilityRole="button" accessibilityLabel={formatCopy("Выражение {0}", [bubble.label])} onPress={() => choose(bubble)} style={styles.bubblePress}><LinearGradient colors={[palette[0], palette[1]]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={styles.bubble}><View style={styles.gloss} /><Text style={styles.expression}>{copyContent(bubble.label)}</Text></LinearGradient></Pressable></Animated.View>;
         })}
-        {flash ? <Animated.View entering={FadeIn.duration(100)} exiting={FadeOut.duration(100)} pointerEvents="none" style={[styles.flash, { backgroundColor: flash === "correct" ? "rgba(110,219,168,0.12)" : "rgba(224,92,106,0.12)" }]}><Text style={[styles.flashText, { color: flash === "correct" ? "#6EDBA8" : "#E05C6A" }]}>{flash === "correct" ? `×${combo || 1}` : "МИМО"}</Text></Animated.View> : null}
+        {flash ? <Animated.View entering={FadeIn.duration(100)} exiting={FadeOut.duration(100)} pointerEvents="none" style={[styles.flash, { backgroundColor: flash === "correct" ? "rgba(110,219,168,0.12)" : "rgba(224,92,106,0.12)" }]}><Text style={[styles.flashText, { color: flash === "correct" ? "#6EDBA8" : "#E05C6A" }]}>{copyContent(flash === "correct" ? `×${combo || 1}` : "МИМО")}</Text></Animated.View> : null}
       </View>
     </GameRoot>
   );

@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -26,6 +28,7 @@ function classify(position: number): Hit {
 }
 
 export function StrikeGame({ initialBestScore = 0, paused = false, skin, challengeMode = false, onExit, onComplete }: ArcadeGameProps) {
+  const { copyText, copyContent } = useUiCopy();
   const { attemptLimit, winningHits, perfectGradeHits, excellentGradeHits } = strikeRules(challengeMode);
   const theme = resolveArcadeSkin(skin, "#FF2D2D", "#F0C040");
   const resultAccent = skin && skin.id !== "classic" ? theme.primary : "#F0C040";
@@ -115,7 +118,7 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
     impact(hit === "perfect" ? "success" : hit === "miss" ? "error" : "medium");
   };
 
-  if (phase === "intro") return <GameRoot colors={["#160D0D", "#080808", "#0B0B0B"]} skin={skin}><GameHeader title="УДАР" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="TIMING IS EVERYTHING" title="УДАР" subtitle="Останови стрелку в самом центре. Скорость будет расти после каждого удара." accent={tapAccent} onStart={start}><View style={styles.zoneLegend}>{(["perfect", "good", "ok", "miss"] as Hit[]).map((hit) => <View key={hit} style={[styles.legendChip, { borderColor: COLORS[hit] }]}><Text style={[styles.legendText, { color: COLORS[hit] }]}>{LABELS[hit]}</Text></View>)}</View></IntroScreen></GameRoot>;
+  if (phase === "intro") return <GameRoot colors={["#160D0D", "#080808", "#0B0B0B"]} skin={skin}><GameHeader title="УДАР" accent={theme.primary} onExit={onExit} /><IntroScreen eyebrow="TIMING IS EVERYTHING" title="УДАР" subtitle="Останови стрелку в самом центре. Скорость будет расти после каждого удара." accent={tapAccent} onStart={start}><View style={styles.zoneLegend}>{(["perfect", "good", "ok", "miss"] as Hit[]).map((hit) => <View key={hit} style={[styles.legendChip, { borderColor: COLORS[hit] }]}><Text style={[styles.legendText, { color: COLORS[hit] }]}>{copyContent(LABELS[hit])}</Text></View>)}</View></IntroScreen></GameRoot>;
 
   const perfect = hits.filter((hit) => hit === "perfect").length;
   if (phase === "result") {
@@ -126,11 +129,11 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
   const multiplier = MULTIPLIERS[Math.min(combo, MULTIPLIERS.length - 1)] ?? 3;
   return (
     <GameRoot colors={["#160D0D", "#080808", "#0B0B0B"]} skin={skin}>
-      <GameHeader title="УДАР" accent={theme.primary} onExit={onExit} right={<Text style={[styles.speed, { color: theme.secondary }]}>×{currentSpeed.toFixed(1)}</Text>} />
+      <GameHeader title="УДАР" accent={theme.primary} onExit={onExit} right={<Text style={[styles.speed, { color: theme.secondary }]}>×{copyContent(currentSpeed.toFixed(1))}</Text>} />
       <View style={styles.hud}><HudStat label="COIN" value={suggestedCoins(score, true, "udar")} color={theme.secondary} /><HudStat label="Комбо" value={`×${multiplier}`} /><HudStat label={challengeMode ? "Попытка" : "Режим"} value={challengeMode ? `${Math.min(attemptLimit, hits.length + (feedback ? 0 : 1))}/${attemptLimit}` : "∞"} /></View>
       {challengeMode ? <View style={styles.attempts}>{Array.from({ length: attemptLimit }, (_, index) => <View key={index} style={[styles.attempt, hits[index] && { backgroundColor: COLORS[hits[index]!] }]} />)}</View> : null}
       <View style={styles.stage}>
-        <Text style={[styles.status, feedback && { color: COLORS[feedback.hit] }]}>{feedback ? LABELS[feedback.hit] : "НАЖМИ В НУЖНЫЙ МОМЕНТ"}</Text>
+        <Text style={[styles.status, feedback && { color: COLORS[feedback.hit] }]}>{copyContent(feedback ? LABELS[feedback.hit] : "НАЖМИ В НУЖНЫЙ МОМЕНТ")}</Text>
         <View style={styles.track}>
           <LinearGradient
             pointerEvents="none"
@@ -152,11 +155,11 @@ export function StrikeGame({ initialBestScore = 0, paused = false, skin, challen
           <View style={styles.centerLine} />
           <View style={[styles.needle, { left: `${position * 100}%` as `${number}%` }, feedback && { backgroundColor: COLORS[feedback.hit], shadowColor: COLORS[feedback.hit] }]} />
         </View>
-        <View style={styles.trackLabels}><Text style={styles.trackLabel}>MISS</Text><Text style={[styles.trackLabel, { color: theme.secondary }]}>PERFECT</Text><Text style={styles.trackLabel}>MISS</Text></View>
-        {feedback ? <Animated.View entering={ZoomIn.springify()} style={styles.scorePop}><Text style={[styles.scorePopText, { color: COLORS[feedback.hit] }]}>+{feedback.points}</Text></Animated.View> : <Text style={styles.bigScore}>{score}</Text>}
-        <View style={styles.multiplierRow}><Text style={styles.multLabel}>СКОРОСТЬ</Text><View style={{ flex: 1, minWidth: 0 }}><ProgressBar progress={(currentSpeed - 0.35) / 0.85} color={theme.primary} /></View><Text style={styles.multLabel}>×{currentSpeed.toFixed(1)}</Text></View>
+        <View style={styles.trackLabels}><Text style={styles.trackLabel}>{copyText("MISS")}</Text><Text style={[styles.trackLabel, { color: theme.secondary }]}>{copyText("PERFECT")}</Text><Text style={styles.trackLabel}>{copyText("MISS")}</Text></View>
+        {feedback ? <Animated.View entering={ZoomIn.springify()} style={styles.scorePop}><Text style={[styles.scorePopText, { color: COLORS[feedback.hit] }]}>+{copyContent(feedback.points)}</Text></Animated.View> : <Text style={styles.bigScore}>{copyContent(score)}</Text>}
+        <View style={styles.multiplierRow}><Text style={styles.multLabel}>{copyText("СКОРОСТЬ")}</Text><View style={{ flex: 1, minWidth: 0 }}><ProgressBar progress={(currentSpeed - 0.35) / 0.85} color={theme.primary} /></View><Text style={styles.multLabel}>×{copyContent(currentSpeed.toFixed(1))}</Text></View>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Удар" onPress={tap} style={styles.tapWrap}><Animated.View style={[styles.tapButton, { backgroundColor: tapAccent, shadowColor: theme.primary }, buttonStyle]}><Text style={styles.tapText}>УДАР</Text></Animated.View></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText("Удар")} onPress={tap} style={styles.tapWrap}><Animated.View style={[styles.tapButton, { backgroundColor: tapAccent, shadowColor: theme.primary }, buttonStyle]}><Text style={styles.tapText}>{copyText("УДАР")}</Text></Animated.View></Pressable>
     </GameRoot>
   );
 }

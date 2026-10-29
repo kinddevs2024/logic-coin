@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect } from "react";
 import { Image, Modal, Pressable, StyleSheet, View } from "react-native";
@@ -14,6 +16,7 @@ export const BOTTLE_THEMES = [
 ] as const;
 const themePrice = (id: string) => BOTTLE_THEME_PRICES[id] ?? 0;
 export function BottleThemes({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const { language } = useTranslation();
   const selected = useGameProgressStore((state) => state.games["bottle-flip"]?.selectedCosmetic ?? "classic");
@@ -27,16 +30,16 @@ export function BottleThemes({ visible, onClose }: { visible: boolean; onClose: 
   if (!visible) return null;
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <SafeAreaView style={styles.overlay}><View style={[styles.panel, { backgroundColor: theme.surfaceRaised }]}>
-      <View style={styles.header}><AppText style={styles.title}>{language === "ru" ? "Темы" : language === "en" ? "Themes" : "Mavzular"}</AppText><Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={onClose} style={styles.close}><Ionicons name="close" size={26} color={theme.text} /></Pressable></View>
+      <View style={styles.header}><AppText style={styles.title}>{copyContent(language === "ru" ? "Темы" : language === "en" ? "Themes" : "Mavzular")}</AppText><Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={onClose} style={styles.close}><Ionicons name="close" size={26} color={theme.text} /></Pressable></View>
       <View style={styles.row}>{BOTTLE_THEMES.map((item) => {
         const price = themePrice(item.id);
         const ownership = bottleThemeOwnership({ bottleThemePricingVersion: pricingVersion, selectedCosmetic: selected, unlockedCosmetics: unlocked });
         const owned = ownership.unlockedCosmetics.includes(item.id);
         const available = owned || coins >= price;
-        return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Тема ${item.id}${owned ? "" : `: ${price} coin`}`} disabled={!available} accessibilityState={{ selected: selected === item.id, disabled: !available }} onPress={() => { if (select("bottle-flip", item.id, price)) onClose(); }} style={[styles.card, { borderColor: selected === item.id ? item.color : "transparent" }]}>
+        return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={formatCopy("Тема {0}{1}", [item.id, owned ? "" : `: ${price} coin`])} disabled={!available} accessibilityState={{ selected: selected === item.id, disabled: !available }} onPress={() => { if (select("bottle-flip", item.id, price)) onClose(); }} style={[styles.card, { borderColor: selected === item.id ? item.color : "transparent" }]}>
         <Image source={item.room} style={styles.room} resizeMode="stretch" /><Image source={item.bottle} style={styles.bottle} resizeMode="contain" />
         {selected === item.id ? <View style={[styles.check, { backgroundColor: item.color }]}><Ionicons name="checkmark" color="white" size={18} /></View> : null}
-        {!owned ? <View style={{ position: "absolute", bottom: 5, flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: "#18263DDD", borderRadius: 10, paddingHorizontal: 6, paddingVertical: 3 }}><Ionicons name={available ? "diamond-outline" : "lock-closed-outline"} size={13} color="white" /><AppText style={{ fontSize: 12, fontWeight: "800", color: "white" }}>{price}</AppText></View> : null}
+        {!owned ? <View style={{ position: "absolute", bottom: 5, flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: "#18263DDD", borderRadius: 10, paddingHorizontal: 6, paddingVertical: 3 }}><Ionicons name={available ? "diamond-outline" : "lock-closed-outline"} size={13} color="white" /><AppText style={{ fontSize: 12, fontWeight: "800", color: "white" }}>{copyContent(price)}</AppText></View> : null}
       </Pressable>; })}</View>
     </View></SafeAreaView>
   </Modal>;

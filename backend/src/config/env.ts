@@ -48,6 +48,7 @@ const rawEnvSchema = z.object({
   // Retained for old deployments; signup rewards have been discontinued.
   REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(0),
   ADMIN_EMAILS: z.string().default(""),
+  FCM_SERVICE_ACCOUNT_FILE: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   EXPO_PUSH_API_URL: z.string().url().default("https://exp.host/--/api/v2/push/send"),
   EXPO_PUSH_ACCESS_TOKEN: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
   WEB_PUSH_PUBLIC_KEY: z.string().optional(),

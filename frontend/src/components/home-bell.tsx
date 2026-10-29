@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useQuery } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
 import { StyleSheet, View } from "react-native";
@@ -7,6 +9,7 @@ import { inboxApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export function HomeBell({ onPress }: { onPress: () => void }) {
+  const { copyContent } = useUiCopy();
   const token = useAppStore(state => state.accessToken);
   const focused = useIsFocused();
   const query = useQuery({
@@ -19,7 +22,7 @@ export function HomeBell({ onPress }: { onPress: () => void }) {
   const count = query.data?.count ?? 0;
   return <View>
     <IconButton name="notifications-outline" label={count ? `Уведомления: ${count} непрочитанных` : "Уведомления"} onPress={onPress} />
-    {count > 0 ? <View pointerEvents="none" style={styles.badge}><AppText style={styles.number}>{count > 99 ? "99+" : count}</AppText></View> : null}
+    {count > 0 ? <View pointerEvents="none" style={styles.badge}><AppText style={styles.number}>{copyContent(count > 99 ? "99+" : count)}</AppText></View> : null}
   </View>;
 }
 const styles = StyleSheet.create({

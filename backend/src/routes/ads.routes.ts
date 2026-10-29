@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { rewardLimiter } from "../middleware/rate-limits.js";
 import { validateBody } from "../middleware/validate.js";
 import { REWARDED_AD_PLACEMENTS } from "../models/RewardedAdSession.js";
-import { getChallengeAdOffer } from "../services/challenge-ad-offer.service.js";
+import { getChallengeAdOffer, declineChallengeAdOffer } from "../services/challenge-ad-offer.service.js";
 import {
   claimFirstChallengeReplay,
   claimRewardedAdCoins,
@@ -35,6 +35,10 @@ router.get("/rewarded/offer", async (request, response) => {
   response.setHeader("Cache-Control", "no-store");
   response.json({ data: await getChallengeAdOffer(request.auth!.userId) });
 });
+
+router.post("/rewarded/offer/decline", rewardLimiter,
+  validateBody(z.object({ rewardDayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), claimedCount: z.number().int().min(0).max(20) }).strict()),
+  async (request, response) => { response.json({ data: await declineChallengeAdOffer(request.auth!.userId, request.body) }); });
 
 router.post(
   "/rewarded/start",

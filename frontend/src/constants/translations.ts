@@ -31,7 +31,7 @@ const ru = {
   "onboarding.three.title": "Возвращайтесь каждый день",
   "onboarding.three.body": "Серия активности, календарь и бонусы помогают не терять темп.",
   "onboarding.four.title": "Копите и выводите",
-  "onboarding.four.body": "Соберите минимум $2, выберите способ выплаты и отправьте заявку.",
+  "onboarding.four.body": "Соберите минимум $10, выберите способ выплаты и отправьте заявку.",
   "auth.welcome": "Добро пожаловать",
   "auth.subtitle": "Войдите, чтобы синхронизировать прогресс",
   "auth.email": "Электронная почта",
@@ -174,6 +174,9 @@ const en: Record<TranslationKey, string> = {
 
 const uz: Record<TranslationKey, string> = {
   ...en,
+  "common.demo": "Demo rejimi",
+  "auth.socialReady": "Provayderga kirish qayta yo‘naltirish manzillari sozlangandan keyin ochiladi.",
+  "withdraw.empty": "Pul yechish so‘rovlaringiz shu yerda ko‘rinadi",
   "common.next": "Keyingi", "common.skip": "O‘tkazib yuborish", "common.done": "Tayyor", "common.back": "Orqaga", "common.save": "Saqlash", "common.close": "Yopish", "notFound.title": "Sahifa topilmadi", "notFound.body": "Bu sahifa mavjud emas yoki manzil noto‘g‘ri.", "notFound.home": "Bosh sahifaga",
   "ads.unavailable": "Hozircha reklama mavjud emas",
   "language.title": "Tilni tanlang", "language.subtitle": "Sozlamalarda istalgan payt o‘zgartirishingiz mumkin",
@@ -181,7 +184,7 @@ const uz: Record<TranslationKey, string> = {
   "onboarding.one.title": "O‘sib boradigan jamg‘arma", "onboarding.one.body": "Logic Coin kichik harakatlarni maqsadingiz sari ko‘rinadigan natijaga aylantiradi.",
   "onboarding.two.title": "Har kuni oltita sinov", "onboarding.two.body": "Umumiy kunlik o‘yinlarda coin yig‘ing va reytingda ko‘tariling.",
   "onboarding.three.title": "Har kuni qayting", "onboarding.three.body": "Faollik seriyasi, taqvim va bonuslar ritmni saqlashga yordam beradi.",
-  "onboarding.four.title": "Jamg‘aring va yechib oling", "onboarding.four.body": "Kamida $2 yig‘ing, to‘lov usulini tanlang va so‘rov yuboring.",
+  "onboarding.four.title": "Jamg‘aring va yechib oling", "onboarding.four.body": "Kamida $10 yig‘ing, to‘lov usulini tanlang va so‘rov yuboring.",
   "auth.welcome": "Xush kelibsiz", "auth.subtitle": "Natijani sinxronlash uchun kiring", "auth.email": "Elektron pochta", "auth.password": "Parol", "auth.passwordTitle": "Parolni kiriting", "auth.createPasswordTitle": "Parol yarating", "auth.passwordHint": "Kamida 8 ta belgi", "auth.invalidCredentials": "Email yoki parol noto‘g‘ri", "auth.name": "Ismingiz", "auth.login": "Kirish", "auth.register": "Hisob yaratish", "auth.noAccount": "Hisobingiz yo‘qmi?", "auth.hasAccount": "Hisobingiz bormi?", "auth.or": "yoki davom eting", "auth.guest": "Ro‘yxatdan o‘tmasdan davom etish", "auth.guestHint": "Natija faqat shu qurilmada saqlanadi", "auth.verifyTitle": "Pochtani tekshiring", "auth.verifyBody": "Yuborilgan 6 xonali kodni kiriting:", "auth.code": "Tasdiqlash kodi", "auth.verify": "Tasdiqlash", "auth.resend": "Kodni qayta yuborish", "auth.invalid": "Ma’lumotlarni tekshiring",
   "tabs.home": "Asosiy", "tabs.tasks": "Vazifalar", "tabs.challenges": "Sinovlar", "tabs.bonuses": "Bonuslar", "tabs.games": "O‘yinlar", "tabs.profile": "Profil",
   "home.hello": "Xayrli kun", "home.balance": "Jamg‘armada", "home.goal": "Maqsad", "home.goalProgress": "maqsadgacha", "home.earn": "Ishlash", "home.withdraw": "Yechib olish", "home.today": "Bugun uchun", "home.allTasks": "Barcha vazifalar", "home.allChallenges": "Barcha sinovlar", "home.drawer.activeDays": "faol kun", "home.drawer.streak": "kun ketma-ket", "home.drawer.invite": "Do‘st qo‘shish", "home.drawer.profile": "Profilni ochish",

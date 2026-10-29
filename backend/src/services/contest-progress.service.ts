@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { Types } from "mongoose";
 import { ApiError } from "../lib/api-error.js";
-import { contestNeighborhood } from "../lib/contest-neighbors.js";
+import { contestPrizePlan } from "../lib/manual-contest-prizes.js";
 import { computeContestBands, rankContestStandings } from "../lib/contest.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { User } from "../models/User.js";
 import { collectContestStandings } from "./contest.service.js";
 import { challengeDayKey } from "./daily-challenge.service.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
 
 export type ProgressCursor = { snapshot: string; offset: number; end?: number };
 type Snapshot = Awaited<ReturnType<typeof buildSnapshot>>;
@@ -19,16 +20,12 @@ export function invalidateContestProgress(dayKey: string) {
 }
 
 async function buildSnapshot(dayKey: string) {
-  const [set, standings, users] = await Promise.all([
+  const [set, standings] = await Promise.all([
     DailyChallengeSet.findOne({ dayKey, status: "published" }).lean(),
     collectContestStandings(dayKey),
-    User.find({}).select("_id").lean(),
   ]);
-  const played = new Map(standings.map(row => [row.userId, row]));
-  const all = users.map(user => played.get(user._id.toString()) ?? {
-    userId: user._id.toString(), totalCoins: 0, completedGamesCount: 0, finishedAt: null,
-  });
-  const ranked = rankContestStandings(all, computeContestBands(all.length));
+  const ranked = set ? contestPrizePlan(standings, set).ranked
+    : rankContestStandings(standings, computeContestBands(standings.length)).map(row => ({ ...row, cashUnits: 0 }));
   return { id: randomUUID(), createdAt: Date.now(), dayKey, set, standings, ranked };
 }
 
@@ -61,18 +58,16 @@ export async function getContestProgress(userId: Types.ObjectId, cursor?: Progre
   const rows = snapshot.ranked.slice(offset, end);
   const users = await User.find({ _id: { $in: rows.map(row => new Types.ObjectId(row.userId)) } }).select("name avatarUrl").lean();
   const byId = new Map(users.map(user => [user._id.toString(), user]));
-  // Idle accounts appear in the display, but do not change cash settlement rules.
-  const reward = snapshot.set ? contestNeighborhood(snapshot.standings, userId.toString(), snapshot.set.cashPrizeMinUnits, snapshot.set.cashPrizeMaxUnits, snapshot.set.prizePoolUnits, snapshot.set.manualCashPrizes) : null;
   return {
     dayKey, participantCount: snapshot.ranked.length,
-    self: self ? { rank: self.rank, totalCoins: self.totalCoins, completedGamesCount: self.completedGamesCount } : null,
-    projectedCashUnits: reward?.projectedCashUnits ?? 0,
+    self: self ? { rank: self.rank, totalCoins: self.totalCoins, completedGamesCount: self.completedGamesCount, cashUnits: self.cashUnits } : null,
+    projectedCashUnits: self?.cashUnits ?? 0,
     previous: offset > 0 ? { snapshot: snapshot.id, offset: Math.max(0, offset - 15), end: offset } : null,
     next: end < snapshot.ranked.length ? { snapshot: snapshot.id, offset: end } : null,
     neighbors: rows.map(row => ({
-      userId: row.userId, rank: row.rank, totalCoins: row.totalCoins,
+      userId: row.userId, rank: row.rank, totalCoins: row.totalCoins, cashUnits: row.cashUnits,
       isSelf: row.userId === userId.toString(),
-      name: byId.get(row.userId)?.name ?? "Player", avatarUrl: byId.get(row.userId)?.avatarUrl ?? null,
+      name: byId.get(row.userId)?.name ?? "Player", avatarUrl: listAvatarUrl(row.userId, byId.get(row.userId)?.avatarUrl),
     })),
   };
 }

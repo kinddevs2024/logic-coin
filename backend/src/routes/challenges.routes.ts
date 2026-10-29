@@ -18,9 +18,9 @@ import {
 } from "../services/contest.service.js";
 import { getTodayChallengeOverview } from "../services/daily-challenge.service.js";
 import { getContestProgress } from "../services/contest-progress.service.js";
+
 import { getContestHistory } from "../services/contest-history.service.js";
 import { getDailyContestRules } from "../services/contest-rules.service.js";
-
 const router = Router();
 const gameKeySchema = z.string().trim().regex(/^[a-z0-9-]{1,80}$/);
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);

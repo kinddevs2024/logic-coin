@@ -3,6 +3,7 @@ import { ApiError } from "../lib/api-error.js";
 import { Withdrawal } from "../models/Withdrawal.js";
 import { User } from "../models/User.js";
 import { LedgerEntry } from "../models/LedgerEntry.js";
+import { NotificationEvent } from "../models/NotificationEvent.js";
 
 export const withdrawalStatuses = ["pending_review", "approved", "paid", "rejected", "sandbox_pending", "sandbox_completed"] as const;
 export type WithdrawalStatus = typeof withdrawalStatuses[number];
@@ -64,6 +65,12 @@ export async function reviewAdminWithdrawal(input: {
       const walletFilter = { _id: row.userId, "wallet.lockedUnits": { $gte: row.amountUnits } };
       if (input.action === "approve") {
         if (!await User.exists(walletFilter).session(session)) throw new ApiError(409, "withdrawal_reserve_mismatch", "Недостаточно средств в резерве. Требуется проверка.");
+        await NotificationEvent.create([{
+          eventKey: `withdrawal:${row._id}:approved`,
+          type: "withdrawal_approved", audience: "specific_users",
+          payload: { userIds: [String(row.userId)], withdrawalId: String(row._id),
+            title: "Вывод одобрен!", body: "Ваша заявка на вывод одобрена. Ожидайте перевода средств." },
+        }], { session });
         return;
       }
       const user = await User.findOneAndUpdate(walletFilter, { $inc: {

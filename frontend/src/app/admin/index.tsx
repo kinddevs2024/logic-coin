@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -21,6 +23,7 @@ function shortDay(dayKey: string) {
 }
 
 export default function AdminOverviewScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { adminToken } = useAdminSession();
   const dayKey = localDayKey();
@@ -54,7 +57,7 @@ export default function AdminOverviewScreen() {
         title="Сегодня"
         description={`Данные из базы · ${dayKey} · ${overview.timezone}`}
         action={
-          <Pressable accessibilityRole="button" accessibilityLabel="Обновить аналитику" onPress={() => { void overviewQuery.refetch(); void challengeQuery.refetch(); }} style={({ pressed }) => [styles.refresh, { borderColor: theme.border }, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={copyText("Обновить аналитику")} onPress={() => { void overviewQuery.refetch(); void challengeQuery.refetch(); }} style={({ pressed }) => [styles.refresh, { borderColor: theme.border }, theme.mode === "dark" && { backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}>
             <Ionicons name="refresh" size={18} color={String(theme.primary)} />
           </Pressable>
         }
@@ -74,8 +77,8 @@ export default function AdminOverviewScreen() {
         <GlassSurface intensity={70} variant="strong" style={styles.panel}>
           <View style={styles.panelHeader}>
             <View>
-              <AppText variant="heading">Активность за 7 дней</AppText>
-              <AppText variant="caption" muted>Уникальные активные игроки</AppText>
+              <AppText variant="heading">{copyText("Активность за 7 дней")}</AppText>
+              <AppText variant="caption" muted>{copyText("Уникальные активные игроки")}</AppText>
             </View>
             <View style={[styles.legendDot, { backgroundColor: theme.primary }]} />
           </View>
@@ -89,8 +92,8 @@ export default function AdminOverviewScreen() {
         <GlassSurface intensity={70} variant="strong" style={styles.panel}>
           <View style={styles.panelHeader}>
             <View>
-              <AppText variant="heading">Coin за 7 дней</AppText>
-              <AppText variant="caption" muted>Фактические начисления</AppText>
+              <AppText variant="heading">{copyText("Coin за 7 дней")}</AppText>
+              <AppText variant="caption" muted>{copyText("Фактические начисления")}</AppText>
             </View>
             <View style={[styles.legendDot, { backgroundColor: theme.warning }]} />
           </View>
@@ -105,19 +108,19 @@ export default function AdminOverviewScreen() {
       <GlassSurface intensity={72} variant="strong" style={styles.gamesPanel}>
         <View style={styles.panelHeader}>
           <View>
-            <AppText variant="heading">Игры сегодня</AppText>
-            <AppText variant="caption" muted>{challengeQuery.data?.challenge ? `${games.length} из 6 · ${challengeQuery.data.challenge.status}` : "Челлендж не опубликован"}</AppText>
+            <AppText variant="heading">{copyText("Игры сегодня")}</AppText>
+            <AppText variant="caption" muted>{copyContent(challengeQuery.data?.challenge ? `${games.length} из 6 · ${challengeQuery.data.challenge.status}` : "Челлендж не опубликован")}</AppText>
           </View>
-          {challengeQuery.data?.challenge ? <View style={[styles.status, { backgroundColor: theme.primarySoft }]}><View style={[styles.liveDot, { backgroundColor: challengeQuery.data.challenge.status === "published" ? theme.success : theme.warning }]} /><AppText variant="caption" color={String(theme.primary)}>{challengeQuery.data.challenge.selectionMode === "random" ? "Случайный" : "Ручной"}</AppText></View> : null}
+          {challengeQuery.data?.challenge ? <View style={[styles.status, { backgroundColor: theme.primarySoft }]}><View style={[styles.liveDot, { backgroundColor: challengeQuery.data.challenge.status === "published" ? theme.success : theme.warning }]} /><AppText variant="caption" color={String(theme.primary)}>{copyContent(challengeQuery.data.challenge.selectionMode === "random" ? "Случайный" : "Ручной")}</AppText></View> : null}
         </View>
         <AdminDataState loading={challengeQuery.isPending} error={challengeQuery.error} empty={!challengeQuery.isPending && !challengeQuery.error && games.length === 0} emptyText="На сегодня челлендж не создан" onRetry={() => void challengeQuery.refetch()} />
         {games.length ? (
           <View style={styles.games}>
             {games.map((game, index) => (
               <View key={game.key} style={[styles.game, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}>
-                <View style={[styles.gameOrder, { backgroundColor: theme.primarySoft }]}><AppText style={{ color: theme.primary, fontWeight: "900" }}>{index + 1}</AppText></View>
+                <View style={[styles.gameOrder, { backgroundColor: theme.primarySoft }]}><AppText style={{ color: theme.primary, fontWeight: "900" }}>{copyContent(index + 1)}</AppText></View>
                 <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} size={20} color={theme.primary} />
-                <AppText variant="label" numberOfLines={1} style={styles.gameTitle}>{game.title}</AppText>
+                <AppText variant="label" numberOfLines={1} style={styles.gameTitle}>{copyContent(game.title)}</AppText>
               </View>
             ))}
           </View>

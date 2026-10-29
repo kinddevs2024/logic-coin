@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,6 +21,7 @@ type TelegramWindow = Window & {
 };
 
 export default function LoginScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const { t } = useTranslation();
   const theme = useAppTheme();
   const router = useRouter();
@@ -149,7 +152,7 @@ export default function LoginScreen() {
       headerAction={step === "password" ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("common.back")}
+          accessibilityLabel={copyText(t("common.back"))}
           onPress={() => { setStep("email"); setPassword(""); passwordFlow.reset(); }}
           style={styles.backButton}
         >
@@ -168,7 +171,7 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
-              placeholder="name@example.com"
+              placeholder={copyText("name@example.com")}
               required
             />
             <AppButton
@@ -177,7 +180,7 @@ export default function LoginScreen() {
               disabled={!valid}
               icon="arrow-forward"
             >
-              {t("common.next")}
+              {copyContent(t("common.next"))}
             </AppButton>
           </>
         ) : (
@@ -197,7 +200,7 @@ export default function LoginScreen() {
               disabled={password.length < 8}
               icon="log-in-outline"
             >
-              {t("auth.login")}
+              {copyContent(t("auth.login"))}
             </AppButton>
           </>
         )}
@@ -209,7 +212,7 @@ export default function LoginScreen() {
           color={String(theme.danger)}
           style={styles.error}
         >
-          {errorMessage}
+          {copyContent(errorMessage)}
         </AppText>
       ) : null}
     </AuthScaffold>
