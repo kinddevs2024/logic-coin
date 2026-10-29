@@ -128,17 +128,19 @@ jobs:
           assert metadata['expo.modules.updates.EXPO_UPDATE_URL']=='https://logic-coin.173.212.216.216.sslip.io/updates'
           assert metadata.get('expo.modules.updates.DISABLE_ANTI_BRICKING_MEASURES','false')=='false'
           cfg=json.loads(pathlib.Path('frontend/app.json').read_text())['expo']
-          assert cfg['android']['versionCode']==12
+          assert cfg['android']['versionCode']==13
           pathlib.Path('artifacts/unsigned').mkdir(parents=True,exist_ok=True)
           (pathlib.Path('artifacts/unsigned')/'native-strings.xml').write_bytes((root/'res/values/strings.xml').read_bytes())
           (pathlib.Path('artifacts/unsigned')/'native-update-config.json').write_text(json.dumps(metadata,indent=2))
-          print('Independent update URL, version code 12 and update safety verified.')
+          print('Independent update URL, version code 13 and update safety verified.')
           PY
 
       - name: Build release APK and Play Store bundle
         working-directory: frontend/android
         run: |
           chmod +x ./gradlew
+          ./gradlew :app:dependencyInsight --configuration releaseRuntimeClasspath --dependency com.yandex.android:mobileads --no-daemon | tee ../../artifacts/unsigned/yandex-sdk-dependencies.txt
+          grep -q 'com.yandex.android:mobileads:8.6.0' ../../artifacts/unsigned/yandex-sdk-dependencies.txt
           ./gradlew assembleRelease bundleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --build-cache --no-daemon --stacktrace
 
       - name: Prepare unsigned Android artifacts
@@ -169,6 +171,7 @@ jobs:
             artifacts/unsigned/logic-coin-unsigned.aab
             artifacts/unsigned/native-strings.xml
             artifacts/unsigned/native-update-config.json
+            artifacts/unsigned/yandex-sdk-dependencies.txt
           if-no-files-found: error
           retention-days: 7
 
