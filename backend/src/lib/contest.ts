@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 
 export type ContestRewardType = "cash" | "box" | "random" | "coins";
-export type ContestGiftKind = "extra_time" | "replay" | "coin";
+export type ContestGiftKind = "extra_time" | "replay" | "coin" | "hint";
 
-const CONTEST_GIFT_ROTATION: readonly ContestGiftKind[] = ["extra_time", "replay", "coin"];
+const CONTEST_GIFT_ROTATION: readonly ContestGiftKind[] = ["extra_time", "replay", "coin", "hint"];
 
 export function contestGiftKindForIndex(index: number): ContestGiftKind {
   if (!Number.isSafeInteger(index) || index < 0) {

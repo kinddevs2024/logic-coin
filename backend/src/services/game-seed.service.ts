@@ -33,6 +33,7 @@ const nativeGames: SeedGame[] = [
 })) as SeedGame[];
 
 const importedGames: SeedGame[] = [
+  { key: "hangman", icon: "text", color: "#0879B7", difficulty: "medium", title: { en: "Hangman", ru: "Виселица", uz: "So‘zni top" } },
   { key: "one-second", icon: "timer", color: "#0EA5E9", difficulty: "hard", title: { en: "One Second", ru: "Одна секунда", uz: "Bir soniya" } },
   { key: "tsvet", icon: "color-palette", color: "#EC4899", difficulty: "medium", title: { en: "Color", ru: "Цвет", uz: "Rang" } },
   { key: "udar", icon: "flash", color: "#F79009", difficulty: "easy", title: { en: "Strike", ru: "Удар", uz: "Zarba" } },
@@ -158,7 +159,7 @@ export async function seedDefaultGames(): Promise<void> {
             ...game,
             slug: game.key,
             enabled: true,
-            challengeEnabled: true,
+            challengeEnabled: game.key !== "hangman",
             practiceEnabled: true,
             sortOrder: (index + 1) * 10,
             scoring: { higherIsBetter: true, maxCoins: 1_000 }

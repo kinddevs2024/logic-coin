@@ -40,10 +40,12 @@ function canUseGift(gift: GiftItem, context: GiftContext) {
   if (gift.activationMode === "next_challenge") return false;
   if (gift.kind === "coin") return true;
   if (gift.kind === "replay") return context.completed && context.hasGame;
+  if (gift.kind === "hint") return false; // Hints are redeemed by the supported game's lamp button.
   return isTimeGift(gift) && context.sessionReady && context.hasGame && context.supportsTimeExtension;
 }
 
 function giftPresentation(gift: GiftItem) {
+  if (gift.kind === "hint") return { icon: "bulb-outline" as const, title: "Подсказка ×1", fallback: "Открывает букву. Применяется кнопкой лампочки в игре", accessibility: "Подаренная подсказка для игры" };
   if (gift.kind === "coin") {
     const nextChallenge = gift.activationMode === "next_challenge";
     return {
@@ -71,6 +73,7 @@ function giftPresentation(gift: GiftItem) {
 
 function giftActionLabel(gift: GiftItem, usable: boolean, context: GiftContext) {
   if (gift.status === "used") return "Готово";
+  if (gift.kind === "hint") return "В игре";
   if (gift.activationMode === "next_challenge") return "Следующий челлендж";
   if (usable) return gift.kind === "coin" ? "Получить" : "Применить";
   if (gift.kind === "replay") return "После игры";

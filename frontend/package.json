@@ -24,6 +24,7 @@
     "@vercel/analytics": "^2.0.1",
     "expo": "~57.0.26",
     "expo-application": "~57.0.3",
+    "expo-audio": "~57.0.5",
     "expo-blur": "~57.0.3",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.7",

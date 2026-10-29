@@ -6,7 +6,31 @@ import { NotificationEvent } from "../models/NotificationEvent.js";
 import { creditCoins } from "./coin.service.js";
 import { findActiveGameByKey } from "./game.service.js";
 
-export type GiftKind = "time_extension" | "extra_time" | "replay" | "coin";
+export type GiftKind = "time_extension" | "extra_time" | "replay" | "coin" | "hint";
+// Add a game only after its UI implements one gifted hint action.
+export const HINT_GAME_KEYS = new Set(["hangman"]);
+
+export async function grantStarterHints(userId: Types.ObjectId) {
+  const started = await ChallengeAttempt.exists({ userId, gameKey: "hangman", mode: "challenge", status: "started" });
+  if (!started) throw new ApiError(409, "active_attempt_required", "Start the Hangman challenge before receiving starter hints");
+  const session = await mongoose.startSession();
+  let granted = 0;
+  try {
+    await session.withTransaction(async () => {
+      granted = 0;
+      for (let index = 0; index < 3; index++) {
+        const result = await grantGift({ userId, kind: "hint", sourceId: `starter-hints:hangman:${index}`, description: "Подаренная подсказка за первый вход в Виселицу" }, session);
+        if (result.granted) granted++;
+      }
+    });
+  } catch (error) {
+    // Two first-entry requests may race. The unique sourceId index lets only
+    // one transaction grant the entire batch; retries never replenish used hints.
+    if ((error as { code?: number }).code !== 11000 || await GiftItem.countDocuments({ userId, sourceId: { $in: [0, 1, 2].map(index => `starter-hints:hangman:${index}`) } }) !== 3) throw error;
+    granted = 0;
+  } finally { await session.endSession(); }
+  return { granted };
+}
 
 export interface GrantGiftInput {
   userId: Types.ObjectId;
@@ -122,13 +146,17 @@ export async function useGift(input: {
   if (needsGame && !input.gameKey) {
     throw new ApiError(400, "game_key_required", "This gift must be applied to a game");
   }
-  const game = needsGame ? await findActiveGameByKey(input.gameKey!) : null;
+  if (kind === "hint" && !HINT_GAME_KEYS.has(input.gameKey!)) {
+    throw new ApiError(400, "hint_not_supported", "This game does not support gifted hints");
+  }
+  const game = needsGame && kind !== "hint" ? await findActiveGameByKey(input.gameKey!) : null;
   const session = await mongoose.startSession();
   let serialized: ReturnType<typeof serializeGift> | undefined;
   let effect:
     | { kind: "time_extension"; additionalTimeSeconds: number }
     | { kind: "replay"; replayCount: number; gameKey: string }
     | { kind: "coin"; coinsCredited: number }
+    | { kind: "hint"; gameKey: string; lettersRevealed: 1 }
     | undefined;
   try {
     await session.withTransaction(async () => {
@@ -195,6 +223,8 @@ export async function useGift(input: {
           replayCount: preview.replayCount ?? 1,
           gameKey: game!.key
         };
+      } else if (kind === "hint") {
+        effect = { kind: "hint", gameKey: input.gameKey!, lettersRevealed: 1 };
       } else {
         const amount = preview.coinAmount ?? 0;
         await creditCoins(
@@ -217,7 +247,8 @@ export async function useGift(input: {
           $set: {
             status: "used",
             usedAt: new Date(),
-            ...(game ? { usedOnGameKey: game.key } : {})
+            ...(game ? { usedOnGameKey: game.key } : {}),
+            ...(kind === "hint" ? { usedOnGameKey: input.gameKey } : {})
           }
         },
         { new: true, session }

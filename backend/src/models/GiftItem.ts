@@ -5,7 +5,7 @@ const giftItemSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     kind: {
       type: String,
-      enum: ["time_extension", "extra_time", "replay", "coin"],
+      enum: ["time_extension", "extra_time", "replay", "coin", "hint"],
       required: true
     },
     amountSeconds: { type: Number, min: 1, max: 3_600 },

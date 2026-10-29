@@ -1,9 +1,10 @@
+import { isGameVisible } from "@/constants/game-availability";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { usePreventRemove, type NavigationAction } from "expo-router/react-navigation";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -12,6 +13,8 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MergeScreen from "@/app/games/2048";
+import { HangmanResult } from "@/games/hangman/result";
+import { HangmanGame } from "@/games/hangman/game";
 import { AppFrame } from "@/components/app-frame";
 import { ChallengeAppRequired } from "@/components/challenge-app-required";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
@@ -107,6 +110,7 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 
 export default function DynamicGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
+  if (!isGameVisible(firstParam(params.gameKey) ?? "") && firstParam(params.mode) !== "challenge") return <Redirect href="/games" />;
   if (Platform.OS === "web" && firstParam(params.mode) === "challenge") {
     return <AppFrame><ChallengeAppRequired /></AppFrame>;
   }
@@ -244,7 +248,7 @@ function PlayableGameRoute() {
         if (!exitSession.isDiscarded()) setAdBusy(false);
       }
     };
-    setResult({ sessionId, score: gameResult.score, coins: mode === "practice" ? previewCoins : 0, previous: before.previousScore, best: Math.max(before.bestScore, gameResult.score), won: gameResult.won, saving: mode === "challenge" || syncsPractice, message: mode === "challenge" ? "Сохраняем результат" : syncsPractice ? "Начисляем награду" : "Прогресс сохранён", checkpointReward: mode === "challenge" && isNewChallenge && completedAfterThisGame === 3, firstReplayAvailable: mode === "challenge" && isNewChallenge && currentChallengeIndex === 0 });
+    setResult({ sessionId, score: gameResult.score, coins: mode === "practice" ? previewCoins : 0, previous: before.previousScore, best: Math.max(before.bestScore, gameResult.score), won: gameResult.won, saving: mode === "challenge" || syncsPractice, message: mode === "challenge" ? "Сохраняем результат" : syncsPractice ? "Начисляем награду" : "Прогресс сохранён", checkpointReward: gameKey !== "hangman" && mode === "challenge" && isNewChallenge && completedAfterThisGame === 3, firstReplayAvailable: gameKey !== "hangman" && mode === "challenge" && isNewChallenge && currentChallengeIndex === 0 });
 
     setExtraTimeSeconds(0);
     if (mode === "practice") {
@@ -357,6 +361,7 @@ function PlayableGameRoute() {
 
   const applyGift = (gift: GiftItem, effect: GiftUseEffect) => {
     setGiftOpen(false);
+    if (effect.kind === "hint") return;
     if (effect.kind === "time_extension") {
       setExtraTimeSeconds((value) => value + effect.additionalTimeSeconds);
       setGiftNotice(`+${effect.additionalTimeSeconds} секунд добавлено`);
@@ -469,7 +474,9 @@ function PlayableGameRoute() {
   };
 
   let renderedGame = null;
-  if (ArcadeAComponent) {
+  if (gameKey === "hangman") {
+    renderedGame = <HangmanGame key={sessionId} challengeMode={mode === "challenge"} hostPaused={gamePaused} onExit={exitGame} onComplete={(score, durationMs, won) => { exitSession.complete(() => { void processResult({ score, won, durationMs, label: "hangman" }, { persist: true }); }); }} />;
+  } else if (ArcadeAComponent) {
     renderedGame = <ArcadeAComponent key={sessionId} initialBestScore={progress?.bestScore ?? 0} extraTimeSeconds={extraTimeSeconds} challengeMode={mode === "challenge"} attemptLimit={currentChallengeGame?.attemptLimit} sessionKey={sessionId} paused={gamePaused} skin={selectedSkin} onExit={exitGame} onComplete={onArcadeComplete} />;
   } else if (arcadeBId) {
     renderedGame = (
@@ -499,6 +506,13 @@ function PlayableGameRoute() {
       <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
         {giftNotice ? <Animated.View entering={FadeInDown.springify()} style={[styles.notice, { top: Math.max(insets.top + 60, 68) }]}><Text style={styles.noticeText}>{giftNotice}</Text></Animated.View> : null}
       </View>
+      {gameKey === "hangman" ? activeResult && !fortuneVisible && !giftOpen ? <HangmanResult
+        value={activeResult} challengeMode={mode === "challenge"} hasNextGame={Boolean(nextChallengeGame)} adBusy={adBusy}
+        fortuneAvailable={Boolean(authenticated && activeResult.attemptId && !activeResult.fortuneCoins)}
+        onFortune={() => setFortuneVisible(true)} onReplay={() => void replayWithAd()} onRetry={() => void retryPracticeWithAd()}
+        onGifts={() => setGiftOpen(true)} onNext={() => void continueChallenge()}
+        onExit={() => router.replace(mode === "challenge" ? "/challenges" as never : "/games" as never)}
+      /> : null : <>
       <GameResultModal
         title={gameTitle}
         accent={accent}
@@ -513,7 +527,8 @@ function PlayableGameRoute() {
         onNext={() => void continueChallenge()}
         onExit={() => router.replace(mode === "challenge" ? "/challenges" as never : "/games" as never)}
       />
-      <FortuneWheelModal visible={fortuneVisible} selected={fortunePrize} spinning={fortuneSpinning} busy={fortuneBusy} notice={giftNotice} onSpin={() => void playFortune()} onSpinEnd={() => { const done = fortuneSpinDone.current; fortuneSpinDone.current = null; done?.(); }} onDismiss={() => setFortuneVisible(false)} />
+      </>}
+      <FortuneWheelModal paper={gameKey === "hangman"} visible={fortuneVisible} selected={fortunePrize} spinning={fortuneSpinning} busy={fortuneBusy} notice={giftNotice} onSpin={() => void playFortune()} onSpinEnd={() => { const done = fortuneSpinDone.current; fortuneSpinDone.current = null; done?.(); }} onDismiss={() => setFortuneVisible(false)} />
       <GiftInventoryModal visible={giftOpen && mode === "challenge"} sessionReady={giftsAvailable && !activeResult} completed={Boolean(activeResult && !activeResult.saving)} supportsTimeExtension={supportsTimeExtension} gameKey={gameKey} onClose={() => setGiftOpen(false)} onUse={applyGift} />
       <GameExitModal visible={exitOpen} title={gameTitle} onStay={stayInGame} onExit={confirmExit} />
     </View>

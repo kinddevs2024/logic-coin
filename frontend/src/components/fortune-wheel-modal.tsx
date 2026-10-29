@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, BackHandler, Image, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { NotebookLayer, NotebookPaper, Hand, notebookPanel } from '../games/hangman/notebook';
+import { endCopy, NotebookAction } from '../games/hangman/result';
+import { useAppStore } from '../store/app-store';
+
+const NOTEBOOK_PRIZES = ['+200', '+150', '+200', '+100', '+50'];
 
 const WHEEL_SIZE = 272;
 const WHEEL_CENTER = WHEEL_SIZE / 2;
@@ -16,7 +22,8 @@ function polar(angle: number, radius: number) {
   return { x: WHEEL_CENTER + radius * Math.cos(radians), y: WHEEL_CENTER + radius * Math.sin(radians) };
 }
 
-export function FortuneWheelModal({ visible, selected, spinning, busy, notice, onSpin, onSpinEnd, onDismiss }: {
+export function FortuneWheelModal({ visible, selected, spinning, busy, notice, onSpin, onSpinEnd, onDismiss, paper = false }: {
+  paper?: boolean;
   visible: boolean;
   selected: string | null;
   spinning: boolean;
@@ -26,10 +33,12 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
   onSpinEnd: () => void;
   onDismiss: () => void;
 }) {
+  const language = useAppStore(state => state.language) ?? 'ru';
+  const c = endCopy[language];
   const [rotation] = useState(() => new Animated.Value(0));
   const onEnd = useRef(onSpinEnd);
   useEffect(() => { onEnd.current = onSpinEnd; }, [onSpinEnd]);
-  const prizeIndex = Math.max(0, PRIZES.findIndex(prize => prize.label === selected));
+  const prizeIndex = Math.max(0, paper ? NOTEBOOK_PRIZES.indexOf(selected ?? "") : PRIZES.findIndex(prize => prize.label === selected));
   const finalAngle = 1440 + (360 - (prizeIndex * 72 + 36));
   const prizePositions = useMemo(() => PRIZES.map((_, index) => polar(index * 72 + 36, 88)), []);
   useEffect(() => {
@@ -49,6 +58,20 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
   }, [visible, busy, spinning, onDismiss]);
   const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", `${finalAngle}deg`] });
   if (!visible) return null;
+  if (paper) return <NotebookLayer priority={2000} onClose={() => { if (!busy && !spinning) onDismiss(); }}><NotebookPaper style={[notebookPanel, { top: 190, padding: 32, alignItems: 'center' }]}>
+    <Hand style={{ fontSize: 45, textAlign: 'center', color: '#111' }}>{c.wheel}</Hand>
+    <Hand style={{ fontSize: 25, textAlign: 'center', marginTop: 10 }}>{c.extra}</Hand>
+    <Ionicons name="caret-down" size={38} color="#F54763" style={{ marginTop: 18, marginBottom: -5, zIndex: 2 }} />
+    <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }], shadowOpacity: 0, marginBottom: 15 }]}>
+      <Image source={require("../../assets/images/fortune-wheel-v2.png")} resizeMode="contain" style={styles.wheelArtwork} />
+      {NOTEBOOK_PRIZES.map((prize, index) => <View key={index} pointerEvents="none" style={[styles.prizeBlock, { left: prizePositions[index].x - 40, top: prizePositions[index].y - 25 }]}><Hand style={{ color: '#FFF', fontSize: 27 }}>{prize}</Hand></View>)}
+      <View style={styles.hub}><Image source={require("../../assets/brand/logo-mark.png")} resizeMode="contain" style={styles.hubImage} /></View>
+    </Animated.View>
+    {selected && !spinning ? <Hand style={{ fontSize: 34 }}>{selected} coin</Hand> : null}
+    {notice ? <Hand style={{ fontSize: 25, textAlign: 'center' }}>{c.unavailable}</Hand> : null}
+    <View style={{ alignSelf: 'stretch' }}><NotebookAction label={selected ? c.claim : c.spin} icon="play-circle-outline" onPress={onSpin} disabled={busy || spinning} /><NotebookAction label={c.later} icon="arrow-back" onPress={onDismiss} disabled={busy || spinning} /></View>
+    {busy || spinning ? <ActivityIndicator color="#0879B7" style={{ marginTop: 15 }} /> : null}
+  </NotebookPaper></NotebookLayer>;
   const content = (
     <View style={styles.backdrop}><View style={styles.card}>
       <Text style={styles.title}>КОЛЕСО ФОРТУНЫ</Text>

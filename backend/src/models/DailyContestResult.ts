@@ -17,7 +17,7 @@ const dailyContestResultSchema = new Schema(
     replayCount: { type: Number, min: 0, max: 10 },
     extraTimeSeconds: { type: Number, min: 0, max: 3_600 },
     caseKind: { type: String, maxlength: 80 },
-    giftKind: { type: String, enum: ["extra_time", "replay", "coin"] },
+    giftKind: { type: String, enum: ["extra_time", "replay", "coin", "hint"] },
     claimStatus: { type: String, enum: ["pending", "claiming", "claimed"] },
     claimedAt: { type: Date },
     settledAt: { type: Date, required: true }

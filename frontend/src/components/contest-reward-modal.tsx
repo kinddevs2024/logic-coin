@@ -37,6 +37,7 @@ const rouletteKinds = [
   "extra_time",
   "replay",
   "coin",
+  "hint",
 ] as const;
 
 const confetti = Array.from({ length: 22 }, (_, index) => ({
@@ -62,8 +63,8 @@ function rewardIcon(type: ContestRewardType) {
 }
 
 function RouletteItem({ kind }: { kind: (typeof rouletteKinds)[number] }) {
-  const icon = kind === "coin" ? "diamond" : kind === "replay" ? "refresh" : "time";
-  const label = kind === "coin" ? "COIN" : kind === "replay" ? "ПОВТОР" : "ВРЕМЯ";
+  const icon = kind === "hint" ? "bulb" : kind === "coin" ? "diamond" : kind === "replay" ? "refresh" : "time";
+  const label = kind === "hint" ? "ПОДСКАЗКА" : kind === "coin" ? "COIN" : kind === "replay" ? "ПОВТОР" : "ВРЕМЯ";
   return (
     <View style={styles.rouletteItem}>
       <Ionicons name={icon} size={25} color="#FFFFFF" />
@@ -73,6 +74,7 @@ function RouletteItem({ kind }: { kind: (typeof rouletteKinds)[number] }) {
 }
 
 function ResultContents({ result }: { result: ContestRewardResult }) {
+  if (result.giftKind === "hint") return <View style={styles.contentsRow}><PrizeChip icon="bulb" value="Подсказка ×1" /></View>;
   if (result.rewardType === "box") {
     return (
       <View style={styles.contentsRow}>
@@ -101,7 +103,7 @@ function ResultContents({ result }: { result: ContestRewardResult }) {
   return null;
 }
 
-function PrizeChip({ icon, value }: { icon: "diamond" | "refresh" | "time"; value: string }) {
+function PrizeChip({ icon, value }: { icon: "diamond" | "refresh" | "time" | "bulb"; value: string }) {
   return (
     <View style={styles.prizeChip}>
       <Ionicons name={icon} size={17} color="#FFFFFF" />
@@ -166,6 +168,7 @@ export function ContestRewardModal() {
       ];
     }
     if (result.giftKind === "replay") return [{ icon: "refresh" as const, x: -145, y: -330, color: "#007A57" }];
+    if (result.giftKind === "hint") return [{ icon: "bulb" as const, x: 150, y: -330, color: "#F3B61F" }];
     if (result.giftKind === "extra_time") return [{ icon: "time" as const, x: 145, y: 300, color: "#22C77A" }];
     return [{ icon: "diamond" as const, x: 150, y: -350, color: "#F3B61F" }];
   }, [result]);

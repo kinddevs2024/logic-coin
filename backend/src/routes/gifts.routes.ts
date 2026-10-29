@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { validateBody } from "../middleware/validate.js";
-import { listGifts, useGift } from "../services/gift.service.js";
+import { grantStarterHints, listGifts, useGift } from "../services/gift.service.js";
 import { coinRewardsOffer, claimCoinReward } from "../services/coin-rewards.service.js";
 
 const router = Router();
+router.post("/hints/starter", validateBody(z.object({}).strict()), async (request, response) => {
+  response.json({ data: await grantStarterHints(request.auth!.userId) });
+});
 router.get("/coin-rewards", async (request, response) => {
   response.json({ data: await coinRewardsOffer(request.auth!.userId) });
 });

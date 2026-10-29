@@ -208,7 +208,7 @@ export type TodayChallenges = {
 
 export type GiftItem = {
   id: string;
-  kind: "time_extension" | "extra_time" | "replay" | "coin";
+  kind: "time_extension" | "extra_time" | "replay" | "coin" | "hint";
   amountSeconds: number | null;
   replayCount: number | null;
   coinAmount: number | null;
@@ -224,7 +224,8 @@ export type GiftItem = {
 export type GiftUseEffect =
   | { kind: "time_extension"; additionalTimeSeconds: number }
   | { kind: "replay"; replayCount: number; gameKey: string }
-  | { kind: "coin"; coinsCredited: number };
+  | { kind: "coin"; coinsCredited: number }
+  | { kind: "hint"; gameKey: string; lettersRevealed: 1 };
 
 export type ContestRewardType = "cash" | "box" | "random" | "coins" | "legacy_case";
 
@@ -240,7 +241,7 @@ export type ContestRewardResult = {
   coinAmount: number;
   replayCount: number;
   extraTimeSeconds: number;
-  giftKind: "extra_time" | "replay" | "coin" | null;
+  giftKind: "extra_time" | "replay" | "coin" | "hint" | null;
   claimStatus: "pending" | "claiming" | "claimed";
   claimedAt: string | null;
   settledAt: string;

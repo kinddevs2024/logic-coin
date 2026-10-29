@@ -56,6 +56,7 @@ export function challengeCoinsForScore(score: number, maxCoins = MAX_GAME_COINS,
   if (!Number.isSafeInteger(maxCoins) || maxCoins < 1 || maxCoins > MAX_GAME_COINS) {
     throw new ApiError(500, "invalid_game_coin_cap", "Game coin cap is invalid");
   }
+  if (gameKey === "hangman") return Math.min(1000, maxCoins, Math.max(100, score));
   // One authoritative formula is shared by challenge and practice modes.
   // Outcome flags are intentionally ignored because the client must not be
   // able to increase an economy reward by claiming a win.

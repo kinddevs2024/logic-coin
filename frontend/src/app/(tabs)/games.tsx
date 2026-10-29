@@ -1,3 +1,4 @@
+import { isGameVisible } from "@/constants/game-availability";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
@@ -68,11 +69,12 @@ function mapServerGame(entry: GameCatalogItem): LocalizedGame | null {
 
 function GamesHeader() {
   const theme = useAppTheme();
+  const router = useRouter();
   const { language } = useTranslation();
   const coinBalance = useAppStore((state) => state.coinBalance);
 
   return (
-    <ScreenHeader
+    <View><ScreenHeader
       title={copy[language].title}
       action={
         <GlassSurface intensity={64} variant="strong" style={styles.count}>
@@ -80,7 +82,7 @@ function GamesHeader() {
           <AppText style={[styles.countText, { color: theme.primary }]}>{coinBalance} coin</AppText>
         </GlassSurface>
       }
-    />
+    />{process.env.EXPO_PUBLIC_LOCAL_GAMES_PREVIEW === '1' && <Pressable accessibilityRole="button" onPress={() => router.push('/preview-games' as never)} style={{ padding: 18, backgroundColor: '#007A57', borderRadius: 18, marginBottom: 14 }}><AppText style={{ color: '#fff', textAlign: 'center', fontWeight: '800' }}>{language === 'ru' ? 'Виселица — тест' : language === 'uz' ? 'So‘zni top — sinov' : 'Hangman — preview'}</AppText></Pressable>}</View>
   );
 }
 
@@ -164,7 +166,7 @@ export default function GamesScreen() {
           .filter((entry): entry is LocalizedGame => entry !== null)
       : GAME_CATALOG;
     const complete = catalog.some((entry) => entry.key === "bottle-flip") ? catalog : [...catalog, GAME_BY_KEY["bottle-flip"]!];
-    return complete.filter((entry) => entry.key !== "fact").map((entry) => localizeGame(entry, language));
+    return complete.filter((entry) => entry.key !== "fact" && isGameVisible(entry.key)).map((entry) => localizeGame(entry, language));
   }, [authenticated, language, query.data, query.isSuccess]);
   const rows = useMemo(() => {
     const result: GameCatalogItem[][] = [];
