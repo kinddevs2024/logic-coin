@@ -15,7 +15,7 @@ Release: `20261029-i18n`.
 - Backend: 170 tests passed, 17 database integration tests skipped because an isolated test database was not configured. TypeScript build passed.
 - Isolated Chrome: guest pages, game intros and administration in all three languages; an additional 21-case pass covered same-page RU → EN → UZ → RU switching, started Geography/Find Letter, and notifications/games/challenges/withdrawals administration. No JavaScript exceptions or unexpected Cyrillic in English/Uzbek screens. API calls were mocked; no notifications or financial transactions were sent.
 - Website release marker and script assets verified on logic-coin.online, www.logic-coin.online and the server SSLIP origin. Live API error language and the three localized share images verified.
-- Published signed OTA updates to the 11 previously registered Android channel/runtime pairs; verified all signatures, 172 unique resource hashes and HTTP 204 for unknown runtimes. This does not prove installation on a physical phone or compatibility with an unregistered runtime.
+- Published signed OTA updates to 13 Android channel/runtime pairs: the 11 previously registered targets plus APK build codes 12 and 13. The two new runtime identifiers were extracted from assets/fingerprint inside the actual GitHub-built APKs (31299de5dbfd6f4a08b18254d2ee4e669178f030 and 88bb6fc6dd6ec5ccc1310d4400ec7b448f8a9bec). Verified all 13 signatures, 172 unique resource hashes and HTTP 204 for unknown runtimes. This does not prove installation on a physical phone or compatibility with an unregistered runtime.
 
 ## Recovery
 
