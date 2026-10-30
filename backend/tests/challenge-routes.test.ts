@@ -116,13 +116,12 @@ describe("challenge routes", () => {
     expect(challengeMocks.claimContestReward).toHaveBeenCalledWith(resultId, userId);
   });
 
-  it.each(["/tetris/start", "/tetris/complete", "/double"])("blocks browser mutations at %s before calling services", async path => {
-    const result = await request(app).post(path).set("User-Agent", "Mozilla/5.0 (Android 14)").set("Origin", "https://logic-coin.online").send({ score: 10 });
-    expect(result.status).toBe(403);
-    expect(result.body.error.code).toBe("challenge_app_required");
-    expect(challengeMocks.startChallengeAttempt).not.toHaveBeenCalled();
-    expect(challengeMocks.completeChallengeAttempt).not.toHaveBeenCalled();
-    expect(challengeMocks.doubleChallengeCoins).not.toHaveBeenCalled();
+  it.each(["start", "complete", "double"])("accepts authenticated browser %s with unchanged input validation", async operation => {
+    const path = operation === "double" ? "/double" : `/tetris/${operation}`;
+    const input = operation === "double" ? { scope: "game" } : operation === "start" ? {} : { score: 10 };
+    await request(app).post(path).set("User-Agent", "Mozilla/5.0 (Android 14)").set("Origin", "https://logic-coin.online").send(input).expect(201);
+    const service = operation === "start" ? challengeMocks.startChallengeAttempt : operation === "complete" ? challengeMocks.completeChallengeAttempt : challengeMocks.doubleChallengeCoins;
+    expect(service).toHaveBeenCalledOnce();
   });
 
   it("preserves ordinary web games", async () => {

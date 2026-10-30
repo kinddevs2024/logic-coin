@@ -7,7 +7,7 @@ vi.mock("../src/services/challenge-attempt.service.js", () => ({ startChallengeA
 vi.mock("../src/services/daily-challenge.service.js", () => ({ getTodayChallengeOverview: async () => ({ games: [] }) }));
 vi.mock("../src/services/contest.service.js", () => ({ getPendingContestReward: async () => null, claimContestReward: async () => ({}) }));
 import { attachLiveUpdates } from "../src/services/live-updates.service.js";
-describe("app-only commands over real WebSocket transport", () => {
+describe("shared browser and APK commands over real WebSocket transport", () => {
   const server = createServer(); let stop: () => void; let url: string;
   beforeAll(async () => {
     stop = attachLiveUpdates(server);
@@ -26,19 +26,32 @@ describe("app-only commands over real WebSocket transport", () => {
       client.send(JSON.stringify({ id: "test", method, input })); return await reply;
     } finally { client.terminate(); }
   }
-  it.each(["start", "complete", "double"])("rejects browser %s", async method => {
-    const result = await command("Mozilla/5.0", method, { gameKey: "tetris", score: 10 });
-    expect(result.error.status).toBe(403);
-    expect(mocks.start).not.toHaveBeenCalled();
-    expect(mocks.complete).not.toHaveBeenCalled();
-    expect(mocks.double).not.toHaveBeenCalled();
+  it.each(["start", "complete", "double"])("allows authenticated browser %s", async method => {
+    vi.clearAllMocks();
+    const input = method === "double" ? { scope: "game" } : method === "start" ? { gameKey: "tetris" } : { gameKey: "tetris", score: 10 };
+    const result = await command("Mozilla/5.0", method, input);
+    expect(result.error).toBeUndefined();
+    const service = method === "start" ? mocks.start : method === "complete" ? mocks.complete : mocks.double;
+    expect(service).toHaveBeenCalledOnce();
   });
   it("keeps browser reads and practice working", async () => {
     expect((await command("Mozilla/5.0", "today", {})).data).toEqual({ games: [] });
     expect((await command("Mozilla/5.0", "completePractice", { gameKey: "tetris", score: 10 })).error).toBeUndefined();
   });
   it("allows installed APK without a new version or new headers", async () => {
+    vi.clearAllMocks();
     expect((await command("okhttp/4.12.0", "start", { gameKey: "tetris" })).data).toEqual({ accepted: true });
     expect(mocks.start).toHaveBeenCalledOnce();
+  });
+  it("still rejects a browser command without authentication", async () => {
+    vi.clearAllMocks();
+    const client = new WebSocket(url, { headers: { Origin: "https://logic-coin.online" } });
+    try {
+      await new Promise<void>((resolve, reject) => { client.once("open", resolve); client.once("error", reject); });
+      const closed = new Promise<number>(resolve => client.once("close", code => resolve(code)));
+      client.send(JSON.stringify({ id: "unauthenticated", method: "start", input: { gameKey: "tetris" } }));
+      expect(await closed).toBe(4401);
+      expect(mocks.start).not.toHaveBeenCalled();
+    } finally { client.terminate(); }
   });
 });

@@ -18,7 +18,6 @@ import MergeScreen from "@/app/games/2048";
 import { HangmanResult } from "@/games/hangman/result";
 import { HangmanGame } from "@/games/hangman/game";
 import { AppFrame } from "@/components/app-frame";
-import { ChallengeAppRequired } from "@/components/challenge-app-required";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
 import { GameExitModal } from "@/components/game-exit-modal";
 import { AppodealBannerSlot } from "@/components/appodeal-banner";
@@ -113,9 +112,6 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 export default function DynamicGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
   if (!isGameVisible(firstParam(params.gameKey) ?? "") && firstParam(params.mode) !== "challenge") return <Redirect href="/games" />;
-  if (Platform.OS === "web" && firstParam(params.mode) === "challenge") {
-    return <AppFrame><ChallengeAppRequired /></AppFrame>;
-  }
   // A replacement of the same dynamic route must get a fresh host, not only
   // a fresh child game with the previous host's completed/discarded session.
   return <PlayableGameRoute key={`${firstParam(params.mode)}:${firstParam(params.gameKey)}`} />;
@@ -589,7 +585,7 @@ const styles = StyleSheet.create({
       ? ({ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh" } as unknown as ViewStyle)
       : {}),
   },
-  resultOuter: { width: "100%", maxWidth: 430 },
+  resultOuter: { width: "100%", maxWidth: 430, ...(Platform.OS === "web" ? { maxHeight: "90vh", overflowY: "auto" } as unknown as ViewStyle : {}) },
   pendingReward: { height: 94, justifyContent: "center" },
   androidResultLayer: { ...StyleSheet.absoluteFill, zIndex: 1000, elevation: 20 },
   resultCard: { overflow: "hidden", alignItems: "center", borderRadius: 32, padding: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(16,37,27,0.94)" },

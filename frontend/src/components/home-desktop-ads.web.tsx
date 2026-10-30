@@ -3,6 +3,7 @@ import { useUiCopy } from "@/components/localized-native";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useIsFocused } from "expo-router";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { loadWebsiteAds } from "@/lib/website-ads";
 
 const CLIENT = "ca-pub-3345266316761728";
 const SLOTS = { top: "5234789961", left: "8329614753", right: "3467995303" };
@@ -40,7 +41,7 @@ function loadAdSense() {
   return loader;
 }
 
-function DisplayAd({ slot, horizontal, focused }: { slot: string; horizontal?: boolean; focused: boolean }) {
+export function DisplayAd({ slot, horizontal, focused }: { slot: string; horizontal?: boolean; focused: boolean }) {
   const { copyText } = useUiCopy();
   const insRef = useRef<HTMLModElement>(null);
   const requested = useRef(false);
@@ -111,13 +112,7 @@ export function HomeDesktopAds({ position }: { position: "top" | "bottom" }) {
   const focused = useIsFocused();
   useEffect(() => {
     // Ordinary display advertising only: no coins, click incentives or refresh loops.
-    if (!focused || position !== "top" || document.querySelector('script[data-zone="11951825"]')) return;
-    const script = document.createElement("script");
-    script.dataset.zone = "11951825";
-    script.async = true;
-    script.src = "https://nap5k.com/tag.min.js";
-    script.addEventListener("error", () => console.warn("[Logic Coin Monetag] Script blocked or unavailable"), { once: true });
-    (document.body ?? document.documentElement).appendChild(script);
+    if (focused && position === "top") loadWebsiteAds();
   }, [focused, position]);
   if (width === 0) return null;
   const style: CSSProperties = {

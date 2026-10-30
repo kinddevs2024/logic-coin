@@ -2,7 +2,6 @@ import { z } from "zod";
 import type { Types } from "mongoose";
 import { MAX_CHALLENGE_DURATION_MS, MAX_CHALLENGE_SCORE } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
-import { requireNativeChallengeClient } from "../lib/native-client.js";
 import { startChallengeAttempt, completeChallengeAttempt, completePracticeAttempt, doubleChallengeCoins } from "./challenge-attempt.service.js";
 import { getTodayChallengeOverview } from "./daily-challenge.service.js";
 import { getPendingContestReward, claimContestReward } from "./contest.service.js";
@@ -10,9 +9,8 @@ import { invalidateReadCache } from "../lib/read-cache.js";
 
 const game = z.string().regex(/^[a-z0-9-]{1,80}$/);
 const completion = z.object({ gameKey: game, score: z.number().int().min(0).max(MAX_CHALLENGE_SCORE), durationMs: z.number().int().min(0).max(MAX_CHALLENGE_DURATION_MS).optional() }).strict();
-export async function executeLiveCommand(userId: Types.ObjectId, method: string, input: unknown, nativeClient = false) {
+export async function executeLiveCommand(userId: Types.ObjectId, method: string, input: unknown, _nativeClient = false) {
   if (!["today", "pendingReward"].includes(method)) invalidateReadCache();
-  if (["start", "complete", "double"].includes(method)) requireNativeChallengeClient(nativeClient);
   switch (method) {
     case "today": return getTodayChallengeOverview(userId);
     case "pendingReward": return getPendingContestReward(userId);
