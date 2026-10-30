@@ -1,3 +1,4 @@
+import { verifyMonetagPostback } from "../services/monetag.service.js";
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
@@ -29,6 +30,17 @@ router.get("/appodeal/reward", async (request, response) => {
   response.json({ data: result });
 });
 
+router.get("/monetag/postback", async (request, response) => {
+  response.setHeader("Cache-Control", "no-store");
+  const query = z.object({
+    secret: z.string().max(128), ymid: z.string().max(80),
+    zone_id: z.string().max(30), event_type: z.enum(["impression", "click"]),
+    reward_event_type: z.enum(["valued", "non_valued"]),
+  }).safeParse(request.query);
+  if (!query.success) { response.status(400).json({ error: { code: "invalid_monetag_postback" } }); return; }
+  response.json({ data: await verifyMonetagPostback(query.data) });
+});
+
 router.use(requireAuth);
 
 router.get("/rewarded/offer", async (request, response) => {
@@ -46,14 +58,14 @@ router.post(
   validateBody(
     z.object({
       placement: z.enum(REWARDED_AD_PLACEMENTS),
-      provider: z.enum(["yandex", "appodeal"]).default("yandex"),
+      provider: z.enum(["yandex", "appodeal", "monetag"]).default("yandex"),
       gameAttemptId: z.string().regex(/^[a-f0-9]{24}$/i).optional()
     }).strict()
   ),
   async (request, response) => {
     const body = request.body as {
       placement: (typeof REWARDED_AD_PLACEMENTS)[number];
-      provider: "yandex" | "appodeal";
+      provider: "yandex" | "appodeal" | "monetag";
       gameAttemptId?: string;
     };
     const session = await startRewardedAdSession(request.auth!.userId, body.placement, body.provider, body.gameAttemptId);

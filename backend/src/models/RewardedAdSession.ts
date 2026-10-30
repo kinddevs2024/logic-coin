@@ -15,7 +15,7 @@ const rewardedAdSessionSchema = new Schema(
   {
     sessionId: { type: String, required: true, unique: true, maxlength: 80 },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    provider: { type: String, enum: ["yandex", "appodeal"], default: "yandex", required: true },
+    provider: { type: String, enum: ["yandex", "appodeal", "monetag"], default: "yandex", required: true },
     placement: { type: String, enum: REWARDED_AD_PLACEMENTS, required: true },
     status: {
       type: String,
@@ -29,6 +29,7 @@ const rewardedAdSessionSchema = new Schema(
     homeGiftCycleId: { type: String, maxlength: 80 },
     gameAttemptId: { type: Schema.Types.ObjectId, ref: "ChallengeAttempt" },
     clientReceiptId: { type: String, maxlength: 180 },
+    monetagValuedAt: { type: Date },
     impressionId: { type: String, maxlength: 180 },
     completedAt: { type: Date },
     claimedAt: { type: Date },

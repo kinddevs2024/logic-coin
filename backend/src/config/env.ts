@@ -65,6 +65,7 @@ const rawEnvSchema = z.object({
     emptyToUndefined,
     z.string().min(8).max(256).optional()
   ),
+  MONETAG_POSTBACK_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).max(128).optional()),
   APPODEAL_ALLOW_CLIENT_CALLBACK: booleanFromString.default("false"),
   YANDEX_ALLOW_CLIENT_CALLBACK: booleanFromString.default("false")
 });

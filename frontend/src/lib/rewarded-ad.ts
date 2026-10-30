@@ -14,7 +14,7 @@ export type InterstitialAdPlacement =
   | "game-complete";
 
 export type RewardedAdReceipt = {
-  provider: "yandex" | "appodeal" | "demo";
+  provider: "yandex" | "appodeal" | "monetag" | "demo";
   placement: RewardedAdPlacement;
   completed: boolean;
   proof: string;
@@ -34,7 +34,7 @@ export type AdsDiagnostics = {
 
 export interface RewardedAdProvider {
   initialize(userId?: string): Promise<boolean>;
-  show(placement: RewardedAdPlacement): Promise<RewardedAdReceipt>;
+  show(placement: RewardedAdPlacement, context?: { sessionId: string }): Promise<RewardedAdReceipt>;
   showInterstitial(placement: InterstitialAdPlacement): Promise<boolean>;
   showAppOpen(): Promise<boolean>;
   diagnostics(): AdsDiagnostics;

@@ -1,9 +1,15 @@
+import { API_PREFIX } from "../config/constants.js";
+import { hasValidMonetagSecret } from "../services/monetag.service.js";
 import { rateLimit } from "express-rate-limit";
 import { env } from "../config/env.js";
 import { MongoRateLimitStore } from "../services/mongo-rate-limit-store.js";
 
 function limiter(namespace: string, windowMs: number, limit: number) {
   return rateLimit({
+    // Monetag sends many users' confirmations from the same server IP.
+    // Only correctly authenticated callbacks bypass the ordinary per-IP cap.
+    skip: (request) => namespace === "global" && request.method === "GET" &&
+      request.path === `${API_PREFIX}/ads/monetag/postback` && hasValidMonetagSecret(request.query.secret),
     windowMs,
     limit,
     ...(env.NODE_ENV === "production"

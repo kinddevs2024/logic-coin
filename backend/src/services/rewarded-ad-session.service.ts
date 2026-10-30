@@ -1,3 +1,4 @@
+import { completeMonetagSessionIfReady } from "./monetag.service.js";
 import {
   createDecipheriv,
   createHash,
@@ -26,7 +27,7 @@ import { CHALLENGE_AD_DAILY_LIMIT, nextChallengeAdDeadline } from "../lib/challe
 import { requireHomeGiftAdFlow } from "./home-gift.service.js";
 
 export type RewardedAdPlacement = (typeof REWARDED_AD_PLACEMENTS)[number];
-export type RewardedAdProvider = "yandex" | "appodeal";
+export type RewardedAdProvider = "yandex" | "appodeal" | "monetag";
 
 const SESSION_TTL_MS = 20 * 60 * 1000;
 const CALLBACK_MAX_AGE_MS = 48 * 60 * 60 * 1000;
@@ -79,6 +80,7 @@ export async function startRewardedAdSession(
   provider: RewardedAdProvider = "yandex",
   gameAttemptId?: string
 ) {
+  if (provider === "monetag" && !env.MONETAG_POSTBACK_SECRET) throw new ApiError(503, "ads_unavailable", "Реклама временно недоступна.");
   if (gameAttemptId) {
     if (placement !== "fortune-wheel" || !Types.ObjectId.isValid(gameAttemptId)) throw new ApiError(400, "invalid_fortune_attempt", "Неверная игровая попытка.");
     const attempt = await ChallengeAttempt.findOne({ _id: gameAttemptId, userId, status: "completed", completedAt: { $gte: new Date(Date.now() - SESSION_TTL_MS) }, fortuneRewardSessionId: { $exists: false } });
@@ -134,16 +136,20 @@ export async function completeRewardedAdFromClient(input: {
   if (session.status !== "started") return serializeSession(session);
 
   const clientVerificationAllowed =
-    env.NODE_ENV !== "production" ||
+    session.provider !== "monetag" && (env.NODE_ENV !== "production" ||
     (session.provider === "yandex"
       ? env.YANDEX_ALLOW_CLIENT_CALLBACK
-      : env.APPODEAL_ALLOW_CLIENT_CALLBACK);
+      : env.APPODEAL_ALLOW_CLIENT_CALLBACK));
   session.clientReceiptId = input.clientReceiptId;
   if (clientVerificationAllowed) {
     session.status = "completed";
     session.completedAt = new Date();
   }
   await session.save();
+  if (session.provider === "monetag") {
+    const verified = await completeMonetagSessionIfReady(session.sessionId);
+    if (verified) return serializeSession(verified);
+  }
   return serializeSession(session);
 }
 

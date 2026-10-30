@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+import { isTelegramMiniApp } from "./telegram-context";
 import { adsApi } from "@/lib/api";
 import { isExpoGo } from "./native-runtime";
 import {
@@ -32,10 +34,10 @@ export async function showVerifiedRewardedAd(input: {
     return { receipt: await rewardedAds.show(input.placement), sessionId: null, verified: false, credited: 0 };
   }
   const session = input.accessToken
-    ? await adsApi.startRewarded(input.placement, input.accessToken, input.gameAttemptId)
+    ? await adsApi.startRewarded(input.placement, input.accessToken, input.gameAttemptId, Platform.OS === "web" && isTelegramMiniApp() ? "monetag" : "yandex")
     : null;
   if (session && input.beforeShow) await input.beforeShow(session);
-  const receipt = await rewardedAds.show(input.placement);
+  const receipt = await rewardedAds.show(input.placement, session ? { sessionId: session.sessionId } : undefined);
   if (!receipt.completed) {
     return { receipt, sessionId: session?.sessionId ?? null, verified: false, credited: 0 };
   }

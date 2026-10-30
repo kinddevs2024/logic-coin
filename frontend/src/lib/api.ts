@@ -482,7 +482,7 @@ export const challengesApi = {
 
 export type RewardedAdSessionDto = {
   sessionId: string;
-  provider: "yandex" | "appodeal";
+  provider: "yandex" | "appodeal" | "monetag";
   placement: string;
   status: "started" | "completed" | "claimed" | "expired";
   rewardCoins: number;
@@ -497,13 +497,13 @@ export const adsApi = {
   challengeOffer(token: string) {
     return request<{ eligible: boolean; available: boolean; claimedCount: number; resetsAt: string; challengeSetId: string | null; dayKey: string | null; rewardDayKey?: string; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
   },
-  async startRewarded(placement: string, token: string, gameAttemptId?: string) {
+  async startRewarded(placement: string, token: string, gameAttemptId?: string, provider: "yandex" | "appodeal" | "monetag" = "yandex") {
     const payload = await request<{ session: RewardedAdSessionDto }>(
       "/ads/rewarded/start",
       {
         method: "POST",
         token,
-        body: JSON.stringify({ placement, provider: "yandex", ...(gameAttemptId ? { gameAttemptId } : {}) }),
+        body: JSON.stringify({ placement, provider, ...(gameAttemptId ? { gameAttemptId } : {}) }),
       },
     );
     return payload.session;
