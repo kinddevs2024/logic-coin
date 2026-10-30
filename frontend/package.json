@@ -9,11 +9,11 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web",
+    "build:web": "expo export --platform web && node scripts/finalize-web.mjs",
     "preview:web": "node scripts/preview-server.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "test": "node --test tests/frontend-smoke.test.mjs tests/router-linking.test.cjs && vitest run",
+    "test": "node --test tests/frontend-smoke.test.mjs tests/router-linking.test.cjs tests/web-html.test.mjs && vitest run",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build:web"
   },
   "dependencies": {
