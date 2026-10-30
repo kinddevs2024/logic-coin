@@ -1,6 +1,7 @@
 import mongoose, { Types } from "mongoose";
 import {
   CONTEST_CONSOLATION_COINS,
+  DAILY_CHALLENGE_GAME_COUNT,
   CONTEST_STANDARD_CASE_KIND,
 } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
@@ -78,7 +79,10 @@ export async function collectContestStandings(dayKey: string): Promise<ContestSt
   return [...byUser.entries()].map(([userId, value]) => ({
     userId,
     totalCoins: (totalsByUser.get(userId) ?? 0) + (bonusTotals.get(userId) ?? 0),
-    completedGamesCount: value.gameIds.size,
+    // Administrators can replace games during a day; historical attempts
+    // may then contain more distinct IDs than the six published slots.
+    // Keep all earned coins, but never persist an impossible game count.
+    completedGamesCount: Math.min(value.gameIds.size, DAILY_CHALLENGE_GAME_COUNT),
     finishedAt: value.finishedAt?.toISOString() ?? null
   }));
 }

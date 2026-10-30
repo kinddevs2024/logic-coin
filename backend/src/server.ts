@@ -1,3 +1,4 @@
+import { runDailyCycleSteps } from "./lib/daily-cycle.js";
 import { createServer } from "node:http";
 import { dayBoundsInTimeZone } from "./lib/date.js";
 import { challengeDayKey, ensureDailyChallengeSet } from "./services/daily-challenge.service.js";
@@ -25,9 +26,11 @@ async function runDailyCycle(): Promise<void> {
   if (dailyCycleRunning) return;
   dailyCycleRunning = true;
   try {
-    await settleExpiredDailyContests();
-    // Existing draft/published/manual settings are returned untouched.
-    await ensureDailyChallengeSet(challengeDayKey());
+    await runDailyCycleSteps({
+      publish: () => ensureDailyChallengeSet(challengeDayKey()),
+      settle: () => settleExpiredDailyContests(),
+      onError: (step, error) => console.error(`Daily challenge ${step} failed:`, error instanceof Error ? error.message : "unknown error"),
+    });
   } catch (error) {
     console.error("Daily challenge cycle failed:", error instanceof Error ? error.message : "unknown error");
   } finally { dailyCycleRunning = false; }
