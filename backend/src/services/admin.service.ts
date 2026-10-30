@@ -7,7 +7,7 @@ import { addDays, dayBoundsInTimeZone } from "../lib/date.js";
 import { ApiError } from "../lib/api-error.js";
 import { canonicalGameKey } from "../lib/game-key.js";
 import { pickSeededSubset } from "../lib/seeded-random.js";
-import { ActivityDay } from "../models/ActivityDay.js";
+import { countActivePlayers } from "./admin-activity.service.js";
 import { BudgetEntry } from "../models/BudgetEntry.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
@@ -358,7 +358,7 @@ export async function getAdminOverview(dayKey: string) {
     User.countDocuments({ createdAt: { $gte: from, $lt: to } }),
     User.countDocuments({ createdAt: { $gte: previousBounds.from, $lt: previousBounds.to } }),
     User.countDocuments({}),
-    ActivityDay.distinct("userId", { dayKey }),
+    countActivePlayers(dayKey),
     ChallengeAttempt.distinct("userId", {
       dayKey,
       mode: "challenge",
@@ -383,7 +383,7 @@ export async function getAdminOverview(dayKey: string) {
     registrations,
     registrationGrowthPercent: percentGrowth(registrations, previousRegistrations),
     totalUsers,
-    activePlayers: activePlayers.length,
+    activePlayers,
     challengeParticipants: challengeParticipants.length,
     completedAttempts,
     coinsIssued: coinsIssued[0]?.total ?? 0,
@@ -452,7 +452,7 @@ export async function getBudgetAnalytics(days: number) {
     DailyContestSettlement.find({ dayKey: { $gte: from, $lte: to }, status: "settled" })
       .select("dayKey cashDistributedUnits")
       .lean(),
-    ActivityDay.distinct("userId", { dayKey: { $gte: from, $lte: to } }),
+    countActivePlayers(from, to),
     BudgetEntry.aggregate<{ total: number }>([
       {
         $match: {
@@ -540,10 +540,10 @@ export async function getBudgetAnalytics(days: number) {
       operatingExpenseUnits,
       challengeSpendUnits,
       netUnits: totalRevenueUnits - operatingExpenseUnits - challengeSpendUnits,
-      arpuUnits: activeUsers.length === 0 ? 0 : Math.round(totalRevenueUnits / activeUsers.length),
+      arpuUnits: activeUsers === 0 ? 0 : Math.round(totalRevenueUnits / activeUsers),
       averageDailyRevenueUnits: Math.round(totalRevenueUnits / days),
       growthPercent: percentGrowth(totalRevenueUnits, previousRevenueUnits),
-      activeUsers: activeUsers.length,
+      activeUsers,
       platformBalanceUnits
     },
     daily
