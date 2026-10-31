@@ -17,7 +17,7 @@ export function LoginEmailEntry({ value, onChange, onSubmit, valid, busy }: {
   const { language } = useTranslation();
   const { copyText } = useUiCopy();
   const [focused, setFocused] = useState(false);
-  const iconVisible = !focused && !value;
+  const iconVisible = !value;
   const submit = () => { if (valid && !busy) onSubmit(); };
   return <View style={[styles.field, { borderColor: focused ? theme.primary : theme.border, backgroundColor: theme.surface }]}>
     {iconVisible ? <View pointerEvents="none" style={styles.placeholderIcon}>
