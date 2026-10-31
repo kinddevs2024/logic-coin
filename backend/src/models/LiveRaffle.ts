@@ -4,7 +4,7 @@ const round = new Schema({
   label: { type: String, required: true }, kind: { type: String, enum: ["cash", "physical"], required: true },
   cashUnits: { type: Number, min: 0, required: true, default: 0 }, durationSeconds: { type: Number, min: 5, max: 180, required: true },
   status: { type: String, enum: ["pending", "spinning", "finished"], default: "pending", required: true },
-  startedAt: Date, finishesAt: Date, settledAt: Date, winnerId: Schema.Types.ObjectId,
+  startedAt: Date, finishesAt: Date, settledAt: Date, winnerName: String, winnerAvatarUrl: String, winnerId: Schema.Types.ObjectId,
   participants: { type: [participant], default: [] },
 });
 const schema = new Schema({

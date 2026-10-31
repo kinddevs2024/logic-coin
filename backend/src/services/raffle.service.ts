@@ -36,7 +36,10 @@ export async function raffleHeartbeat(userId: Types.ObjectId, online: boolean, s
   } else await RafflePresence.updateOne({ _id: presenceId }, { $set: { lastSeenAt: now } });
   return { eligibleDays: presence?.eligibleDays ?? 0 };
 }
-export async function listRaffles() { return LiveRaffle.find().sort({ createdAt: -1 }).limit(30).select("title status startsAt revision youtubeId lockMinutes allowRepeatWinners rounds.label rounds.kind rounds.cashUnits rounds.durationSeconds rounds.status rounds._id").lean(); }
+export async function listRaffles() {
+ const events = await LiveRaffle.find().sort({ createdAt: -1 }).limit(30).select("title status startsAt revision youtubeId lockMinutes allowRepeatWinners rounds.label rounds.kind rounds.cashUnits rounds.durationSeconds rounds.status rounds.winnerName rounds.winnerId rounds.settledAt rounds._id").lean();
+ return events.map(event => ({ ...event, rounds: event.rounds.map(round => ({ ...round, id: String(round._id), winnerId: round.status === "finished" ? round.winnerId : null })) }));
+}
 export async function saveRaffle(input: { title: string; startsAt: string; lockMinutes: number; youtubeId: string; allowRepeatWinners: boolean; rounds: Array<{ label: string; kind: "cash" | "physical"; cashUnits: number; durationSeconds: number }> }, adminId: Types.ObjectId) {
   if (new Date(input.startsAt).getTime() < Date.now() + 60000) throw new ApiError(400, "future_start_required", "Назначьте время минимум через минуту");
   try { return await LiveRaffle.create({ ...input, startsAt: new Date(input.startsAt), activeSlot: "main", createdBy: adminId }); }
@@ -45,6 +48,7 @@ export async function saveRaffle(input: { title: string; startsAt: string; lockM
 export async function publishRaffle(id: string) {
   const event = await LiveRaffle.findOneAndUpdate({ _id: oid(id), status: "draft", startsAt: { $gt: new Date() } }, { $set: { status: "scheduled", publishedAt: new Date() }, $inc: { revision: 1 } }, { new: true });
   if (!event) throw new ApiError(409, "raffle_not_draft", "Не удалось опубликовать событие");
+  invalidateRaffleView();
   await announceDay(event);
   return event._id;
 }
@@ -53,7 +57,7 @@ async function announceDay(event: { _id: Types.ObjectId; title: string; startsAt
   const time = event.startsAt.toLocaleTimeString("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit" });
   await notice(`${event._id}:today`, copy("Сегодня розыгрыш", "Bugun sovrinli o‘yin", "Prize draw today", `${event.title} · ${time} (Toshkent)`, `${event.title} · ${time} (Toshkent)`, `${event.title} · ${time} (Tashkent)`));
 }
-export async function raffleState(userId?: Types.ObjectId, admin = false) {
+async function readRaffleState(userId?: Types.ObjectId, admin = false) {
   const event = await LiveRaffle.findOne({ status: { $in: ["scheduled", "live"] } }).lean();
   if (!event) return { event: null, serverNow: new Date().toISOString() };
   const presence = userId ? await RafflePresence.findOne({ userId }).lean() : null;
@@ -76,6 +80,21 @@ export async function raffleState(userId?: Types.ObjectId, admin = false) {
     } : null,
     ...(admin ? { onlineCount: await RafflePresence.countDocuments({ lastSeenAt: { $gte: new Date(Date.now() - 20000) } }), eligibleOnlineCount: await RafflePresence.countDocuments({ lastSeenAt: { $gte: new Date(Date.now() - 20000) }, eligibleDays: { $gte: 6 }, dayKey: localDayKey(now, timezone) }) } : {}),
   } };
+}
+type RaffleView = Awaited<ReturnType<typeof readRaffleState>>;
+let cachedView: RaffleView | null = null;
+let cachedUntil = 0;
+let viewInFlight: Promise<RaffleView> | null = null;
+function invalidateRaffleView() { cachedUntil = 0; }
+export async function raffleState(userId?: Types.ObjectId, admin = false): Promise<RaffleView> {
+ if (admin) return readRaffleState(userId, true);
+ if (!cachedView || cachedUntil <= Date.now()) {
+  viewInFlight ??= readRaffleState().then(value => { cachedView = value; cachedUntil = Date.now() + 900; return value; }).finally(() => { viewInFlight = null; });
+  await viewInFlight;
+ }
+ const value = cachedView!;
+ const presence = userId && value.event ? await RafflePresence.findOne({ userId }).select("eligibleDays").lean() : null;
+ return { ...value, serverNow: new Date().toISOString(), ...(value.event ? { event: { ...value.event, eligibleDays: presence?.eligibleDays ?? 0 } } : {}) };
 }
 export async function spinRaffle(id: string, roundId: string) {
   const session = await mongoose.startSession();
@@ -101,7 +120,7 @@ export async function spinRaffle(id: string, roundId: string) {
     round.status = "spinning"; round.startedAt = now; round.finishesAt = new Date(now.getTime() + round.durationSeconds * 1000);
     event.revision++; await event.save({ session });
     await notice(`${event._id}:${round._id}:spin`, copy("Рулетка запущена", "Qur’a boshlandi", "The draw is spinning", round.label), undefined, session);
-  }); } finally { await session.endSession(); }
+  }); invalidateRaffleView(); } finally { await session.endSession(); }
 }
 export async function settleRaffle(id: Types.ObjectId) {
   const session = await mongoose.startSession();
@@ -115,14 +134,16 @@ export async function settleRaffle(id: Types.ObjectId) {
     if (round.kind === "cash" && round.cashUnits > 0) {
       await creditReward({ userId: round.winnerId, amountUnits: round.cashUnits, type: "raffle_cash_prize", sourceId, description: round.label.slice(0,240), metadata: { raffleId: String(event._id), roundId: String(round._id) } }, session);
     }
+    round.winnerName = winner.name; round.winnerAvatarUrl = winner.avatarUrl ?? null;
     round.status = "finished"; round.settledAt = new Date(); event.revision++; await event.save({ session });
     await notice(`${event._id}:${round._id}:winner`, copy("Победитель розыгрыша", "Qur’a g‘olibi", "Draw winner", `${winner.name} — ${round.label}`), undefined, session);
-  }); } finally { await session.endSession(); }
+  }); invalidateRaffleView(); } finally { await session.endSession(); }
 }
 export async function finishRaffle(id: string, cancel: boolean) {
   const filter = { _id: oid(id), status: { $in: ["draft", "scheduled", "live"] }, "rounds.status": { $ne: "spinning" } };
   const event = await LiveRaffle.findOneAndUpdate(filter, { $set: { status: cancel ? "cancelled" : "ended", endedAt: new Date() }, $unset: { activeSlot: 1 }, $inc: { revision: 1 } }, { new: true });
   if (!event) throw new ApiError(409, "round_busy", "Дождитесь окончания текущего раунда");
+  invalidateRaffleView();
   if (event.publishedAt) await notice(`${event._id}:ended`, copy(cancel ? "Розыгрыш отменён" : "Розыгрыш завершён", cancel ? "Qur’a bekor qilindi" : "Qur’a yakunlandi", cancel ? "Draw cancelled" : "Draw ended", event.title));
 }
 let ticking = false;
@@ -131,7 +152,7 @@ let lastBroadcast = "";
 export async function tickRaffles() {
   if (ticking) return; ticking = true;
   try {
-    const events = await LiveRaffle.find({ status: { $in: ["scheduled", "live"] } }).lean();
+    const events = await LiveRaffle.find({ status: { $in: ["scheduled", "live"] } }).select("title startsAt status rounds.status rounds.finishesAt").lean();
     for (const event of events) {
       if (event.status === "scheduled") {
         await announceDay(event);
@@ -141,7 +162,7 @@ export async function tickRaffles() {
           await LiveRaffle.updateOne({ _id: event._id, status: "scheduled" }, { $set: { status: "live" }, $inc: { revision: 1 } });
           await notice(`${event._id}:started`, copy("Розыгрыш начался", "Qur’a boshlandi", "The live draw has started", event.title));
         }
-      } else await settleRaffle(event._id);
+      } else if (event.rounds.some(r => r.status === "spinning" && r.finishesAt && r.finishesAt <= new Date())) await settleRaffle(event._id);
     }
     if (events.length || previouslyVisible) {
       const state = await raffleState();

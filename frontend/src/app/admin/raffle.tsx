@@ -20,7 +20,7 @@ export default function AdminRaffleScreen() {
  const refresh=()=>qc.invalidateQueries({queryKey:["admin-raffle"]});
  const create=useMutation({mutationFn:()=>{
   const startsAt=new Date(`${date}T${time}:00+05:00`);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time)||!Number.isFinite(startsAt.getTime())||prizes.some(p=>p.kind==="cash"&&!/^\d+(?:\.\d{1,2})?$/.test(p.amount)))throw Error(l("Проверьте дату, время и суммы призов","Sana, vaqt va sovrin miqdorini tekshiring","Check date, time and prize amounts"));
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time)||!Number.isFinite(startsAt.getTime())||new Date(startsAt.getTime()+5*3600000).toISOString().slice(0,16)!==`${date}T${time}`||prizes.some(p=>p.kind==="cash"&&!/^\d+(?:\.\d{1,2})?$/.test(p.amount)))throw Error(l("Проверьте дату, время и суммы призов","Sana, vaqt va sovrin miqdorini tekshiring","Check date, time and prize amounts"));
   return raffleApi.create(adminToken,{title,startsAt:startsAt.toISOString(),lockMinutes:Number(lock),youtubeUrl:url,allowRepeatWinners:repeat,rounds:prizes.map(p=>({label:p.label,kind:p.kind,cashUnits:p.kind==="cash"?Math.round(Number(p.amount)*100):0,durationSeconds:Number(p.duration)}))});
  },onSuccess:()=>void refresh()});
  const action=useMutation({mutationFn:(input:{id:string;action:"publish"|"spin"|"end";body?:object})=>raffleApi.action(adminToken,input.id,input.action,input.body),onSuccess:()=>{setConfirmation(null);void refresh();}});
@@ -62,7 +62,7 @@ export default function AdminRaffleScreen() {
    <AppButton loading={create.isPending} onPress={()=>create.mutate()}>{l("Сохранить черновик","Qoralamani saqlash","Save draft")}</AppButton>
   </GlassSurface>:null}
   <Text style={[text,{fontSize:20,fontWeight:"800"}]}>{l("События","Tadbirlar","Events")}</Text>
-  {history.map(h=><View key={h._id} style={{padding:16,borderWidth:1,borderColor:theme.border,borderRadius:16}}><Text style={[text,{fontWeight:"700"}]}>{h.title}</Text><Text style={{color:theme.textMuted}}>{status(h.status)} · {new Date(h.startsAt).toLocaleString(language,{timeZone:"Asia/Tashkent"})}</Text></View>)}
+  {history.map(h=><View key={h._id} style={{padding:16,borderWidth:1,borderColor:theme.border,borderRadius:16}}><Text style={[text,{fontWeight:"700"}]}>{h.title}</Text><Text style={{color:theme.textMuted}}>{status(h.status)} · {new Date(h.startsAt).toLocaleString(language,{timeZone:"Asia/Tashkent"})}</Text>{h.rounds.filter(r=>r.status==="finished").map(r=><Text key={r.id??r.label} style={{color:theme.primary,marginTop:8}}>{r.label}: {r.winnerName}</Text>)}</View>)}
  </View>;
 }
 function youtubeId(value:string){try{const u=new URL(value);if(u.protocol!=="https:")return null;const id=u.hostname==="youtu.be"?u.pathname.slice(1):["youtube.com","www.youtube.com","m.youtube.com"].includes(u.hostname)?u.searchParams.get("v")??u.pathname.match(/^\/(?:live|embed)\/([^/]+)/)?.[1]:null;return id&&/^[a-zA-Z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}

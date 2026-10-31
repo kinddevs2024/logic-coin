@@ -1,6 +1,6 @@
 import { request } from "./api";
 export type RafflePlayer = { id: string; name: string; avatarUrl: string | null };
-export type RaffleRound = { id: string; label: string; kind: "cash" | "physical"; cashUnits: number; durationSeconds?: number; status: "pending" | "spinning" | "finished" };
+export type RaffleRound = { id: string; label: string; kind: "cash" | "physical"; cashUnits: number; durationSeconds?: number; status: "pending" | "spinning" | "finished"; winnerName?: string; winnerId?: string | null };
 export type RaffleEvent = { id: string; title: string; startsAt: string; status: "scheduled" | "live"; lockMinutes: number; youtubeId: string; revision: number; today: boolean; locked: boolean; eligibleDays: number; rounds: RaffleRound[]; onlineCount?: number; eligibleOnlineCount?: number; current: (RaffleRound & { startedAt?: string; finishesAt?: string; participantCount: number; participants: RafflePlayer[]; winner: RafflePlayer | null }) | null };
 export type RaffleState = { event: RaffleEvent | null; serverNow: string };
 export const raffleApi = {
