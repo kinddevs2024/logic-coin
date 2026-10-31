@@ -19,3 +19,5 @@ Remaining:
 - Build signed APK/AAB, verify certificate against installed app, install APK without clearing data, and verify native login UI. User must perform actual Google account consent when needed.
 - Yandex app-ads.txt personalized seller entries and store developer website still require verification; no seller IDs invented.
 - Ad frequency is a conservative starting configuration, not a proven revenue optimum. Measure daily revenue/user and returning players after a separately authorized rollout.
+
+Test installation completed later: signed APK/AAB downloaded and checksums verified; APK certificate matches installed version. Updating with adb install -r succeeded, package manager reports 1.3.8 / code 14, and the home screen opened with the existing account and challenge progress. Actual Google account consent/sign-in remains for the user to test. No general rollout occurred.
