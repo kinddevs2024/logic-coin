@@ -9,6 +9,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 
 export interface StyledInputProps {
   label?: string;
+  accessibilityLabel?: string;
   placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -25,6 +26,7 @@ export interface StyledInputProps {
 
 export function StyledInput({
   label,
+  accessibilityLabel,
   placeholder,
   value,
   onChangeText,
@@ -76,6 +78,7 @@ export function StyledInput({
           />
         )}
         <TextInput
+          accessibilityLabel={copyText(accessibilityLabel ?? label)}
           style={[
             styles.input,
             { color: String(theme.text) },

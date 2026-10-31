@@ -151,7 +151,7 @@ export default function LoginScreen() {
     <AuthScaffold
       compact
       title={step === "password" ? t("auth.passwordTitle") : c.title}
-      subtitle={step === "password" ? email.trim() : c.subtitle}
+      subtitle={step === "password" ? email.trim() : undefined}
       headerAction={step === "password" ? (
         <Pressable
           accessibilityRole="button"
@@ -171,12 +171,10 @@ export default function LoginScreen() {
         {step === "email" ? (
           <>
             <StyledInput
-              label={c.email}
+              accessibilityLabel={c.email}
               icon="mail-outline"
               value={email}
               onChangeText={(value) => { setEmail(value); emailFlow.reset(); }}
-              hint={c.emailHint}
-              error={/^[+\d][\d\s()-]{5,}$/.test(email.trim()) ? c.emailHint : undefined}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
