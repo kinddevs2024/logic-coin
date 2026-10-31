@@ -3,7 +3,9 @@ import { useUiCopy } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
+import { isTelegramMiniApp } from "@/lib/telegram-context";
+import { ChallengeAppRequired } from "@/components/challenge-app-required";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { AppFrame } from "@/components/app-frame";
@@ -25,6 +27,11 @@ const copy = {
 } as const;
 
 export default function ChallengesScreen() {
+  if (Platform.OS === "web" && !isTelegramMiniApp()) return <AppFrame><ChallengeAppRequired /></AppFrame>;
+  return <AvailableChallengesScreen />;
+}
+
+function AvailableChallengesScreen() {
   const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { language } = useTranslation();

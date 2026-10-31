@@ -1,4 +1,5 @@
 import { localizeBuiltIn } from "./localize-built-in";
+import { telegramChallengeInitData } from "./telegram-context";
 import type {
   ActivityOverview,
   BonusKind,
@@ -85,6 +86,8 @@ async function request<T>(
   const headers = new Headers(fetchOptions.headers);
   headers.set("Accept", "application/json");
   headers.set("Accept-Language", useAppStore.getState().language ?? "ru");
+  const telegramInitData = Platform.OS === "web" && /\/challenges\/[^/]+\/start$/.test(path) ? telegramChallengeInitData() : undefined;
+  if (telegramInitData) headers.set("X-Telegram-Init-Data", telegramInitData);
   if (fetchOptions.body) {
     headers.set("Content-Type", "application/json");
   }

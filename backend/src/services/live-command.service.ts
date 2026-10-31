@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requireChallengeClient } from "./challenge-client.service.js";
 import type { Types } from "mongoose";
 import { MAX_CHALLENGE_DURATION_MS, MAX_CHALLENGE_SCORE } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
@@ -9,7 +10,8 @@ import { invalidateReadCache } from "../lib/read-cache.js";
 
 const game = z.string().regex(/^[a-z0-9-]{1,80}$/);
 const completion = z.object({ gameKey: game, score: z.number().int().min(0).max(MAX_CHALLENGE_SCORE), durationMs: z.number().int().min(0).max(MAX_CHALLENGE_DURATION_MS).optional() }).strict();
-export async function executeLiveCommand(userId: Types.ObjectId, method: string, input: unknown, _nativeClient = false) {
+export async function executeLiveCommand(userId: Types.ObjectId, method: string, input: unknown, challengeClient = false) {
+  if (method === "start") requireChallengeClient(challengeClient);
   if (!["today", "pendingReward"].includes(method)) invalidateReadCache();
   switch (method) {
     case "today": return getTodayChallengeOverview(userId);

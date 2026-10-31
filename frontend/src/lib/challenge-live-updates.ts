@@ -1,4 +1,5 @@
 import { API_URL, refreshAccessToken } from "@/lib/api";
+import { telegramChallengeInitData } from "./telegram-context";
 import type { TodayChallenges, PendingContestReward } from "@/types";
 export type LiveState = { today?: TodayChallenges; reward?: PendingContestReward | null };
 
@@ -54,7 +55,7 @@ function connect(token: string, connection: Connection): void {
   }
   connection.socket = socket;
   connection.authenticated = false;
-  socket.onopen = () => socket.send(JSON.stringify({ type: "authenticate", token }));
+  socket.onopen = () => socket.send(JSON.stringify({ type: "authenticate", token, telegramInitData: telegramChallengeInitData() }));
   socket.onmessage = (event) => {
     let message: { type?: string; id?: string; data?: unknown; error?: { message: string; status?: number }; state?: LiveState } & LiveState;
     try {

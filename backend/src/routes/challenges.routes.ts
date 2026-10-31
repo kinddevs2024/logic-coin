@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireChallengeRequest } from "../services/challenge-client.service.js";
 import { z } from "zod";
 import { MAX_CHALLENGE_DURATION_MS, MAX_CHALLENGE_SCORE } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
@@ -60,6 +61,7 @@ router.post("/rewards/:resultId/claim", rewardLimiter, async (request, response)
 });
 
 router.post("/:gameKey/start", async (request, response) => {
+  requireChallengeRequest(request.headers);
   const gameKey = gameKeySchema.safeParse(request.params.gameKey);
   if (!gameKey.success) throw new ApiError(400, "invalid_game_key", "Game key is invalid");
   const attempt = await startChallengeAttempt({

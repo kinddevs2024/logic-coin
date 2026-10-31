@@ -10,9 +10,9 @@ export function ChallengeAppRequired() {
   const { copyContent } = useUiCopy();
   const { language } = useTranslation();
   const copy = {
-    ru: ["Челленджи — только в приложении", "На сайте можно смотреть результаты и рейтинг. Чтобы играть в челленджи, откройте Logic Coin на телефоне.", "Открыть приложение"],
-    en: ["Challenges are app-only", "View results and rankings on the website. To play challenges, open Logic Coin on your phone.", "Open app"],
-    uz: ["Sinovlar faqat ilovada", "Saytda natijalar va reytingni ko‘rish mumkin. Sinovlarda o‘ynash uchun telefonda Logic Coin ilovasini oching.", "Ilovani ochish"],
+    ru: ["Челленджи — в приложении и Telegram", "Чтобы играть, откройте приложение Logic Coin или Telegram-бота.", "Открыть приложение", "Открыть Telegram-бота"],
+    en: ["Play challenges in the app or Telegram", "Open the Logic Coin app or Telegram bot to play.", "Open app", "Open Telegram bot"],
+    uz: ["Sinovlar ilova va Telegramda", "O‘ynash uchun Logic Coin ilovasi yoki Telegram botini oching.", "Ilovani ochish", "Telegram botini ochish"],
   }[language];
   return <GlassSurface variant="strong" style={{ padding: 24, borderRadius: 24, gap: 14 }}>
     <AppText variant="heading">{copyContent(copy[0])}</AppText>
@@ -21,5 +21,6 @@ export function ChallengeAppRequired() {
       if (Platform.OS === "web") window.location.assign(/Android/i.test(navigator.userAgent) ? "https://play.google.com/store/apps/details?id=com.kinddevs.logiccoin" : "/api/v1/auth/app/open");
       else void Linking.openURL("logiccoin://challenges");
     }}>{copyContent(copy[2])}</AppButton></View>
+    <View><AppButton onPress={() => { void Linking.openURL("https://t.me/Logic_coinn_bot"); }}>{copyContent(copy[3])}</AppButton></View>
   </GlassSurface>;
 }

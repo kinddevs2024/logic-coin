@@ -18,6 +18,8 @@ import MergeScreen from "@/app/games/2048";
 import { HangmanResult } from "@/games/hangman/result";
 import { HangmanGame } from "@/games/hangman/game";
 import { AppFrame } from "@/components/app-frame";
+import { ChallengeAppRequired } from "@/components/challenge-app-required";
+import { isTelegramMiniApp } from "@/lib/telegram-context";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
 import { GameExitModal } from "@/components/game-exit-modal";
 import { AppodealBannerSlot } from "@/components/appodeal-banner";
@@ -111,6 +113,7 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 
 export default function DynamicGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
+  if (Platform.OS === "web" && firstParam(params.mode) === "challenge" && !isTelegramMiniApp()) return <AppFrame><ChallengeAppRequired /></AppFrame>;
   if (!isGameVisible(firstParam(params.gameKey) ?? "") && firstParam(params.mode) !== "challenge") return <Redirect href="/games" />;
   // A replacement of the same dynamic route must get a fresh host, not only
   // a fresh child game with the previous host's completed/discarded session.

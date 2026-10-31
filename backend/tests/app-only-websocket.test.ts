@@ -6,6 +6,7 @@ vi.mock("../src/services/token.service.js", () => ({ verifyAccessToken: () => ({
 vi.mock("../src/services/challenge-attempt.service.js", () => ({ startChallengeAttempt: mocks.start, completeChallengeAttempt: mocks.complete, completePracticeAttempt: mocks.practice, doubleChallengeCoins: mocks.double }));
 vi.mock("../src/services/daily-challenge.service.js", () => ({ getTodayChallengeOverview: async () => ({ games: [] }) }));
 vi.mock("../src/services/contest.service.js", () => ({ getPendingContestReward: async () => null, claimContestReward: async () => ({}) }));
+vi.mock("../src/services/telegram-auth.service.js", () => ({ verifyTelegramMiniApp: (value: string) => { if (value !== "valid-telegram-fixture") throw Error("Invalid signature"); return { id: "123" }; } }));
 import { attachLiveUpdates } from "../src/services/live-updates.service.js";
 describe("shared browser and APK commands over real WebSocket transport", () => {
   const server = createServer(); let stop: () => void; let url: string;
@@ -16,23 +17,33 @@ describe("shared browser and APK commands over real WebSocket transport", () => 
     url = `ws://127.0.0.1:${address.port}/api/v1/events`;
   });
   afterAll(async () => { stop(); await new Promise<void>(resolve => server.close(() => resolve())); });
-  async function command(ua: string, method: string, input: unknown) {
+  async function command(ua: string, method: string, input: unknown, telegramInitData?: string) {
     const client = new WebSocket(url, { headers: { "User-Agent": ua, Origin: "https://logic-coin.online" } });
     try {
       await new Promise<void>((resolve, reject) => { client.once("open", resolve); client.once("error", reject); });
       const auth = new Promise(resolve => client.once("message", resolve));
-      client.send(JSON.stringify({ type: "authenticate", token: "test-only" })); await auth;
+      client.send(JSON.stringify({ type: "authenticate", token: "test-only", telegramInitData })); await auth;
       const reply = new Promise<any>(resolve => client.once("message", data => resolve(JSON.parse(data.toString()))));
       client.send(JSON.stringify({ id: "test", method, input })); return await reply;
     } finally { client.terminate(); }
   }
-  it.each(["start", "complete", "double"])("allows authenticated browser %s", async method => {
+  it.each(["complete", "double"])("allows authenticated browser %s", async method => {
     vi.clearAllMocks();
     const input = method === "double" ? { scope: "game" } : method === "start" ? { gameKey: "tetris" } : { gameKey: "tetris", score: 10 };
     const result = await command("Mozilla/5.0", method, input);
     expect(result.error).toBeUndefined();
     const service = method === "start" ? mocks.start : method === "complete" ? mocks.complete : mocks.double;
     expect(service).toHaveBeenCalledOnce();
+  });
+  it("blocks ordinary browsers and forged Telegram launch data", async () => {
+    vi.clearAllMocks();
+    for (const data of [undefined, "forged"]) expect((await command("Mozilla/5.0", "start", { gameKey: "tetris" }, data)).error.status).toBe(403);
+    expect(mocks.start).not.toHaveBeenCalled();
+  });
+  it("allows a verified Telegram Mini App over browser WebSocket transport", async () => {
+    vi.clearAllMocks();
+    expect((await command("Mozilla/5.0", "start", { gameKey: "tetris" }, "valid-telegram-fixture")).data).toEqual({ accepted: true });
+    expect(mocks.start).toHaveBeenCalledOnce();
   });
   it("keeps browser reads and practice working", async () => {
     expect((await command("Mozilla/5.0", "today", {})).data).toEqual({ games: [] });

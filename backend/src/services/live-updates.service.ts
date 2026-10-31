@@ -4,6 +4,7 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { API_PREFIX } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import { isNativeAppClient } from "../lib/native-client.js";
+import { isTelegramChallengeClient } from "./challenge-client.service.js";
 import { isAccessSessionActive, verifyAccessToken } from "./token.service.js";
 
 const AUTH_TIMEOUT_MS = 10_000;
@@ -45,7 +46,7 @@ function textFromRawData(data: RawData): string {
 
 /** Attach the authenticated events endpoint to the API HTTP server. */
 export function attachLiveUpdates(server: Server): () => void {
-  const websocketServer = new WebSocketServer({ noServer: true, maxPayload: 2_048 });
+  const websocketServer = new WebSocketServer({ noServer: true, maxPayload: 16_384 });
   server.on("upgrade", (request, socket, head) => {
     const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
     if (pathname !== `${API_PREFIX}/events`) {
@@ -60,6 +61,7 @@ export function attachLiveUpdates(server: Server): () => void {
 
   websocketServer.on("connection", (websocket, request) => {
     const nativeClient = isNativeAppClient(request.headers);
+    let challengeClient = nativeClient;
     let authenticated = false;
     let authInProgress = false;
     let alive = true;
@@ -84,7 +86,7 @@ export function attachLiveUpdates(server: Server): () => void {
             }
             if (++limit.count > 30) throw new Error("Too many commands; try again later");
             const { executeLiveCommand } = await import("./live-command.service.js");
-            const data = await executeLiveCommand(identity.userId, message.method, message.input ?? {}, nativeClient);
+            const data = await executeLiveCommand(identity.userId, message.method, message.input ?? {}, challengeClient);
             // A committed mutation is acknowledged even if refreshing its view fails.
             let state;
             if (!["today", "pendingReward"].includes(message.method)) {
@@ -101,7 +103,7 @@ export function attachLiveUpdates(server: Server): () => void {
         return;
       }
       if (authInProgress) return;
-      let message: { type?: unknown; token?: unknown };
+      let message: { type?: unknown; token?: unknown; telegramInitData?: unknown };
       try {
         message = JSON.parse(textFromRawData(raw)) as { type?: unknown; token?: unknown };
       } catch {
@@ -125,6 +127,7 @@ export function attachLiveUpdates(server: Server): () => void {
             return;
           }
           if (websocket.readyState !== WebSocket.OPEN) return;
+          challengeClient = nativeClient || isTelegramChallengeClient(message.telegramInitData);
           authenticated = true;
           clearTimeout(authTimeout);
           clients.add(websocket);

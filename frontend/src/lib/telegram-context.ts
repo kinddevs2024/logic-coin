@@ -5,3 +5,8 @@ export function isTelegramMiniApp(): boolean {
   return Boolean(app?.initData || (app?.platform && app.platform !== "unknown") ||
     /(?:^|[?#&])tgWebApp(?:Data|Platform|Version)=/.test(window.location.hash + window.location.search));
 }
+
+export function telegramChallengeInitData(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as Window & { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData || undefined;
+}
