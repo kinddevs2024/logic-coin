@@ -14,6 +14,10 @@ on:
       - 'frontend/src/app/_layout.tsx'
       - 'frontend/src/components/applied-update-notice.tsx'
       - 'frontend/src/lib/applied-update-notice.ts'
+      - 'frontend/src/components/native-update-messages.tsx'
+      - 'frontend/src/components/logo.tsx'
+      - 'frontend/src/lib/update-message.ts'
+      - 'frontend/src/lib/notifications.ts'
   workflow_dispatch:
     inputs:
       baseline_run:

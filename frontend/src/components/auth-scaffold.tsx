@@ -39,7 +39,7 @@ export function AuthScaffold({
       scrollProps={{ keyboardDismissMode: "on-drag" }}
     >
       <View style={[styles.brand, compact && styles.compactBrand, compact && { paddingTop: Math.min(100, Math.round(height * 0.12)) }]}>
-        <LogicCoinLogo compact />
+        <LogicCoinLogo compact size={compact ? 120 : undefined} />
       </View>
       <GlassSurface intensity={64} variant="strong" style={styles.card}>
         {headerAction ? (

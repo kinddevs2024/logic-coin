@@ -16,9 +16,11 @@ export function LogoMark({ size = 52 }: { size?: number }) {
 export function LogicCoinLogo({
   compact = false,
   light = false,
+  size,
 }: {
   compact?: boolean;
   light?: boolean;
+  size?: number;
 }) {
   return (
     <View
@@ -28,7 +30,7 @@ export function LogicCoinLogo({
         gap: 10,
       }}
     >
-      <LogoMark size={compact ? 88 : 98} />
+      <LogoMark size={size ?? (compact ? 88 : 98)} />
     </View>
   );
 }

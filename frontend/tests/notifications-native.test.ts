@@ -29,6 +29,7 @@ vi.mock("expo-notifications", () => ({
   getDevicePushTokenAsync: mocks.nativeToken,
   getExpoPushTokenAsync: mocks.token,
   setNotificationChannelAsync: mocks.channel,
+  getNotificationChannelAsync: async () => ({ importance: 4 }),
   getPresentedNotificationsAsync: mocks.presented,
   dismissNotificationAsync: mocks.dismiss,
   scheduleNotificationAsync: mocks.schedule,
@@ -44,7 +45,7 @@ vi.mock("expo-notifications", () => ({
   clearLastNotificationResponseAsync: mocks.clearResponse,
 }));
 
-import { configureDailyReminder, dismissInboxNotifications, installNotificationHandlers, openNotificationSettings, startInboxNotificationSync, syncPushNotifications } from "../src/lib/notifications";
+import { configureDailyReminder, dismissInboxNotifications, installNotificationHandlers, notifyUpdateState, openNotificationSettings, startInboxNotificationSync, syncPushNotifications } from "../src/lib/notifications";
 
 const input = { accessToken: "test-only", enabled: true, reminderTime: "19:00", requestPermission: true };
 let cleanup: (() => void) | undefined;
@@ -172,8 +173,7 @@ it("stops native token registration feedback loops while retaining real token ro
   });
   cleanup = await installNotificationHandlers(vi.fn(), () => { void syncPushNotifications(input); });
   await syncPushNotifications(input);
-  await new Promise(resolve => setTimeout(resolve, 0));
-  expect(mocks.nativeToken).toHaveBeenCalledTimes(2);
+  await vi.waitFor(() => expect(mocks.nativeToken).toHaveBeenCalledTimes(2));
   await vi.waitFor(() => expect(mocks.updatePreferences).toHaveBeenCalledTimes(2));
   current = "native-token-B";
   mocks.changed?.({ type: "android", data: current });
@@ -195,4 +195,29 @@ it("dismisses background FCM tray entries only through the read-all cutoff", asy
   mocks.presented.mockResolvedValue([before, after, { ...before, request: { ...before.request, identifier: "foreign-other-application" } }]);
   await dismissInboxNotifications(undefined, "2026-10-18T08:00:00Z");
   expect(mocks.dismiss).toHaveBeenCalledExactlyOnceWith(before.request.identifier);
+});
+
+
+it("sends a downloaded-update message without asking for permission", async () => {
+  await notifyUpdateState({ id: "ready-update", kind: "downloaded" }, "uz", true);
+  expect(mocks.request).not.toHaveBeenCalled();
+  expect(mocks.schedule).toHaveBeenCalledWith(expect.objectContaining({
+    identifier: "logic-app-update:ready-update",
+    content: expect.objectContaining({ body: "Yangilanish yuklab olindi", data: { logicUpdate: true, updateId: "ready-update" } }),
+    trigger: { channelId: "app-updates" },
+  }));
+});
+it("respects disabled app notifications and denied OS permission", async () => {
+  expect(await notifyUpdateState({ id: "ready-update", kind: "downloaded" }, "ru", false)).toBe(false);
+  mocks.permission = { status: "denied", canAskAgain: false };
+  expect(await notifyUpdateState({ id: "ready-update", kind: "downloaded" }, "ru", true)).toBe(false);
+  expect(mocks.request).not.toHaveBeenCalled();
+  expect(mocks.schedule).not.toHaveBeenCalled();
+});
+it("does not open the message inbox when an update notice is tapped", async () => {
+  const onOpen = vi.fn();
+  cleanup = await installNotificationHandlers(onOpen, vi.fn());
+  mocks.respond?.({ notification: { request: { identifier: "logic-app-update:ready", content: { data: { logicUpdate: true } } } } });
+  await vi.waitFor(() => expect(mocks.clearResponse).toHaveBeenCalledOnce());
+  expect(onOpen).not.toHaveBeenCalled();
 });

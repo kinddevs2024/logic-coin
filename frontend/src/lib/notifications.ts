@@ -3,6 +3,7 @@ import { AppState, Linking, Platform } from "react-native";
 import { devicesApi, inboxApi, type InboxNotification } from "@/lib/api";
 import { getDeviceId } from "@/lib/device-id";
 import type { Language } from "@/types";
+import { updateMessageCopy, type UpdateMessage } from "@/lib/update-message";
 import { getPushStatus, setPushStatus } from "@/lib/push-status";
 import { isExpoGo } from "@/lib/native-runtime";
 import { beforeReadCutoff, inboxNotificationCreatedAt, inboxNotificationIds, unseenInboxItems } from "./inbox-notification-tray";
@@ -236,13 +237,45 @@ export async function dismissInboxNotifications(ids?: string[], before?: string)
   ]);
 }
 
+function configureNotificationPresentation(Notifications: typeof import("expo-notifications")) {
+  Notifications.setNotificationHandler({ handleNotification: async notification => ({
+    shouldShowBanner: !notification.request.content.data?.silent,
+    shouldShowList: true,
+    shouldPlaySound: !notification.request.content.data?.silent && !notification.request.content.data?.logicUpdate,
+    shouldSetBadge: false,
+  }) });
+}
+
+/** Local device notice only after the native updater confirms completion. */
+export async function notifyUpdateState(message: UpdateMessage, language: Language, enabled: boolean) {
+  if (!enabled || Platform.OS !== "android" || isExpoGo) return false;
+  const Notifications = await import("expo-notifications");
+  if ((await Notifications.getPermissionsAsync()).status !== "granted") return false;
+  configureNotificationPresentation(Notifications);
+  await Notifications.setNotificationChannelAsync("app-updates", {
+    name: { ru: "Обновления приложения", uz: "Ilova yangilanishlari", en: "App updates" }[language],
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: null,
+    enableVibrate: false,
+  });
+  if ((await Notifications.getNotificationChannelAsync("app-updates"))?.importance === Notifications.AndroidImportance.NONE) return false;
+  await Notifications.scheduleNotificationAsync({
+    identifier: `logic-app-update:${message.id}`,
+    content: { title: "Logic Coin", body: updateMessageCopy[language][message.kind], sound: false, data: { logicUpdate: true, updateId: message.id } },
+    trigger: { channelId: "app-updates" },
+  });
+  return true;
+}
+
 export async function installNotificationHandlers(onOpen: (ids: string[]) => void | Promise<void>, onTokenChange: () => void) {
   if (Platform.OS === "web" || isExpoGo) return () => {};
   const Notifications = await import("expo-notifications");
-  Notifications.setNotificationHandler({ handleNotification: async notification => ({ shouldShowBanner: !notification.request.content.data?.silent, shouldShowList: true, shouldPlaySound: !notification.request.content.data?.silent, shouldSetBadge: false }) });
+  configureNotificationPresentation(Notifications);
   const respond = async (response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>) => {
     if (response) {
-      await onOpen(inboxNotificationIds(response.notification.request.content.data, response.notification.request.identifier));
+      if (!response.notification.request.content.data?.logicUpdate) {
+        await onOpen(inboxNotificationIds(response.notification.request.content.data, response.notification.request.identifier));
+      }
       await Notifications.clearLastNotificationResponseAsync();
     }
   };
