@@ -166,13 +166,13 @@ describe("challenge exit confirmation", () => {
 });
 
 describe("Strike challenge rules", () => {
-  it("uses the full short sequence for challenge rounds", () => {
+  it("finishes a challenge after exactly 23 hits", () => {
     const rules = strikeRules(true);
-    expect(rules.attemptLimit).toBe(38);
-    for (let completedHits = 0; completedHits < 38; completedHits += 1) {
+    expect(rules.attemptLimit).toBe(23);
+    for (let completedHits = 0; completedHits < 23; completedHits += 1) {
       expect(completedHits >= rules.attemptLimit).toBe(false);
     }
-    expect(38 >= rules.attemptLimit).toBe(true);
+    expect(23 >= rules.attemptLimit).toBe(true);
   });
 
   it("keeps all practice defaults and result thresholds unchanged", () => {
@@ -183,16 +183,16 @@ describe("Strike challenge rules", () => {
 
   it("uses reachable, proportional win and grade thresholds", () => {
     expect(strikeRules(true)).toEqual({
-      attemptLimit: 38,
-      winningHits: 28,
-      perfectGradeHits: 30,
-      excellentGradeHits: 22,
+      attemptLimit: 23,
+      winningHits: 17,
+      perfectGradeHits: 19,
+      excellentGradeHits: 14,
     });
   });
 
   it("does not carry a previous mode's rules into a replay or the next challenge", () => {
     expect([true, true, false, true, false, true].map((challengeMode) => strikeRules(challengeMode).attemptLimit))
-      .toEqual([38, 38, 38, 38, 38, 38]);
+      .toEqual([23, 23, 38, 23, 38, 23]);
   });
 });
 
