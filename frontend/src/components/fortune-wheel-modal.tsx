@@ -8,6 +8,11 @@ import { endCopy, NotebookAction } from '../games/hangman/result';
 import { useAppStore } from '../store/app-store';
 
 const NOTEBOOK_PRIZES = ['+200', '+150', '+200', '+100', '+50'];
+const invitation = {
+  ru: 'Больше коинов? Испытай удачу!',
+  uz: 'Ko‘proq koin? Omadingizni sinang!',
+  en: 'More coins? Try your luck!',
+};
 
 const WHEEL_SIZE = 272;
 const WHEEL_CENTER = WHEEL_SIZE / 2;
@@ -63,7 +68,7 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
   if (!visible) return null;
   if (paper) return <NotebookLayer priority={2000} onClose={() => { if (!busy && !spinning) onDismiss(); }}><NotebookPaper style={[notebookPanel, { top: 190, padding: 32, alignItems: 'center' }]}>
     <Hand style={{ fontSize: 45, textAlign: 'center', color: '#111' }}>{copyContent(c.wheel)}</Hand>
-    <Hand style={{ fontSize: 25, textAlign: 'center', marginTop: 10 }}>{copyContent(c.extra)}</Hand>
+    <Hand style={{ fontSize: 25, textAlign: 'center', marginTop: 10 }}>{invitation[language]}</Hand>
     <Ionicons name="caret-down" size={38} color="#F54763" style={{ marginTop: 18, marginBottom: -5, zIndex: 2 }} />
     <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }], shadowOpacity: 0, marginBottom: 15 }]}>
       <Image source={require("../../assets/images/fortune-wheel-v2.png")} resizeMode="contain" style={styles.wheelArtwork} />
@@ -78,6 +83,7 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
   const content = (
     <View style={styles.backdrop}><View style={styles.card}>
       <Text style={styles.title}>{copyText("КОЛЕСО ФОРТУНЫ")}</Text>
+      <Text style={styles.invitation}>{invitation[language]}</Text>
       <View style={styles.pointer} accessibilityLabel={copyText("Указатель колеса")}><View style={styles.pointerTip} /></View>
       <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }] }]}>
         <Image source={require("../../assets/images/fortune-wheel-v2.png")} resizeMode="contain" style={styles.wheelArtwork} />
@@ -100,6 +106,7 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
 }
 
 const styles = StyleSheet.create({
+  invitation: { color: "#B8CCBC", fontSize: 14, lineHeight: 20, textAlign: "center", marginTop: 8 },
   androidLayer: { ...StyleSheet.absoluteFill, zIndex: 2000, elevation: 40 },
   backdrop: { flex: 1, backgroundColor: "rgba(16,37,27,0.88)", alignItems: "center", justifyContent: "center", padding: 24 },
   card: { width: "100%", maxWidth: 380, alignItems: "center", padding: 26, borderRadius: 30, backgroundColor: "#182A21", borderWidth: 1, borderColor: "rgba(0,122,87,0.45)" },
