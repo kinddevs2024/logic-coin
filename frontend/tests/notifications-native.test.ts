@@ -199,7 +199,7 @@ it("dismisses background FCM tray entries only through the read-all cutoff", asy
 
 
 it("sends a downloaded-update message without asking for permission", async () => {
-  await notifyUpdateState({ id: "ready-update", kind: "downloaded" }, "uz", true);
+  await notifyUpdateState({ id: "ready-update", kind: "downloaded" }, "uz");
   expect(mocks.request).not.toHaveBeenCalled();
   expect(mocks.schedule).toHaveBeenCalledWith(expect.objectContaining({
     identifier: "logic-app-update:ready-update",
@@ -207,10 +207,9 @@ it("sends a downloaded-update message without asking for permission", async () =
     trigger: { channelId: "app-updates" },
   }));
 });
-it("respects disabled app notifications and denied OS permission", async () => {
-  expect(await notifyUpdateState({ id: "ready-update", kind: "downloaded" }, "ru", false)).toBe(false);
+it("respects denied OS permission without requesting it again", async () => {
   mocks.permission = { status: "denied", canAskAgain: false };
-  expect(await notifyUpdateState({ id: "ready-update", kind: "downloaded" }, "ru", true)).toBe(false);
+  expect(await notifyUpdateState({ id: "ready-update", kind: "downloaded" }, "ru")).toBe(false);
   expect(mocks.request).not.toHaveBeenCalled();
   expect(mocks.schedule).not.toHaveBeenCalled();
 });

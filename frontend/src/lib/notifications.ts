@@ -247,8 +247,9 @@ function configureNotificationPresentation(Notifications: typeof import("expo-no
 }
 
 /** Local device notice only after the native updater confirms completion. */
-export async function notifyUpdateState(message: UpdateMessage, language: Language, enabled: boolean) {
-  if (!enabled || Platform.OS !== "android" || isExpoGo) return false;
+// Service updates are independent of the Daily reminders preference.
+export async function notifyUpdateState(message: UpdateMessage, language: Language) {
+  if (Platform.OS !== "android" || isExpoGo) return false;
   const Notifications = await import("expo-notifications");
   if ((await Notifications.getPermissionsAsync()).status !== "granted") return false;
   configureNotificationPresentation(Notifications);

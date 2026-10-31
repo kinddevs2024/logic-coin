@@ -10,7 +10,6 @@ import { useAppStore } from "@/store/app-store";
 export function NativeUpdateMessages() {
   const hydrated = useAppStore(state => state.hydrated);
   const language = useAppStore(state => state.language) ?? "ru";
-  const notificationsEnabled = useAppStore(state => state.notificationsEnabled);
   const pathname = usePathname();
   const status = Updates.useUpdates();
   const [appState, setAppState] = useState(AppState.currentState);
@@ -50,13 +49,13 @@ export function NativeUpdateMessages() {
     if (!hydrated || !message || (appState === "active" && pathname.startsWith("/play/"))) return;
     void announceUpdateMessage(message, AsyncStorage, async candidate => {
       const state = useAppStore.getState();
-      const sent = await notifyUpdateState(candidate, state.language ?? "ru", state.notificationsEnabled).catch(() => false);
+      const sent = await notifyUpdateState(candidate, state.language ?? "ru").catch(() => false);
       if (!sent && AppState.currentState === "active" && !latest.current.pathname.startsWith("/play/")) {
         ToastAndroid.show(updateMessageCopy[latest.current.language][candidate.kind], ToastAndroid.LONG);
         return true;
       }
       return sent;
     }).catch(() => { /* Delivery/storage failure does not block startup and can retry. */ });
-  }, [appState, hydrated, language, message, notificationsEnabled, pathname]);
+  }, [appState, hydrated, language, message, pathname]);
   return null;
 }
