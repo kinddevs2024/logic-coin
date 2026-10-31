@@ -8,7 +8,7 @@ import { Platform } from "react-native";
 export async function shareLink(title: string, message: string, url: string) {
   title = copyText(title); message = copyText(message);
   const shared = new URL(url);
-  shared.searchParams.set("lang", useAppStore.getState().language ?? "ru");
+  shared.searchParams.set("lang", useAppStore.getState().language ?? "uz");
   url = shared.toString();
   try {
     if (Platform.OS === "web") {

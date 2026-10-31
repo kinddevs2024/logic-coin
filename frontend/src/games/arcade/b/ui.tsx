@@ -232,7 +232,7 @@ export function ResultCard({ icon, title, score, coins, accent, stats, onReplay,
           <ArcadeIcon name={icon} size={36} color={accent} />
         </View>
         <Text style={[styles.resultTitle, { color: accent }]}>{copyContent(title)}</Text>
-        <Text style={styles.resultScore}>{copyContent(Math.max(0, coins).toLocaleString(localeStore.getState().language ?? "ru"))}</Text>
+        <Text style={styles.resultScore}>{copyContent(Math.max(0, coins).toLocaleString(localeStore.getState().language ?? "uz"))}</Text>
         <Text style={styles.resultLabel}>{copyText("COIN")}</Text>
         <View style={styles.resultStats}>
           {stats.map((stat) => <Metric key={stat.label} label={stat.label} value={stat.value} color={accent} />)}

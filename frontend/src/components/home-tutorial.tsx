@@ -32,7 +32,7 @@ export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
 }) {
   const { copyContent } = useUiCopy();
   const theme = useAppTheme();
-  const language = useAppStore(s => s.language) ?? "ru";
+  const language = useAppStore(s => s.language) ?? "uz";
   const userId = useAppStore(s => s.user.id);
   const auth = useAppStore(s => s.authMode);
   const focused = useIsFocused();

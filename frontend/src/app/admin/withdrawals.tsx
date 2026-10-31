@@ -83,11 +83,11 @@ export default function AdminWithdrawalsScreen() {
       <AppText variant="label">{row.user.name}</AppText>
       <AppText variant="caption" muted>{copyContent(row.user.email ?? row.user.id)}{copyContent(row.user.referralCode ? ` · ${row.user.referralCode}` : "")}</AppText>
       <AppText>{copyContent(row.accountLabel ?? "Карта не указана")}{copyContent(row.cardHolder ? ` · ${row.cardHolder}` : "")}</AppText>
-      <AppText variant="caption" muted>{copyContent(new Date(row.requestedAt).toLocaleString(localeStore.getState().language ?? "ru"))} · {copyContent(row.id)}</AppText>
+      <AppText variant="caption" muted>{copyContent(new Date(row.requestedAt).toLocaleString(localeStore.getState().language ?? "uz"))} · {copyContent(row.id)}</AppText>
       {row.reviewNote ? <AppText variant="caption">{copyText("Комментарий: ")}{copyContent(row.reviewNote)}</AppText> : null}
       {row.paymentReference ? <AppText variant="caption">{copyText("Операция: ")}{copyContent(row.paymentReference)}</AppText> : null}
-      {row.processedAt ? <AppText variant="caption" muted>{copyText("Обработана: ")}{copyContent(new Date(row.processedAt).toLocaleString(localeStore.getState().language ?? "ru"))}</AppText> : null}
-      {row.reviewHistory.map((event, index) => <AppText key={index} variant="caption" muted>{copyContent(new Date(event.at).toLocaleString(localeStore.getState().language ?? "ru"))} · {copyContent(actions[event.action as Action] ?? event.action)} {copyText(" · админ …")}{copyContent(event.adminId.slice(-6))}</AppText>)}
+      {row.processedAt ? <AppText variant="caption" muted>{copyText("Обработана: ")}{copyContent(new Date(row.processedAt).toLocaleString(localeStore.getState().language ?? "uz"))}</AppText> : null}
+      {row.reviewHistory.map((event, index) => <AppText key={index} variant="caption" muted>{copyContent(new Date(event.at).toLocaleString(localeStore.getState().language ?? "uz"))} · {copyContent(actions[event.action as Action] ?? event.action)} {copyText(" · админ …")}{copyContent(event.adminId.slice(-6))}</AppText>)}
       {row.method === "bank_card" && ["pending_review", "approved"].includes(row.status) ? <>
         <AppText variant="caption" muted>{copyText("Сохранены только последние 4 цифры карты. Полные платёжные реквизиты здесь недоступны.")}</AppText>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>

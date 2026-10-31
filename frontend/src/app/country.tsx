@@ -28,7 +28,7 @@ export default function CountryScreen() {
   const postAuthLanguageUserId = useAppStore((state) => state.postAuthLanguageUserId);
   const updateUser = useAppStore((state) => state.updateUser);
   const setPostAuthLanguageUserId = useAppStore((state) => state.setPostAuthLanguageUserId);
-  const savedLanguage = useAppStore((state) => state.language) ?? "ru";
+  const savedLanguage = useAppStore((state) => state.language) ?? "uz";
   const [countryCode, setCountryCode] = useState("");
   const [countryQuery, setCountryQuery] = useState("");
   const listRef = useRef<FlatList<CountryOption>>(null);

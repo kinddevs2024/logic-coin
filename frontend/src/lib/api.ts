@@ -85,7 +85,7 @@ async function request<T>(
   const { token, skipAuthRefresh, ...fetchOptions } = options;
   const headers = new Headers(fetchOptions.headers);
   headers.set("Accept", "application/json");
-  headers.set("Accept-Language", useAppStore.getState().language ?? "ru");
+  headers.set("Accept-Language", useAppStore.getState().language ?? "uz");
   const telegramInitData = Platform.OS === "web" && /\/challenges\/[^/]+\/start$/.test(path) ? telegramChallengeInitData() : undefined;
   if (telegramInitData) headers.set("X-Telegram-Init-Data", telegramInitData);
   if (fetchOptions.body) {
@@ -100,7 +100,7 @@ async function request<T>(
     response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
-    throw new ApiError(localizeBuiltIn("Проверьте подключение к интернету.", useAppStore.getState().language ?? "ru"), 0, "network_unavailable");
+    throw new ApiError(localizeBuiltIn("Проверьте подключение к интернету.", useAppStore.getState().language ?? "uz"), 0, "network_unavailable");
   }
 
   if (response.status === 401 && token && !skipAuthRefresh) {
@@ -119,7 +119,7 @@ async function request<T>(
   if (!response.ok) {
     const body = payload as ApiErrorBody;
     throw new ApiError(
-      localizeBuiltIn(body.error?.message || body.message || "Request failed", useAppStore.getState().language ?? "ru"),
+      localizeBuiltIn(body.error?.message || body.message || "Request failed", useAppStore.getState().language ?? "uz"),
       response.status,
       body.error?.code,
       body.error?.details,

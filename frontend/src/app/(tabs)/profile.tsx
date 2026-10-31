@@ -86,7 +86,7 @@ export default function ProfileScreen() {
               {user.email ? <AppText muted>{user.email}</AppText> : null}
               <View style={styles.countryLine}>
                 <CountryFlagBadge countryCode={user.countryCode} size={18} />
-                <AppText variant="caption" muted>{copyContent(countryName(user.countryCode, useAppStore.getState().language ?? "ru"))}</AppText>
+                <AppText variant="caption" muted>{copyContent(countryName(user.countryCode, useAppStore.getState().language ?? "uz"))}</AppText>
               </View>
             </View>
             <View style={styles.editButton}>

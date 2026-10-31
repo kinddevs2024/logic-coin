@@ -51,7 +51,7 @@ export default function RootLayout() {
     (state) => state.notificationsEnabled,
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
-  const language = useAppStore((state) => state.language) ?? "ru";
+  const language = useAppStore((state) => state.language) ?? "uz";
   const [pushInbox, setPushInbox] = useState(false);
 
   useEffect(() => {

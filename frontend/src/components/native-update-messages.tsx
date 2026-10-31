@@ -9,7 +9,7 @@ import { useAppStore } from "@/store/app-store";
 
 export function NativeUpdateMessages() {
   const hydrated = useAppStore(state => state.hydrated);
-  const language = useAppStore(state => state.language) ?? "ru";
+  const language = useAppStore(state => state.language) ?? "uz";
   const pathname = usePathname();
   const status = Updates.useUpdates();
   const [appState, setAppState] = useState(AppState.currentState);
@@ -49,7 +49,7 @@ export function NativeUpdateMessages() {
     if (!hydrated || !message || (appState === "active" && pathname.startsWith("/play/"))) return;
     void announceUpdateMessage(message, AsyncStorage, async candidate => {
       const state = useAppStore.getState();
-      const sent = await notifyUpdateState(candidate, state.language ?? "ru").catch(() => false);
+      const sent = await notifyUpdateState(candidate, state.language ?? "uz").catch(() => false);
       if (!sent && AppState.currentState === "active" && !latest.current.pathname.startsWith("/play/")) {
         ToastAndroid.show(updateMessageCopy[latest.current.language][candidate.kind], ToastAndroid.LONG);
         return true;

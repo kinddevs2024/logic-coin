@@ -80,7 +80,7 @@ export function AdminBarChart({ values, labels, color }: { values: number[]; lab
 }
 
 export function formatUnits(value: number) {
-  return new Intl.NumberFormat(useAppStore.getState().language ?? "ru", { maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat(useAppStore.getState().language ?? "uz", { maximumFractionDigits: 2 }).format(value);
 }
 
 const styles = StyleSheet.create({

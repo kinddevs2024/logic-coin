@@ -30,7 +30,7 @@ function configFor(round: number) { return LEVELS[Math.min(Math.floor(round / 2)
 
 function makeRound(round: number, previousAnswer?: string) {
   const config = configFor(round);
-  const language = useAppStore.getState().language ?? "ru";
+  const language = useAppStore.getState().language ?? "uz";
   const LETTERS = language === "ru" ? RUSSIAN_LETTERS : language === "uz" ? [..."ABDEFGHIJKLMNOPQRSTUVXYZ", "O‘", "G‘", "Sh", "Ch", "Ng"] : [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
   const answer = shuffleAvoidingFirst(LETTERS, previousAnswer)[0]!;
   const others = shuffle(LETTERS.filter((letter) => letter !== answer)).slice(0, config.total - 2);

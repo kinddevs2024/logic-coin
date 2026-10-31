@@ -254,7 +254,7 @@ export default function AdminChallengesScreen() {
                   </View>
                 </View>
               ) : null}
-              {challenge ? <AppText variant="caption" muted>{copyText("Фонд: ")}{copyContent(formatUnits(challenge.prizePoolUnits))} {copyText(" LC")}{copyContent(challenge.endsAt ? ` · автостоп ${new Date(challenge.endsAt).toLocaleString(localeStore.getState().language ?? "ru")}` : "")}{copyContent(challenge.updatedAt ? ` · обновлён ${new Date(challenge.updatedAt).toLocaleString(localeStore.getState().language ?? "ru")}` : "")}</AppText> : null}
+              {challenge ? <AppText variant="caption" muted>{copyText("Фонд: ")}{copyContent(formatUnits(challenge.prizePoolUnits))} {copyText(" LC")}{copyContent(challenge.endsAt ? ` · автостоп ${new Date(challenge.endsAt).toLocaleString(localeStore.getState().language ?? "uz")}` : "")}{copyContent(challenge.updatedAt ? ` · обновлён ${new Date(challenge.updatedAt).toLocaleString(localeStore.getState().language ?? "uz")}` : "")}</AppText> : null}
             </>
           ) : null}
         </GlassSurface>
