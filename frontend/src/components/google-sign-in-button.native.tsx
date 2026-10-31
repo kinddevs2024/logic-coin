@@ -1,4 +1,6 @@
-import { Alert } from "@/components/localized-native";
+import { useAuthError } from "@/components/auth-error-dialog";
+import { checkAuthConnection } from "@/lib/auth-error";
+import { API_URL } from "@/lib/api";
 import { isExpoGo } from "@/lib/native-runtime";
 import type { GoogleSignin as GoogleSigninType } from "@react-native-google-signin/google-signin";
 import { useEffect, useRef, useState } from "react";
@@ -15,6 +17,7 @@ export function GoogleSignInButton({ onCredential, disabled, autoPrompt = false 
   onCredential: (credential: string) => void; disabled?: boolean; autoPrompt?: boolean;
 }) {
   const { language } = useTranslation();
+  const showError = useAuthError();
   const c = authEntryCopy[language];
   const [busy, setBusy] = useState(false);
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
@@ -31,20 +34,21 @@ export function GoogleSignInButton({ onCredential, disabled, autoPrompt = false 
     attempted.current = true;
     let active = true;
     inFlight.current = true; setBusy(true);
-    void resumeGoogleAccount(GoogleSignin).then(result => {
-      if (active && result.type === "success" && result.data.idToken) callback.current(result.data.idToken);
+    void checkAuthConnection(API_URL).then(() => active ? resumeGoogleAccount(GoogleSignin) : null).then(result => {
+      if (active && result?.type === "success" && result.data.idToken) callback.current(result.data.idToken);
     }).catch(() => { /* Dismissal or unavailable Play Services keeps manual sign-in available. */ })
       .finally(() => { inFlight.current = false; if (active) setBusy(false); });
     return () => { active = false; setBusy(false); };
   }, [autoPrompt, clientId, disabled]);
   const signIn = async () => {
-    if (!GoogleSignin) { Alert.alert("Google", c.googleInstalledOnly); return; }
+    if (!GoogleSignin) { showError(new Error(c.googleInstalledOnly)); return; }
     if (!clientId || inFlight.current || disabled) return;
     inFlight.current = true; setBusy(true);
     try {
+      await checkAuthConnection(API_URL);
       const result = await selectGoogleAccount(GoogleSignin);
       if (result.type === "success" && result.data.idToken) callback.current(result.data.idToken);
-    } catch (error) { Alert.alert("Google", error instanceof Error ? error.message : c.googleUnavailable); }
+    } catch (error) { showError(error, () => void signIn()); }
     finally { inFlight.current = false; setBusy(false); }
   };
   return <Pressable accessibilityRole="button" accessibilityLabel={c.google} onPress={() => void signIn()}

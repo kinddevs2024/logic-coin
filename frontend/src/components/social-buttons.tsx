@@ -1,4 +1,5 @@
-import { useUiCopy , Alert } from "@/components/localized-native";
+import { useUiCopy } from "@/components/localized-native";
+import { useAuthError } from "@/components/auth-error-dialog";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
@@ -63,13 +64,12 @@ export function SocialButtons({
   onAuthenticated?: (result: AuthResult) => void;
   autoPrompt?: boolean;
 }) {
-  const { copyContent } = useUiCopy();
-  const { t, language } = useTranslation();
+  const showError = useAuthError();
+  const { language } = useTranslation();
   const router = useRouter();
   const authenticate = useAppStore((state) => state.authenticate);
   const postAuthLanguageUserId = useAppStore((state) => state.postAuthLanguageUserId);
   const [busy, setBusy] = useState<"google" | "telegram" | null>(null);
-  const [googleError, setGoogleError] = useState<string | null>(null);
   const googleInFlightRef = useRef(false);
   const [telegramFlow, setTelegramFlow] = useState<{
     flowId: string;
@@ -110,7 +110,7 @@ export function SocialButtons({
         active = false;
         setTelegramFlow(null);
         setBusy(null);
-        Alert.alert("Telegram", error instanceof Error ? error.message : t("auth.invalid"));
+        showError(error);
       } finally {
         inFlight = false;
       }
@@ -121,18 +121,16 @@ export function SocialButtons({
       active = false;
       clearInterval(interval);
     };
-  }, [completeAuth, telegramFlow, t]);
+  }, [completeAuth, telegramFlow, showError]);
 
   const google = async (credential: string) => {
     if (googleInFlightRef.current) return;
     googleInFlightRef.current = true;
-    setGoogleError(null);
     setBusy("google");
     try {
       completeAuth(await authApi.google(credential));
     } catch (error) {
-      setGoogleError(error instanceof Error ? error.message : t("auth.invalid"));
-      Alert.alert("Google", error instanceof Error ? error.message : t("auth.invalid"));
+      showError(error, () => void google(credential));
     } finally {
       setBusy(null);
       googleInFlightRef.current = false;
@@ -148,7 +146,7 @@ export function SocialButtons({
       else await Linking.openURL(flow.botUrl);
     } catch (error) {
       setBusy(null);
-      Alert.alert("Telegram", error instanceof Error ? error.message : t("auth.invalid"));
+      showError(error, () => void telegram());
     }
   };
 
@@ -159,11 +157,6 @@ export function SocialButtons({
         onCredential={(credential: string) => void google(credential)}
         disabled={busy !== null}
       />
-      {googleError ? (
-        <AppText variant="caption" color="#C0392B" style={styles.error}>
-          {copyContent(googleError)}
-        </AppText>
-      ) : null}
       <ProviderButton
         label={authEntryCopy[language].telegram}
         icon={<TelegramBrandIcon />}

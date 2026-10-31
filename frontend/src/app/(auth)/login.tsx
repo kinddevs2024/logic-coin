@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { useAuthError } from "@/components/auth-error-dialog";
+import { isConnectionError } from "@/lib/auth-error";
 import { AuthScaffold } from "@/components/auth-scaffold";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
@@ -24,6 +26,7 @@ type TelegramWindow = Window & {
 
 export default function LoginScreen() {
   const { copyText, copyContent } = useUiCopy();
+  const showError = useAuthError();
   const { t, language } = useTranslation();
   const c = authEntryCopy[language];
   const theme = useAppTheme();
@@ -82,6 +85,7 @@ export default function LoginScreen() {
 
   const emailFlow = useMutation({
     mutationFn: () => authApi.startEmail(email.trim()),
+    onError: (error) => { if (isConnectionError(error)) showError(error, () => emailFlow.mutate()); },
     onSuccess: (result) => {
       if (result.mode === "password") {
         setStep("password");
@@ -102,6 +106,7 @@ export default function LoginScreen() {
 
   const passwordFlow = useMutation({
     mutationFn: () => authApi.login({ email: email.trim(), password }),
+    onError: (error) => { if (isConnectionError(error)) showError(error, () => passwordFlow.mutate()); },
     onSuccess: complete,
   });
 
@@ -201,7 +206,7 @@ export default function LoginScreen() {
           </>
         )}
       </View>
-      {error ? (
+      {error && !isConnectionError(error) ? (
         <AppText
           variant="caption"
           color={String(theme.danger)}

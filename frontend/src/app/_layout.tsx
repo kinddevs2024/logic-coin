@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppearanceTransition } from "@/components/appearance-transition";
+import { AuthErrorProvider } from "@/components/auth-error-dialog";
 import { AppliedUpdateNotice } from "@/components/applied-update-notice";
 import { AdRuntime } from "@/components/ad-runtime";
 import { RewardBurst } from "@/components/reward-burst";
@@ -268,6 +269,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
+          <AuthErrorProvider>
           <StatusBar style={theme.mode === "dark" ? "light" : "dark"} />
           <Stack
             screenOptions={{
@@ -286,6 +288,7 @@ export default function RootLayout() {
           <ChallengeAdOffer />
           {pushInbox && authMode === "authenticated" ? <NotificationInbox onClose={() => setPushInbox(false)} /> : null}
           <WebAnalytics />
+          </AuthErrorProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
