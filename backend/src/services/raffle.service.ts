@@ -78,7 +78,10 @@ async function readRaffleState(userId?: Types.ObjectId, admin = false) {
       participants: visible.map(p => ({ id: String(p.userId), name: p.name, avatarUrl: p.avatarUrl ?? null })),
       winner: winner ? { id: String(winner.userId), name: winner.name, avatarUrl: winner.avatarUrl ?? null } : null,
     } : null,
-    ...(admin ? { onlineCount: await RafflePresence.countDocuments({ lastSeenAt: { $gte: new Date(Date.now() - 20000) } }), eligibleOnlineCount: await RafflePresence.countDocuments({ lastSeenAt: { $gte: new Date(Date.now() - 20000) }, eligibleDays: { $gte: 6 }, dayKey: localDayKey(now, timezone) }) } : {}),
+    ...(admin ? {
+      onlineCount: await User.countDocuments({ role: "user", _id: { $in: await RafflePresence.distinct("userId", { lastSeenAt: { $gte: new Date(Date.now() - 20000) } }) } }),
+      eligibleOnlineCount: await User.countDocuments({ role: "user", _id: { $in: await RafflePresence.distinct("userId", { lastSeenAt: { $gte: new Date(Date.now() - 20000) }, eligibleDays: { $gte: 6 }, dayKey: localDayKey(now, timezone) }) } }),
+    } : {}),
   } };
 }
 type RaffleView = Awaited<ReturnType<typeof readRaffleState>>;

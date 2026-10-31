@@ -49,7 +49,7 @@ export function RaffleStage({ event, now, eligibleDays }: { event: RaffleEvent; 
           <Text style={[styles.prizeText, { color: theme.text }]}>{round?.label}</Text>
           {round?.kind === "cash" ? <Text style={[styles.prizeText, { color: "#FFD95E" }]}>{formatMoney(round.cashUnits)}</Text> : null}
         </View>
-        <PlayerReel players={round?.participants ?? []} winner={winner} spinning={round?.status === "spinning"} now={now} finishesAt={round?.finishesAt} />
+        <PlayerReel players={round?.participants ?? []} winner={winner} spinning={round?.status === "spinning"} />
         <Text style={[styles.body, { color: theme.textMuted }]}>{round?.status === "spinning" ? c.spinning : round?.status === "finished" ? c.next : c.waiting}</Text>
         <Text style={[styles.caption, { color: theme.primary }]}>{c.participants}: {round?.participantCount ?? 0}</Text>
         <Text style={[styles.caption, { color: theme.textMuted }]}>{c.rules}</Text>
@@ -70,15 +70,23 @@ export function RaffleStage({ event, now, eligibleDays }: { event: RaffleEvent; 
     </Modal>
   </SafeAreaView>;
 }
-function PlayerReel({ players, winner, spinning, now, finishesAt }: { players: RafflePlayer[]; winner: RafflePlayer | null; spinning: boolean; now: number; finishesAt?: string }) {
+function PlayerReel({ players, winner, spinning }: { players: RafflePlayer[]; winner: RafflePlayer | null; spinning: boolean }) {
   const theme = useAppTheme();
-  const remaining = finishesAt ? Math.max(0, Date.parse(finishesAt) - now) : 0;
-  const pace = remaining < 3000 ? 500 : remaining < 6000 ? 250 : 110;
-  const index = Math.floor(now / pace) % Math.max(1,players.length);
-  const shown = winner ? [winner] : players.length ? [-1,0,1].map(delta => players[(index + delta + players.length) % players.length]!) : [];
-  return <View style={[styles.reel, { borderColor: theme.primary, backgroundColor: theme.surface }]}>
+  const [travel] = useState(() => new Animated.Value(0));
+  const [width, setWidth] = useState(300);
+  const count = players.length;
+  useEffect(() => {
+    if (!spinning || !count) return;
+    travel.setValue(0);
+    const animation = Animated.loop(Animated.timing(travel, { toValue: -count * 88, duration: count * 180, easing: Easing.linear, useNativeDriver: Platform.OS !== "web" }));
+    animation.start(); return () => animation.stop();
+  }, [count, spinning, travel]);
+  return <View onLayout={event => setWidth(event.nativeEvent.layout.width)} style={[styles.reel, { borderColor: theme.primary, backgroundColor: theme.surface, overflow: "hidden" }]}>
     <Text style={styles.pointer}>▼</Text>
-    <View style={styles.avatars}>{shown.map((p,i) => <View key={`${p.id}:${i}`} style={{ alignItems: "center", opacity: shown.length === 1 || i === 1 ? 1 : 0.4, width: 88 }}><Avatar name={p.name} avatarUrl={p.avatarUrl} size={shown.length === 1 || i === 1 ? 72 : 52} /><Text numberOfLines={1} style={{ color: theme.text, fontSize: 11, marginTop: 8 }}>{p.name}</Text></View>)}</View>
+    {winner ? <View style={{ alignItems: "center" }}><Avatar name={winner.name} avatarUrl={winner.avatarUrl} size={76}/><Text style={{color:theme.text,fontWeight:"700",marginTop:8}}>{winner.name}</Text></View> :
+    <Animated.View style={{position:"absolute",left:(width-88)/2,flexDirection:"row",transform:[{translateX:travel}]}}>
+      {[...players,...players].map((player,i)=><View key={`${player.id}:${i}`} style={{width:88,alignItems:"center",paddingHorizontal:4}}><Avatar name={player.name} avatarUrl={player.avatarUrl} size={64}/><Text numberOfLines={1} style={{color:theme.text,fontSize:11,marginTop:8}}>{player.name}</Text></View>)}
+    </Animated.View>}
     {spinning ? <View style={[styles.reelLine, { backgroundColor: theme.primary }]} /> : null}
   </View>;
 }
