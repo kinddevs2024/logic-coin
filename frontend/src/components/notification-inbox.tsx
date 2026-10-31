@@ -52,6 +52,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
   const viewport = useRef<View>(null);
   const rows = useRef(new Map<string, View>());
   const ready = useRef(false);
+  const visibleSince = useRef(new Map<string, number>());
   const sectionRef = useRef(section);
   useEffect(() => { sectionRef.current = section; }, [section]);
   useEffect(() => {
@@ -106,14 +107,41 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     viewport.current?.measureInWindow((_x, top, _w, height) => {
       if (!height) return;
       const visible: string[] = [];
+      const measuredAt = Date.now();
       const checks = [...rows.current].map(([id, row]) => new Promise<void>(resolve => row.measureInWindow((_rx, y, _rw, h) => {
-        if (h > 0 && Math.min(y + h, top + height) - Math.max(y, top) >= Math.min(h, height) * 0.7 && !seen.current.has(id)) visible.push(id);
+        const windowBottom = Platform.OS === "web" ? window.innerHeight : top + height;
+        const overlap = Math.max(0, Math.min(y + h, top + height, windowBottom) - Math.max(y, top, 0));
+        if (h > 0 && overlap >= Math.min(h, height) * 0.7 && !seen.current.has(id)) {
+          const since = visibleSince.current.get(id) ?? measuredAt;
+          visibleSince.current.set(id, since);
+          if (measuredAt - since >= config.minimumViewTime) visible.push(id);
+        } else visibleSince.current.delete(id);
         resolve();
       })));
       void Promise.all(checks).then(() => { if (ready.current && !closingRef.current && sectionRef.current === "system") read(visible); });
     });
   }, [read]);
+  // FlatList can report its initial visible rows before the entrance animation
+  // finishes. Recheck stationary rows too, without requiring a scroll gesture.
   useEffect(() => {
+    const timer = setInterval(checkVisible, 400);
+    const subscription = AppState.addEventListener("change", state => {
+      if (state !== "active") visibleSince.current.clear();
+      else checkVisible();
+    });
+    const visibilityChanged = () => {
+      if (document.visibilityState === "hidden") visibleSince.current.clear();
+      else checkVisible();
+    };
+    if (Platform.OS === "web") document.addEventListener("visibilitychange", visibilityChanged);
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+      if (Platform.OS === "web") document.removeEventListener("visibilitychange", visibilityChanged);
+    };
+  }, [checkVisible]);
+  useEffect(() => {
+    visibleSince.current.clear();
     ready.current = false;
     const timer = setTimeout(() => { ready.current = !closing; if (!closing) { list.current?.recordInteraction(); checkVisible(); } }, reduced ? 100 : 500);
     return () => clearTimeout(timer);

@@ -420,9 +420,9 @@ export const challengesApi = {
     return request<{
       today: string; dayKey: string; days: string[]; status: "final" | "live" | "pending" | "missing";
       dayStatuses?: Record<string, "final" | "live" | "pending" | "missing">;
-      self?: { userId: string; rank: number; totalCoins: number; completedGamesCount: number } | null;
+      self?: { userId: string; rank: number; totalCoins: number; cashUnits?: number; completedGamesCount: number } | null;
       total: number; nextOffset: number | null;
-      rows: { userId: string; rank: number; totalCoins: number; completedGamesCount: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
+      rows: { userId: string; rank: number; totalCoins: number; cashUnits?: number; completedGamesCount: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
     }>(`/challenges/history?offset=${offset}${day ? `&day=${encodeURIComponent(day)}` : ""}`, { token });
   },
   progress(token: string, cursor?: { snapshot: string; offset: number; end?: number }) {

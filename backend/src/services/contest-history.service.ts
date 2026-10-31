@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { ApiError } from "../lib/api-error.js";
 import { listAvatarUrl } from "../lib/list-avatar.js";
-import { computeContestBands, rankContestStandings } from "../lib/contest.js";
+import { contestPrizePlan } from "../lib/manual-contest-prizes.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { DailyContestResult } from "../models/DailyContestResult.js";
 import { DailyContestSettlement } from "../models/DailyContestSettlement.js";
@@ -22,7 +22,7 @@ export async function getContestHistory(day: string | undefined, offset: number,
   const [sets, settlement, set] = await Promise.all([
     DailyChallengeSet.find({ status: "published", dayKey: { $lte: today } }).sort({ dayKey: -1 }).limit(31).select("dayKey").lean(),
     DailyContestSettlement.findOne({ dayKey, status: "settled" }).lean(),
-    DailyChallengeSet.findOne({ dayKey, status: "published" }).select("endsAt").lean(),
+    DailyChallengeSet.findOne({ dayKey, status: "published" }).lean(),
   ]);
   const status = settlement ? "final" : dayKey === today && set && (!set.endsAt || set.endsAt.getTime() > Date.now()) ? "live" : set ? "pending" : "missing";
   const nearbyDays = [-3, -2, -1, 0, 1, 2, 3].map(offset => {
@@ -39,25 +39,25 @@ export async function getContestHistory(day: string | undefined, offset: number,
     const published = nearbySets.find(row => row.dayKey === value);
     dayStatuses[value] = nearbySettled.some(row => row.dayKey === value) ? "final" : value === today && published && (!published.endsAt || published.endsAt.getTime() > Date.now()) ? "live" : published ? "pending" : "missing";
   }
-  let entries: { userId: string; rank: number; totalCoins: number; completedGamesCount: number }[] = [];
+  let entries: { userId: string; rank: number; totalCoins: number; cashUnits: number; completedGamesCount: number }[] = [];
   let total = 0;
-  let self: { userId: string; rank: number; totalCoins: number; completedGamesCount: number } | null = null;
+  let self: { userId: string; rank: number; totalCoins: number; cashUnits: number; completedGamesCount: number } | null = null;
   if (status === "final") {
     const [count, results] = await Promise.all([
       DailyContestResult.countDocuments({ dayKey }),
-      DailyContestResult.find({ dayKey }).sort({ rank: 1 }).skip(offset).limit(15).select("userId rank totalCoins completedGamesCount").lean(),
+      DailyContestResult.find({ dayKey }).sort({ rank: 1 }).skip(offset).limit(15).select("userId rank totalCoins cashUnits completedGamesCount").lean(),
     ]);
     total = count;
-    entries = results.map(row => ({ userId: row.userId.toString(), rank: row.rank, totalCoins: row.totalCoins, completedGamesCount: row.completedGamesCount }));
-    const own = await DailyContestResult.findOne({ dayKey, userId }).select("rank totalCoins completedGamesCount").lean();
-    if (own) self = { userId: userId.toString(), rank: own.rank, totalCoins: own.totalCoins, completedGamesCount: own.completedGamesCount };
+    entries = results.map(row => ({ userId: row.userId.toString(), rank: row.rank, totalCoins: row.totalCoins, cashUnits: row.cashUnits ?? 0, completedGamesCount: row.completedGamesCount }));
+    const own = await DailyContestResult.findOne({ dayKey, userId }).select("rank totalCoins cashUnits completedGamesCount").lean();
+    if (own) self = { userId: userId.toString(), rank: own.rank, totalCoins: own.totalCoins, cashUnits: own.cashUnits ?? 0, completedGamesCount: own.completedGamesCount };
   } else if (status === "live") {
     const standings = await collectContestStandings(dayKey);
-    const ranked = rankContestStandings(standings, computeContestBands(standings.length));
+    const ranked = contestPrizePlan(standings, set!).ranked;
     total = ranked.length;
     entries = ranked.slice(offset, offset + 15);
     const own = ranked.find(row => row.userId === userId.toString());
-    if (own) self = { userId: own.userId, rank: own.rank, totalCoins: own.totalCoins, completedGamesCount: own.completedGamesCount };
+    if (own) self = { userId: own.userId, rank: own.rank, totalCoins: own.totalCoins, cashUnits: own.cashUnits ?? 0, completedGamesCount: own.completedGamesCount };
   }
   const users = await User.find({ _id: { $in: entries.map(row => new Types.ObjectId(row.userId)) } }).select("name avatarUrl").lean();
   const byId = new Map(users.map(user => [user._id.toString(), user]));

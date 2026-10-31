@@ -13,6 +13,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { formatMoney } from "@/lib/format";
 import { challengesApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
@@ -92,12 +93,12 @@ export default function ChallengeHistory() {
       })}
     </ScrollView> : null}
     </View>
-    {data && (data.status === "pending" || data.status === "missing") ? <AppText muted style={styles.status}>{copyContent(c[data.status])}</AppText> : null}
+    {data && (data.status === "live" || data.status === "pending" || data.status === "missing") ? <AppText muted style={styles.status}>{copyContent(c[data.status])}</AppText> : null}
     {!token ? <AppText>{copyContent(c.login)}</AppText> : query.isPending || query.isPlaceholderData ? <ActivityIndicator color={String(theme.primary)} /> : null}
     <View onLayout={event => setRankingTop(event.nativeEvent.layout.y)}>
     {rows.map(row => <GlassSurface key={row.userId} style={[styles.row, { height: 64 }, row.isSelf && data?.self && { opacity: 0 }]}>
       <AppText style={styles.rank}>{copyContent(row.rank)}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={38} />
-      <AppText numberOfLines={1} style={styles.name}>{row.name}</AppText><AppText variant="label">{copyContent(row.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText>
+      <AppText numberOfLines={1} style={styles.name}>{row.name}</AppText><View style={{ alignItems: "flex-end" }}><AppText variant="label" color={String(theme.primary)}>{formatMoney(row.cashUnits ?? 0)}</AppText><AppText variant="caption">{copyContent(row.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText></View>
     </GlassSurface>)}
     </View>
     {data && !rows.length && (data.status === "final" || data.status === "live") ? <AppText muted>{copyContent(c.empty)}</AppText> : null}
@@ -123,7 +124,7 @@ export default function ChallengeHistory() {
       if (eventWithScroll.nativeEvent.contentSize.height - eventWithScroll.nativeEvent.contentOffset.y - eventWithScroll.nativeEvent.layoutMeasurement.height < 240) loadMore();
     } })}>{page}</Animated.ScrollView>
     {data?.self ? <Animated.View pointerEvents="none" style={{ position: "absolute", left: pageInset, right: pageInset, top: 0, transform: [{ translateY: dockY }] }}>
-      <GlassSurface variant="strong" style={[styles.row, { height: 64, borderColor: theme.primary, borderWidth: 1 }]}><AppText style={styles.rank}>{copyContent(data.self.rank)}</AppText><Avatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} size={38} /><AppText numberOfLines={1} style={styles.name}>{currentUser.name}</AppText><AppText variant="label">{copyContent(data.self.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText></GlassSurface>
+      <GlassSurface variant="strong" style={[styles.row, { height: 64, borderColor: theme.primary, borderWidth: 1 }]}><AppText style={styles.rank}>{copyContent(data.self.rank)}</AppText><Avatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} size={38} /><AppText numberOfLines={1} style={styles.name}>{currentUser.name}</AppText><View style={{ alignItems: "flex-end" }}><AppText variant="label" color={String(theme.primary)}>{formatMoney(data.self.cashUnits ?? 0)}</AppText><AppText variant="caption">{copyContent(data.self.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText></View></GlassSurface>
     </Animated.View> : null}
   </View>} />;
 }
