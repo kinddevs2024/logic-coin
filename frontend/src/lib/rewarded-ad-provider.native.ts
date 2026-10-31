@@ -1,3 +1,4 @@
+import { createAdPressure } from "./ad-pressure";
 import { isExpoGo } from "./native-runtime";
 import type { RewardedAdProvider } from "./rewarded-ad";
 // Expo Go has no advertising SDKs. Never simulate a paid view.
@@ -8,6 +9,15 @@ const unavailable: RewardedAdProvider = {
   showAppOpen: async () => false,
   diagnostics: () => ({ configured: false, initialized: false, testMode: true, rewardedLoaded: false, interstitialLoaded: false, sdkVersion: null }),
 };
-export const rewardedAds: RewardedAdProvider = isExpoGo
+const provider: RewardedAdProvider = isExpoGo
   ? unavailable
   : require("./rewarded-ad-provider.sdk").rewardedAds;
+
+const pressure = createAdPressure();
+export const rewardedAds: RewardedAdProvider = {
+  initialize: userId => provider.initialize(userId),
+  diagnostics: () => provider.diagnostics(),
+  show: (placement, context) => pressure.rewarded(() => provider.show(placement, context)),
+  showInterstitial: placement => pressure.forced(() => provider.showInterstitial(placement)),
+  showAppOpen: () => pressure.forced(() => provider.showAppOpen()),
+};

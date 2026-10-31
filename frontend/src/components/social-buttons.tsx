@@ -13,6 +13,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { authApi, type AuthResult } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import { authEntryCopy } from "@/constants/auth-entry-copy";
 
 function ProviderButton({
   label,
@@ -56,11 +57,13 @@ function ProviderButton({
 
 export function SocialButtons({
   onAuthenticated,
+  autoPrompt = false,
 }: {
   onAuthenticated?: (result: AuthResult) => void;
+  autoPrompt?: boolean;
 }) {
   const { copyContent } = useUiCopy();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const router = useRouter();
   const authenticate = useAppStore((state) => state.authenticate);
   const postAuthLanguageUserId = useAppStore((state) => state.postAuthLanguageUserId);
@@ -151,6 +154,7 @@ export function SocialButtons({
   return (
     <View style={styles.list}>
       <GoogleSignInButton
+        autoPrompt={autoPrompt}
         onCredential={(credential: string) => void google(credential)}
         disabled={busy !== null}
       />
@@ -160,7 +164,7 @@ export function SocialButtons({
         </AppText>
       ) : null}
       <ProviderButton
-        label="Telegram"
+        label={authEntryCopy[language].telegram}
         icon={<Ionicons name="paper-plane" size={21} color="#229ED9" />}
         onPress={() => void telegram()}
         busy={busy === "telegram"}

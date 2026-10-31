@@ -1,89 +1,58 @@
-import { useUiCopy , Alert } from "@/components/localized-native";
+import { Alert } from "@/components/localized-native";
 import { isExpoGo } from "@/lib/native-runtime";
 import type { GoogleSignin as GoogleSigninType } from "@react-native-google-signin/google-signin";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
-
-
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import { AppText } from "@/components/app-text";
-import { GlassSurface } from "@/components/glass-surface";
-import { useAppTheme } from "@/hooks/use-app-theme";
+import { GoogleBrandIcon } from "@/components/google-brand-icon";
+import { useTranslation } from "@/hooks/use-translation";
+import { authEntryCopy } from "@/constants/auth-entry-copy";
 import { selectGoogleAccount } from "@/lib/google-account-selection";
+import { resumeGoogleAccount } from "@/lib/google-account-resume";
 const GoogleSignin: typeof GoogleSigninType | null = isExpoGo ? null : require("@react-native-google-signin/google-signin").GoogleSignin;
 
-export function GoogleSignInButton({
-  onCredential,
-  disabled,
-}: {
-  onCredential: (credential: string) => void;
-  disabled?: boolean;
+export function GoogleSignInButton({ onCredential, disabled, autoPrompt = false }: {
+  onCredential: (credential: string) => void; disabled?: boolean; autoPrompt?: boolean;
 }) {
-  const { copyText } = useUiCopy();
-  const theme = useAppTheme();
+  const { language } = useTranslation();
+  const c = authEntryCopy[language];
   const [busy, setBusy] = useState(false);
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
-
+  const callback = useRef(onCredential);
+  const attempted = useRef(false);
+  const inFlight = useRef(false);
+  useEffect(() => { callback.current = onCredential; }, [onCredential]);
   useEffect(() => {
     if (!clientId || !GoogleSignin) return;
     GoogleSignin.configure({ webClientId: clientId, offlineAccess: false });
   }, [clientId]);
-
+  useEffect(() => {
+    if (!autoPrompt || disabled || attempted.current || !clientId || !GoogleSignin) return;
+    attempted.current = true;
+    let active = true;
+    inFlight.current = true; setBusy(true);
+    void resumeGoogleAccount(GoogleSignin).then(result => {
+      if (active && result.type === "success" && result.data.idToken) callback.current(result.data.idToken);
+    }).catch(() => { /* Dismissal or unavailable Play Services keeps manual sign-in available. */ })
+      .finally(() => { inFlight.current = false; if (active) setBusy(false); });
+    return () => { active = false; setBusy(false); };
+  }, [autoPrompt, clientId, disabled]);
   const signIn = async () => {
-    if (!GoogleSignin) { Alert.alert("Google", "Для проверки Google-входа нужна APK или development-сборка. Expo Go не содержит Google Sign-In SDK."); return; }
-    if (!clientId || busy || disabled) return;
-    setBusy(true);
+    if (!GoogleSignin) { Alert.alert("Google", c.googleInstalledOnly); return; }
+    if (!clientId || inFlight.current || disabled) return;
+    inFlight.current = true; setBusy(true);
     try {
       const result = await selectGoogleAccount(GoogleSignin);
-      if (result.type === "success" && result.data.idToken) {
-        onCredential(result.data.idToken);
-      }
-    } catch (error) {
-      Alert.alert("Google", error instanceof Error ? error.message : "Google Sign-In failed");
-    } finally {
-      setBusy(false);
-    }
+      if (result.type === "success" && result.data.idToken) callback.current(result.data.idToken);
+    } catch (error) { Alert.alert("Google", error instanceof Error ? error.message : c.googleUnavailable); }
+    finally { inFlight.current = false; setBusy(false); }
   };
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copyText("Google")}
-      onPress={() => void signIn()}
-      disabled={disabled || busy || !clientId}
-      style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
-    >
-      <GlassSurface intensity={48} variant="soft" style={styles.surface}>
-        <View style={[styles.icon, { backgroundColor: "#FFFFFF" }]}>
-          <Ionicons name="logo-google" color="#4285F4" size={20} />
-        </View>
-        <AppText variant="label">{copyText("Google")}</AppText>
-        {busy ? (
-          <ActivityIndicator size="small" color={String(theme.textMuted)} />
-        ) : (
-          <Ionicons name="arrow-forward" size={18} color={String(theme.textMuted)} />
-        )}
-      </GlassSurface>
-    </Pressable>
-  );
+  return <Pressable accessibilityRole="button" accessibilityLabel={c.google} onPress={() => void signIn()}
+    disabled={disabled || busy || !clientId} style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }, (disabled || busy || !clientId) && { opacity: 0.6 }]}>
+    <GoogleBrandIcon /><AppText style={styles.label}>{c.google}</AppText>{busy ? <ActivityIndicator size="small" color="#1F1F1F" /> : null}
+  </Pressable>;
 }
-
 const styles = StyleSheet.create({
-  pressable: { minHeight: 54, borderRadius: 999 },
-  pressed: { opacity: 0.76, transform: [{ scale: 0.985 }] },
-  surface: {
-    minHeight: 54,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  icon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  button: { minHeight: 54, borderRadius: 28, paddingHorizontal: 16, borderWidth: 1, borderColor: "#747775", backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", gap: 12 },
+  label: { flex: 1, textAlign: "center", color: "#1F1F1F", fontSize: 14, fontWeight: "500" },
 });

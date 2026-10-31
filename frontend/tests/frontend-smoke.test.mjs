@@ -107,7 +107,9 @@ test("Expo and web deployment config target Logic Coin", async () => {
   assert.equal(app.expo.android.package, "com.kinddevs.logiccoin");
   assert.equal(app.expo.web.output, "single");
   assert.equal(vercel.outputDirectory, "dist");
-  assert.equal(pkg.scripts["build:web"], "expo export --platform web");
+  assert.match(pkg.scripts["build:web"], /expo export --platform web/);
+  assert.match(pkg.scripts["build:web"], /verify-client-config/);
+  assert.match(pkg.scripts["build:web"], /finalize-web/);
   assert.equal(pkg.scripts.typecheck, "tsc --noEmit");
   assert.match(eas.build.preview.android.gradleCommand, /arm64-v8a/);
   assert.match(eas.build.production.android.gradleCommand, /armeabi-v7a,arm64-v8a/);

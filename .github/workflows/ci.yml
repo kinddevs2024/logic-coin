@@ -47,6 +47,9 @@ jobs:
         run: npm run test --workspace frontend --if-present
 
       - name: Export Expo web
+        env:
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '954441625734-8ba092v78rvgssbumt73fr8dic2o9vds.apps.googleusercontent.com' }}
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || '870293354673-ekddn7h468p348j7c0c5rka0jpdlkods.apps.googleusercontent.com' }}
         run: npm run build:web --workspace frontend
 
   backend:

@@ -6,6 +6,8 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { useTranslation } from "@/hooks/use-translation";
+import { GoogleBrandIcon } from "./google-brand-icon";
+import { authEntryCopy } from "@/constants/auth-entry-copy";
 
 type GoogleCredentialResponse = { credential?: string };
 type GoogleIdentity = {
@@ -13,6 +15,7 @@ type GoogleIdentity = {
     client_id: string;
     callback: (response: GoogleCredentialResponse) => void;
     auto_select: boolean;
+    use_fedcm_for_prompt?: boolean;
   }): void;
   renderButton(element: HTMLElement, options: Record<string, string | number>): void;
   prompt(): void;
@@ -25,9 +28,11 @@ type GoogleWindow = Window & {
 export function GoogleSignInButton({
   onCredential,
   disabled,
+  autoPrompt = false,
 }: {
   onCredential: (credential: string) => void;
   disabled?: boolean;
+  autoPrompt?: boolean;
 }) {
   const { copyText, copyContent } = useUiCopy();
   const hostRef = useRef<View>(null);
@@ -76,6 +81,7 @@ export function GoogleSignInButton({
           }
         },
         auto_select: false,
+        use_fedcm_for_prompt: true,
       });
       host.replaceChildren();
       identity.renderButton(host, {
@@ -88,46 +94,59 @@ export function GoogleSignInButton({
         width: Math.max(260, Math.min(374, host.clientWidth || 360)),
       });
       // Let Google/browser decide eligibility, dismissal cooldown and account UI.
-      if (!promptedRef.current && !disabledRef.current) {
+      if (autoPrompt && !promptedRef.current && !disabledRef.current) {
         promptedRef.current = true;
         identity.prompt();
       }
     };
-    const existing = document.querySelector<HTMLScriptElement>(
+    let script = document.querySelector<HTMLScriptElement>(
       `script[data-logic-google="${language}"]`,
     );
-    if ((window as GoogleWindow).google?.accounts?.id) render();
-    else if (existing) existing.addEventListener("load", render, { once: true });
+    const fail = () => {
+      if (cancelled) return;
+      script?.remove();
+      setFailed(true);
+    };
+    const loaded = () => {
+      window.clearTimeout(timeout);
+      if (!(window as GoogleWindow).google?.accounts?.id) return fail();
+      try { render(); } catch { fail(); }
+    };
+    // A blocked or interrupted SDK request must leave a usable retry button.
+    const timeout = window.setTimeout(fail, 15_000);
+    if ((window as GoogleWindow).google?.accounts?.id) loaded();
     else {
-      const script = document.createElement("script");
-      script.src = `https://accounts.google.com/gsi/client?hl=${encodeURIComponent(language)}`;
-      script.async = true;
-      script.defer = true;
-      script.dataset.logicGoogle = language;
-      script.addEventListener("load", render, { once: true });
-      script.addEventListener("error", () => {
-        script.remove();
-        setFailed(true);
-      }, { once: true });
-      document.head.appendChild(script);
+      const created = !script;
+      script ??= document.createElement("script");
+      script.addEventListener("load", loaded, { once: true });
+      script.addEventListener("error", fail, { once: true });
+      if (created) {
+        script.src = `https://accounts.google.com/gsi/client?hl=${encodeURIComponent(language)}`;
+        script.async = true;
+        script.defer = true;
+        script.dataset.logicGoogle = language;
+        document.head.appendChild(script);
+      }
     }
     return () => {
       cancelled = true;
-      existing?.removeEventListener("load", render);
+      window.clearTimeout(timeout);
+      script?.removeEventListener("load", loaded);
+      script?.removeEventListener("error", fail);
       (window as GoogleWindow).google?.accounts?.id?.cancel();
       if (credentialTimerRef.current !== null) {
         window.clearTimeout(credentialTimerRef.current);
         credentialTimerRef.current = null;
       }
     };
-  }, [clientId, language, retry]);
+  }, [autoPrompt, clientId, language, retry]);
 
   return (
     <View pointerEvents={disabled ? "none" : "auto"} style={[styles.shell, disabled && styles.disabled]}>
       {failed ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={copyText(language === "ru" ? "Войти через Google" : "Sign in with Google")}
+          accessibilityLabel={copyText(authEntryCopy[language].google)}
           disabled={!clientId || disabled}
           onPress={() => {
             credentialRef.current = null;
@@ -138,10 +157,10 @@ export function GoogleSignInButton({
           style={styles.fallback}
         >
           <View style={styles.fallbackIcon}>
-            <Ionicons name="logo-google" color="#4285F4" size={20} />
+            <GoogleBrandIcon />
           </View>
           <AppText variant="label" style={styles.fallbackLabel}>
-            {copyContent(language === "ru" ? "Войти через Google" : "Sign in with Google")}
+            {copyContent(authEntryCopy[language].google)}
           </AppText>
           <Ionicons name="arrow-forward" color="#69737D" size={18} />
         </Pressable>

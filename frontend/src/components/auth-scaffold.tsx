@@ -13,10 +13,12 @@ export function AuthScaffold({
   subtitle,
   headerAction,
   children,
+  compact = false,
 }: PropsWithChildren<{
   title?: string;
   subtitle?: string;
   headerAction?: ReactNode;
+  compact?: boolean;
 }>) {
   const { copyContent } = useUiCopy();
   return (
@@ -24,7 +26,7 @@ export function AuthScaffold({
       contentStyle={styles.page}
       scrollProps={{ contentContainerStyle: undefined }}
     >
-      <View style={styles.brand}>
+      <View style={[styles.brand, compact && styles.compactBrand]}>
         <LogicCoinLogo compact />
       </View>
       <GlassSurface intensity={64} variant="strong" style={styles.card}>
@@ -54,6 +56,7 @@ export function AuthScaffold({
 }
 
 const styles = StyleSheet.create({
+  compactBrand: { marginBottom: 28 },
   page: {
     minHeight: "100%",
     justifyContent: "center",

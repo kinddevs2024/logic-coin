@@ -15,6 +15,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { ApiError, authApi, type AuthResult } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import { authEntryCopy } from "@/constants/auth-entry-copy";
 
 type TelegramWindow = Window & {
   Telegram?: { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } };
@@ -22,7 +23,8 @@ type TelegramWindow = Window & {
 
 export default function LoginScreen() {
   const { copyText, copyContent } = useUiCopy();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const c = authEntryCopy[language];
   const theme = useAppTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ telegram_token?: string; next?: string; email?: string; ref?: string }>();
@@ -147,8 +149,9 @@ export default function LoginScreen() {
 
   return (
     <AuthScaffold
-      title={step === "password" ? t("auth.passwordTitle") : undefined}
-      subtitle={step === "password" ? email.trim() : undefined}
+      compact
+      title={step === "password" ? t("auth.passwordTitle") : c.title}
+      subtitle={step === "password" ? email.trim() : c.subtitle}
       headerAction={step === "password" ? (
         <Pressable
           accessibilityRole="button"
@@ -160,14 +163,20 @@ export default function LoginScreen() {
         </Pressable>
       ) : undefined}
     >
+      {step === "email" ? <>
+        <SocialButtons onAuthenticated={complete} autoPrompt={!params.telegram_token && !telegramFlow.isPending && !(Platform.OS === "web" && typeof window !== "undefined" && (window as TelegramWindow).Telegram?.WebApp?.initData)} />
+        <View style={styles.divider}><View style={[styles.dividerLine, { backgroundColor: theme.border }]} /><AppText variant="caption" muted>{c.emailOption}</AppText><View style={[styles.dividerLine, { backgroundColor: theme.border }]} /></View>
+      </> : null}
       <View style={styles.form}>
         {step === "email" ? (
           <>
             <StyledInput
-              label={t("auth.email")}
+              label={c.email}
               icon="mail-outline"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => { setEmail(value); emailFlow.reset(); }}
+              hint={c.emailHint}
+              error={/^[+\d][\d\s()-]{5,}$/.test(email.trim()) ? c.emailHint : undefined}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
@@ -180,7 +189,7 @@ export default function LoginScreen() {
               disabled={!valid}
               icon="arrow-forward"
             >
-              {copyContent(t("common.next"))}
+              {c.emailNext}
             </AppButton>
           </>
         ) : (
@@ -205,7 +214,6 @@ export default function LoginScreen() {
           </>
         )}
       </View>
-      {step === "email" ? <SocialButtons onAuthenticated={complete} /> : null}
       {error ? (
         <AppText
           variant="caption"
@@ -220,6 +228,8 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 7 },
+  dividerLine: { flex: 1, height: 1 },
   loadingScreen: { flex: 1, alignItems: "center", justifyContent: "center" },
   form: { gap: 10 },
   backButton: { padding: 8, marginLeft: -8 },

@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
+import { APP_OPEN_BACKGROUND_MS } from "@/lib/ad-pressure";
+
 import { rewardedAds } from "@/lib/rewarded-ad";
 import { useAppStore } from "@/store/app-store";
 
@@ -14,16 +16,19 @@ export function AdRuntime() {
     if (authMode === "authenticated" && !userId) return;
     void rewardedAds
       .initialize(userId)
-      .then(() => rewardedAds.showAppOpen())
       .catch(() => false);
   }, [authMode, hydrated, userId]);
 
   useEffect(() => {
     if (!hydrated || !authMode || authMode === "guest") return;
     let previousState: AppStateStatus = AppState.currentState;
+    let backgroundAt: number | null = null;
     const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "background" && backgroundAt === null) backgroundAt = Date.now();
       if (previousState.match(/inactive|background/) && nextState === "active") {
-        void rewardedAds.showAppOpen().catch(() => false);
+        const elapsed = backgroundAt === null ? 0 : Date.now() - backgroundAt;
+        backgroundAt = null;
+        if (elapsed >= APP_OPEN_BACKGROUND_MS) void rewardedAds.showAppOpen().catch(() => false);
       }
       previousState = nextState;
     });
