@@ -1,5 +1,12 @@
 name: Android installed APK update export
 on:
+  push:
+    branches: [codex/independent-server-apk-20261027]
+    paths:
+      - '.github/workflows/android-ota-installed.yml'
+      - 'frontend/src/app/(auth)/login.tsx'
+      - 'frontend/src/components/styled-input.tsx'
+      - 'frontend/src/constants/auth-entry-copy.ts'
   workflow_dispatch:
     inputs:
       baseline_run:
@@ -35,7 +42,7 @@ jobs:
       - name: Verify immutable native inputs against installed APK build
         env:
           GH_TOKEN: ${{ github.token }}
-          BASELINE_RUN: ${{ inputs.baseline_run }}
+          BASELINE_RUN: ${{ inputs.baseline_run || '41201834027' }}
         run: |
           node -e 'if(!/^\d+$/.test(process.env.BASELINE_RUN))throw Error("Invalid build");'
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BASELINE_RUN" > baseline-run.json
@@ -47,13 +54,13 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: logic-coin-android-release
-          run-id: ${{ inputs.baseline_run }}
+          run-id: ${{ inputs.baseline_run || '41201834027' }}
           github-token: ${{ github.token }}
           path: artifacts/apk
       - uses: actions/download-artifact@v4
         with:
           name: independent-apk-ota-export
-          run-id: ${{ inputs.baseline_run }}
+          run-id: ${{ inputs.baseline_run || '41201834027' }}
           github-token: ${{ github.token }}
           path: artifacts/ota-baseline
       - name: Read exact embedded APK runtime and public configuration
