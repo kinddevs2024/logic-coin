@@ -20,6 +20,7 @@ import { useAppStore } from "@/store/app-store";
 import { formatMoney } from "@/lib/format";
 import { shareLink } from "@/lib/share-link";
 import { MIGRATED_APP_ORIGIN } from "@/lib/server-migration";
+import { referralInvitationMessage } from "@/lib/referral-invitation";
 
 export default function InviteScreen() {
   const { copyText, copyContent } = useUiCopy();
@@ -35,7 +36,7 @@ export default function InviteScreen() {
   const friends = referral?.friends ?? [];
   const code = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";
   const inviteUrl = authenticated
-    ? (code !== "—" ? `${MIGRATED_APP_ORIGIN}/invite/${encodeURIComponent(code)}?preview=2` : "")
+    ? (code !== "—" ? `${MIGRATED_APP_ORIGIN}/invite/${encodeURIComponent(code)}?preview=3&lang=${language}` : "")
     : "";
 
   const share = () => {
@@ -43,7 +44,7 @@ export default function InviteScreen() {
       router.push("/login");
       return;
     }
-    void shareLink("Logic Coin", "Играй со мной в Logic Coin: игры, челленджи и денежные призы.", inviteUrl);
+    void shareLink("Logic Coin", referralInvitationMessage(language), inviteUrl);
   };
 
   return (

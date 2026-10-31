@@ -1,5 +1,5 @@
 import { requestLanguage } from "../lib/request-language.js";
-import { localizeBuiltIn, type CopyLanguage } from "../lib/localize-built-in.js";
+import { formatBuiltIn, localizeBuiltIn, type CopyLanguage } from "../lib/localize-built-in.js";
 import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -46,20 +46,20 @@ router.get("/page/:kind/:code", requireDatabase, async (request, response) => {
   const { kind, code } = request.params;
   if ((kind !== "profile" && kind !== "invite") || !validCode(code)) throw new ApiError(404, "not_found", "Not found");
   const normalized = code.toUpperCase();
+  const language = requestLanguage(request);
   const version = typeof request.query.preview === "string" && /^\d{1,16}$/.test(request.query.preview) ? `?preview=${request.query.preview}` : "";
   const user = await User.findOne({ referralCode: normalized }).select("name avatarUrl countryCode coins wallet").lean();
   const profile = kind === "profile" && Boolean(user);
   const completed = profile ? await ChallengeAttempt.countDocuments({ userId: user!._id, mode: "challenge", status: "completed" }) : 0;
   const name = user?.name?.slice(0, 80) || "Игрок";
   const preview = {
-    title: profile ? `${name} · Logic Coin` : kind === "invite" && user ? `${name} приглашает тебя в Logic Coin` : SHARE_TITLE,
+    title: profile ? `${name} · Logic Coin` : kind === "invite" && user ? formatBuiltIn("{0} приглашает тебя в Logic Coin", language, [name]) : SHARE_TITLE,
     description: profile ? "Открой профиль игрока: результаты, монеты и достижения в челленджах Logic Coin." : SHARE_DESCRIPTION,
-    url: `${SHARE_ORIGIN}/${kind}/${normalized}${version}`,
+    url: `${SHARE_ORIGIN}/${kind}/${normalized}${version}${version ? "&" : "?"}lang=${language}`,
     image: profile ? `${SHARE_ORIGIN}/api/v1/share/profile/${profileImageRevision(user, completed)}/${normalized}.jpg` : SHARE_IMAGE,
     profile,
   };
   const html = await readFile(resolve(webRoot(), "index.html"), "utf8");
-  const language = requestLanguage(request);
   preview.title = localizeBuiltIn(preview.title, language);
   preview.description = localizeBuiltIn(preview.description, language);
   if (profile) preview.image += `?lang=${language}`;

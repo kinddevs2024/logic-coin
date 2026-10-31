@@ -25,11 +25,11 @@ export async function shareLink(title: string, message: string, url: string) {
     if (error instanceof Error && error.name === "AbortError") return;
   }
   try {
-    await Clipboard.setStringAsync(url);
+    await Clipboard.setStringAsync(`${message}\n${url}`);
     if (Platform.OS === "web") window.alert(copyText("Ссылка скопирована. Отправьте её в нужный чат."));
     else Alert.alert("Logic Coin", "Ссылка скопирована.");
   } catch {
-    if (Platform.OS === "web") window.prompt(copyText("Скопируйте ссылку"), url);
-    else Alert.alert("Logic Coin", url);
+    if (Platform.OS === "web") window.prompt(copyText("Скопируйте ссылку"), `${message}\n${url}`);
+    else Alert.alert("Logic Coin", `${message}\n${url}`);
   }
 }
