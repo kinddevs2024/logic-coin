@@ -7,6 +7,9 @@ on:
       - 'frontend/src/app/(auth)/login.tsx'
       - 'frontend/src/components/styled-input.tsx'
       - 'frontend/src/constants/auth-entry-copy.ts'
+      - 'frontend/src/app/_layout.tsx'
+      - 'frontend/src/components/applied-update-notice.tsx'
+      - 'frontend/src/lib/applied-update-notice.ts'
   workflow_dispatch:
     inputs:
       baseline_run:
