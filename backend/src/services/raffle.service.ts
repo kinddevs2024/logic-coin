@@ -1,3 +1,4 @@
+import { connectToDatabase } from "../config/database.js";
 import mongoose, { Types } from "mongoose";
 import { RaffleDrawAudit } from "../models/RaffleDrawAudit.js";
 import { createHash, randomInt } from "node:crypto";
@@ -162,6 +163,7 @@ let lastBroadcast = "";
 export async function tickRaffles() {
   if (ticking) return; ticking = true;
   try {
+    await connectToDatabase();
     const events = await LiveRaffle.find({ status: { $in: ["scheduled", "live"] } }).select("title startsAt status rounds.status rounds.finishesAt").lean();
     for (const event of events) {
       if (event.status === "scheduled") {
