@@ -31,7 +31,7 @@ export function RaffleProvider({ children }: PropsWithChildren) {
       catch { /* No speculative participation while the authenticated channel is unavailable. */ }
       finally { inFlight = false; }
     };
-    const refresh = () => { if (visible()) void raffleApi.state(token).then(receive).catch(() => {}); };
+    const refresh = () => { if (visible()) void liveCommand<RaffleState>(token, "raffleState").then(receive).catch(() => raffleApi.state(token).then(receive).catch(() => {})); };
     void heartbeat(); refresh();
     const presenceTimer = setInterval(() => void heartbeat(), 10000);
     const fallbackTimer = setInterval(refresh, 20000);

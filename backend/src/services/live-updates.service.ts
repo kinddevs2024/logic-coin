@@ -78,7 +78,7 @@ export function attachLiveUpdates(server: Server): () => void {
             const identity = identities.get(websocket)!;
             const payload = verifyAccessToken(identity.token);
             if (!await isAccessSessionActive(identity.userId, payload.sid)) throw new ApiError(401, "session_expired", "Session expired");
-            const key = identity.userId.toString();
+            const key = `${identity.userId}:${message.method === "raffleState" || message.method === "rafflePresence" ? "raffle" : "game"}`;
             let limit = limits.get(key);
             if (!limit || Date.now() - limit.start >= 60_000) {
               limit = { start: Date.now(), count: 0 };
