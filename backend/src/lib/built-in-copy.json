@@ -1,4 +1,14 @@
 {
+  "Назначьте время минимум через минуту": {"ru": "Назначьте время минимум через минуту", "uz": "Boshlanish vaqtini kamida bir daqiqadan keyinga belgilang", "en": "Schedule the start at least one minute from now"},
+  "Сначала завершите или отмените текущий розыгрыш": {"ru": "Сначала завершите или отмените текущий розыгрыш", "uz": "Avval joriy qur’ani yakunlang yoki bekor qiling", "en": "End or cancel the current draw first"},
+  "Не удалось опубликовать событие": {"ru": "Не удалось опубликовать событие", "uz": "Tadbirni e’lon qilib bo‘lmadi", "en": "Could not publish the event"},
+  "Событие не началось или раунд уже идёт": {"ru": "Событие не началось или раунд уже идёт", "uz": "Tadbir hali boshlanmagan yoki bosqich davom etmoqda", "en": "The event has not started or a round is already running"},
+  "Запускайте раунды по порядку": {"ru": "Запускайте раунды по порядку", "uz": "Bosqichlarni tartib bilan boshlang", "en": "Start the rounds in order"},
+  "Нет подходящих игроков онлайн": {"ru": "Нет подходящих игроков онлайн", "uz": "Hozir mos ishtirokchilar onlayn emas", "en": "No eligible players are online"},
+  "Слишком много участников для одного раунда": {"ru": "Слишком много участников для одного раунда", "uz": "Bitta bosqich uchun ishtirokchilar juda ko‘p", "en": "Too many participants for one round"},
+  "Дождитесь окончания текущего раунда": {"ru": "Дождитесь окончания текущего раунда", "uz": "Joriy bosqich tugashini kuting", "en": "Wait for the current round to finish"},
+  "Укажите денежную сумму только для денежного приза": {"ru": "Укажите денежную сумму только для денежного приза", "uz": "Pul miqdorini faqat pul sovrini uchun kiriting", "en": "Enter an amount only for a cash prize"},
+  "Нужна ссылка на YouTube-эфир": {"ru": "Нужна ссылка на YouTube-эфир", "uz": "YouTube jonli efir havolasini kiriting", "en": "Enter a YouTube live stream URL"},
   "Розыгрыши": { "ru": "Розыгрыши", "uz": "Sovrinli qur’alar", "en": "Prize draws" },
   "2048": {
     "ru": "2048",
