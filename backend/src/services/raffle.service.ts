@@ -127,6 +127,7 @@ export async function finishRaffle(id: string, cancel: boolean) {
 }
 let ticking = false;
 let previouslyVisible = false;
+let lastBroadcast = "";
 export async function tickRaffles() {
   if (ticking) return; ticking = true;
   try {
@@ -145,7 +146,9 @@ export async function tickRaffles() {
     if (events.length || previouslyVisible) {
       const state = await raffleState();
       const { broadcastRaffleState } = await import("./live-updates.service.js");
-      broadcastRaffleState(state); previouslyVisible = Boolean(state.event);
+      const signature = JSON.stringify(state.event);
+      if (signature !== lastBroadcast) { broadcastRaffleState(state); lastBroadcast = signature; }
+      previouslyVisible = Boolean(state.event);
     }
     const queued = await NotificationEvent.find({ type: "raffle", status: "queued" }).sort({ createdAt: 1 }).limit(25).select("_id").lean();
     // Dispatch concurrently: a slow push provider must not serially delay every tick.

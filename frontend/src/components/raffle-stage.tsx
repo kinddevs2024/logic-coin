@@ -40,7 +40,7 @@ export function RaffleStage({ event, now, eligibleDays }: { event: RaffleEvent; 
       {seconds > 0 ? <View style={styles.countdown}>
         <Animated.Text accessibilityLiveRegion={seconds % 10 === 0 || seconds <= 10 ? "polite" : "none"} style={[styles.digits, { color: colors[seconds % 4], transform: [{ scale }], fontWeight: seconds % 2 ? "900" : "600", fontFamily: seconds <= 60 && seconds % 3 === 0 ? Platform.OS === "ios" ? "Courier" : "monospace" : undefined }]}>{seconds <= 60 ? seconds : `${String(Math.floor(seconds / 60)).padStart(2,"0")}:${String(seconds % 60).padStart(2,"0")}`}</Animated.Text>
         <Text style={[styles.body, { color: theme.textMuted }]}>{c.rules}</Text>
-        <Text style={[styles.eligible, { color: theme.primary }]}>{c.eligible}: {eligibleDays}/6</Text>
+        <Text style={[styles.eligible, { color: theme.primary }]}>{c.eligible}: {Math.min(7, eligibleDays)}/7</Text>
       </View> : <>
         <YoutubePlayer videoId={event.youtubeId} />
         <Text style={[styles.caption, { color: theme.textMuted }]}>{c.stream}</Text>
