@@ -1,5 +1,6 @@
 import mongoose, { Types } from "mongoose";
-import { randomInt } from "node:crypto";
+import { RaffleDrawAudit } from "../models/RaffleDrawAudit.js";
+import { createHash, randomInt } from "node:crypto";
 import { LiveRaffle } from "../models/LiveRaffle.js";
 import { RafflePresence } from "../models/RafflePresence.js";
 import { CoinRewardLogin } from "../models/CoinRewardLogin.js";
@@ -74,7 +75,7 @@ async function readRaffleState(userId?: Types.ObjectId, admin = false) {
     rounds: event.rounds.map(r => ({ id: String(r._id), label: r.label, kind: r.kind, cashUnits: r.cashUnits, durationSeconds: r.durationSeconds, status: r.status })),
     current: current ? { id: String(current._id), label: current.label, kind: current.kind, cashUnits: current.cashUnits, status: current.status,
       startedAt: current.startedAt?.toISOString(), finishesAt: current.finishesAt?.toISOString(),
-      participantCount: current.participants.length,
+      participantCount: current.participantCount ?? current.participants.length,
       participants: visible.map(p => ({ id: String(p.userId), name: p.name, avatarUrl: p.avatarUrl ?? null })),
       winner: winner ? { id: String(winner.userId), name: winner.name, avatarUrl: winner.avatarUrl ?? null } : null,
     } : null,
@@ -118,8 +119,14 @@ export async function spinRaffle(id: string, roundId: string) {
     const users = await User.find({ _id: { $in: eligible.map(p => p._id), $nin: previous }, role: "user" }).select("name avatarUrl").session(session).lean();
     if (!users.length) throw new ApiError(409, "no_eligible_players", "Нет подходящих игроков онлайн");
     if (users.length > 20000) throw new ApiError(409, "raffle_capacity", "Слишком много участников для одного раунда");
-    round.participants = users.map(u => ({ userId: u._id, name: u.name, avatarUrl: listAvatarUrl(u._id, u.avatarUrl) ?? undefined })) as typeof round.participants;
-    round.winnerId = users[randomInt(users.length)]!._id;
+    const selected = users[randomInt(users.length)]!;
+    const preview = users.slice(0, 60);
+    if (!preview.some(u => u._id.equals(selected._id))) preview.push(selected);
+    round.participants = preview.map(u => ({ userId: u._id, name: u.name, avatarUrl: listAvatarUrl(u._id, u.avatarUrl) ?? undefined })) as typeof round.participants;
+    round.participantCount = users.length;
+    round.winnerId = selected._id;
+    const poolHash = createHash("sha256").update(users.map(u => String(u._id)).sort().join(",")).digest("hex");
+    await RaffleDrawAudit.create([{ eventId: event._id, roundId: round._id, eligibleUserIds: users.map(u => u._id), selectedUserId: selected._id, poolHash }], { session });
     round.status = "spinning"; round.startedAt = now; round.finishesAt = new Date(now.getTime() + round.durationSeconds * 1000);
     event.revision++; await event.save({ session });
     await notice(`${event._id}:${round._id}:spin`, copy("Рулетка запущена", "Qur’a boshlandi", "The draw is spinning", round.label), undefined, session);
