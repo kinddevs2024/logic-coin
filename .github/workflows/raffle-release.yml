@@ -1,5 +1,8 @@
 name: Raffle web backend and OTA preparation
 on:
+  push:
+    branches: [codex/independent-server-apk-20261027]
+    paths: ['.github/workflows/raffle-release.yml']
   workflow_dispatch:
 permissions:
   contents: read
