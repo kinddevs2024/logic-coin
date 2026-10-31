@@ -1,7 +1,7 @@
 import { useUiCopy } from "@/components/localized-native";
 
-import type { PropsWithChildren, ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useRef, type PropsWithChildren, type ReactNode } from "react";
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -21,10 +21,21 @@ export function AuthScaffold({
   compact?: boolean;
 }>) {
   const { copyContent } = useUiCopy();
+  const scrollRef = useRef<ScrollView>(null);
+  const keepFieldVisible = () => {
+    if (compact && Keyboard.isVisible()) scrollRef.current?.scrollToEnd({ animated: false });
+  };
+  useEffect(() => {
+    if (!compact) return;
+    const subscription = Keyboard.addListener("keyboardDidShow", () => scrollRef.current?.scrollToEnd({ animated: true }));
+    return () => subscription.remove();
+  }, [compact]);
   return (
+    <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : "height"} onLayout={keepFieldVisible}>
     <AppFrame
+      scrollRef={scrollRef}
       contentStyle={styles.page}
-      scrollProps={{ contentContainerStyle: undefined }}
+      scrollProps={{ keyboardDismissMode: "on-drag" }}
     >
       <View style={[styles.brand, compact && styles.compactBrand]}>
         <LogicCoinLogo compact />
@@ -52,16 +63,18 @@ export function AuthScaffold({
         {children}
       </GlassSurface>
     </AppFrame>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboard: { flex: 1 },
   compactBrand: { marginBottom: 28 },
   page: {
-    minHeight: "100%",
+    flexGrow: 1,
     justifyContent: "center",
-    paddingBottom: 40,
-    paddingTop: 40,
+    paddingBottom: 24,
+    paddingTop: 24,
   },
   brand: {
     alignItems: "center",

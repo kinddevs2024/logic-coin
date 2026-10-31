@@ -8,6 +8,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-
 
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
+import { TelegramBrandIcon } from "@/components/telegram-brand-icon";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
@@ -165,7 +166,7 @@ export function SocialButtons({
       ) : null}
       <ProviderButton
         label={authEntryCopy[language].telegram}
-        icon={<Ionicons name="paper-plane" size={21} color="#229ED9" />}
+        icon={<TelegramBrandIcon />}
         onPress={() => void telegram()}
         busy={busy === "telegram"}
         disabled={busy !== null && busy !== "telegram"}

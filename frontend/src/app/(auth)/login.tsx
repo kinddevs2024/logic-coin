@@ -9,6 +9,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { AuthScaffold } from "@/components/auth-scaffold";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
+import { LoginEmailEntry } from "@/components/login-email-entry";
 import { StyledInput } from "@/components/styled-input";
 import { SocialButtons } from "@/components/social-buttons";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -150,7 +151,7 @@ export default function LoginScreen() {
   return (
     <AuthScaffold
       compact
-      title={step === "password" ? t("auth.passwordTitle") : c.title}
+      title={step === "password" ? t("auth.passwordTitle") : undefined}
       subtitle={step === "password" ? email.trim() : undefined}
       headerAction={step === "password" ? (
         <Pressable
@@ -170,25 +171,13 @@ export default function LoginScreen() {
       <View style={styles.form}>
         {step === "email" ? (
           <>
-            <StyledInput
-              accessibilityLabel={c.email}
-              icon="mail-outline"
+            <LoginEmailEntry
               value={email}
-              onChangeText={(value) => { setEmail(value); emailFlow.reset(); }}
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              placeholder={copyText("name@example.com")}
-              required
+              onChange={(value) => { setEmail(value); emailFlow.reset(); }}
+              onSubmit={() => emailFlow.mutate()}
+              valid={valid}
+              busy={emailFlow.isPending || telegramFlow.isPending}
             />
-            <AppButton
-              onPress={() => emailFlow.mutate()}
-              loading={emailFlow.isPending || telegramFlow.isPending}
-              disabled={!valid}
-              icon="arrow-forward"
-            >
-              {c.emailNext}
-            </AppButton>
           </>
         ) : (
           <>
