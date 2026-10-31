@@ -10,6 +10,7 @@ const notificationEventSchema = new Schema(
         "daily_contest_settled",
         "referral_signup",
         "admin_broadcast",
+        "raffle",
         "new_game_available",
         "gift_received",
         "withdrawal_approved"

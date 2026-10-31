@@ -33,7 +33,11 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
   let targetCount = 0, sentCount = 0, failedCount = 0;
   const errors = new Set<string>();
   try {
-    const payload = (event.payload ?? {}) as { dayKey?: string; gameKey?: string; giftId?: string; title?: string; body?: string; userIds?: string[] };
+    const payload = (event.payload ?? {}) as { dayKey?: string; gameKey?: string; giftId?: string; title?: string; body?: string; userIds?: string[]; expiresAt?: string; localized?: Record<string, { title: string; body: string }> };
+    if (payload.expiresAt && Date.parse(payload.expiresAt) <= Date.now()) {
+      await NotificationEvent.updateOne({ _id: event._id }, { $set: { status: "sent", processedAt: new Date() } });
+      return { status: "expired", targetCount: 0, sentCount: 0, failedCount: 0 };
+    }
     // Malformed targeted events must never become broadcasts.
     const recipients = event.audience === "specific_users"
       ? (payload.userIds ?? []).filter(id => /^[a-f\d]{24}$/i.test(id))
@@ -81,10 +85,14 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       data: { type: event.type, eventId: String(event._id),
         inboxId,
         createdAt: event.createdAt.toISOString(),
-        dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
+        expiresAt: payload.expiresAt ?? null, dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
     };
     const personalized = (kind: "fcm" | "expo" | "web", token: string) => {
       const profile = profileFor(kind, token);
+      if (event.type === "raffle" && payload.localized) {
+        const localized = payload.localized[profile?.preferences.language ?? "uz"] ?? payload.localized.uz;
+        return { ...notification, ...localized };
+      }
       if (event.type !== "admin_broadcast") {
         const language = profile?.preferences.language ?? "ru";
         return { ...notification, title: localizeBuiltIn(notification.title, language), body: localizeBuiltIn(notification.body, language) };
@@ -116,7 +124,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       try {
         const response = await fetchImplementation(env.EXPO_PUSH_API_URL, {
           method: "POST", headers: headers(), signal: AbortSignal.timeout(8000),
-          body: JSON.stringify(group.map(to => ({ to, title: personalized("expo", to).title, body: personalized("expo", to).body, data: notification.data, sound: "default", channelId: "messages", priority: "high" })))
+          body: JSON.stringify(group.map(to => ({ to, title: personalized("expo", to).title, body: personalized("expo", to).body, data: notification.data, sound: "default", channelId: "messages", priority: "high", ...(payload.expiresAt ? { ttl: Math.max(0, Math.ceil((Date.parse(payload.expiresAt) - Date.now()) / 1000)) } : {}) })))
         });
         if (!response.ok) { failedCount += group.length; errors.add(`expo:http_${response.status}`); continue; }
         const body = await response.json() as { data?: Array<{ status?: string; id?: string; details?: { error?: string } }> };

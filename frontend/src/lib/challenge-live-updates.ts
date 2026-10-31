@@ -1,7 +1,7 @@
 import { API_URL, refreshAccessToken } from "@/lib/api";
 import { telegramChallengeInitData } from "./telegram-context";
 import type { TodayChallenges, PendingContestReward } from "@/types";
-export type LiveState = { today?: TodayChallenges; reward?: PendingContestReward | null };
+export type LiveState = { raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
 
 type Connection = {
   socket: WebSocket | null;

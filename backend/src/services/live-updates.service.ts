@@ -86,10 +86,10 @@ export function attachLiveUpdates(server: Server): () => void {
             }
             if (++limit.count > 30) throw new Error("Too many commands; try again later");
             const { executeLiveCommand } = await import("./live-command.service.js");
-            const data = await executeLiveCommand(identity.userId, message.method, message.input ?? {}, challengeClient);
+            const data = await executeLiveCommand(identity.userId, message.method, message.input ?? {}, challengeClient, payload.sid);
             // A committed mutation is acknowledged even if refreshing its view fails.
             let state;
-            if (!["today", "pendingReward"].includes(message.method)) {
+            if (!["today", "pendingReward", "raffleState", "rafflePresence"].includes(message.method)) {
               try { state = await snapshot(identity.userId); } catch { /* preserve acknowledgement */ }
             }
             send(websocket, { type: "response", id, data, ...(state ? { state } : {}) });
@@ -177,3 +177,5 @@ export function attachLiveUpdates(server: Server): () => void {
 export function broadcastDailyChallengeUpdate(_dayKey: string, _revision?: string | null): void {
   for (const client of clients) void pushSnapshot(client);
 }
+
+export function broadcastRaffleState(raffle: unknown) { for (const client of clients) send(client, { type: "state", raffle }); }

@@ -9,9 +9,11 @@ import { startTelegramLocalPolling, stopTelegramLocalPolling } from "./services/
 import { settleExpiredDailyContests } from "./services/contest.service.js";
 import { startNotificationWorker } from "./services/notification.service.js";
 
+import { startRaffleWorker } from "./services/raffle.service.js";
 const server = createServer(app);
 const closeLiveUpdates = attachLiveUpdates(server);
 const stopNotificationWorker = startNotificationWorker();
+const stopRaffleWorker = startRaffleWorker();
 server.listen(env.PORT, () => {
   console.log(`Logic Coin API listening on http://localhost:${env.PORT}`);
   void startTelegramLocalPolling().catch((error) => {
@@ -55,6 +57,7 @@ function shutdown(signal: string): void {
   console.log(`${signal} received; shutting down`);
   stopTelegramLocalPolling();
   stopNotificationWorker();
+  stopRaffleWorker();
   clearInterval(contestSweep);
   if (rolloverTimer) clearTimeout(rolloverTimer);
   closeLiveUpdates();

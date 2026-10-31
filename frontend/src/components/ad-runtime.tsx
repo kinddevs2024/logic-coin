@@ -1,3 +1,4 @@
+import { useRafflePause } from "./raffle-provider";
 import { useEffect } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
@@ -7,6 +8,7 @@ import { rewardedAds } from "@/lib/rewarded-ad";
 import { useAppStore } from "@/store/app-store";
 
 export function AdRuntime() {
+  const rafflePaused = useRafflePause();
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const userId = useAppStore((state) => state.user.id);
@@ -28,12 +30,12 @@ export function AdRuntime() {
       if (previousState.match(/inactive|background/) && nextState === "active") {
         const elapsed = backgroundAt === null ? 0 : Date.now() - backgroundAt;
         backgroundAt = null;
-        if (elapsed >= APP_OPEN_BACKGROUND_MS) void rewardedAds.showAppOpen().catch(() => false);
+        if (!rafflePaused && elapsed >= APP_OPEN_BACKGROUND_MS) void rewardedAds.showAppOpen().catch(() => false);
       }
       previousState = nextState;
     });
     return () => subscription.remove();
-  }, [authMode, hydrated]);
+  }, [authMode, hydrated, rafflePaused]);
 
   return null;
 }

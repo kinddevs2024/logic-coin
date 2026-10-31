@@ -1,3 +1,4 @@
+import { useRafflePause } from "@/components/raffle-provider";
 import { useUiCopy } from "@/components/localized-native";
 
 import { isGameVisible } from "@/constants/game-availability";
@@ -166,7 +167,8 @@ function PlayableGameRoute() {
   const sessionId = `${mode}:${gameKey}:${sessionRevision}`;
   const exitSession = useMemo(() => createGameExitSession(sessionId), [sessionId]);
   const activeResult = result?.sessionId === sessionId ? result : null;
-  const gamePaused = giftOpen || fortuneVisible || fortuneBusy || exitOpen || Boolean(activeResult);
+  const rafflePaused = useRafflePause();
+  const gamePaused = rafflePaused || giftOpen || fortuneVisible || fortuneBusy || exitOpen || Boolean(activeResult);
   const gameTitle = GAME_BY_KEY[gameKey]?.title ?? arcadeA?.title ?? arcadeB?.title ?? "Игра";
   const accent = GAME_BY_KEY[gameKey]?.color ?? arcadeA?.accent ?? arcadeB?.accent ?? "#007A57";
   const selectedSkin = cosmeticFor(progressId, progress?.selectedCosmetic ?? "classic");

@@ -1,3 +1,4 @@
+import { RaffleBanner } from "@/components/raffle-banner";
 import { useUiCopy } from "@/components/localized-native";
 
 import { HomeTutorial } from "@/components/home-tutorial";
@@ -151,6 +152,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <RaffleBanner />
         <GlassSurface
           intensity={68}
           variant="strong"

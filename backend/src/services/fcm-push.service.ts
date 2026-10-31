@@ -17,7 +17,7 @@ export function fcmMessage(token: string, notification: { title: string; body: s
     // Keep top-level routing strings too for native launch-intent handling.
     data: { ...Object.fromEntries(Object.entries(notification.data).filter(([, value]) => value != null).map(([key, value]) => [key, String(value)])),
       body: JSON.stringify(notification.data), tag },
-    android: { priority: "HIGH", notification: { channel_id: "messages", tag, sound: "default" } } } };
+    android: { priority: "HIGH", ...(typeof notification.data.expiresAt === "string" ? { ttl: `${Math.max(0, Math.ceil((Date.parse(notification.data.expiresAt) - Date.now()) / 1000))}s` } : {}), notification: { channel_id: "messages", tag, sound: "default" } } } };
 }
 
 export async function sendFcmPush(token: string, notification: Parameters<typeof fcmMessage>[1], fetchImplementation: typeof fetch = fetch) {

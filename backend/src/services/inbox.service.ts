@@ -15,12 +15,12 @@ async function pipeline(userId: Types.ObjectId): Promise<PipelineStage[]> {
     DailyContestResult.distinct("dayKey", { userId })
   ]);
   return [
-    { $match: { type: { $ne: "gift_received" }, $or: [
+    { $match: { type: { $ne: "gift_received" }, "payload.transient": { $ne: true }, $or: [
       { audience: "all_users", createdAt: { $gte: user?.createdAt ?? new Date() } },
       { audience: "specific_users", "payload.userIds": userId.toString() },
       { audience: "contest_participants", "payload.dayKey": { $in: days } }
     ] } },
-    { $project: { _id: 0, id: { $concat: ["event:", { $toString: "$_id" }] }, kind: "$type", title: { $ifNull: ["$payload.title", "Уведомление"] }, body: { $ifNull: ["$payload.body", ""] }, createdAt: 1 } },
+    { $project: { _id: 0, id: { $concat: ["event:", { $toString: "$_id" }] }, localized: "$payload.localized", kind: "$type", title: { $ifNull: ["$payload.title", "Уведомление"] }, body: { $ifNull: ["$payload.body", ""] }, createdAt: 1 } },
     { $unionWith: { coll: GiftItem.collection.name, pipeline: [
       { $match: { userId } },
       { $project: { _id: 0, id: { $concat: ["gift:", { $toString: "$_id" }] }, kind: { $literal: "gift" }, title: { $literal: "Вы получили подарок" }, body: "$description", createdAt: 1 } }
@@ -52,6 +52,10 @@ export async function listInbox(userId: Types.ObjectId, all: boolean, before?: {
   const profile = await User.findById(userId).select("name countryCode preferences.language").lean();
   for (const row of rows) if (row.kind === "admin_broadcast") { row.title = renderNotificationTemplate(row.title, profile); row.body = renderNotificationTemplate(row.body, profile); }
   for (const row of rows) if (row.kind !== "admin_broadcast") { row.title = localizeBuiltIn(row.title, profile?.preferences.language ?? "ru"); row.body = localizeBuiltIn(row.body ?? "", profile?.preferences.language ?? "ru"); }
+  for (const row of rows) {
+    if (row.kind === "raffle" && row.localized) { const c = row.localized[profile?.preferences.language ?? "uz"] ?? row.localized.uz; if (c) { row.title = c.title; row.body = c.body; } }
+    delete row.localized;
+  }
   const items = rows.slice(0, 10).map(row => ({ ...row, createdAt: new Date(row.createdAt).toISOString() })) as InboxItem[];
   const last = items.at(-1);
   return { items, next: rows.length > 10 && last ? { date: last.createdAt, id: last.id } : null };

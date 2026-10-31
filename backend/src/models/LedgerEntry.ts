@@ -13,6 +13,7 @@ const ledgerEntrySchema = new Schema(
         "referral_bonus",
         "game_reward",
         "contest_cash_prize",
+        "raffle_cash_prize",
         "withdrawal"
       ],
       required: true
