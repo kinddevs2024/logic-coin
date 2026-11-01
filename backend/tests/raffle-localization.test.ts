@@ -8,5 +8,5 @@ it("preserves all event and physical prize translations when serializing a saved
  expect(event.validateSync()).toBeUndefined();const value=JSON.parse(JSON.stringify(event));expect(value.titles).toEqual(titles);expect(value.rounds[0].labels).toEqual(labels);
 });
 it("keeps legacy events valid without localized fields",()=>{
- const event=new LiveRaffle(base);expect(event.validateSync()).toBeUndefined();expect(event.title).toBe("Призы");expect(event.rounds[0].label).toBe("Наушники");
+ const event=new LiveRaffle(base);expect(event.validateSync()).toBeUndefined();expect(event.title).toBe("Призы");expect(event.rounds[0]?.label).toBe("Наушники");
 });
