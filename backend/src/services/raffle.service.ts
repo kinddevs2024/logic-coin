@@ -15,6 +15,8 @@ import { creditReward } from "./wallet.service.js";
 import { recordCoinRewardLogin } from "./coin-rewards.service.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
 const timezone = "Asia/Tashkent";
+type LocalizedText = { ru?: string | null; uz?: string | null; en?: string | null };
+const localized = (value: LocalizedText | null | undefined, fallback: string, language: "ru" | "uz" | "en") => value?.[language]?.trim() || fallback;
 type Copy = Record<"ru" | "uz" | "en", { title: string; body: string }>;
 const oid = (id: string) => { if (!/^[a-f\d]{24}$/i.test(id)) throw new ApiError(400, "invalid_id", "Invalid event ID"); return new Types.ObjectId(id); };
 async function notice(key: string, copy: Copy, expiresAt?: Date, session?: mongoose.ClientSession) {
@@ -39,10 +41,10 @@ export async function raffleHeartbeat(userId: Types.ObjectId, online: boolean, s
   return { eligibleDays: presence?.eligibleDays ?? 0 };
 }
 export async function listRaffles() {
- const events = await LiveRaffle.find().sort({ createdAt: -1 }).limit(30).select("title status startsAt revision youtubeId lockMinutes allowRepeatWinners rounds.label rounds.kind rounds.cashUnits rounds.durationSeconds rounds.status rounds.winnerName rounds.winnerId rounds.settledAt rounds._id").lean();
+ const events = await LiveRaffle.find().sort({ createdAt: -1 }).limit(30).select("title titles status startsAt revision youtubeId lockMinutes allowRepeatWinners rounds.label rounds.labels rounds.kind rounds.cashUnits rounds.durationSeconds rounds.status rounds.winnerName rounds.winnerId rounds.settledAt rounds._id").lean();
  return events.map(event => ({ ...event, rounds: event.rounds.map(round => ({ ...round, id: String(round._id), winnerId: round.status === "finished" ? round.winnerId : null })) }));
 }
-export async function saveRaffle(input: { title: string; startsAt: string; lockMinutes: number; youtubeId: string; allowRepeatWinners: boolean; rounds: Array<{ label: string; kind: "cash" | "physical"; cashUnits: number; durationSeconds: number }> }, adminId: Types.ObjectId) {
+export async function saveRaffle(input: { title: string; titles?: LocalizedText; startsAt: string; lockMinutes: number; youtubeId: string; allowRepeatWinners: boolean; rounds: Array<{ label: string; labels?: LocalizedText; kind: "cash" | "physical"; cashUnits: number; durationSeconds: number }> }, adminId: Types.ObjectId) {
   if (new Date(input.startsAt).getTime() < Date.now() + 60000) throw new ApiError(400, "future_start_required", "Назначьте время минимум через минуту");
   try { return await LiveRaffle.create({ ...input, startsAt: new Date(input.startsAt), activeSlot: "main", createdBy: adminId }); }
   catch (error) { if ((error as { code?: number }).code === 11000) throw new ApiError(409, "raffle_exists", "Сначала завершите или отмените текущий розыгрыш"); throw error; }
@@ -54,10 +56,10 @@ export async function publishRaffle(id: string) {
   await announceDay(event);
   return event._id;
 }
-async function announceDay(event: { _id: Types.ObjectId; title: string; startsAt: Date }) {
+async function announceDay(event: { _id: Types.ObjectId; title: string; titles?: LocalizedText | null; startsAt: Date }) {
   if (localDayKey(new Date(), timezone) !== localDayKey(event.startsAt, timezone)) return;
   const time = event.startsAt.toLocaleTimeString("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit" });
-  await notice(`${event._id}:today`, copy("Сегодня розыгрыш", "Bugun sovrinli o‘yin", "Prize draw today", `${event.title} · ${time} (Toshkent)`, `${event.title} · ${time} (Toshkent)`, `${event.title} · ${time} (Tashkent)`));
+  await notice(`${event._id}:today`, copy("Сегодня розыгрыш", "Bugun sovrinli o‘yin", "Prize draw today", `${localized(event.titles,event.title,"ru")} · ${time} (Toshkent)`, `${localized(event.titles,event.title,"uz")} · ${time} (Toshkent)`, `${localized(event.titles,event.title,"en")} · ${time} (Tashkent)`));
 }
 async function readRaffleState(userId?: Types.ObjectId, admin = false) {
   const event = await LiveRaffle.findOne({ status: { $in: ["scheduled", "live"] } }).lean();
@@ -68,13 +70,13 @@ async function readRaffleState(userId?: Types.ObjectId, admin = false) {
   const visible = current?.participants.slice(0, 60) ?? [];
   const winner = current?.status === "finished" ? current.participants.find(p => String(p.userId) === String(current.winnerId)) : undefined;
   return { serverNow: now.toISOString(), event: {
-    id: String(event._id), title: event.title, startsAt: event.startsAt.toISOString(), status: event.status,
+    id: String(event._id), title: event.title, titles: event.titles, startsAt: event.startsAt.toISOString(), status: event.status,
     lockMinutes: event.lockMinutes, youtubeId: event.youtubeId, revision: event.revision,
     today: localDayKey(now, timezone) === localDayKey(event.startsAt, timezone),
     eligibleDays: presence?.eligibleDays ?? 0,
     locked: now.getTime() >= event.startsAt.getTime() - event.lockMinutes * 60000 && now.getTime() < event.startsAt.getTime() + 2 * 3600000,
-    rounds: event.rounds.map(r => ({ id: String(r._id), label: r.label, kind: r.kind, cashUnits: r.cashUnits, durationSeconds: r.durationSeconds, status: r.status })),
-    current: current ? { id: String(current._id), label: current.label, kind: current.kind, cashUnits: current.cashUnits, status: current.status,
+    rounds: event.rounds.map(r => ({ id: String(r._id), label: r.label, labels: r.labels, kind: r.kind, cashUnits: r.cashUnits, durationSeconds: r.durationSeconds, status: r.status })),
+    current: current ? { id: String(current._id), label: current.label, labels: current.labels, kind: current.kind, cashUnits: current.cashUnits, status: current.status,
       startedAt: current.startedAt?.toISOString(), finishesAt: current.finishesAt?.toISOString(),
       participantCount: current.participantCount ?? current.participants.length,
       participants: visible.map(p => ({ id: String(p.userId), name: p.name, avatarUrl: p.avatarUrl ?? null })),
@@ -130,7 +132,7 @@ export async function spinRaffle(id: string, roundId: string) {
     await RaffleDrawAudit.create([{ eventId: event._id, roundId: round._id, eligibleUserIds: users.map(u => u._id), selectedUserId: selected._id, poolHash }], { session });
     round.status = "spinning"; round.startedAt = now; round.finishesAt = new Date(now.getTime() + round.durationSeconds * 1000);
     event.revision++; await event.save({ session });
-    await notice(`${event._id}:${round._id}:spin`, copy("Рулетка запущена", "Qur’a boshlandi", "The draw is spinning", round.label), undefined, session);
+    await notice(`${event._id}:${round._id}:spin`, copy("Рулетка запущена", "Qur’a boshlandi", "The draw is spinning", localized(round.labels,round.label,"ru"), localized(round.labels,round.label,"uz"), localized(round.labels,round.label,"en")), undefined, session);
   }); invalidateRaffleView(); } finally { await session.endSession(); }
 }
 export async function settleRaffle(id: Types.ObjectId) {
@@ -147,7 +149,7 @@ export async function settleRaffle(id: Types.ObjectId) {
     }
     round.winnerName = winner.name; round.winnerAvatarUrl = winner.avatarUrl ?? null;
     round.status = "finished"; round.settledAt = new Date(); event.revision++; await event.save({ session });
-    await notice(`${event._id}:${round._id}:winner`, copy("Победитель розыгрыша", "Qur’a g‘olibi", "Draw winner", `${winner.name} — ${round.label}`), undefined, session);
+    await notice(`${event._id}:${round._id}:winner`, copy("Победитель розыгрыша", "Qur’a g‘olibi", "Draw winner", `${winner.name} — ${localized(round.labels,round.label,"ru")}`, `${winner.name} — ${localized(round.labels,round.label,"uz")}`, `${winner.name} — ${localized(round.labels,round.label,"en")}`), undefined, session);
   }); invalidateRaffleView(); } finally { await session.endSession(); }
 }
 export async function finishRaffle(id: string, cancel: boolean) {
@@ -155,7 +157,7 @@ export async function finishRaffle(id: string, cancel: boolean) {
   const event = await LiveRaffle.findOneAndUpdate(filter, { $set: { status: cancel ? "cancelled" : "ended", endedAt: new Date() }, $unset: { activeSlot: 1 }, $inc: { revision: 1 } }, { new: true });
   if (!event) throw new ApiError(409, "round_busy", "Дождитесь окончания текущего раунда");
   invalidateRaffleView();
-  if (event.publishedAt) await notice(`${event._id}:ended`, copy(cancel ? "Розыгрыш отменён" : "Розыгрыш завершён", cancel ? "Qur’a bekor qilindi" : "Qur’a yakunlandi", cancel ? "Draw cancelled" : "Draw ended", event.title));
+  if (event.publishedAt) await notice(`${event._id}:ended`, copy(cancel ? "Розыгрыш отменён" : "Розыгрыш завершён", cancel ? "Qur’a bekor qilindi" : "Qur’a yakunlandi", cancel ? "Draw cancelled" : "Draw ended", localized(event.titles,event.title,"ru"), localized(event.titles,event.title,"uz"), localized(event.titles,event.title,"en")));
 }
 let ticking = false;
 let previouslyVisible = false;
@@ -164,15 +166,15 @@ export async function tickRaffles() {
   if (ticking) return; ticking = true;
   try {
     await connectToDatabase();
-    const events = await LiveRaffle.find({ status: { $in: ["scheduled", "live"] } }).select("title startsAt status rounds.status rounds.finishesAt").lean();
+    const events = await LiveRaffle.find({ status: { $in: ["scheduled", "live"] } }).select("title titles startsAt status rounds.status rounds.finishesAt").lean();
     for (const event of events) {
       if (event.status === "scheduled") {
         await announceDay(event);
         const seconds = countdownMilestone(event.startsAt, new Date());
-        if (seconds !== null) await notice(`${event._id}:countdown:${seconds}`, copy(`До розыгрыша ${seconds} с`, `Qur’agacha ${seconds} soniya`, `Draw starts in ${seconds}s`, event.title), new Date(event.startsAt.getTime() - (seconds - (seconds <= 10 ? 1 : 10)) * 1000));
+        if (seconds !== null) await notice(`${event._id}:countdown:${seconds}`, copy(`До розыгрыша ${seconds} с`, `Qur’agacha ${seconds} soniya`, `Draw starts in ${seconds}s`, localized(event.titles,event.title,"ru"), localized(event.titles,event.title,"uz"), localized(event.titles,event.title,"en")), new Date(event.startsAt.getTime() - (seconds - (seconds <= 10 ? 1 : 10)) * 1000));
         if (event.startsAt <= new Date()) {
           await LiveRaffle.updateOne({ _id: event._id, status: "scheduled" }, { $set: { status: "live" }, $inc: { revision: 1 } });
-          await notice(`${event._id}:started`, copy("Розыгрыш начался", "Qur’a boshlandi", "The live draw has started", event.title));
+          await notice(`${event._id}:started`, copy("Розыгрыш начался", "Qur’a boshlandi", "The live draw has started", localized(event.titles,event.title,"ru"), localized(event.titles,event.title,"uz"), localized(event.titles,event.title,"en")));
         }
       } else if (event.rounds.some(r => r.status === "spinning" && r.finishesAt && r.finishesAt <= new Date())) await settleRaffle(event._id);
     }

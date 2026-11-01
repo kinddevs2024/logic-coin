@@ -15,8 +15,8 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
 const NAV_ITEMS: { href: "/admin/raffle" | "/admin/games" | "/admin/users" | "/admin" | "/admin/challenges" | "/admin/budget" | "/admin/blocked" | "/admin/notifications" | "/admin/withdrawals"; label: string; icon: IconName }[] = [
-  { href: "/admin/users", label: "Пользователи", icon: "people-outline" },
   { href: "/admin", label: "Главная", icon: "grid-outline" },
+  { href: "/admin/users", label: "Пользователи", icon: "people-outline" },
   { href: "/admin/challenges", label: "Челленджи", icon: "game-controller-outline" },
   { href: "/admin/raffle", label: "Розыгрыши", icon: "sparkles-outline" },
   { href: "/admin/games", label: "Игры", icon: "apps-outline" },

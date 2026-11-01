@@ -1,10 +1,11 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, BackHandler, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useAppStore } from "@/store/app-store";
-import { raffleCopy, type RaffleEvent, type RafflePlayer } from "@/lib/raffle";
+import { raffleCopy, raffleText, type RaffleEvent, type RafflePlayer } from "@/lib/raffle";
 import { bootstrapApi } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { Avatar } from "./avatar";
@@ -15,6 +16,7 @@ export function RaffleStage({ event, now, eligibleDays }: { event: RaffleEvent; 
   const seconds = Math.max(0, Math.ceil((Date.parse(event.startsAt) - now) / 1000));
   const [scale] = useState(() => new Animated.Value(1));
   const reduceMotion = useRef(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const round = event.current;
   const winner = round?.status === "finished" ? round.winner : null;
@@ -36,33 +38,30 @@ export function RaffleStage({ event, now, eligibleDays }: { event: RaffleEvent; 
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={[styles.eyebrow, { color: theme.primary }]}>{seconds > 0 ? c.starts : c.live}</Text>
-      <Text style={[styles.heading, { color: theme.text }]}>{event.title}</Text>
+      <Text style={[styles.heading, { color: theme.text }]}>{raffleText(event.titles,event.title,language)}</Text>
       {seconds > 0 ? <View style={styles.countdown}>
         <Animated.Text accessibilityLiveRegion={seconds % 10 === 0 || seconds <= 10 ? "polite" : "none"} style={[styles.digits, { color: colors[seconds % 4], transform: [{ scale }], fontWeight: seconds % 2 ? "900" : "600", fontFamily: seconds <= 60 && seconds % 3 === 0 ? Platform.OS === "ios" ? "Courier" : "monospace" : undefined }]}>{seconds <= 60 ? seconds : `${String(Math.floor(seconds / 60)).padStart(2,"0")}:${String(seconds % 60).padStart(2,"0")}`}</Animated.Text>
-        <Text style={[styles.body, { color: theme.textMuted }]}>{c.rules}</Text>
-        <Text style={[styles.eligible, { color: theme.primary }]}>{c.eligible}: {Math.min(7, eligibleDays)}/7</Text>
+
       </View> : <>
         <YoutubePlayer videoId={event.youtubeId} />
-        <Text style={[styles.caption, { color: theme.textMuted }]}>{c.stream}</Text>
         <View style={[styles.prize, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.eyebrow, { color: theme.primary }]}>{c.prize}</Text>
-          <Text style={[styles.prizeText, { color: theme.text }]}>{round?.label}</Text>
-          {round?.kind === "cash" ? <Text style={[styles.prizeText, { color: "#FFD95E" }]}>{formatMoney(round.cashUnits)}</Text> : null}
+          <Text style={[styles.prizeText, { color: round?.kind === "cash" ? "#FFD95E" : theme.text }]}>{round?.kind === "cash" ? formatMoney(round.cashUnits) : raffleText(round?.labels,round?.label ?? "",language)}</Text>
         </View>
         <PlayerReel players={round?.participants ?? []} winner={winner} spinning={round?.status === "spinning"} />
         <Text style={[styles.body, { color: theme.textMuted }]}>{round?.status === "spinning" ? c.spinning : round?.status === "finished" ? c.next : c.waiting}</Text>
-        <Text style={[styles.caption, { color: theme.primary }]}>{c.participants}: {round?.participantCount ?? 0}</Text>
-        <Text style={[styles.caption, { color: theme.textMuted }]}>{c.rules}</Text>
+
       </>}
+      <Pressable accessibilityRole="button" accessibilityLabel={c.rules} onPress={() => setShowInfo(true)} style={{padding:12}}><Ionicons name="information-circle-outline" size={24} color={String(theme.textMuted)}/></Pressable>
     </ScrollView>
+    <Modal visible={showInfo} transparent animationType="fade" onRequestClose={() => setShowInfo(false)}><View style={styles.winOverlay}><View style={[styles.winCard,{backgroundColor:theme.surface,borderColor:theme.border}]}><Text style={[styles.body,{color:theme.text}]}>{c.rules}</Text><Text style={[styles.caption,{color:theme.textMuted}]}>{c.eligible}: {Math.min(7,eligibleDays)}/7{round ? ` · ${c.participants}: ${round.participantCount}` : ""}</Text><Pressable accessibilityRole="button" onPress={() => setShowInfo(false)} style={[styles.button,{backgroundColor:theme.primary}]}><Text style={{color:theme.onPrimary,fontWeight:"800"}}>{c.ok}</Text></Pressable></View></View></Modal>
     <Modal visible={Boolean(winner && round && dismissed !== round.id)} transparent animationType="fade" onRequestClose={() => setDismissed(round?.id ?? null)}>
       <View style={styles.winOverlay}>
         <View style={[styles.winCard, { backgroundColor: theme.surface, borderColor: "#FFD95E" }]}>
           <Text style={[styles.heading, { color: "#FFD95E" }]}>{won ? c.youWon : c.winner}</Text>
           {winner ? <Avatar name={winner.name} avatarUrl={winner.avatarUrl} size={90} /> : null}
           <Text style={[styles.heading, { color: theme.text }]}>{winner?.name}</Text>
-          <Text style={[styles.prizeText, { color: theme.primary }]}>{round?.label}</Text>
-          {round?.kind === "cash" ? <Text style={[styles.heading, { color: "#FFD95E" }]}>{formatMoney(round.cashUnits)}</Text> : null}
+          <Text style={[styles.prizeText, { color: round?.kind === "cash" ? "#FFD95E" : theme.primary }]}>{round?.kind === "cash" ? formatMoney(round.cashUnits) : raffleText(round?.labels,round?.label ?? "",language)}</Text>
           <Pressable accessibilityRole="button" onPress={() => setDismissed(round?.id ?? null)} style={[styles.button, { backgroundColor: theme.primary }]}><Text style={{ color: theme.onPrimary, fontWeight: "800" }}>{c.ok}</Text></Pressable>
         </View>
         {won ? <Fireworks /> : null}

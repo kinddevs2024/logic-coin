@@ -1,12 +1,14 @@
 import { request } from "./api";
+export type RaffleTranslations = Record<"ru" | "uz" | "en", string>;
+export const raffleText = (values: Partial<RaffleTranslations> | null | undefined, fallback: string, language: "ru" | "uz" | "en") => values?.[language]?.trim() || fallback;
 export type RafflePlayer = { id: string; name: string; avatarUrl: string | null };
-export type RaffleRound = { id: string; label: string; kind: "cash" | "physical"; cashUnits: number; durationSeconds?: number; status: "pending" | "spinning" | "finished"; winnerName?: string; winnerId?: string | null };
-export type RaffleEvent = { id: string; title: string; startsAt: string; status: "scheduled" | "live"; lockMinutes: number; youtubeId: string; revision: number; today: boolean; locked: boolean; eligibleDays: number; rounds: RaffleRound[]; onlineCount?: number; eligibleOnlineCount?: number; current: (RaffleRound & { startedAt?: string; finishesAt?: string; participantCount: number; participants: RafflePlayer[]; winner: RafflePlayer | null }) | null };
+export type RaffleRound = { id: string; label: string; labels?: RaffleTranslations; kind: "cash" | "physical"; cashUnits: number; durationSeconds?: number; status: "pending" | "spinning" | "finished"; winnerName?: string; winnerId?: string | null };
+export type RaffleEvent = { id: string; title: string; titles?: RaffleTranslations; startsAt: string; status: "scheduled" | "live"; lockMinutes: number; youtubeId: string; revision: number; today: boolean; locked: boolean; eligibleDays: number; rounds: RaffleRound[]; onlineCount?: number; eligibleOnlineCount?: number; current: (RaffleRound & { startedAt?: string; finishesAt?: string; participantCount: number; participants: RafflePlayer[]; winner: RafflePlayer | null }) | null };
 export type RaffleState = { event: RaffleEvent | null; serverNow: string };
 export const raffleApi = {
  state: (token: string) => request<RaffleState>("/raffle/state", { token }),
  presence: (token: string, online: boolean) => request<{ eligibleDays: number }>("/raffle/presence", { token, method: "POST", body: JSON.stringify({ online }) }),
- admin: (token: string) => request<RaffleState & { history: Array<{ _id: string; title: string; status: string; startsAt: string; rounds: RaffleRound[] }> }>("/raffle/admin", { token }),
+ admin: (token: string) => request<RaffleState & { history: Array<{ _id: string; title: string; titles?: RaffleTranslations; status: string; startsAt: string; rounds: RaffleRound[] }> }>("/raffle/admin", { token }),
  create: (token: string, input: unknown) => request<{ id: string }>("/raffle/admin", { token, method: "POST", body: JSON.stringify(input) }),
  action: (token: string, id: string, action: "publish" | "spin" | "end", input = {}) => request(`/raffle/admin/${id}/${action}`, { token, method: "POST", body: JSON.stringify(input) }),
 };

@@ -1,6 +1,8 @@
 import { Schema, model, models, type InferSchemaType, type Model } from "mongoose";
+const localizedText = new Schema({ ru: String, uz: String, en: String }, { _id: false });
 const participant = new Schema({ userId: { type: Schema.Types.ObjectId, required: true }, name: { type: String, required: true }, avatarUrl: { type: String } }, { _id: false });
 const round = new Schema({
+  labels: { type: localizedText, required: false },
   label: { type: String, required: true }, kind: { type: String, enum: ["cash", "physical"], required: true },
   cashUnits: { type: Number, min: 0, required: true, default: 0 }, durationSeconds: { type: Number, min: 5, max: 180, required: true },
   status: { type: String, enum: ["pending", "spinning", "finished"], default: "pending", required: true },
@@ -9,6 +11,7 @@ const round = new Schema({
   participants: { type: [participant], default: [] },
 });
 const schema = new Schema({
+  titles: { type: localizedText, required: false },
   title: { type: String, required: true }, startsAt: { type: Date, required: true },
   lockMinutes: { type: Number, min: 1, max: 30, required: true, default: 3 }, youtubeId: { type: String, required: true },
   status: { type: String, enum: ["draft", "scheduled", "live", "ended", "cancelled"], required: true, default: "draft" },

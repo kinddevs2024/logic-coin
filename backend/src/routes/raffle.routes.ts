@@ -9,10 +9,11 @@ router.get("/state", async (req,res) => { res.set("Cache-Control", "no-store"); 
 router.post("/presence", validateBody(z.object({ online: z.boolean() }).strict()), async (req,res) => { res.json({ data: await raffleHeartbeat(req.auth!.userId, req.body.online, req.auth!.sessionId) }); });
 router.use(requireAdmin);
 router.get("/admin", async (req,res) => res.json({ data: { ...await raffleState(req.auth!.userId, true), history: await listRaffles() } }));
-const prize = z.object({ label: z.string().trim().min(1).max(160), kind: z.enum(["cash", "physical"]), cashUnits: z.number().int().min(0).max(100000000), durationSeconds: z.number().int().min(5).max(180) }).strict().superRefine((value,ctx) => {
+const translations = (max: number) => z.object({ ru: z.string().trim().min(1).max(max), uz: z.string().trim().min(1).max(max), en: z.string().trim().min(1).max(max) }).strict();
+const prize = z.object({ label: z.string().trim().min(1).max(160), labels: translations(160).optional(), kind: z.enum(["cash", "physical"]), cashUnits: z.number().int().min(0).max(100000000), durationSeconds: z.number().int().min(5).max(180) }).strict().superRefine((value,ctx) => {
  if (value.kind === "cash" && value.cashUnits <= 0 || value.kind === "physical" && value.cashUnits !== 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Укажите денежную сумму только для денежного приза" });
 });
-router.post("/admin", validateBody(z.object({ title: z.string().trim().min(1).max(100), startsAt: z.string().datetime({ offset: true }), lockMinutes: z.number().int().min(1).max(30), youtubeUrl: z.string().max(500).refine(value => Boolean(youtubeVideoId(value)), "Нужна ссылка на YouTube-эфир"), allowRepeatWinners: z.boolean(), rounds: z.array(prize).min(1).max(50) }).strict()), async (req,res) => {
+router.post("/admin", validateBody(z.object({ title: z.string().trim().min(1).max(100), titles: translations(100).optional(), startsAt: z.string().datetime({ offset: true }), lockMinutes: z.number().int().min(1).max(30), youtubeUrl: z.string().max(500).refine(value => Boolean(youtubeVideoId(value)), "Нужна ссылка на YouTube-эфир"), allowRepeatWinners: z.boolean(), rounds: z.array(prize).min(1).max(50) }).strict()), async (req,res) => {
  const { youtubeUrl, ...input } = req.body;
  const event = await saveRaffle({ ...input, youtubeId: youtubeVideoId(youtubeUrl)! }, req.auth!.userId);
  res.status(201).json({ data: { id: String(event._id) } });
