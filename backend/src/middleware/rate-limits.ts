@@ -1,3 +1,4 @@
+import { globalRateLimitKey } from "../lib/global-rate-limit-key.js";
 import { API_PREFIX } from "../config/constants.js";
 import { hasValidMonetagSecret } from "../services/monetag.service.js";
 import { rateLimit } from "express-rate-limit";
@@ -10,6 +11,7 @@ function limiter(namespace: string, windowMs: number, limit: number) {
     // Only correctly authenticated callbacks bypass the ordinary per-IP cap.
     skip: (request) => namespace === "global" && request.method === "GET" &&
       request.path === `${API_PREFIX}/ads/monetag/postback` && hasValidMonetagSecret(request.query.secret),
+    ...(namespace === "global" ? { keyGenerator: globalRateLimitKey } : {}),
     windowMs,
     limit,
     ...(env.NODE_ENV === "production"

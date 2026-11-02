@@ -1,3 +1,4 @@
+import { socialDisplayName } from "../lib/social-display-name.js";
 import { localizeBuiltIn, type CopyLanguage } from "../lib/localize-built-in.js";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import mongoose, { type Types } from "mongoose";
@@ -183,7 +184,7 @@ export async function authenticateTelegram(identity: TelegramIdentity, referralC
   if (!user) {
     user = await createUser({
       email: `telegram-${identity.id}@telegram.logiccoin.local`,
-      name: telegramName(identity) || identity.username || "Logic member",
+      name: socialDisplayName(telegramName(identity) || identity.username,"Logic member"),
       emailVerifiedAt: now,
       telegramSub: identity.id,
       ...(language ? { language } : {}),
