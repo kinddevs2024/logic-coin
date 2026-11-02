@@ -1,5 +1,4 @@
 {
-  "Сервер не ответил вовремя. Проверьте результат перед повтором.": {"ru": "Сервер не ответил вовремя. Проверьте результат перед повтором.", "uz": "Server vaqtida javob bermadi. Qayta urinishdan oldin natijani tekshiring.", "en": "The server did not respond in time. Check the result before retrying."},
   "Назначьте время минимум через минуту": {"ru": "Назначьте время минимум через минуту", "uz": "Boshlanish vaqtini kamida bir daqiqadan keyinga belgilang", "en": "Schedule the start at least one minute from now"},
   "Сначала завершите или отмените текущий розыгрыш": {"ru": "Сначала завершите или отмените текущий розыгрыш", "uz": "Avval joriy qur’ani yakunlang yoki bekor qiling", "en": "End or cancel the current draw first"},
   "Не удалось опубликовать событие": {"ru": "Не удалось опубликовать событие", "uz": "Tadbirni e’lon qilib bo‘lmadi", "en": "Could not publish the event"},

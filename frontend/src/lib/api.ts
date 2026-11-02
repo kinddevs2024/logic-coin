@@ -107,7 +107,7 @@ export async function request<T>(
     response=result.response;payload=result.payload;
   } catch(error) {
     if(error instanceof ApiError)throw error;
-    if(error instanceof NetworkTimeoutError)throw new ApiError(localizeBuiltIn("Сервер не ответил вовремя. Проверьте результат перед повтором.",useAppStore.getState().language??"uz"),0,"request_timeout");
+    if(error instanceof NetworkTimeoutError)throw new ApiError(localizeBuiltIn("Сервер не ответил. Проверьте соединение и результат операции.",useAppStore.getState().language??"uz"),0,"request_timeout");
     if(error instanceof Error&&error.name==="AbortError")throw error;
     throw new ApiError(localizeBuiltIn("Проверьте подключение к интернету.",useAppStore.getState().language??"uz"),0,"network_unavailable");
   }
