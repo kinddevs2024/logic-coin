@@ -207,7 +207,7 @@ export async function authenticateTelegram(identity: TelegramIdentity, referralC
 
   user.lastLoginAt = now;
   const nextName = telegramName(identity);
-  if (nextName) user.name = nextName;
+  if (nextName) user.name = socialDisplayName(nextName, user.name);
   if (identity.photoUrl) user.avatarUrl = identity.photoUrl;
   await user.save();
   return user;

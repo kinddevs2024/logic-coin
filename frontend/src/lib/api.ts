@@ -131,7 +131,7 @@ export async function request<T>(
     );
   }
 
-  return migratedResponseUrls(("data" in payload ? payload.data : payload) as T);
+  return migratedResponseUrls(("data" in payload ? payload.data : payload) as T, Platform.OS === "web");
 }
 
 export type AuthTokens = {
@@ -181,7 +181,7 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
           body.error?.code,
         );
       }
-      const result = migratedResponseUrls(("data" in payload ? payload.data : payload) as AuthResult);
+      const result = migratedResponseUrls(("data" in payload ? payload.data : payload) as AuthResult, Platform.OS === "web");
       if(!result?.user||!result?.tokens?.accessToken)throw new ApiError("Invalid server response",502,"invalid_response");
       useAppStore.getState().authenticate({
         user: result.user,

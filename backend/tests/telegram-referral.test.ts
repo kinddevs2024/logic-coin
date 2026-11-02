@@ -29,4 +29,13 @@ describe("Telegram referral registration", () => {
     await authenticateTelegram({ id: "456", firstName: "Organic" });
     expect(mocks.createUser).toHaveBeenCalledWith(expect.not.objectContaining({ referralCode: expect.anything() }));
   });
+  it("keeps returning users' Telegram names within the profile limit", async () => {
+    const existing = { _id: new Types.ObjectId(), name: "Previous name", lastLoginAt: new Date(), save: vi.fn().mockResolvedValue(undefined) };
+    mocks.findOne.mockResolvedValue(existing);
+    await authenticateTelegram({ id: "789", firstName: "🦋".repeat(70), lastName: "Long name" });
+    expect(existing.name.length).toBeLessThanOrEqual(80);
+    expect(existing.name).not.toMatch(/[\uD800-\uDBFF]$/u);
+    expect(existing.save).toHaveBeenCalledOnce();
+    expect(mocks.createUser).not.toHaveBeenCalled();
+  });
 });
