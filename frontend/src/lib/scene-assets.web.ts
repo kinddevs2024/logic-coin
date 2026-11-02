@@ -1,8 +1,8 @@
 import type { ImageSourcePropType } from "react-native";
 
-// The classic island and seven jars use PNG; reward particles retain their original assets.
+// Web island compression preserves the original native scene assets.
 export const sceneAssets = {
-  island: require("../../assets/scene/island-deep.png") as ImageSourcePropType,
+  island: require("../../assets/scene/island-deep-web.webp") as ImageSourcePropType,
   jars: [require("../../assets/scene/1-Photoroom.png"),
     require("../../assets/scene/2-Photoroom.png"),
     require("../../assets/scene/3-Photoroom.png"),

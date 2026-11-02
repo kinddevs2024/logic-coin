@@ -1,6 +1,6 @@
 import { useUiCopy } from "@/components/localized-native";
 import { useAuthError } from "@/components/auth-error-dialog";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "@/components/auth-icon";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";

@@ -1,7 +1,7 @@
 import { useUiCopy } from "@/components/localized-native";
 
 import { useEffect, useRef, useState } from "react";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "@/components/auth-icon";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";

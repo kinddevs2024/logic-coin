@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "@/components/auth-icon";
 
 import { useAuthError } from "@/components/auth-error-dialog";
 import { isConnectionError } from "@/lib/auth-error";
