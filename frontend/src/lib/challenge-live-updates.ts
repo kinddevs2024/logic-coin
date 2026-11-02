@@ -98,7 +98,7 @@ function connect(token: string, connection: Connection): void {
       connection.pending.delete(id);
     }
     if (event.code !== 4401) scheduleReconnect(token, connection);
-    else if (connection.listeners.size) void refreshAccessToken(token).catch(() => {});
+    else if (connection.listeners.size) void refreshAccessToken(token).catch(() => scheduleReconnect(token,connection));
   };
 }
 
@@ -142,7 +142,8 @@ export function liveCommand<T>(token: string, method: string, input: unknown = {
     const timer = setTimeout(() => {
       connection.pending.delete(id);
       reject(new Error("Сервер не ответил. Проверьте соединение и результат операции."));
-    }, 30_000);
+      connection.socket?.close(4000,"Request timed out");
+    }, ["today","pendingReward","raffleState","rafflePresence"].includes(method)?10000:30000);
     const message = JSON.stringify({ id, method, input });
     connection.pending.set(id, { resolve: value => resolve(value as T), reject, timer, message, sent: connection.authenticated });
     if (connection.authenticated) connection.socket!.send(message);

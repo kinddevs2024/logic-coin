@@ -1,3 +1,4 @@
+import { withNetworkDeadline, NetworkTimeoutError } from "./network-deadline";
 import { localizeBuiltIn } from "./localize-built-in";
 import { telegramChallengeInitData } from "./telegram-context";
 import type {
@@ -96,11 +97,19 @@ export async function request<T>(
   }
 
   let response: Response;
+  let payload: {data?:T}|ApiErrorBody;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") throw error;
-    throw new ApiError(localizeBuiltIn("Проверьте подключение к интернету.", useAppStore.getState().language ?? "uz"), 0, "network_unavailable");
+    const result=await withNetworkDeadline(async signal=>{
+      const response=await fetch(`${API_URL}${path}`,{...fetchOptions,headers,signal});
+      const payload=await response.json().catch(()=>{if(response.ok&&response.status!==204)throw new ApiError("Invalid server response",502,"invalid_response");return {};});
+      return {response,payload};
+    },fetchOptions.signal);
+    response=result.response;payload=result.payload;
+  } catch(error) {
+    if(error instanceof ApiError)throw error;
+    if(error instanceof NetworkTimeoutError)throw new ApiError(localizeBuiltIn("Сервер не ответил вовремя. Проверьте результат перед повтором.",useAppStore.getState().language??"uz"),0,"request_timeout");
+    if(error instanceof Error&&error.name==="AbortError")throw error;
+    throw new ApiError(localizeBuiltIn("Проверьте подключение к интернету.",useAppStore.getState().language??"uz"),0,"network_unavailable");
   }
 
   if (response.status === 401 && token && !skipAuthRefresh) {
@@ -111,10 +120,6 @@ export async function request<T>(
       skipAuthRefresh: true,
     });
   }
-
-  const payload = (await response.json().catch(() => ({}))) as
-    | { data?: T }
-    | ApiErrorBody;
 
   if (!response.ok) {
     const body = payload as ApiErrorBody;
@@ -155,7 +160,9 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
 
   if (!refreshPromise) {
     refreshPromise = (async () => {
+      const {response,payload}=await withNetworkDeadline(async signal=>{
       const response = await fetch(`${API_URL}/auth/refresh`, {
+        signal,
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -163,9 +170,9 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
         },
         body: JSON.stringify({ refreshToken: state.refreshToken, deviceId: await getDeviceId() }),
       });
-      const payload = (await response.json().catch(() => ({}))) as
-        | { data?: AuthResult }
-        | ApiErrorBody;
+      const payload = (await response.json().catch(() => ({}))) as {data?:AuthResult}|ApiErrorBody;
+      return {response,payload};
+      });
       if (!response.ok) {
         const body = payload as ApiErrorBody;
         throw new ApiError(
@@ -175,6 +182,7 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
         );
       }
       const result = migratedResponseUrls(("data" in payload ? payload.data : payload) as AuthResult);
+      if(!result?.user||!result?.tokens?.accessToken)throw new ApiError("Invalid server response",502,"invalid_response");
       useAppStore.getState().authenticate({
         user: result.user,
         accessToken: result.tokens.accessToken,

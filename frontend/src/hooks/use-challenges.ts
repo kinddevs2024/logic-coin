@@ -91,7 +91,8 @@ export function useChallenges() {
         // Do not hold this screen behind bonuses, referral history and activity.
         return challengesApi.today(accessToken!, signal);
       }
-      return liveCommand<TodayChallenges>(accessToken!, "today");
+      try{return await liveCommand<TodayChallenges>(accessToken!, "today");}
+      catch{return challengesApi.today(accessToken!,signal);}
     },
     enabled: authenticated,
     staleTime: Infinity,

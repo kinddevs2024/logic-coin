@@ -1,0 +1,6 @@
+import {afterEach,expect,it,vi} from "vitest";
+import {NetworkTimeoutError,withNetworkDeadline} from "../src/lib/network-deadline";
+afterEach(()=>vi.useRealTimers());
+it("bounds a stalled body read even if the underlying transport ignores abort",async()=>{vi.useFakeTimers();let signal:AbortSignal|undefined;const pending=withNetworkDeadline(s=>{signal=s;return new Promise(()=>{});});const assertion=expect(pending).rejects.toBeInstanceOf(NetworkTimeoutError);await vi.advanceTimersByTimeAsync(20000);await assertion;expect(signal?.aborted).toBe(true);expect(vi.getTimerCount()).toBe(0);});
+it("preserves caller cancellation and does not start an already-cancelled request",async()=>{const controller=new AbortController();controller.abort();const run=vi.fn();await expect(withNetworkDeadline(run,controller.signal)).rejects.toMatchObject({name:"AbortError"});expect(run).not.toHaveBeenCalled();});
+it("cleans up successful requests without an extra retry",async()=>{vi.useFakeTimers();const run=vi.fn().mockResolvedValue({ok:true});expect(await withNetworkDeadline(run)).toEqual({ok:true});await vi.advanceTimersByTimeAsync(30000);expect(run).toHaveBeenCalledTimes(1);expect(vi.getTimerCount()).toBe(0);});
