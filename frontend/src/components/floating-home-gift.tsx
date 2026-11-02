@@ -1,3 +1,4 @@
+import { GIFT_CLOSED, GIFT_OPEN } from "./home-gift-assets";
 import { useUiCopy , Alert } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +16,6 @@ import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
 import { useAppStore } from "@/store/app-store";
 
 const INTERVAL_MS = 120_000;
-import { GIFT_CLOSED, GIFT_OPEN } from "./home-gift-assets";
 const OPEN_GIFT_LABEL = { ru: "Открыть", en: "Open", uz: "Ochish" };
 const copy = {
   ru: { gift: "Подарок", close: "Закрыть", telegram: "Подпишись на Telegram · +50", ads: "Две рекламы · +75", link: "Привязать Telegram", channel: "Открыть канал", check: "Проверить", watch: "Смотреть", wait: "Подождите…", pending: "Подтверди Telegram в боте и вернись сюда.", unavailable: "Реклама не завершена или недоступна. Награда не начислена. В Expo Go реклама не работает.", inactive: "Нужен активный челлендж", failed: "Не удалось выполнить задание. Попробуй ещё раз.", login: "Войди, чтобы получить подарок" },
