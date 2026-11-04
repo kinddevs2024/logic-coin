@@ -11,6 +11,9 @@ import {
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { MotionEntrance } from "@/components/motion-entrance";
+import { ProfileDrawer } from "@/components/profile-drawer";
+import { OfficialBadge } from "./official-badge";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
@@ -33,6 +36,7 @@ export function MessagesScreen() {
     user = useAppStore((s) => s.user),
     focused = useIsFocused(),
     client = useQueryClient();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [filter, setFilter] = useState("all"),
     [search, setSearch] = useState(""),
     [debounced, setDebounced] = useState(""),
@@ -203,7 +207,7 @@ export function MessagesScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={c.profile}
-                onPress={() => router.push("/settings")}
+                onPress={() => setDrawerOpen(true)}
                 style={styles.avatar}
               >
                 <Avatar name={user.name} avatarUrl={user.avatarUrl} size={43} />
@@ -322,7 +326,7 @@ export function MessagesScreen() {
               contentContainerStyle={{ paddingBottom: 15 }}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item: room }) => (
-                <View
+                <MotionEntrance
                   style={[
                     styles.chatRow,
                     {
@@ -393,6 +397,9 @@ export function MessagesScreen() {
                       >
                         {roomTitle(room)}
                       </AppText>
+                      {room.systemKey || room.kind === "support" ? (
+                        <OfficialBadge />
+                      ) : null}
                       {room.pinned ? (
                         <Ionicons
                           name="pin"
@@ -457,7 +464,7 @@ export function MessagesScreen() {
                       ) : null}
                     </View>
                   </Pressable>
-                </View>
+                </MotionEntrance>
               )}
               ListFooterComponent={
                 debounced.length >= 2 ? (
@@ -669,6 +676,12 @@ export function MessagesScreen() {
           onLeave={() => router.setParams({ chat: "" })}
         />
       ) : null}
+      <ProfileDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onSettings={() => router.push("/settings")}
+        onInvite={() => router.push("/invite")}
+      />
     </AppFrame>
   );
 }

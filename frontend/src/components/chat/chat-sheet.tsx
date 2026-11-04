@@ -1,3 +1,4 @@
+import { MotionEntrance } from "@/components/motion-entrance";
 import type { PropsWithChildren, ComponentProps } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -20,7 +21,7 @@ export function ChatSheet({
           onPress={onClose}
           style={StyleSheet.absoluteFill}
         />
-        <View
+        <MotionEntrance
           accessibilityViewIsModal
           style={[
             styles.card,
@@ -46,7 +47,7 @@ export function ChatSheet({
           >
             {children}
           </ScrollView>
-        </View>
+        </MotionEntrance>
       </View>
     </Modal>
   );

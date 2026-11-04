@@ -1073,6 +1073,7 @@ export const meApi = {
   async updateProfile(
     input: {
       name?: string;
+      username?: string;
       avatarUrl?: string | null;
       avatarDataUrl?: string | null;
       savingsGoalCents?: number;

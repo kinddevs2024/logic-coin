@@ -6,7 +6,7 @@ import { Pressable, Share, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
-import { chatApi, type ChatRoom } from "@/lib/chat-api";
+import { chatApi, chatMediaUrl, type ChatRoom } from "@/lib/chat-api";
 import { useChatCopy } from "@/lib/chat-copy";
 import { MIGRATED_APP_ORIGIN } from "@/lib/server-migration";
 import { ChatAction, ChatSheet } from "./chat-sheet";
@@ -54,8 +54,22 @@ export function ChatRoomInfo({
   };
   return (
     <ChatSheet title={room.title} onClose={onClose}>
+      <View style={{ alignItems: "center", gap: 8, paddingBottom: 14 }}>
+        <Avatar
+          name={room.title}
+          avatarUrl={room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null}
+          size={86}
+        />
+        {!room.canManage && room.description ? (
+          <AppText muted>{room.description}</AppText>
+        ) : null}
+      </View>
       {room.canManage && ["group", "channel"].includes(room.kind) ? (
         <View style={{ gap: 8 }}>
+          <AppText variant="label">{c.settings}</AppText>
+          <AppText variant="caption" muted>
+            {c.name}
+          </AppText>
           <TextInput
             accessibilityLabel={c.name}
             value={title}
@@ -68,6 +82,9 @@ export function ChatRoomInfo({
               backgroundColor: theme.surfaceRaised,
             }}
           />
+          <AppText variant="caption" muted>
+            {c.description}
+          </AppText>
           <TextInput
             accessibilityLabel={c.description}
             value={description}

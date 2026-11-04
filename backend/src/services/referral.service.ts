@@ -8,30 +8,101 @@ import { listAvatarUrl } from "../lib/list-avatar.js";
 import { processReferralSignupReward } from "./user.service.js";
 import {
   REFERRAL_DIRECT_PRIZE_SHARE_PERCENT,
-  REFERRAL_SECOND_LEVEL_PRIZE_SHARE_PERCENT
+  REFERRAL_SECOND_LEVEL_PRIZE_SHARE_PERCENT,
 } from "../config/constants.js";
 
-export async function getReferralOverview(userId: Types.ObjectId, account?: Pick<UserDocument, "referralCode" | "wallet">, page = { offset: 0, limit: 6 }) {
-  const user = account ?? await User.findById(userId).select(
-    "referralCode wallet.referralEarnedUnits coins.referralEarned"
-  );
+export async function getReferralOverview(
+  userId: Types.ObjectId,
+  account?: Pick<UserDocument, "referralCode" | "wallet">,
+  page = { offset: 0, limit: 6 },
+) {
+  const user =
+    account ??
+    (await User.findById(userId).select(
+      "referralCode wallet.referralEarnedUnits coins.referralEarned",
+    ));
   if (!user) {
     throw new ApiError(404, "user_not_found", "User not found");
   }
-  const [friends, history, invitedCount, verifiedInvitedCount] = await Promise.all([
-    User.find({ referredBy: userId })
-      .select("name avatarUrl emailVerifiedAt createdAt")
-      .sort({ createdAt: -1, _id: -1 })
-      .skip(page.offset)
-      .limit(page.limit)
-      .lean(),
-    LedgerEntry.find({ userId, type: "referral_bonus" })
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .lean(),
-    User.countDocuments({ referredBy: userId }),
-    User.countDocuments({ referredBy: userId, emailVerifiedAt: { $ne: null } }),
-  ]);
+  const [friends, history, invitedCount, verifiedInvitedCount] =
+    await Promise.all([
+      User.find({ referredBy: userId })
+        .select("name avatarUrl emailVerifiedAt createdAt")
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(page.offset)
+        .limit(page.limit)
+        .lean(),
+      LedgerEntry.find({ userId, type: "referral_bonus" })
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean(),
+      User.countDocuments({ referredBy: userId }),
+      User.countDocuments({
+        referredBy: userId,
+        emailVerifiedAt: { $ne: null },
+      }),
+    ]);
+  const friendIds = friends.map((f) => f._id);
+  const [children, earnings] = friendIds.length
+    ? await Promise.all([
+        User.aggregate<{ _id: Types.ObjectId; count: number }>([
+          { $match: { referredBy: { $in: friendIds } } },
+          { $group: { _id: "$referredBy", count: { $sum: 1 } } },
+        ]),
+        LedgerEntry.aggregate<{
+          _id: string;
+          direct: number;
+          indirect: number;
+        }>([
+          { $match: { userId, type: "referral_bonus" } },
+          {
+            $project: {
+              amountUnits: 1,
+              level: "$metadata.level",
+              origin: {
+                $convert: {
+                  input: "$metadata.originUserId",
+                  to: "objectId",
+                  onError: null,
+                  onNull: null,
+                },
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: User.collection.name,
+              localField: "origin",
+              foreignField: "_id",
+              as: "originUser",
+            },
+          },
+          {
+            $set: {
+              branch: {
+                $cond: [
+                  { $eq: ["$level", 2] },
+                  { $arrayElemAt: ["$originUser.referredBy", 0] },
+                  "$origin",
+                ],
+              },
+            },
+          },
+          { $match: { branch: { $in: friendIds } } },
+          {
+            $group: {
+              _id: { $toString: "$branch" },
+              direct: {
+                $sum: { $cond: [{ $eq: ["$level", 2] }, 0, "$amountUnits"] },
+              },
+              indirect: {
+                $sum: { $cond: [{ $eq: ["$level", 2] }, "$amountUnits", 0] },
+              },
+            },
+          },
+        ]),
+      ])
+    : [[], []];
   const earnedUnits = user.wallet.referralEarnedUnits;
 
   return {
@@ -39,7 +110,10 @@ export async function getReferralOverview(userId: Types.ObjectId, account?: Pick
     link: `${env.APP_PUBLIC_URL.replace(/\/$/, "")}/invite/${encodeURIComponent(user.referralCode)}`,
     invitedCount,
     verifiedInvitedCount,
-    nextOffset: page.offset + friends.length < invitedCount ? page.offset + friends.length : null,
+    nextOffset:
+      page.offset + friends.length < invitedCount
+        ? page.offset + friends.length
+        : null,
     earnedUnits,
     earnedCents: unitsToCents(earnedUnits),
     signupRewardUnits: 0,
@@ -47,25 +121,44 @@ export async function getReferralOverview(userId: Types.ObjectId, account?: Pick
       id: friend._id.toString(),
       name: friend.name,
       avatarUrl: listAvatarUrl(friend._id, friend.avatarUrl),
+      invitedCount:
+        children.find((c) => String(c._id) === String(friend._id))?.count ?? 0,
+      earnedCents: unitsToCents(
+        (earnings.find((e) => e._id === String(friend._id))?.direct ?? 0) +
+          (earnings.find((e) => e._id === String(friend._id))?.indirect ?? 0),
+      ),
+      directEarnedCents: unitsToCents(
+        earnings.find((e) => e._id === String(friend._id))?.direct ?? 0,
+      ),
+      indirectEarnedCents: unitsToCents(
+        earnings.find((e) => e._id === String(friend._id))?.indirect ?? 0,
+      ),
       verified: Boolean(friend.emailVerifiedAt),
-      joinedAt: friend.createdAt
+      joinedAt: friend.createdAt,
     })),
     history: history.map((entry) => ({
       id: entry._id.toString(),
       amountUnits: entry.amountUnits,
       amountCents: unitsToCents(entry.amountUnits),
-      createdAt: entry.createdAt
+      createdAt: entry.createdAt,
     })),
   };
 }
 
-export async function applyReferralCode(userId: Types.ObjectId, referralCode: string) {
+export async function applyReferralCode(
+  userId: Types.ObjectId,
+  referralCode: string,
+) {
   const inviter = await User.findOne({
     referralCode: referralCode.trim().toUpperCase(),
-    _id: { $ne: userId }
+    _id: { $ne: userId },
   }).select("_id");
   if (!inviter) {
-    throw new ApiError(404, "referral_code_not_found", "Referral code was not found");
+    throw new ApiError(
+      404,
+      "referral_code_not_found",
+      "Referral code was not found",
+    );
   }
 
   const session = await mongoose.startSession();
@@ -75,13 +168,17 @@ export async function applyReferralCode(userId: Types.ObjectId, referralCode: st
         {
           _id: userId,
           referredBy: { $exists: false },
-          referralRewardProcessedAt: { $exists: false }
+          referralRewardProcessedAt: { $exists: false },
         },
         { $set: { referredBy: inviter._id } },
-        { new: true, session }
+        { new: true, session },
       );
       if (!user) {
-        throw new ApiError(409, "referral_already_applied", "A referral code is already applied");
+        throw new ApiError(
+          409,
+          "referral_already_applied",
+          "A referral code is already applied",
+        );
       }
       await processReferralSignupReward(user._id, session);
     });
@@ -90,9 +187,16 @@ export async function applyReferralCode(userId: Types.ObjectId, referralCode: st
   }
 }
 
-export function calculateReferralPrizeShare(amount: number, percent = REFERRAL_DIRECT_PRIZE_SHARE_PERCENT): number {
+export function calculateReferralPrizeShare(
+  amount: number,
+  percent = REFERRAL_DIRECT_PRIZE_SHARE_PERCENT,
+): number {
   if (!Number.isSafeInteger(amount) || amount < 0) {
-    throw new ApiError(500, "invalid_referral_prize", "Referral prize must be a non-negative integer");
+    throw new ApiError(
+      500,
+      "invalid_referral_prize",
+      "Referral prize must be a non-negative integer",
+    );
   }
   return Math.floor((amount * percent) / 100);
 }
@@ -104,43 +208,69 @@ export async function creditReferralCashPrizeShare(
     dayKey: string;
     sourceId: string;
   },
-  session: mongoose.ClientSession
+  session: mongoose.ClientSession,
 ) {
-  const winner = await User.findById(input.winnerUserId).select("referredBy").session(session);
+  const winner = await User.findById(input.winnerUserId)
+    .select("referredBy")
+    .session(session);
   if (!winner?.referredBy) return { credited: 0 };
   const directAmountUnits = calculateReferralPrizeShare(
     input.winnerPrizeUnits,
-    REFERRAL_DIRECT_PRIZE_SHARE_PERCENT
+    REFERRAL_DIRECT_PRIZE_SHARE_PERCENT,
   );
-  const directInviter = await User.findById(winner.referredBy).select("referredBy").session(session);
+  const directInviter = await User.findById(winner.referredBy)
+    .select("referredBy")
+    .session(session);
   const { creditReward } = await import("./wallet.service.js");
   if (directAmountUnits > 0) {
-    await creditReward({
-      userId: winner.referredBy,
-      amountUnits: directAmountUnits,
-      type: "referral_bonus",
-      sourceId: `cash-share:direct:${input.sourceId}`,
-      description: `15% referral share from daily contest (${input.dayKey})`,
-      dayKey: input.dayKey,
-      referralReward: true,
-      metadata: { dayKey: input.dayKey, originUserId: input.winnerUserId.toString(), originType: "contest_cash_prize", level: 1, sharePercent: REFERRAL_DIRECT_PRIZE_SHARE_PERCENT }
-    }, session);
+    await creditReward(
+      {
+        userId: winner.referredBy,
+        amountUnits: directAmountUnits,
+        type: "referral_bonus",
+        sourceId: `cash-share:direct:${input.sourceId}`,
+        description: `15% referral share from daily contest (${input.dayKey})`,
+        dayKey: input.dayKey,
+        referralReward: true,
+        metadata: {
+          dayKey: input.dayKey,
+          originUserId: input.winnerUserId.toString(),
+          originType: "contest_cash_prize",
+          level: 1,
+          sharePercent: REFERRAL_DIRECT_PRIZE_SHARE_PERCENT,
+        },
+      },
+      session,
+    );
   }
   const secondLevelAmountUnits = calculateReferralPrizeShare(
     input.winnerPrizeUnits,
-    REFERRAL_SECOND_LEVEL_PRIZE_SHARE_PERCENT
+    REFERRAL_SECOND_LEVEL_PRIZE_SHARE_PERCENT,
   );
   if (directInviter?.referredBy && secondLevelAmountUnits > 0) {
-    await creditReward({
-      userId: directInviter.referredBy,
-      amountUnits: secondLevelAmountUnits,
-      type: "referral_bonus",
-      sourceId: `cash-share:second-level:${input.sourceId}`,
-      description: `5% second-level referral share from daily contest (${input.dayKey})`,
-      dayKey: input.dayKey,
-      referralReward: true,
-      metadata: { dayKey: input.dayKey, originUserId: input.winnerUserId.toString(), originType: "contest_cash_prize", level: 2, sharePercent: REFERRAL_SECOND_LEVEL_PRIZE_SHARE_PERCENT }
-    }, session);
+    await creditReward(
+      {
+        userId: directInviter.referredBy,
+        amountUnits: secondLevelAmountUnits,
+        type: "referral_bonus",
+        sourceId: `cash-share:second-level:${input.sourceId}`,
+        description: `5% second-level referral share from daily contest (${input.dayKey})`,
+        dayKey: input.dayKey,
+        referralReward: true,
+        metadata: {
+          dayKey: input.dayKey,
+          originUserId: input.winnerUserId.toString(),
+          originType: "contest_cash_prize",
+          level: 2,
+          sharePercent: REFERRAL_SECOND_LEVEL_PRIZE_SHARE_PERCENT,
+        },
+      },
+      session,
+    );
   }
-  return { credited: directAmountUnits + (directInviter?.referredBy ? secondLevelAmountUnits : 0) };
+  return {
+    credited:
+      directAmountUnits +
+      (directInviter?.referredBy ? secondLevelAmountUnits : 0),
+  };
 }

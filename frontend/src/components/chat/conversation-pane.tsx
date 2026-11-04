@@ -1,3 +1,4 @@
+import { OfficialBadge } from "./official-badge";
 import {
   watchChatConversation,
   subscribeToChallengeUpdates,
@@ -245,9 +246,18 @@ export function ConversationPane({
     [token, room.id, search, client],
   );
   const visibleHandler = useRef(visible);
-  useEffect(() => { visibleHandler.current = visible; }, [visible]);
-  const onVisible = useCallback((info: { viewableItems: ViewToken<ChatItem>[] }) => visibleHandler.current(info), []);
-  const visibilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 50 }), []);
+  useEffect(() => {
+    visibleHandler.current = visible;
+  }, [visible]);
+  const onVisible = useCallback(
+    (info: { viewableItems: ViewToken<ChatItem>[] }) =>
+      visibleHandler.current(info),
+    [],
+  );
+  const visibilityConfig = useMemo(
+    () => ({ itemVisiblePercentThreshold: 50 }),
+    [],
+  );
   const inputStyle = [
     styles.input,
     {
@@ -293,15 +303,26 @@ export function ConversationPane({
             size={42}
           />
           <View style={{ flex: 1 }}>
-            <AppText variant="heading" numberOfLines={1}>
-              {room.systemKey === "news"
-                ? c.news
-                : room.systemKey === "community"
-                  ? c.community
-                  : room.kind === "support" && !room.peer?.name
-                    ? c.support
-                    : room.title}
-            </AppText>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <AppText
+                variant="heading"
+                numberOfLines={1}
+                style={{ flexShrink: 1 }}
+              >
+                {room.systemKey === "news"
+                  ? c.news
+                  : room.systemKey === "community"
+                    ? c.community
+                    : room.kind === "support" && !room.peer?.name
+                      ? c.support
+                      : room.title}
+              </AppText>
+              {room.systemKey || room.kind === "support" ? (
+                <OfficialBadge />
+              ) : null}
+            </View>
             <AppText variant="caption" muted>
               {room.kind === "channel"
                 ? c.channels
@@ -336,12 +357,35 @@ export function ConversationPane({
           style={styles.icon}
         >
           <Ionicons
-            name="ellipsis-horizontal"
+            name="settings-outline"
             size={22}
             color={String(theme.primary)}
           />
         </Pressable>
       </View>
+      {room.canManage && ["group", "channel"].includes(room.kind) ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onInfo}
+          style={{
+            paddingHorizontal: 18,
+            paddingVertical: 10,
+            backgroundColor: theme.primarySoft,
+            flexDirection: "row",
+            gap: 8,
+            alignItems: "center",
+          }}
+        >
+          <Ionicons
+            name="create-outline"
+            size={18}
+            color={String(theme.primary)}
+          />
+          <AppText color={String(theme.primary)}>
+            {c.settings} · {room.kind === "group" ? c.groups : c.channels}
+          </AppText>
+        </Pressable>
+      ) : null}
       {showSearch ? (
         <TextInput
           accessibilityLabel={c.textSearch}

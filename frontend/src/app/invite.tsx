@@ -2,7 +2,7 @@ import { useUiCopy } from "@/components/localized-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { InviteQr } from "@/components/invite-qr";
 import { InviteAvatarBubbles } from "@/components/invite-avatar-bubbles";
 
@@ -115,7 +115,7 @@ export default function InviteScreen() {
           {friends.map((friend) => (
             <View key={friend.id} style={styles.friendRow}>
               <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={40} />
-              <AppText variant="label" style={{ flex: 1 }}>{friend.name}</AppText>
+              <Pressable accessibilityRole="button" onPress={()=>router.push(`/player/${friend.id}` as never)} style={{flex:1,gap:4}}><AppText variant="label">{friend.name}</AppText><AppText variant="caption" muted>{language==="uz"?"Daromad":language==="en"?"Revenue":"Доход"}: ${((friend.earnedCents??0)/100).toFixed(2)} · {language==="uz"?"Taklif qilgan":language==="en"?"Invited":"Пригласил"}: {friend.invitedCount??0}</AppText></Pressable>
               {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.success)} /> : null}
             </View>
           ))}

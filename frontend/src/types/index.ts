@@ -103,6 +103,10 @@ export type ReferralOverview = {
     id: string;
     name: string;
     avatarUrl: string | null;
+    invitedCount?: number;
+    earnedCents?: number;
+    directEarnedCents?: number;
+    indirectEarnedCents?: number;
     verified: boolean;
     joinedAt: string;
   }[];

@@ -172,6 +172,7 @@ export function ProfileDrawer({
                     <AppText variant="heading" color="#FFFFFF">
                       {user.name}
                     </AppText>
+                    {user.username ? <AppText variant="caption" color="rgba(255,255,255,0.85)">@{user.username}</AppText> : null}
                     <View style={styles.drawerCountry}>
                       <CountryFlagBadge countryCode={user.countryCode} size={16} />
                       <AppText variant="caption" color="rgba(255,255,255,0.78)">{copyContent(countryName(user.countryCode, language))}</AppText>

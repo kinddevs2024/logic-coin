@@ -1,3 +1,4 @@
+import { MotionEntrance } from "@/components/motion-entrance";
 import { memo } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -28,7 +29,9 @@ export const ChatBubble = memo(function ChatBubble({
   const theme = useAppTheme(),
     c = useChatCopy();
   return (
-    <View style={[styles.row, item.own && { justifyContent: "flex-end" }]}>
+    <MotionEntrance
+      style={[styles.row, item.own && { justifyContent: "flex-end" }]}
+    >
       {!item.own ? (
         <Pressable
           accessibilityRole="button"
@@ -186,7 +189,7 @@ export const ChatBubble = memo(function ChatBubble({
           ) : null}
         </View>
       </View>
-    </View>
+    </MotionEntrance>
   );
 });
 const styles = StyleSheet.create({

@@ -1,5 +1,4 @@
-import { AccountPanel } from "@/components/account-panel";
-import { ChatUsernameSettings } from "@/components/chat/username-settings";
+import { AccountPanel, AccountActions } from "@/components/account-panel";
 import { useUiCopy , Alert } from "@/components/localized-native";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -131,7 +130,6 @@ export default function SettingsScreen() {
       />
 
       <AccountPanel />
-      <ChatUsernameSettings />
       <View
         style={[styles.settingsGrid, isDesktop && styles.settingsGridDesktop]}
       >
@@ -304,61 +302,11 @@ export default function SettingsScreen() {
         </View>
         </GlassSurface>
 
-        <GlassSurface
-          intensity={56}
-          variant="strong"
-          style={[
-            styles.section,
-            isDesktop && styles.settingsCardDesktop,
-            { borderColor: theme.glassBorder },
-          ]}
-        >
-          <View style={styles.sectionTitle}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={20}
-              color={String(theme.primary)}
-            />
-            <AppText variant="heading">{copyContent(legal.title)}</AppText>
-          </View>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => router.push("/privacy" as never)}
-            style={({ pressed }) => [
-              styles.legalRow,
-              { borderColor: theme.border, opacity: pressed ? 0.72 : 1 },
-            ]}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={20}
-              color={String(theme.primary)}
-            />
-            <AppText style={styles.legalText}>{copyContent(legal.privacy)}</AppText>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={String(theme.textMuted)}
-            />
-          </Pressable>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => router.push("/account-deletion" as never)}
-            style={({ pressed }) => [
-              styles.legalRow,
-              { borderColor: theme.border, opacity: pressed ? 0.72 : 1 },
-            ]}
-          >
-            <Ionicons name="trash-outline" size={20} color="#E5484D" />
-            <AppText style={styles.legalText}>{copyContent(legal.deleteAccount)}</AppText>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={String(theme.textMuted)}
-            />
-          </Pressable>
-        </GlassSurface>
       </View>
+      <Pressable accessibilityRole="link" onPress={() => router.push("/privacy" as never)} style={[styles.legalRow,{marginTop:20,borderColor:theme.border}]}>
+        <Ionicons name="document-text-outline" size={20} color={String(theme.primary)}/><AppText style={styles.legalText}>{legal.privacy}</AppText><Ionicons name="chevron-forward" size={18} color={String(theme.textMuted)}/>
+      </Pressable>
+      <AccountActions />
     </AppFrame>
   );
 }

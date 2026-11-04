@@ -38,6 +38,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const [name, setName] = useState(user.name);
+  const [username, setUsername] = useState(user.username ?? "");
   // Undefined means that the picture was not touched. Previously every name
   // edit re-uploaded the whole base64 image, which made profile saves slow.
   const [avatarDraft, setAvatarDraft] = useState<string | null | undefined>(undefined);
@@ -61,7 +62,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const avatarUrl = avatarDraft === undefined ? user.avatarUrl ?? null : avatarDraft;
   const avatarChanged = avatarDraft !== undefined;
   const maxAvatarDataUrlChars = 2_100_000;
-  const canSave = name.trim().length > 0 && (name.trim() !== user.name || countryCode !== user.countryCode || avatarChanged);
+  const canSave = name.trim().length > 0 && (name.trim() !== user.name || countryCode !== user.countryCode || avatarChanged || username.trim().replace(/^@/, "").toLowerCase() !== (user.username ?? ""));
 
   const pickAvatar = async () => {
     setMessage("");
@@ -112,6 +113,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       if (!cleanName) throw new Error("name_required");
       if (authMode === "authenticated" && accessToken) {
         return meApi.updateProfile({
+          ...(username !== (user.username ?? "") ? { username } : {}),
           ...(cleanName !== user.name ? { name: cleanName } : {}),
           ...(countryCode !== user.countryCode ? { countryCode } : {}),
           ...(avatarChanged ? { avatarDataUrl: avatarDraft } : {})
@@ -124,7 +126,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       void queryClient.invalidateQueries({ queryKey: ["bootstrap"] });
       onClose();
     },
-    onError: () => setMessage(t("auth.invalid")),
+    onError: (error) => setMessage(error instanceof Error ? error.message : t("auth.invalid")),
   });
 
   return (
@@ -157,6 +159,11 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
             <View style={styles.field}>
               <AppText variant="caption" muted>{copyContent(t("profile.name"))}</AppText>
               <TextInput value={name} onChangeText={setName} maxLength={80} autoCapitalize="words" placeholder={copyText(t("profile.name"))} placeholderTextColor={String(theme.textMuted)} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} />
+            </View>
+            <View style={styles.field}>
+              <AppText variant="caption" muted>{language === "uz" ? "Nikneym" : language === "en" ? "Username" : "Никнейм"}</AppText>
+              <TextInput accessibilityLabel="@username" value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={25} placeholder="@username" placeholderTextColor={String(theme.textMuted)} style={[styles.input, {color:theme.text,borderColor:theme.border,backgroundColor:theme.surfaceRaised}]} />
+              <AppText variant="caption" muted>{language === "uz" ? "Ixtiyoriy · 4–24 lotin harfi, raqam va _" : language === "en" ? "Optional · 4–24 Latin letters, digits and _" : "Необязательно · 4–24 латинских символа, цифры и _"}</AppText>
             </View>
             <View style={styles.field}>
               <AppText variant="caption" muted>{copyText("Страна")}</AppText>
