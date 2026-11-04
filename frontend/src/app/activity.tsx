@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
@@ -48,6 +48,16 @@ export default function ActivityScreen() {
           router.canGoBack() ? router.back() : router.replace("/settings")
         }
       />
+      {!token ? (
+        <AppButton onPress={() => router.push("/login")}>{c.login}</AppButton>
+      ) : null}
+      {token && query.isPending ? (
+        <ActivityIndicator
+          accessibilityLabel={c.history}
+          color={String(theme.primary)}
+          style={{ margin: 20 }}
+        />
+      ) : null}
       {query.isError ? (
         <AppButton onPress={() => void query.refetch()}>{c.retry}</AppButton>
       ) : null}

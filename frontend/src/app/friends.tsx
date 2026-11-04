@@ -1,5 +1,6 @@
+import { useAppStore } from "@/store/app-store";
 import { useRouter } from "expo-router";
-import { Pressable } from "react-native";
+import { ActivityIndicator, Pressable } from "react-native";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
@@ -10,6 +11,7 @@ import { useReferrals } from "@/hooks/use-referrals";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useAccountCopy } from "@/lib/account-copy";
 export default function FriendsScreen() {
+  const token = useAppStore((s) => s.accessToken);
   const c = useAccountCopy(),
     router = useRouter(),
     theme = useAppTheme(),
@@ -29,6 +31,15 @@ export default function FriendsScreen() {
         {query.data?.invitedCount ?? 0} · {c.earned}: $
         {((query.data?.earnedCents ?? 0) / 100).toFixed(2)}
       </AppText>
+      {!token ? (
+        <AppButton onPress={() => router.push("/login")}>{c.login}</AppButton>
+      ) : null}
+      {token && query.isPending ? (
+        <ActivityIndicator
+          color={String(theme.primary)}
+          style={{ margin: 20 }}
+        />
+      ) : null}
       {query.isError ? (
         <AppButton onPress={() => void query.refetch()}>{c.retry}</AppButton>
       ) : null}
@@ -81,4 +92,3 @@ export default function FriendsScreen() {
     </AppFrame>
   );
 }
-
