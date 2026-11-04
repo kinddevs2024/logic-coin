@@ -20,6 +20,7 @@ import { AppliedUpdateNotice } from "@/components/applied-update-notice";
 import { AdRuntime } from "@/components/ad-runtime";
 import { RewardBurst } from "@/components/reward-burst";
 import { ContestRewardModal } from "@/components/contest-reward-modal";
+import { RaffleWinNotice } from "@/components/raffle-win-notice";
 import { WithdrawalApprovedModal } from "@/components/withdrawal-approved-modal";
 import { ChallengeAdOffer } from "@/components/challenge-ad-offer";
 import { WebAnalytics } from "@/components/web-analytics";
@@ -287,6 +288,7 @@ export default function RootLayout() {
           <RewardBurst />
           <ContestRewardModal />
           <WithdrawalApprovedModal />
+          <RaffleWinNotice />
           <ChallengeAdOffer />
           {pushInbox && authMode === "authenticated" ? <NotificationInbox onClose={() => setPushInbox(false)} /> : null}
           <WebAnalytics />

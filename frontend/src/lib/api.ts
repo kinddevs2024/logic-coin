@@ -927,6 +927,15 @@ export const homeGiftApi = {
   claimAds: (token: string, cycleId: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/ads/claim", { token, method: "POST", body: JSON.stringify({ cycleId }) }),
 };
 export const inboxApi = {
+  winnerReplies(token: string) {
+    return request<{ replies: { id: string; user: { _id: string; name: string } | null; telegramId: string; text: string; createdAt: string; forwarded: boolean }[] }>("/admin/raffle-winner-replies", { token });
+  },
+  raffleWin(token: string) {
+    return request<{ id: string; round: number; amountCents: number } | null>("/notifications/raffle-win", { token });
+  },
+  acknowledgeRaffleWin(token: string, id: string) {
+    return request<{ acknowledged: boolean }>(`/notifications/raffle-win/${encodeURIComponent(id)}/ack`, { method: "POST", token });
+  },
   unreadCount(token: string) {
     return request<{ count: number }>("/notifications/unread-count", { token });
   },

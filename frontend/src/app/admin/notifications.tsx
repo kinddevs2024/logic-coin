@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AdminPageHeader } from "@/components/admin/admin-ui";
+import { WinnerReplies } from "@/components/admin/winner-replies";
 import { useAdminSession } from "@/components/admin/admin-session";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
@@ -37,6 +38,7 @@ export default function AdminNotificationsScreen() {
   const valid = title.trim().length > 0 && body.trim().length > 0;
 
   return <View style={styles.page}>
+    <WinnerReplies />
     <AdminPageHeader title="Уведомления" description="Рассылка всем игрокам или одному пользователю по имени либо email." />
     <GlassSurface intensity={72} variant="strong" style={styles.card}>
       <View style={styles.iconLine}><View style={[styles.icon, { backgroundColor: theme.primarySoft }]}><Ionicons name="notifications" size={22} color={String(theme.primary)} /></View><View><AppText variant="heading">{copyText("Новое push-уведомление")}</AppText><AppText variant="caption" muted>{copyText("Пользователь получит его, если разрешил уведомления в приложении.")}</AppText></View></View>

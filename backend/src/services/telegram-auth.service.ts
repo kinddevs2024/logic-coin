@@ -1,4 +1,5 @@
 import { socialDisplayName } from "../lib/social-display-name.js";
+import { captureRaffleWinnerReply, type WinnerTelegramMessage } from "./raffle-winner-contact.service.js";
 import { localizeBuiltIn, type CopyLanguage } from "../lib/localize-built-in.js";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import mongoose, { type Types } from "mongoose";
@@ -20,7 +21,7 @@ export type TelegramIdentity = {
 };
 
 type TelegramMessageUpdate = {
-  message?: {
+  message?: WinnerTelegramMessage & {
     text?: string;
     chat?: { id?: number | string };
     from?: {
@@ -355,6 +356,7 @@ export function buildTelegramReturnUrl(
 
 export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
   const message = update.message;
+  if (await captureRaffleWinnerReply(message)) return { accepted: true, matched: false };
   let language: CopyLanguage = message?.from?.language_code?.startsWith("uz") ? "uz" : message?.from?.language_code?.startsWith("en") ? "en" : "ru";
   const text = message?.text?.trim() ?? "";
   if (

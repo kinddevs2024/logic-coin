@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { RaffleWinnerReply } from "../models/RaffleWinNotice.js";
 import adminWithdrawalRoutes from "./admin-withdrawals.routes.js";
 import { getManualContestPrizes, saveManualContestPrizes } from "../services/manual-contest-prizes.service.js";
 import { z } from "zod";
@@ -41,6 +42,11 @@ const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 
 router.use("/withdrawals", adminWithdrawalRoutes);
 router.use(requireAuth, requireAdmin);
+router.get("/raffle-winner-replies", async (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const replies = await RaffleWinnerReply.find().sort({ createdAt: -1 }).limit(50).populate("userId", "name").lean();
+  res.json({ data: { replies: replies.map(row => ({ id: String(row._id), user: row.userId, telegramId: row.telegramId, text: row.text, createdAt: row.createdAt, forwarded: Boolean(row.forwardedAt) })) } });
+});
 const socialUrl = (host: string) => z.string().max(500).refine(value => {
   if (!value) return true;
   try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password && (url.hostname === host || url.hostname === `www.${host}`); } catch { return false; }
