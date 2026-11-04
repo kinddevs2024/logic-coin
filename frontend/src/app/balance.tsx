@@ -1,3 +1,4 @@
+import { useAccountWallet } from "@/hooks/use-account-wallet";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
@@ -37,6 +38,7 @@ export default function BalanceScreen() {
     getNextPageParam: (p) => p.nextCursor ?? undefined,
     enabled: Boolean(token),
   });
+  const wallet = useAccountWallet();
   const entries = query.data?.pages.flatMap((p) => p.entries) ?? [];
   return (
     <AppFrame>
@@ -56,7 +58,7 @@ export default function BalanceScreen() {
         }}
       >
         <AppText variant="title" color={String(theme.onPrimary)}>
-          ${(balance / 100).toFixed(2)}
+          ${((wallet.data?.wallet.availableCents ?? balance) / 100).toFixed(2)}
         </AppText>
         <AppText color={String(theme.onPrimary)}>
           {c.coins}: {coins.toLocaleString(language)}

@@ -11,6 +11,7 @@ import { GlassSurface } from "@/components/glass-surface";
 import { MotionEntrance } from "@/components/motion-entrance";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useChallenges } from "@/hooks/use-challenges";
+import { useAccountWallet } from "@/hooks/use-account-wallet";
 import { useReferrals } from "@/hooks/use-referrals";
 import { useAccountCopy } from "@/lib/account-copy";
 import { authApi } from "@/lib/api";
@@ -26,10 +27,11 @@ export function AccountPanel() {
     balance = useAppStore((s) => s.balanceUnits);
   const { today } = useChallenges();
   const referrals = useReferrals();
+  const wallet = useAccountWallet();
   const tiles = [
     {
       label: c.balance,
-      value: formatMoney(balance),
+      value: formatMoney(wallet.data?.wallet.availableCents ?? balance),
       icon: "wallet-outline" as const,
       route: "/balance",
     },
