@@ -1,6 +1,22 @@
 import { MotionEntrance } from "@/components/motion-entrance";
-import type { PropsWithChildren, ComponentProps } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PropsWithChildren,
+  type ComponentProps,
+} from "react";
+import { useReducedMotion } from "react-native-reanimated";
+import { MotionPressable } from "@/components/motion-pressable";
+import {
+  Animated,
+  Platform,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -12,13 +28,28 @@ export function ChatSheet({
 }: PropsWithChildren<{ title: string; onClose: () => void }>) {
   const theme = useAppTheme(),
     c = useChatCopy();
+  const reduced = useReducedMotion();
+  const closing = useRef(false);
+  const [opacity] = useState(() => new Animated.Value(1));
+  useEffect(() => () => opacity.stopAnimation(), [opacity]);
+  const close = () => {
+    if (closing.current) return;
+    closing.current = true;
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: reduced ? 0 : 150,
+      useNativeDriver: Platform.OS !== "web",
+    }).start(({ finished }) => {
+      if (finished) onClose();
+    });
+  };
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <Modal transparent visible animationType="fade" onRequestClose={close}>
+      <Animated.View style={[styles.backdrop, { opacity }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={c.cancel}
-          onPress={onClose}
+          onPress={close}
           style={StyleSheet.absoluteFill}
         />
         <MotionEntrance
@@ -32,14 +63,14 @@ export function ChatSheet({
             <AppText variant="heading" style={{ flex: 1 }}>
               {title}
             </AppText>
-            <Pressable
+            <MotionPressable
               accessibilityRole="button"
-              accessibilityLabel={c.cancel}
-              onPress={onClose}
+              accessibilityLabel={c.close}
+              onPress={close}
               style={styles.close}
             >
               <Ionicons name="close" size={23} color={String(theme.text)} />
-            </Pressable>
+            </MotionPressable>
           </View>
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -48,7 +79,7 @@ export function ChatSheet({
             {children}
           </ScrollView>
         </MotionEntrance>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -67,7 +98,7 @@ export function ChatAction({
 }) {
   const theme = useAppTheme();
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
@@ -95,7 +126,7 @@ export function ChatAction({
       <AppText style={{ color: danger ? theme.danger : theme.text }}>
         {title}
       </AppText>
-    </Pressable>
+    </MotionPressable>
   );
 }
 const styles = StyleSheet.create({
@@ -116,6 +147,8 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: "row", alignItems: "center", paddingBottom: 12 },
   close: {
+    backgroundColor: "rgba(127,127,127,0.10)",
+    borderRadius: 22,
     minWidth: 44,
     minHeight: 44,
     alignItems: "center",

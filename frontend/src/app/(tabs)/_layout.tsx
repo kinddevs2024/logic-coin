@@ -4,7 +4,7 @@ import { useUiCopy } from "@/components/localized-native";
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable inside gesture worklets. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Redirect, Tabs, useRouter } from "expo-router";
+import { Link, Redirect, Tabs, useRouter, useGlobalSearchParams } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -89,6 +89,8 @@ const tabMeta: Record<
 };
 
 function LogicTabBar({ state, navigation }: LogicTabBarProps) {
+  const params = useGlobalSearchParams<{chat?: string}>();
+  const chatOpen = state.routes[state.index]?.name === "messages" && Boolean(params.chat);
   const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t } = useTranslation();
@@ -236,7 +238,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
     };
   }, [isDesktop, lensWidth, lensHeight, mobileSlotWidth]);
 
-  if (keyboardOpen) return null;
+  if (keyboardOpen || chatOpen) return null;
   return (
     <View
       pointerEvents="box-none"

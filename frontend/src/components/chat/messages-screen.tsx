@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { MotionEntrance } from "@/components/motion-entrance";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProfileDrawer } from "@/components/profile-drawer";
 import { OfficialBadge } from "./official-badge";
 import { AppFrame } from "@/components/app-frame";
@@ -36,6 +37,8 @@ export function MessagesScreen() {
     user = useAppStore((s) => s.user),
     focused = useIsFocused(),
     client = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const chatOpen = Boolean(params.chat);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [filter, setFilter] = useState("all"),
     [search, setSearch] = useState(""),
@@ -177,9 +180,15 @@ export function MessagesScreen() {
         minHeight: 0,
         paddingTop: isDesktop ? 15 : 0,
         maxWidth: 1600,
-        paddingLeft: isDesktop ? 150 : 0,
+        paddingLeft: isDesktop && !chatOpen ? 150 : 0,
         paddingRight: isDesktop ? 24 : 0,
-        paddingBottom: keyboardOpen ? 0 : isDesktop ? 24 : 112,
+        paddingBottom: keyboardOpen
+          ? 0
+          : chatOpen
+            ? insets.bottom + 8
+            : isDesktop
+              ? 24
+              : 112,
       }}
     >
       <View

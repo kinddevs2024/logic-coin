@@ -1,3 +1,4 @@
+import { MotionEntrance } from "@/components/motion-entrance";
 import { OfficialBadge } from "./official-badge";
 import {
   watchChatConversation,
@@ -62,6 +63,7 @@ export function ConversationPane({
   onProfile: (id: string) => void;
   onInfo: () => void;
 }) {
+  const [inputHeight, setInputHeight] = useState(44);
   const [typingUntil, setTypingUntil] = useState(0);
   const typingSent = useRef(0);
   useEffect(() => {
@@ -194,6 +196,7 @@ export function ConversationPane({
           reply?.id,
         );
       setText("");
+      setInputHeight(44);
       setAttachments([]);
       setReply(null);
       autoScroll.current = true;
@@ -249,15 +252,10 @@ export function ConversationPane({
   useEffect(() => {
     visibleHandler.current = visible;
   }, [visible]);
-  const onVisible = useCallback(
-    (info: { viewableItems: ViewToken<ChatItem>[] }) =>
-      visibleHandler.current(info),
-    [],
+  const [onVisible] = useState(
+    () => (info: { viewableItems: ViewToken<ChatItem>[] }) => visibleHandler.current(info),
   );
-  const visibilityConfig = useMemo(
-    () => ({ itemVisiblePercentThreshold: 50 }),
-    [],
-  );
+  const [visibilityConfig] = useState(() => ({ itemVisiblePercentThreshold: 50 }));
   const inputStyle = [
     styles.input,
     {
@@ -267,582 +265,579 @@ export function ConversationPane({
     },
   ];
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={[styles.page, { backgroundColor: theme.background }]}
-    >
-      <View
-        style={[
-          styles.header,
-          { borderBottomColor: theme.border, backgroundColor: theme.surface },
-        ]}
+    <MotionEntrance style={{ flex: 1, minHeight: 0 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={[styles.page, { backgroundColor: theme.background }]}
       >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={c.cancel}
-          onPress={onBack}
-          style={styles.icon}
-        >
-          <Ionicons
-            name="chevron-back"
-            size={25}
-            color={String(theme.primary)}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={room.peer ? () => onProfile(room.peer!.id) : onInfo}
-          style={styles.person}
-        >
-          <Avatar
-            name={room.title}
-            avatarUrl={
-              room.peer?.avatarUrl ??
-              (room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null)
-            }
-            size={42}
-          />
-          <View style={{ flex: 1 }}>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
-              <AppText
-                variant="heading"
-                numberOfLines={1}
-                style={{ flexShrink: 1 }}
-              >
-                {room.systemKey === "news"
-                  ? c.news
-                  : room.systemKey === "community"
-                    ? c.community
-                    : room.kind === "support" && !room.peer?.name
-                      ? c.support
-                      : room.title}
-              </AppText>
-              {room.systemKey || room.kind === "support" ? (
-                <OfficialBadge />
-              ) : null}
-            </View>
-            <AppText variant="caption" muted>
-              {room.kind === "channel"
-                ? c.channels
-                : room.kind === "group"
-                  ? c.groups
-                  : room.peer?.username
-                    ? `@${room.peer.username}`
-                    : c.direct}
-            </AppText>
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={c.textSearch}
-          onPress={() => {
-            setShowSearch(!showSearch);
-            setSearch("");
-            setSearchDraft("");
-          }}
-          style={styles.icon}
-        >
-          <Ionicons
-            name="search-outline"
-            size={22}
-            color={String(theme.primary)}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={c.settings}
-          onPress={onInfo}
-          style={styles.icon}
-        >
-          <Ionicons
-            name="settings-outline"
-            size={22}
-            color={String(theme.primary)}
-          />
-        </Pressable>
-      </View>
-      {room.canManage && ["group", "channel"].includes(room.kind) ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onInfo}
-          style={{
-            paddingHorizontal: 18,
-            paddingVertical: 10,
-            backgroundColor: theme.primarySoft,
-            flexDirection: "row",
-            gap: 8,
-            alignItems: "center",
-          }}
-        >
-          <Ionicons
-            name="create-outline"
-            size={18}
-            color={String(theme.primary)}
-          />
-          <AppText color={String(theme.primary)}>
-            {c.settings} · {room.kind === "group" ? c.groups : c.channels}
-          </AppText>
-        </Pressable>
-      ) : null}
-      {showSearch ? (
-        <TextInput
-          accessibilityLabel={c.textSearch}
-          value={searchDraft}
-          onChangeText={setSearchDraft}
-          placeholder={c.textSearch}
-          placeholderTextColor={theme.textMuted}
-          style={[...inputStyle, { margin: 10 }]}
-        />
-      ) : null}
-      {query.isPending ? (
-        <ActivityIndicator
-          style={{ margin: 20 }}
-          color={String(theme.primary)}
-        />
-      ) : null}
-      {query.isError ? (
-        <ChatAction
-          title={c.retry}
-          onPress={() => {
-            void query.refetch();
-          }}
-          icon="refresh"
-        />
-      ) : null}
-      <FlatList
-        ref={list}
-        data={items}
-        keyExtractor={(item) => item.id}
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.history}
-        keyboardShouldPersistTaps="handled"
-        initialNumToRender={20}
-        windowSize={7}
-        onViewableItemsChanged={onVisible}
-        viewabilityConfig={visibilityConfig}
-        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-        onScroll={(event) => {
-          const e = event.nativeEvent;
-          autoScroll.current =
-            e.contentSize.height -
-              e.layoutMeasurement.height -
-              e.contentOffset.y <
-            140;
-        }}
-        scrollEventThrottle={100}
-        onContentSizeChange={() => {
-          if (autoScroll.current)
-            list.current?.scrollToEnd({ animated: false });
-        }}
-        ListHeaderComponent={
-          query.hasNextPage ? (
-            <ChatAction
-              disabled={query.isFetchingNextPage}
-              title={c.earlier}
-              icon="chevron-up"
-              onPress={() => {
-                autoScroll.current = false;
-                void query.fetchNextPage();
-              }}
-            />
-          ) : null
-        }
-        ListEmptyComponent={
-          !query.isPending ? (
-            <View style={{ padding: 40, alignItems: "center", gap: 10 }}>
-              <Ionicons
-                name="chatbubbles-outline"
-                size={42}
-                color={String(theme.primary)}
-              />
-              <AppText muted>{c.noMessages}</AppText>
-            </View>
-          ) : null
-        }
-        renderItem={({ item }) => (
-          <ChatBubble
-            item={item}
-            room={room}
-            onActions={setAction}
-            onProfile={onProfile}
-            onPhoto={setPhoto}
-          />
-        )}
-        ListFooterComponent={
-          <>
-            {outbox.items.map((item) => (
-              <View
-                key={item.clientId}
-                style={[styles.pending, { backgroundColor: theme.primarySoft }]}
-              >
-                <AppText>{item.text || c.attach}</AppText>
-                <AppText variant="caption" muted>
-                  {outbox.failed ? c.failed : c.pending}
-                </AppText>
-              </View>
-            ))}
-            {outbox.failed ? (
-              <ChatAction
-                title={c.retry}
-                onPress={() => {
-                  void outbox.retry();
-                }}
-                icon="refresh"
-              />
-            ) : null}
-          </>
-        }
-      />
-      {typingUntil > 0 ? (
-        <AppText variant="caption" muted style={{ paddingLeft: 16 }}>
-          {c.typing}
-        </AppText>
-      ) : null}
-      {error ? (
-        <Pressable onPress={() => setError(null)} style={{ padding: 10 }}>
-          <AppText accessibilityRole="alert" color={String(theme.danger)}>
-            {error}
-          </AppText>
-        </Pressable>
-      ) : null}
-      {room.canPost ? (
         <View
           style={[
-            styles.composer,
-            { backgroundColor: theme.surface, borderTopColor: theme.border },
+            styles.header,
+            { borderBottomColor: theme.border, backgroundColor: theme.surface },
           ]}
         >
-          {reply || editing ? (
-            <View style={styles.replyLine}>
-              <View style={{ flex: 1 }}>
-                <AppText variant="caption" color={String(theme.primary)}>
-                  {editing ? c.edit : `${c.reply} · ${reply?.sender.name}`}
-                </AppText>
-                <AppText numberOfLines={1} muted>
-                  {(editing || reply)?.text || c.attach}
-                </AppText>
-              </View>
-              <Pressable
-                accessibilityLabel={c.cancel}
-                onPress={() => {
-                  setReply(null);
-                  setEditing(null);
-                  setText("");
-                }}
-                style={styles.icon}
-              >
-                <Ionicons
-                  name="close"
-                  size={20}
-                  color={String(theme.primary)}
-                />
-              </Pressable>
-            </View>
-          ) : null}
-          {attachments.map((a) => (
-            <Pressable
-              key={a.id}
-              onPress={() =>
-                setAttachments((current) =>
-                  current.filter((x) => x.id !== a.id),
-                )
-              }
-            >
-              <AppText variant="caption">📎 {a.name} ×</AppText>
-            </Pressable>
-          ))}
-          <View style={styles.composeLine}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={c.attach}
-              disabled={
-                uploading || attachments.length >= 4 || Boolean(editing)
-              }
-              onPress={() => setAttachMenu(true)}
-              style={styles.icon}
-            >
-              {uploading ? (
-                <ActivityIndicator color={String(theme.primary)} />
-              ) : (
-                <Ionicons
-                  name="add-circle-outline"
-                  size={26}
-                  color={String(theme.primary)}
-                />
-              )}
-            </Pressable>
-            <TextInput
-              accessibilityLabel={c.write}
-              multiline
-              maxLength={4000}
-              value={text}
-              onChangeText={(value) => {
-                setText(value);
-                if (value && Date.now() - typingSent.current > 4000) {
-                  typingSent.current = Date.now();
-                  void sendChatTyping(token, room.id).catch(() => {});
-                }
-              }}
-              placeholder={c.write}
-              placeholderTextColor={theme.textMuted}
-              style={[
-                ...inputStyle,
-                { flex: 1, maxHeight: 110, minHeight: 44 },
-              ]}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={c.cancel}
+            onPress={onBack}
+            style={styles.icon}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={25}
+              color={String(theme.primary)}
             />
-            {!text.trim() && !attachments.length && !editing ? (
-              <VoiceRecorder onFile={upload} onError={showError} />
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={c.send}
-                disabled={busy || uploading}
-                onPress={() => {
-                  void send();
-                }}
-                style={[styles.send, { backgroundColor: theme.primary }]}
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${c.settings}: ${room.title}`}
+            onPress={onInfo}
+            style={styles.person}
+          >
+            <Avatar
+              name={room.title}
+              avatarUrl={
+                room.peer?.avatarUrl ??
+                (room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null)
+              }
+              size={42}
+            />
+            <View style={{ flex: 1 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
               >
-                {busy ? (
-                  <ActivityIndicator color={String(theme.onPrimary)} />
-                ) : (
-                  <Ionicons
-                    name="arrow-up"
-                    size={23}
-                    color={String(theme.onPrimary)}
-                  />
-                )}
-              </Pressable>
-            )}
-          </View>
-        </View>
-      ) : (
-        <View style={styles.readOnly}>
-          <AppText muted>{c.readOnly}</AppText>
-        </View>
-      )}
-      {attachMenu ? (
-        <ChatSheet title={c.attach} onClose={() => setAttachMenu(false)}>
-          <ChatAction
-            title={c.photo}
-            icon="image-outline"
+                <AppText
+                  variant="heading"
+                  numberOfLines={1}
+                  style={{ flexShrink: 1 }}
+                >
+                  {room.systemKey === "news"
+                    ? c.news
+                    : room.systemKey === "community"
+                      ? c.community
+                      : room.kind === "support" && !room.peer?.name
+                        ? c.support
+                        : room.title}
+                </AppText>
+                {room.systemKey || room.kind === "support" ? (
+                  <OfficialBadge />
+                ) : null}
+              </View>
+              <AppText variant="caption" muted>
+                {room.kind === "channel"
+                  ? c.channels
+                  : room.kind === "group"
+                    ? c.groups
+                    : room.peer?.username
+                      ? `@${room.peer.username}`
+                      : c.direct}
+              </AppText>
+            </View>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={c.textSearch}
             onPress={() => {
-              void pick("photo");
+              setShowSearch(!showSearch);
+              setSearch("");
+              setSearchDraft("");
             }}
+            style={styles.icon}
+          >
+            <Ionicons
+              name="search-outline"
+              size={22}
+              color={String(theme.primary)}
+            />
+          </Pressable>
+        </View>
+        {showSearch ? (
+          <TextInput
+            accessibilityLabel={c.textSearch}
+            value={searchDraft}
+            onChangeText={setSearchDraft}
+            placeholder={c.textSearch}
+            placeholderTextColor={theme.textMuted}
+            style={[...inputStyle, { margin: 10 }]}
           />
+        ) : null}
+        {query.isPending ? (
+          <ActivityIndicator
+            style={{ margin: 20 }}
+            color={String(theme.primary)}
+          />
+        ) : null}
+        {query.isError ? (
           <ChatAction
-            title={c.file}
-            icon="document-outline"
+            title={c.retry}
             onPress={() => {
-              void pick("file");
+              void query.refetch();
             }}
+            icon="refresh"
           />
-          <AppText variant="caption" muted>
-            {c.fileLimit}
-          </AppText>
-        </ChatSheet>
-      ) : null}
-      {action ? (
-        <ChatSheet title={c.messageActions} onClose={() => setAction(null)}>
-          {!action.deleted ? (
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              {["👍", "❤️", "😂", "🔥", "🎉", "😢"].map((emoji) => (
-                <Pressable
-                  key={emoji}
-                  accessibilityLabel={emoji}
-                  disabled={busy}
+        ) : null}
+        <FlatList
+          ref={list}
+          data={items}
+          keyExtractor={(item) => item.id}
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.history}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={20}
+          windowSize={7}
+          onViewableItemsChanged={onVisible}
+          viewabilityConfig={visibilityConfig}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          onScroll={(event) => {
+            const e = event.nativeEvent;
+            autoScroll.current =
+              e.contentSize.height -
+                e.layoutMeasurement.height -
+                e.contentOffset.y <
+              140;
+          }}
+          scrollEventThrottle={100}
+          onContentSizeChange={() => {
+            if (autoScroll.current)
+              list.current?.scrollToEnd({ animated: false });
+          }}
+          ListHeaderComponent={
+            query.hasNextPage ? (
+              <ChatAction
+                disabled={query.isFetchingNextPage}
+                title={c.earlier}
+                icon="chevron-up"
+                onPress={() => {
+                  autoScroll.current = false;
+                  void query.fetchNextPage();
+                }}
+              />
+            ) : null
+          }
+          ListEmptyComponent={
+            !query.isPending ? (
+              <View style={{ padding: 40, alignItems: "center", gap: 10 }}>
+                <Ionicons
+                  name="chatbubbles-outline"
+                  size={42}
+                  color={String(theme.primary)}
+                />
+                <AppText muted>{c.noMessages}</AppText>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <ChatBubble
+              item={item}
+              room={room}
+              onActions={setAction}
+              onProfile={onProfile}
+              onPhoto={setPhoto}
+            />
+          )}
+          ListFooterComponent={
+            <>
+              {outbox.items.map((item) => (
+                <View
+                  key={item.clientId}
+                  style={[
+                    styles.pending,
+                    { backgroundColor: theme.primarySoft },
+                  ]}
+                >
+                  <AppText>{item.text || c.attach}</AppText>
+                  <AppText variant="caption" muted>
+                    {outbox.failed ? c.failed : c.pending}
+                  </AppText>
+                </View>
+              ))}
+              {outbox.failed ? (
+                <ChatAction
+                  title={c.retry}
                   onPress={() => {
-                    void run(() =>
-                      chatApi.change(token, action.id, {
-                        emoji: action.reactions.some(
-                          (r) => r.userId === accountId && r.emoji === emoji,
-                        )
-                          ? ""
-                          : emoji,
-                      }),
-                    );
+                    void outbox.retry();
+                  }}
+                  icon="refresh"
+                />
+              ) : null}
+            </>
+          }
+        />
+        {typingUntil > 0 ? (
+          <AppText variant="caption" muted style={{ paddingLeft: 16 }}>
+            {c.typing}
+          </AppText>
+        ) : null}
+        {error ? (
+          <Pressable onPress={() => setError(null)} style={{ padding: 10 }}>
+            <AppText accessibilityRole="alert" color={String(theme.danger)}>
+              {error}
+            </AppText>
+          </Pressable>
+        ) : null}
+        {room.canPost ? (
+          <View
+            style={[
+              styles.composer,
+              { backgroundColor: theme.surface, borderTopColor: theme.border },
+            ]}
+          >
+            {reply || editing ? (
+              <View style={styles.replyLine}>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="caption" color={String(theme.primary)}>
+                    {editing ? c.edit : `${c.reply} · ${reply?.sender.name}`}
+                  </AppText>
+                  <AppText numberOfLines={1} muted>
+                    {(editing || reply)?.text || c.attach}
+                  </AppText>
+                </View>
+                <Pressable
+                  accessibilityLabel={c.cancel}
+                  onPress={() => {
+                    setReply(null);
+                    setEditing(null);
+                    setText("");
+                    setInputHeight(44);
                   }}
                   style={styles.icon}
                 >
-                  <AppText style={{ fontSize: 25 }}>{emoji}</AppText>
+                  <Ionicons
+                    name="close"
+                    size={20}
+                    color={String(theme.primary)}
+                  />
                 </Pressable>
-              ))}
+              </View>
+            ) : null}
+            {attachments.map((a) => (
+              <Pressable
+                key={a.id}
+                onPress={() =>
+                  setAttachments((current) =>
+                    current.filter((x) => x.id !== a.id),
+                  )
+                }
+              >
+                <AppText variant="caption">📎 {a.name} ×</AppText>
+              </Pressable>
+            ))}
+            <View style={styles.composeLine}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={c.attach}
+                disabled={
+                  uploading || attachments.length >= 4 || Boolean(editing)
+                }
+                onPress={() => setAttachMenu(true)}
+                style={styles.icon}
+              >
+                {uploading ? (
+                  <ActivityIndicator color={String(theme.primary)} />
+                ) : (
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={26}
+                    color={String(theme.primary)}
+                  />
+                )}
+              </Pressable>
+              <TextInput
+                accessibilityLabel={c.write}
+                multiline
+                numberOfLines={1}
+                onContentSizeChange={(event) =>
+                  setInputHeight(
+                    Math.min(
+                      124,
+                      Math.max(44, event.nativeEvent.contentSize.height),
+                    ),
+                  )
+                }
+                maxLength={4000}
+                value={text}
+                onChangeText={(value) => {
+                  setText(value);
+                  if (value && Date.now() - typingSent.current > 4000) {
+                    typingSent.current = Date.now();
+                    void sendChatTyping(token, room.id).catch(() => {});
+                  }
+                }}
+                placeholder={c.write}
+                placeholderTextColor={theme.textMuted}
+                style={[
+                  ...inputStyle,
+                  {
+                    flex: 1,
+                    height: text ? inputHeight : 44,
+                    maxHeight: 124,
+                    minHeight: 44,
+                    lineHeight: 20,
+                    paddingVertical: 10,
+                    textAlignVertical: "top",
+                  },
+                ]}
+              />
+              {!text.trim() && !attachments.length && !editing ? (
+                <VoiceRecorder onFile={upload} onError={showError} />
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={c.send}
+                  disabled={busy || uploading}
+                  onPress={() => {
+                    void send();
+                  }}
+                  style={[styles.send, { backgroundColor: theme.primary }]}
+                >
+                  {busy ? (
+                    <ActivityIndicator color={String(theme.onPrimary)} />
+                  ) : (
+                    <Ionicons
+                      name="arrow-up"
+                      size={23}
+                      color={String(theme.onPrimary)}
+                    />
+                  )}
+                </Pressable>
+              )}
             </View>
-          ) : null}
-          {!action.deleted && room.canPost ? (
+          </View>
+        ) : (
+          <View style={styles.readOnly}>
+            <AppText muted>{c.readOnly}</AppText>
+          </View>
+        )}
+        {attachMenu ? (
+          <ChatSheet title={c.attach} onClose={() => setAttachMenu(false)}>
             <ChatAction
-              title={c.reply}
-              icon="return-up-back"
+              title={c.photo}
+              icon="image-outline"
               onPress={() => {
-                setReply(action);
-                setEditing(null);
-                setAction(null);
+                void pick("photo");
               }}
             />
-          ) : null}
-          {!action.deleted ? (
             <ChatAction
-              title={c.forward}
-              icon="arrow-redo-outline"
+              title={c.file}
+              icon="document-outline"
               onPress={() => {
-                setForward({ message: action, clientId: Crypto.randomUUID() });
-                setAction(null);
+                void pick("file");
               }}
             />
-          ) : null}
-          {!action.deleted ? (
+            <AppText variant="caption" muted>
+              {c.fileLimit}
+            </AppText>
+          </ChatSheet>
+        ) : null}
+        {action ? (
+          <ChatSheet title={c.messageActions} onClose={() => setAction(null)}>
+            {!action.deleted ? (
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                {["👍", "❤️", "😂", "🔥", "🎉", "😢"].map((emoji) => (
+                  <Pressable
+                    key={emoji}
+                    accessibilityLabel={emoji}
+                    disabled={busy}
+                    onPress={() => {
+                      void run(() =>
+                        chatApi.change(token, action.id, {
+                          emoji: action.reactions.some(
+                            (r) => r.userId === accountId && r.emoji === emoji,
+                          )
+                            ? ""
+                            : emoji,
+                        }),
+                      );
+                    }}
+                    style={styles.icon}
+                  >
+                    <AppText style={{ fontSize: 25 }}>{emoji}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {!action.deleted && room.canPost ? (
+              <ChatAction
+                title={c.reply}
+                icon="return-up-back"
+                onPress={() => {
+                  setReply(action);
+                  setEditing(null);
+                  setAction(null);
+                }}
+              />
+            ) : null}
+            {!action.deleted ? (
+              <ChatAction
+                title={c.forward}
+                icon="arrow-redo-outline"
+                onPress={() => {
+                  setForward({
+                    message: action,
+                    clientId: Crypto.randomUUID(),
+                  });
+                  setAction(null);
+                }}
+              />
+            ) : null}
+            {!action.deleted ? (
+              <ChatAction
+                title={c.share}
+                icon="share-outline"
+                onPress={() => {
+                  void run(() => share(action));
+                }}
+              />
+            ) : null}
+            {action.own && !action.deleted ? (
+              <ChatAction
+                title={c.edit}
+                icon="pencil-outline"
+                onPress={() => {
+                  setEditing(action);
+                  setText(action.text);
+                  setAction(null);
+                }}
+              />
+            ) : null}
+            {room.canManage && !action.deleted ? (
+              <ChatAction
+                title={action.pinned ? c.unpin : c.pin}
+                icon="pin-outline"
+                onPress={() => {
+                  void run(() =>
+                    chatApi.change(token, action.id, {
+                      pinned: !action.pinned,
+                    }),
+                  );
+                }}
+              />
+            ) : null}
+            <ChatAction
+              title={c.hide}
+              icon="eye-off-outline"
+              onPress={() => {
+                void run(() =>
+                  chatApi.change(token, action.id, { remove: "self" }),
+                );
+              }}
+            />
+            {(action.own || room.canManage) && !action.deleted ? (
+              <ChatAction
+                title={c.remove}
+                danger
+                icon="trash-outline"
+                onPress={() => {
+                  void run(() =>
+                    chatApi.change(token, action.id, { remove: "all" }),
+                  );
+                }}
+              />
+            ) : null}
+            {!action.own ? (
+              <ChatAction
+                title={c.report}
+                danger
+                icon="flag-outline"
+                onPress={() => {
+                  setReport(action);
+                  setAction(null);
+                }}
+              />
+            ) : null}
+          </ChatSheet>
+        ) : null}
+        {forward ? (
+          <ChatSheet title={c.choose} onClose={() => setForward(null)}>
+            <TextInput
+              value={forwardSearch}
+              onChangeText={setForwardSearch}
+              placeholder={c.search}
+              placeholderTextColor={theme.textMuted}
+              style={inputStyle}
+            />
+            {forwardResults.data?.users.map((person) => (
+              <ChatAction
+                key={person.id}
+                title={person.name}
+                disabled={busy}
+                onPress={() => {
+                  void run(async () => {
+                    const target = await chatApi.direct(token, person.id);
+                    await chatApi.send(token, target.id, {
+                      clientId: forward.clientId,
+                      forwardId: forward.message.id,
+                    });
+                    setForward(null);
+                  });
+                }}
+              />
+            ))}
+            {chats
+              .filter((r) => r.canPost)
+              .map((r) => (
+                <ChatAction
+                  key={r.id}
+                  title={r.title}
+                  disabled={busy}
+                  onPress={() => {
+                    void forwardTo(r.id);
+                  }}
+                />
+              ))}
+          </ChatSheet>
+        ) : null}
+        {report ? (
+          <ChatSheet title={c.report} onClose={() => setReport(null)}>
+            <TextInput
+              value={reason}
+              onChangeText={setReason}
+              placeholder={c.reportReason}
+              placeholderTextColor={theme.textMuted}
+              style={inputStyle}
+              maxLength={500}
+              multiline
+            />
+            <ChatAction
+              title={c.send}
+              disabled={busy || !reason.trim()}
+              onPress={() => {
+                void run(async () => {
+                  await chatApi.change(token, report.id, { report: reason });
+                  setReport(null);
+                  setReason("");
+                });
+              }}
+            />
+          </ChatSheet>
+        ) : null}
+        {photo ? (
+          <ChatSheet title={photo.name} onClose={() => setPhoto(null)}>
+            <Image
+              source={{ uri: chatMediaUrl(photo.url) }}
+              resizeMode="contain"
+              style={{ width: "100%", height: 350 }}
+            />
             <ChatAction
               title={c.share}
               icon="share-outline"
               onPress={() => {
-                void run(() => share(action));
+                void shareChatFile(
+                  chatMediaUrl(photo.url),
+                  photo.name,
+                  photo.mime,
+                ).catch(showError);
               }}
             />
-          ) : null}
-          {action.own && !action.deleted ? (
-            <ChatAction
-              title={c.edit}
-              icon="pencil-outline"
-              onPress={() => {
-                setEditing(action);
-                setText(action.text);
-                setAction(null);
-              }}
-            />
-          ) : null}
-          {room.canManage && !action.deleted ? (
-            <ChatAction
-              title={action.pinned ? c.unpin : c.pin}
-              icon="pin-outline"
-              onPress={() => {
-                void run(() =>
-                  chatApi.change(token, action.id, { pinned: !action.pinned }),
-                );
-              }}
-            />
-          ) : null}
-          <ChatAction
-            title={c.hide}
-            icon="eye-off-outline"
-            onPress={() => {
-              void run(() =>
-                chatApi.change(token, action.id, { remove: "self" }),
-              );
-            }}
-          />
-          {(action.own || room.canManage) && !action.deleted ? (
-            <ChatAction
-              title={c.remove}
-              danger
-              icon="trash-outline"
-              onPress={() => {
-                void run(() =>
-                  chatApi.change(token, action.id, { remove: "all" }),
-                );
-              }}
-            />
-          ) : null}
-          {!action.own ? (
-            <ChatAction
-              title={c.report}
-              danger
-              icon="flag-outline"
-              onPress={() => {
-                setReport(action);
-                setAction(null);
-              }}
-            />
-          ) : null}
-        </ChatSheet>
-      ) : null}
-      {forward ? (
-        <ChatSheet title={c.choose} onClose={() => setForward(null)}>
-          <TextInput
-            value={forwardSearch}
-            onChangeText={setForwardSearch}
-            placeholder={c.search}
-            placeholderTextColor={theme.textMuted}
-            style={inputStyle}
-          />
-          {forwardResults.data?.users.map((person) => (
-            <ChatAction
-              key={person.id}
-              title={person.name}
-              disabled={busy}
-              onPress={() => {
-                void run(async () => {
-                  const target = await chatApi.direct(token, person.id);
-                  await chatApi.send(token, target.id, {
-                    clientId: forward.clientId,
-                    forwardId: forward.message.id,
-                  });
-                  setForward(null);
-                });
-              }}
-            />
-          ))}
-          {chats
-            .filter((r) => r.canPost)
-            .map((r) => (
-              <ChatAction
-                key={r.id}
-                title={r.title}
-                disabled={busy}
-                onPress={() => {
-                  void forwardTo(r.id);
-                }}
-              />
-            ))}
-        </ChatSheet>
-      ) : null}
-      {report ? (
-        <ChatSheet title={c.report} onClose={() => setReport(null)}>
-          <TextInput
-            value={reason}
-            onChangeText={setReason}
-            placeholder={c.reportReason}
-            placeholderTextColor={theme.textMuted}
-            style={inputStyle}
-            maxLength={500}
-            multiline
-          />
-          <ChatAction
-            title={c.send}
-            disabled={busy || !reason.trim()}
-            onPress={() => {
-              void run(async () => {
-                await chatApi.change(token, report.id, { report: reason });
-                setReport(null);
-                setReason("");
-              });
-            }}
-          />
-        </ChatSheet>
-      ) : null}
-      {photo ? (
-        <ChatSheet title={photo.name} onClose={() => setPhoto(null)}>
-          <Image
-            source={{ uri: chatMediaUrl(photo.url) }}
-            resizeMode="contain"
-            style={{ width: "100%", height: 350 }}
-          />
-          <ChatAction
-            title={c.share}
-            icon="share-outline"
-            onPress={() => {
-              void shareChatFile(
-                chatMediaUrl(photo.url),
-                photo.name,
-                photo.mime,
-              ).catch(showError);
-            }}
-          />
-        </ChatSheet>
-      ) : null}
-    </KeyboardAvoidingView>
+          </ChatSheet>
+        ) : null}
+      </KeyboardAvoidingView>
+    </MotionEntrance>
   );
 }
 const styles = StyleSheet.create({
