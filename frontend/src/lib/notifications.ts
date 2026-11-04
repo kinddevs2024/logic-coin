@@ -277,7 +277,9 @@ export async function installNotificationHandlers(onOpen: (ids: string[], conver
       if (!response.notification.request.content.data?.logicUpdate) {
         const data = response.notification.request.content.data ?? {};
         const conversationId = typeof data.conversationId === "string" && /^[a-f\d]{24}$/i.test(data.conversationId) ? data.conversationId : undefined;
-        await onOpen(inboxNotificationIds(data, response.notification.request.identifier), conversationId);
+        const ids = inboxNotificationIds(data, response.notification.request.identifier);
+        if (conversationId) await onOpen(ids, conversationId);
+        else await onOpen(ids);
       }
       await Notifications.clearLastNotificationResponseAsync();
     }
