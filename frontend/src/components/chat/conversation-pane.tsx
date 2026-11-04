@@ -246,8 +246,8 @@ export function ConversationPane({
   );
   const visibleHandler = useRef(visible);
   useEffect(() => { visibleHandler.current = visible; }, [visible]);
-  const onVisible = useRef((info: { viewableItems: ViewToken<ChatItem>[] }) => visibleHandler.current(info)).current;
-  const visibilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
+  const onVisible = useCallback((info: { viewableItems: ViewToken<ChatItem>[] }) => visibleHandler.current(info), []);
+  const visibilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 50 }), []);
   const inputStyle = [
     styles.input,
     {
