@@ -244,6 +244,10 @@ export function ConversationPane({
     },
     [token, room.id, search, client],
   );
+  const visibleHandler = useRef(visible);
+  useEffect(() => { visibleHandler.current = visible; }, [visible]);
+  const onVisible = useRef((info: { viewableItems: ViewToken<ChatItem>[] }) => visibleHandler.current(info)).current;
+  const visibilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
   const inputStyle = [
     styles.input,
     {
@@ -372,8 +376,8 @@ export function ConversationPane({
         keyboardShouldPersistTaps="handled"
         initialNumToRender={20}
         windowSize={7}
-        onViewableItemsChanged={visible}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+        onViewableItemsChanged={onVisible}
+        viewabilityConfig={visibilityConfig}
         maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         onScroll={(event) => {
           const e = event.nativeEvent;
