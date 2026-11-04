@@ -24,6 +24,7 @@ export type ChatRoom = {
   pinned: boolean;
   canPost: boolean;
   canManage: boolean;
+  canEditInfo: boolean;
   canPromote: boolean;
   isOwner: boolean;
   inviteCode: string | null;
@@ -148,6 +149,7 @@ export const chatApi = {
       leave?: boolean;
       targetId?: string;
       role?: "admin" | "member";
+      canEditInfo?: boolean;
       remove?: boolean;
     },
   ) =>
@@ -157,11 +159,13 @@ export const chatApi = {
       "PATCH",
       input,
     ),
+  addMember: (token: string, id: string, userId: string) =>
+    call<{ ok: boolean }>(token, `/${id}/members`, "POST", { userId }),
   members: (token: string, id: string) =>
-    call<{ count: number; members: (ChatPerson & { role: string })[] }>(
-      token,
-      `/${id}/members`,
-    ),
+    call<{
+      count: number;
+      members: (ChatPerson & { role: string; canEditInfo: boolean })[];
+    }>(token, `/${id}/members`),
   upload: (token: string, file: ChatDraftFile) =>
     call<{ id: string; name: string; kind: string; size: number }>(
       token,

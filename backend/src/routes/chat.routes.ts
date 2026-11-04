@@ -189,6 +189,19 @@ router.patch(
       ),
     }),
 );
+router.post(
+  "/:id/members",
+  writeLimiter,
+  validateBody(z.object({ userId: id }).strict()),
+  async (req, res) =>
+    res.json({
+      data: await chat.addChatMember(
+        req.auth!.userId,
+        parseId(req.params.id),
+        req.body.userId,
+      ),
+    }),
+);
 router.get("/:id/members", async (req, res) =>
   res.json({
     data: await chat.chatMembers(req.auth!.userId, parseId(req.params.id)),
@@ -253,9 +266,24 @@ router.patch(
         leave: z.boolean().optional(),
         targetId: id.optional(),
         role: z.enum(["admin", "member"]).optional(),
+        canEditInfo: z.boolean().optional(),
         remove: z.boolean().optional(),
       })
-      .strict(),
+      .strict()
+      .refine(
+        (body) =>
+          body.targetId
+            ? [body.role, body.remove, body.canEditInfo].filter(
+                (v) => v !== undefined,
+              ).length === 1 &&
+              [body.muted, body.pinned, body.readSeq, body.leave].every(
+                (v) => v === undefined,
+              )
+            : [body.role, body.remove, body.canEditInfo].every(
+                (v) => v === undefined,
+              ),
+        "Invalid membership action",
+      ),
   ),
   async (req, res) =>
     res.json({

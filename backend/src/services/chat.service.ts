@@ -190,7 +190,7 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
     userId,
     leftAt: { $exists: false },
   })
-    .select("conversationId userId role lastReadSeq muted pinned")
+    .select("conversationId userId role canEditInfo lastReadSeq muted pinned")
     .lean();
   const rooms = await ChatConversation.find({
     _id: { $in: memberships.map((m) => m.conversationId) },
@@ -296,6 +296,11 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
         memberRole: member.role,
       }),
       canManage: admin || member.role === "owner" || member.role === "admin",
+      canEditInfo:
+        admin ||
+        member.role === "owner" ||
+        member.role === "admin" ||
+        Boolean(member.canEditInfo && !c.systemKey),
       canPromote: admin || member.role === "owner",
       isOwner: member.role === "owner",
       inviteCode: c.inviteCode ?? null,
@@ -770,6 +775,7 @@ export async function updateChatMember(
     leave?: boolean;
     targetId?: string;
     role?: "admin" | "member";
+    canEditInfo?: boolean;
     remove?: boolean;
   },
 ) {
@@ -784,6 +790,7 @@ export async function updateChatMember(
     const target = await ChatMember.findOne({
       conversationId: c._id,
       userId: input.targetId,
+      leftAt: { $exists: false },
     });
     if (
       !target ||
@@ -791,14 +798,24 @@ export async function updateChatMember(
       (!admin && member.role !== "owner" && target.role === "admin")
     )
       return fail(403, "chat_forbidden", "Cannot change this member");
-    if (input.role && !admin && member.role !== "owner")
+    if (
+      (input.role || input.canEditInfo !== undefined) &&
+      !admin &&
+      member.role !== "owner"
+    )
       return fail(
         403,
         "chat_forbidden",
         "Only the owner can appoint administrators",
       );
-    if (input.remove) target.leftAt = new Date();
-    else if (input.role) target.role = input.role;
+    if (input.remove) {
+      target.leftAt = new Date();
+      target.canEditInfo = false;
+    } else if (input.role) {
+      target.role = input.role;
+      target.canEditInfo = false;
+    } else if (input.canEditInfo !== undefined)
+      target.canEditInfo = input.canEditInfo;
     await target.save();
   } else {
     if (
@@ -852,6 +869,45 @@ export async function updateChatMember(
   await changed(c);
   return { ok: true, readIds };
 }
+export async function addChatMember(
+  userId: Types.ObjectId,
+  id: string,
+  targetId: string,
+) {
+  const { c, member, admin } = await chatAccess(userId, id);
+  if (
+    c.systemKey ||
+    !["group", "channel"].includes(c.kind) ||
+    (!admin && !["owner", "admin"].includes(member.role ?? ""))
+  )
+    return fail(403, "chat_forbidden", "Cannot add participants to this chat");
+  if (!(await User.exists({ _id: targetId })))
+    return fail(404, "user_not_found", "User not found");
+  if (
+    await ChatBlock.exists({
+      $or: [
+        { userId, blockedId: oid(targetId) },
+        { userId: oid(targetId), blockedId: userId },
+      ],
+    })
+  )
+    return fail(403, "chat_blocked", "This user cannot be added");
+  const target = await ensureMember(c._id, oid(targetId));
+  if (target.leftAt)
+    await ChatMember.updateOne(
+      { _id: target._id, leftAt: { $exists: true } },
+      {
+        $unset: { leftAt: 1 },
+        $set: {
+          role: "member",
+          canEditInfo: false,
+          lastReadSeq: c.lastMessageSeq,
+        },
+      },
+    );
+  await changed(c);
+  return { ok: true };
+}
 export async function chatMembers(userId: Types.ObjectId, id: string) {
   const { c } = await chatAccess(userId, id);
   const members = await ChatMember.find({
@@ -872,6 +928,9 @@ export async function chatMembers(userId: Types.ObjectId, id: string) {
     members: users.map((u) => ({
       ...chatProfile(u),
       role: members.find((m) => String(m.userId) === String(u._id))!.role,
+      canEditInfo: Boolean(
+        members.find((m) => String(m.userId) === String(u._id))!.canEditInfo,
+      ),
     })),
   };
 }
@@ -1061,7 +1120,10 @@ export async function updateChatRoom(
   const { c, member, admin } = await chatAccess(userId, id);
   if (
     !["group", "channel"].includes(c.kind) ||
-    (!admin && member.role !== "owner" && member.role !== "admin")
+    (!admin &&
+      member.role !== "owner" &&
+      member.role !== "admin" &&
+      !(member.canEditInfo && !c.systemKey))
   )
     return fail(
       403,

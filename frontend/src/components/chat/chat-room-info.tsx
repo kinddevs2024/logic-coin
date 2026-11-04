@@ -1,14 +1,22 @@
 import { pickChatPhoto } from "@/lib/chat-media";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pressable, Share, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Share,
+  TextInput,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { chatApi, chatMediaUrl, type ChatRoom } from "@/lib/chat-api";
 import { useChatCopy } from "@/lib/chat-copy";
 import { MIGRATED_APP_ORIGIN } from "@/lib/server-migration";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ChatAction, ChatSheet } from "./chat-sheet";
 export function ChatRoomInfo({
   room,
@@ -36,6 +44,32 @@ export function ChatRoomInfo({
     queryFn: () => chatApi.members(token, room.id),
     staleTime: 10_000,
   });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false),
+    [addSearch, setAddSearch] = useState(""),
+    [search, setSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(addSearch.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [addSearch]);
+  const candidates = useQuery({
+    queryKey: ["chat-invite-search", token, room.id, search],
+    queryFn: () => chatApi.search(token, search),
+    enabled: addOpen && search.length >= 2,
+    staleTime: 10000,
+  });
+  const selected = query.data?.members.find((p) => p.id === selectedId);
+  const canManageMembers =
+    room.canManage &&
+    !room.systemKey &&
+    ["group", "channel"].includes(room.kind);
+  const people =
+    candidates.data?.users.filter(
+      (p) =>
+        p.id !== accountId && !query.data?.members.some((m) => m.id === p.id),
+    ) ?? [];
+  const roleLabel = (role: string) =>
+    role === "owner" ? c.owner : role === "admin" ? c.admin : c.member;
   const run = async (action: () => Promise<unknown>) => {
     if (busy) return;
     setBusy(true);
@@ -46,12 +80,92 @@ export function ChatRoomInfo({
         client.invalidateQueries({ queryKey: ["chat-list", token] }),
         query.refetch(),
       ]);
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : c.error);
+      return false;
     } finally {
       setBusy(false);
     }
   };
+  if (selected)
+    return (
+      <ChatSheet
+        title={`${c.memberSettings} · ${selected.name}`}
+        onClose={onClose}
+      >
+        <View style={{ alignItems: "center", gap: 8, paddingBottom: 12 }}>
+          <Avatar
+            name={selected.name}
+            avatarUrl={selected.avatarUrl}
+            size={70}
+          />
+          <AppText variant="heading">{selected.name}</AppText>
+          <AppText muted>
+            {selected.username ? `@${selected.username} · ` : ""}
+            {roleLabel(selected.role)}
+          </AppText>
+        </View>
+        <ChatAction
+          title={c.members}
+          icon="chevron-back"
+          onPress={() => {
+            setSelectedId(null);
+            setError(null);
+          }}
+        />
+        {room.canPromote ? (
+          <ChatAction
+            title={selected.role === "admin" ? c.makeMember : c.makeAdmin}
+            disabled={busy}
+            icon="shield-checkmark-outline"
+            onPress={() => {
+              void run(() =>
+                chatApi.member(token, room.id, {
+                  targetId: selected.id,
+                  role: selected.role === "admin" ? "member" : "admin",
+                }),
+              );
+            }}
+          />
+        ) : null}
+        {room.canPromote && selected.role === "member" ? (
+          <ChatAction
+            title={selected.canEditInfo ? c.revokeInfo : c.allowInfo}
+            disabled={busy}
+            icon="create-outline"
+            onPress={() => {
+              void run(() =>
+                chatApi.member(token, room.id, {
+                  targetId: selected.id,
+                  canEditInfo: !selected.canEditInfo,
+                }),
+              );
+            }}
+          />
+        ) : null}
+        <ChatAction
+          title={`${c.removeMember} · ${selected.name}`}
+          danger
+          disabled={busy}
+          icon="person-remove-outline"
+          onPress={() => {
+            void (async () => {
+              if (
+                await run(() =>
+                  chatApi.member(token, room.id, {
+                    targetId: selected.id,
+                    remove: true,
+                  }),
+                )
+              )
+                setSelectedId(null);
+            })();
+          }}
+        />
+        {error ? <AppText accessibilityRole="alert">{error}</AppText> : null}
+      </ChatSheet>
+    );
   return (
     <ChatSheet title={room.title} onClose={onClose}>
       <View style={{ alignItems: "center", gap: 8, paddingBottom: 14 }}>
@@ -64,7 +178,8 @@ export function ChatRoomInfo({
           <AppText muted>{room.description}</AppText>
         ) : null}
       </View>
-      {room.canManage && ["group", "channel"].includes(room.kind) ? (
+      {(room.canEditInfo ?? room.canManage) &&
+      ["group", "channel"].includes(room.kind) ? (
         <View style={{ gap: 8 }}>
           <AppText variant="label">{c.settings}</AppText>
           <AppText variant="caption" muted>
@@ -180,60 +295,156 @@ export function ChatRoomInfo({
         {c.members} · {query.data?.count ?? "…"}
       </AppText>
       {query.data?.members.map((person) => (
-        <View key={person.id} style={{ gap: 3, paddingVertical: 7 }}>
+        <View
+          key={person.id}
+          style={{
+            flexDirection: "row",
+            gap: 8,
+            alignItems: "center",
+            paddingVertical: 8,
+          }}
+        >
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={`${c.profile}: ${person.name}`}
             onPress={() => {
               onClose();
               router.push(`/player/${person.id}` as never);
             }}
-            style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+            }}
           >
-            <Avatar name={person.name} avatarUrl={person.avatarUrl} size={38} />
+            <Avatar name={person.name} avatarUrl={person.avatarUrl} size={42} />
             <View style={{ flex: 1 }}>
               <AppText variant="label">{person.name}</AppText>
               <AppText variant="caption" muted>
-                {person.username ? `@${person.username}` : person.role}
+                {person.username ? `@${person.username} · ` : ""}
+                {roleLabel(person.role)}
               </AppText>
+              {person.canEditInfo && person.role === "member" ? (
+                <AppText variant="caption" muted>
+                  {c.infoPermission}
+                </AppText>
+              ) : null}
             </View>
           </Pressable>
-          {room.canManage &&
-          !room.systemKey &&
-          ["group", "channel"].includes(room.kind) &&
+          {canManageMembers &&
           person.id !== accountId &&
-          person.role !== "owner" ? (
-            <View style={{ paddingLeft: 35 }}>
-              {room.canPromote ? (
-                <ChatAction
-                  title={person.role === "admin" ? c.makeMember : c.makeAdmin}
-                  disabled={busy}
-                  onPress={() => {
-                    void run(() =>
-                      chatApi.member(token, room.id, {
-                        targetId: person.id,
-                        role: person.role === "admin" ? "member" : "admin",
-                      }),
-                    );
-                  }}
-                />
-              ) : null}
-              <ChatAction
-                title={c.removeMember}
-                danger
-                disabled={busy}
-                onPress={() => {
-                  void run(() =>
-                    chatApi.member(token, room.id, {
-                      targetId: person.id,
-                      remove: true,
-                    }),
-                  );
-                }}
+          person.role !== "owner" &&
+          (room.canPromote || person.role !== "admin") ? (
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel={`${c.memberSettings}: ${person.name}`}
+              onPress={() => {
+                setSelectedId(person.id);
+                setError(null);
+              }}
+              style={{
+                width: 44,
+                height: 44,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 22,
+                backgroundColor: theme.primarySoft,
+              }}
+            >
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={23}
+                color={String(theme.primary)}
               />
-            </View>
+            </MotionPressable>
           ) : null}
         </View>
       ))}
+      {canManageMembers ? (
+        <>
+          <ChatAction
+            title={c.addMembers}
+            icon="person-add-outline"
+            onPress={() => {
+              setAddOpen(!addOpen);
+              setError(null);
+            }}
+          />
+          {addOpen ? (
+            <View style={{ gap: 10, paddingTop: 4 }}>
+              <TextInput
+                accessibilityLabel={c.searchMembers}
+                placeholder={c.searchMembers}
+                placeholderTextColor={String(theme.textMuted)}
+                value={addSearch}
+                onChangeText={setAddSearch}
+                autoFocus
+                style={{
+                  padding: 12,
+                  minHeight: 46,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  backgroundColor: theme.surfaceRaised,
+                  color: theme.text,
+                }}
+              />
+              {search.length >= 2 && candidates.isPending ? (
+                <ActivityIndicator color={String(theme.primary)} />
+              ) : null}
+              {search.length >= 2 &&
+              !candidates.isPending &&
+              !candidates.isError &&
+              !people.length ? (
+                <AppText muted>{c.noPeople}</AppText>
+              ) : null}
+              {candidates.isError ? (
+                <ChatAction
+                  title={c.retry}
+                  onPress={() => void candidates.refetch()}
+                />
+              ) : null}
+              {search.length >= 2
+                ? people.map((person) => (
+                    <View
+                      key={person.id}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 9,
+                      }}
+                    >
+                      <Avatar
+                        name={person.name}
+                        avatarUrl={person.avatarUrl}
+                        size={36}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <AppText variant="label">{person.name}</AppText>
+                        {person.username ? (
+                          <AppText variant="caption" muted>
+                            @{person.username}
+                          </AppText>
+                        ) : null}
+                      </View>
+                      <ChatAction
+                        title={c.add}
+                        icon="add"
+                        disabled={busy}
+                        onPress={() => {
+                          void run(() =>
+                            chatApi.addMember(token, room.id, person.id),
+                          );
+                        }}
+                      />
+                    </View>
+                  ))
+                : null}
+            </View>
+          ) : null}
+        </>
+      ) : null}
       {!room.systemKey &&
       !room.isOwner &&
       ["group", "channel"].includes(room.kind) ? (

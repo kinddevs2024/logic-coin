@@ -253,9 +253,12 @@ export function ConversationPane({
     visibleHandler.current = visible;
   }, [visible]);
   const [onVisible] = useState(
-    () => (info: { viewableItems: ViewToken<ChatItem>[] }) => visibleHandler.current(info),
+    () => (info: { viewableItems: ViewToken<ChatItem>[] }) =>
+      visibleHandler.current(info),
   );
-  const [visibilityConfig] = useState(() => ({ itemVisiblePercentThreshold: 50 }));
+  const [visibilityConfig] = useState(() => ({
+    itemVisiblePercentThreshold: 50,
+  }));
   const inputStyle = [
     styles.input,
     {
@@ -545,19 +548,36 @@ export function ConversationPane({
               <TextInput
                 accessibilityLabel={c.write}
                 multiline
+                submitBehavior="newline"
+                blurOnSubmit={false}
                 numberOfLines={1}
-                onContentSizeChange={(event) =>
-                  setInputHeight(
-                    Math.min(
-                      124,
-                      Math.max(44, event.nativeEvent.contentSize.height),
-                    ),
-                  )
+                onContentSizeChange={
+                  Platform.OS === "web"
+                    ? undefined
+                    : (event) => {
+                        const height = Math.min(
+                          124,
+                          Math.max(
+                            44,
+                            Math.ceil(event.nativeEvent.contentSize.height),
+                          ),
+                        );
+                        setInputHeight((previous) =>
+                          previous === height ? previous : height,
+                        );
+                      }
                 }
                 maxLength={4000}
                 value={text}
                 onChangeText={(value) => {
                   setText(value);
+                  if (Platform.OS === "web")
+                    setInputHeight(
+                      Math.min(
+                        124,
+                        Math.max(44, 24 + value.split("\n").length * 20),
+                      ),
+                    );
                   if (value && Date.now() - typingSent.current > 4000) {
                     typingSent.current = Date.now();
                     void sendChatTyping(token, room.id).catch(() => {});

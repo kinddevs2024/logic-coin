@@ -49,6 +49,7 @@ const memberSchema = new Schema(
       enum: ["owner", "admin", "member"],
       default: "member",
     },
+    canEditInfo: { type: Boolean, default: false },
     lastReadSeq: { type: Number, default: 0 },
     muted: { type: Boolean, default: false },
     pinned: { type: Boolean, default: false },
