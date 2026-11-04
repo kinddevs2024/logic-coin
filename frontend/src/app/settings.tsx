@@ -126,7 +126,7 @@ export default function SettingsScreen() {
     <AppFrame wide>
       <ScreenHeader
         title={t("settings.title")}
-        onBack={() => router.back()}
+        onBack={() => router.canGoBack() ? router.back() : router.replace("/messages")}
       />
 
       <AccountPanel />
