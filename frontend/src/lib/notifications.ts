@@ -268,14 +268,16 @@ export async function notifyUpdateState(message: UpdateMessage, language: Langua
   return true;
 }
 
-export async function installNotificationHandlers(onOpen: (ids: string[]) => void | Promise<void>, onTokenChange: () => void) {
+export async function installNotificationHandlers(onOpen: (ids: string[], conversationId?: string) => void | Promise<void>, onTokenChange: () => void) {
   if (Platform.OS === "web" || isExpoGo) return () => {};
   const Notifications = await import("expo-notifications");
   configureNotificationPresentation(Notifications);
   const respond = async (response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>) => {
     if (response) {
       if (!response.notification.request.content.data?.logicUpdate) {
-        await onOpen(inboxNotificationIds(response.notification.request.content.data, response.notification.request.identifier));
+        const data = response.notification.request.content.data ?? {};
+        const conversationId = typeof data.conversationId === "string" && /^[a-f\d]{24}$/i.test(data.conversationId) ? data.conversationId : undefined;
+        await onOpen(inboxNotificationIds(data, response.notification.request.identifier), conversationId);
       }
       await Notifications.clearLastNotificationResponseAsync();
     }
@@ -343,7 +345,7 @@ export async function startInboxNotificationSync(accessToken: string, accountId:
           identifier: `logic-inbox-${item.id}`,
           content: {
             title: item.title, body: item.body, sound: initial ? undefined : "default",
-            data: { inboxId: item.id, createdAt: item.createdAt, silent: initial },
+            data: { inboxId: item.id, createdAt: item.createdAt, conversationId: item.conversationId ?? null, silent: initial },
           },
           trigger: Platform.OS === "android" ? { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1, channelId: initial ? "inbox-history" : "messages" } : null,
         });

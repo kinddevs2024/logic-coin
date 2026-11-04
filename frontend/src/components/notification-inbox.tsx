@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useUiCopy } from "@/components/localized-native";
 
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
@@ -180,7 +181,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
               <AppText variant="label" style={styles.cardTitle}>{copyContent(item.kind === "gift" ? "🎁 " : item.kind === "result" ? "🏆 " : "")}{item.title}</AppText>
               <AppText variant="caption" muted style={styles.timestamp}>{copyContent(formatNotificationTime(item.createdAt, { now, language, uses24hourClock: calendar.uses24hourClock }))}</AppText>
             </View>
-            <AppText>{item.body}</AppText>
+            <AppText onPress={item.conversationId ? () => { onClose(); router.push({ pathname: "/messages", params: { chat: item.conversationId } } as never); } : undefined}>{item.body}</AppText>
           </GlassSurface></View>}
           ListHeaderComponent={section === "system" ? <PushNotificationsControl /> : null}
           ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>{copyContent(section === "messages" ? c.empty : language === "ru" ? "Уведомлений пока нет" : language === "uz" ? "Bildirishnomalar yo‘q" : "No notifications yet")}</AppText></GlassSurface> : null}

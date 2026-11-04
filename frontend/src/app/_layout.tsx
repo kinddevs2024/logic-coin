@@ -1,10 +1,11 @@
+import { ChatRuntime } from "@/components/chat/chat-runtime";
 import { localizeBuiltIn } from "@/lib/localize-built-in";
 import "react-native-reanimated";
 import "../global.css";
 import "@/lib/referral-attribution";
 
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -84,9 +85,10 @@ export default function RootLayout() {
       });
     }
     let cleanup: (() => void) | undefined;
-    void installNotificationHandlers(async ids => {
+    void installNotificationHandlers(async (ids, conversationId) => {
       const state = useAppStore.getState();
-      setPushInbox(true);
+      if (conversationId) router.push({ pathname: "/messages", params: { chat: conversationId } } as never);
+      else setPushInbox(true);
       if (state.accessToken && ids.length) {
         await inboxApi.read(state.accessToken, ids);
         await dismissInboxNotifications(ids);
@@ -285,6 +287,7 @@ export default function RootLayout() {
           <AppearanceTransition />
           <AdRuntime />
           <AppliedUpdateNotice />
+          <ChatRuntime />
           <RewardBurst />
           <ContestRewardModal />
           <WithdrawalApprovedModal />

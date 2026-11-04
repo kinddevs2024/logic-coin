@@ -1,3 +1,5 @@
+import { AccountPanel } from "@/components/account-panel";
+import { ChatUsernameSettings } from "@/components/chat/username-settings";
 import { useUiCopy , Alert } from "@/components/localized-native";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -128,6 +130,8 @@ export default function SettingsScreen() {
         onBack={() => router.back()}
       />
 
+      <AccountPanel />
+      <ChatUsernameSettings />
       <View
         style={[styles.settingsGrid, isDesktop && styles.settingsGridDesktop]}
       >

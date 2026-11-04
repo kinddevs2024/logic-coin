@@ -33,7 +33,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
   let targetCount = 0, sentCount = 0, failedCount = 0;
   const errors = new Set<string>();
   try {
-    const payload = (event.payload ?? {}) as { dayKey?: string; gameKey?: string; giftId?: string; title?: string; body?: string; userIds?: string[]; expiresAt?: string; localized?: Record<string, { title: string; body: string }> };
+    const payload = (event.payload ?? {}) as { conversationId?: string; dayKey?: string; gameKey?: string; giftId?: string; title?: string; body?: string; userIds?: string[]; expiresAt?: string; localized?: Record<string, { title: string; body: string }> };
     if (payload.expiresAt && Date.parse(payload.expiresAt) <= Date.now()) {
       await NotificationEvent.updateOne({ _id: event._id }, { $set: { status: "sent", processedAt: new Date() } });
       return { status: "expired", targetCount: 0, sentCount: 0, failedCount: 0 };
@@ -85,7 +85,8 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       data: { type: event.type, eventId: String(event._id),
         inboxId,
         createdAt: event.createdAt.toISOString(),
-        expiresAt: payload.expiresAt ?? null, dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: "/?notifications=1" }
+        conversationId: payload.conversationId ?? null,
+        expiresAt: payload.expiresAt ?? null, dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: payload.conversationId ? `/messages?chat=${payload.conversationId}` : "/?notifications=1" }
     };
     const personalized = (kind: "fcm" | "expo" | "web", token: string) => {
       const profile = profileFor(kind, token);
@@ -93,6 +94,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
         const localized = payload.localized[profile?.preferences.language ?? "uz"] ?? payload.localized.uz;
         return { ...notification, ...localized };
       }
+      if (event.type === "chat_message") return notification;
       if (event.type !== "admin_broadcast") {
         const language = profile?.preferences.language ?? "ru";
         return { ...notification, title: localizeBuiltIn(notification.title, language), body: localizeBuiltIn(notification.body, language) };

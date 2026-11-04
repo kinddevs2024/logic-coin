@@ -3,7 +3,7 @@ import { useUiCopy } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 
@@ -24,6 +24,7 @@ import { isTelegramMiniApp } from "@/lib/telegram-context";
 export default function PublicProfileScreen() {
   const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
+  const router = useRouter();
   const params = useLocalSearchParams<{ code?: string | string[] }>();
   const code = Array.isArray(params.code) ? params.code[0] : params.code;
   const query = useQuery({
@@ -52,6 +53,7 @@ export default function PublicProfileScreen() {
         <GlassSurface variant="strong" intensity={82} style={styles.hero}>
           <Avatar name={profile.name} avatarUrl={profile.avatarUrl} size={92} />
           <AppText variant="title">{profile.name}</AppText>
+          <AppButton icon="chatbubble-outline" onPress={() => router.push(`/player/${profile.id}` as never)}>{copyText("Написать")}</AppButton>
           <View style={styles.countryLine}><CountryFlagBadge countryCode={profile.countryCode} size={19} /><AppText muted>{copyContent(countryName(profile.countryCode))}</AppText></View>
         </GlassSurface>
         <View style={styles.grid}>

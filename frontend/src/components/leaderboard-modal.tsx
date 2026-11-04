@@ -413,9 +413,9 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                       ]}
                     >
                       <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F5A623" : theme.textMuted }]}>{copyContent(entry.rank)}</AppText>
-                      <Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={38} />
+                      <Pressable accessibilityRole="button" accessibilityLabel={entry.name} onPress={() => { close(); router.push(`/player/${entry.userId}` as never); }}><Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={38} /></Pressable>
                       <View style={styles.nameBlock}>
-                        <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(entry.isCurrentUser ? `${language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: ` : "")}{entry.name}</AppText>
+                        <AppText onPress={() => { close(); router.push(`/player/${entry.userId}` as never); }} style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(entry.isCurrentUser ? `${language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: ` : "")}{entry.name}</AppText>
                         {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={15} /> : null}
                       </View>
                       <EntryValue entry={entry} />
@@ -452,7 +452,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                   <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: "transparent" }, Platform.OS !== "web" && nativeSelfLayout ? { minHeight: nativeSelfLayout.height } : null]}>
                     <AppText style={[styles.rank, { color: theme.textMuted }]}>{copyContent(self.rank)}</AppText>
                     <Avatar name={self.name} avatarUrl={self.avatarUrl} size={38} />
-                    <View style={styles.nameBlock}><AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(language === "ru" ? "Я" : language === "uz" ? "Men" : "Me")}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
+                    <View style={styles.nameBlock}><AppText onPress={() => { close(); router.push(`/player/${self.userId}` as never); }} style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(language === "ru" ? "Я" : language === "uz" ? "Men" : "Me")}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
                     <EntryValue entry={self} />
                   </View>
                 </Animated.View>

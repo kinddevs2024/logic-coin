@@ -1,3 +1,4 @@
+import { chatApi } from "@/lib/chat-api";
 import { useUiCopy } from "@/components/localized-native";
 
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable inside gesture worklets. */
@@ -14,6 +15,7 @@ import {
 } from "react";
 import {
   Platform,
+  Keyboard,
   ActivityIndicator,
   Pressable,
   Image,
@@ -59,7 +61,7 @@ const tabMeta: Record<
       | "tabs.home"
       | "tabs.challenges"
       | "tabs.games"
-      | "tabs.profile";
+      | "tabs.messages";
     icon: ComponentProps<typeof Ionicons>["name"];
     activeIcon: ComponentProps<typeof Ionicons>["name"];
   }
@@ -79,10 +81,10 @@ const tabMeta: Record<
     icon: "game-controller-outline",
     activeIcon: "game-controller",
   },
-  profile: {
-    label: "tabs.profile",
-    icon: "person-outline",
-    activeIcon: "person",
+  messages: {
+    label: "tabs.messages",
+    icon: "chatbubbles-outline",
+    activeIcon: "chatbubbles",
   },
 };
 
@@ -93,6 +95,11 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
   const insets = useSafeAreaInsets();
   const { isDesktop, isWeb } = useResponsiveLayout();
   const reduceMotion = useReducedMotion();
+  const chatToken = useAppStore(s => s.accessToken);
+  const chatQuery = useQuery({ queryKey: ["chat-list", chatToken], enabled: Boolean(chatToken), queryFn: () => chatApi.list(chatToken!), staleTime: 60_000, refetchInterval: 60_000 });
+  const chatUnread = chatQuery.data?.chats.reduce((sum, room) => sum + room.unread, 0) ?? 0;
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => { const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true)), hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false)); return () => { show.remove(); hide.remove(); }; }, []);
   const visibleRoutes = useMemo(
     () => state.routes.filter((route) => Boolean(tabMeta[route.name])),
     [state.routes],
@@ -229,6 +236,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
     };
   }, [isDesktop, lensWidth, lensHeight, mobileSlotWidth]);
 
+  if (keyboardOpen) return null;
   return (
     <View
       pointerEvents="box-none"
@@ -318,6 +326,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
                   size={22}
                   color={String(focused ? theme.primary : theme.textMuted)}
                 />
+                {route.name === "messages" && chatUnread > 0 ? <View style={{ position: "absolute", top: -3, right: 3, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", backgroundColor: theme.primary }}><AppText style={{ fontSize: 9, lineHeight: 12, color: theme.onPrimary }}>{chatUnread > 99 ? "99+" : chatUnread}</AppText></View> : null}
                 <AppText
                   variant="caption"
                   color={String(focused ? theme.primary : theme.textMuted)}
@@ -419,7 +428,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="challenges" />
       <Tabs.Screen name="games" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen name="messages" />
+      <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="tasks" options={{ href: null }} />
       <Tabs.Screen name="bonuses" options={{ href: null }} />
     </Tabs>

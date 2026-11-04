@@ -60,6 +60,7 @@ export function serializeUser(userValue: unknown) {
     countryCode: user.countryCode ?? null,
     role: user.role ?? "user",
     referralCode: user.referralCode,
+    username: user.username ?? null,
     preferences: user.preferences,
     wallet: serializeWallet(user.wallet),
     coins: serializeCoins(user.coins),

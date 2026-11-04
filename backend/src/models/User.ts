@@ -50,6 +50,7 @@ const userSchema = new Schema(
     emailVerifiedAt: { type: Date },
     role: { type: String, enum: USER_ROLES, default: "user", required: true },
     name: { type: String, required: true, trim: true, minlength: 1, maxlength: 80 },
+    username: { type: String, trim: true, lowercase: true, maxlength: 24 },
     avatarUrl: { type: String, trim: true, maxlength: 14_000_000 },
     countryCode: { type: String, trim: true, uppercase: true, match: /^[A-Z]{2}$/ },
     providers: { type: providerSchema, required: true, default: () => ({}) },
@@ -74,6 +75,7 @@ const userSchema = new Schema(
 );
 
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ username: 1 }, { unique: true, sparse: true });
 userSchema.index({ referralCode: 1 }, { unique: true });
 userSchema.index({ "providers.googleSub": 1 }, { unique: true, sparse: true });
 userSchema.index({ "providers.yandexSub": 1 }, { unique: true, sparse: true });

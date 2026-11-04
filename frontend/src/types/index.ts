@@ -39,6 +39,7 @@ export type User = {
   avatarUrl?: string | null;
   countryCode?: string | null;
   referralCode?: string;
+  username?: string | null;
   emailVerified?: boolean;
   preferences?: UserPreferences;
   wallet?: Partial<Wallet>;

@@ -39,7 +39,7 @@ function ProgressDonut({ value, progress, color, accessibilityLabel }: { value: 
   const strokeWidth = 7;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const dash = Math.max(0, Math.min(1, progress)) * circumference;
+  const dash = (Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0) * circumference;
   return (
     <View accessible accessibilityLabel={copyText(accessibilityLabel)} style={styles.donut}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>

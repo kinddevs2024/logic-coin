@@ -1,6 +1,4 @@
-import { NotificationEvent } from "../models/NotificationEvent.js";
-import { User } from "../models/User.js";
-import { env } from "../config/env.js";
+import { relaySupportReply } from "./chat.service.js";
 import { RaffleWinNotice, RaffleWinnerReply } from "../models/RaffleWinNotice.js";
 
 export type WinnerTelegramMessage = {
@@ -28,13 +26,7 @@ export async function captureRaffleWinnerReply(message: WinnerTelegramMessage | 
   const reply = await RaffleWinnerReply.findOneAndUpdate({ telegramId, messageId: message.message_id },
     { $setOnInsert: { telegramId, messageId: message.message_id, userId: winner.userId, text } }, { upsert: true, new: true });
   if (reply.forwardedAt) return true;
-  const admins = await User.find({ $or: [{ role: "admin" }, { email: { $in: env.ADMIN_EMAILS } }] }).select("_id").lean();
-  if (!admins.length) throw new Error("Winner contact administrator is unavailable");
-  await NotificationEvent.updateOne({ eventKey: `winner-reply:${telegramId}:${message.message_id}` }, { $setOnInsert: {
-    eventKey: `winner-reply:${telegramId}:${message.message_id}`, type: "raffle", audience: "specific_users", status: "queued",
-    payload: { userIds: admins.map(admin => String(admin._id)), title: "Ответ победителя 🏆",
-      body: `Раунд ${winner.round} · $${(winner.amountCents / 100).toFixed(2)}\nID: ${winner.userId}\nTelegram ID: ${telegramId}\n\n${text}` }
-  } }, { upsert: true });
+  await relaySupportReply(winner.userId, text, `telegram:${telegramId}:${message.message_id}`);
   await RaffleWinnerReply.updateOne({ _id: reply._id }, { $set: { forwardedAt: new Date() } });
   return true;
 }

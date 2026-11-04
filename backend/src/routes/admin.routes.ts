@@ -1,3 +1,5 @@
+import { ChatReport, ChatMessage, ChatMember, ChatConversation } from "../models/Chat.js";
+import { notifyChatChange } from "../services/live-updates.service.js";
 import { Router } from "express";
 import { RaffleWinnerReply } from "../models/RaffleWinNotice.js";
 import adminWithdrawalRoutes from "./admin-withdrawals.routes.js";
@@ -42,6 +44,25 @@ const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 
 router.use("/withdrawals", adminWithdrawalRoutes);
 router.use(requireAuth, requireAdmin);
+router.get("/chat-reports", async (_req, res) => {
+  const reports = await ChatReport.find().sort({ createdAt: -1 }).limit(100).populate("userId", "name").populate("messageId", "text senderId conversationId deletedAt").lean();
+  res.json({ data: { reports } });
+});
+router.patch("/chat-reports/:id", validateBody(z.object({ removeMessage: z.boolean() }).strict()), async (req, res) => {
+  if (!/^[a-f\d]{24}$/i.test(String(req.params.id))) throw new ApiError(400, "invalid_id", "Invalid report");
+  const report = await ChatReport.findById(req.params.id);
+  if (!report) throw new ApiError(404, "report_not_found", "Report not found");
+  if (req.body.removeMessage) {
+    const message = await ChatMessage.findByIdAndUpdate(report.messageId, { $set: { deletedAt: new Date(), text: "", attachmentIds: [], reactions: [] } }, { new: true });
+    if (message) {
+      const conversation = await ChatConversation.findById(message.conversationId).select("systemKey").lean();
+      const ids = conversation?.systemKey ? null : (await ChatMember.distinct("userId", { conversationId: message.conversationId, leftAt: { $exists: false } })).map(String);
+      notifyChatChange(ids, String(message.conversationId));
+    }
+  }
+  report.resolvedAt = new Date(); await report.save(); res.json({ data: { ok: true } });
+});
+
 router.get("/raffle-winner-replies", async (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const replies = await RaffleWinnerReply.find().sort({ createdAt: -1 }).limit(50).populate("userId", "name").lean();

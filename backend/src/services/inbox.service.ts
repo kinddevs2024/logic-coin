@@ -20,7 +20,7 @@ async function pipeline(userId: Types.ObjectId): Promise<PipelineStage[]> {
       { audience: "specific_users", "payload.userIds": userId.toString() },
       { audience: "contest_participants", "payload.dayKey": { $in: days } }
     ] } },
-    { $project: { _id: 0, id: { $concat: ["event:", { $toString: "$_id" }] }, localized: "$payload.localized", kind: "$type", title: { $ifNull: ["$payload.title", "Уведомление"] }, body: { $ifNull: ["$payload.body", ""] }, createdAt: 1 } },
+    { $project: { _id: 0, id: { $concat: ["event:", { $toString: "$_id" }] }, localized: "$payload.localized", conversationId: "$payload.conversationId", kind: "$type", title: { $ifNull: ["$payload.title", "Уведомление"] }, body: { $ifNull: ["$payload.body", ""] }, createdAt: 1 } },
     { $unionWith: { coll: GiftItem.collection.name, pipeline: [
       { $match: { userId } },
       { $project: { _id: 0, id: { $concat: ["gift:", { $toString: "$_id" }] }, kind: { $literal: "gift" }, title: { $literal: "Вы получили подарок" }, body: "$description", createdAt: 1 } }
@@ -51,7 +51,7 @@ export async function listInbox(userId: Types.ObjectId, all: boolean, before?: {
   const rows = await NotificationEvent.aggregate(stages);
   const profile = await User.findById(userId).select("name countryCode preferences.language").lean();
   for (const row of rows) if (row.kind === "admin_broadcast") { row.title = renderNotificationTemplate(row.title, profile); row.body = renderNotificationTemplate(row.body, profile); }
-  for (const row of rows) if (row.kind !== "admin_broadcast") { row.title = localizeBuiltIn(row.title, profile?.preferences.language ?? "ru"); row.body = localizeBuiltIn(row.body ?? "", profile?.preferences.language ?? "ru"); }
+  for (const row of rows) if (row.kind !== "admin_broadcast" && row.kind !== "chat_message") { row.title = localizeBuiltIn(row.title, profile?.preferences.language ?? "ru"); row.body = localizeBuiltIn(row.body ?? "", profile?.preferences.language ?? "ru"); }
   for (const row of rows) {
     if (row.kind === "raffle" && row.localized) { const c = row.localized[profile?.preferences.language ?? "uz"] ?? row.localized.uz; if (c) { row.title = c.title; row.body = c.body; } }
     delete row.localized;

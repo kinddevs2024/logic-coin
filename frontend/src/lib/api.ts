@@ -912,7 +912,7 @@ export const adminApi = {
   },
 };
 
-export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
+export type InboxNotification = { conversationId?: string; id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
 export type HomeGiftOffer = { kind: "telegram" | "instagram" | "ads"; instagramUrl?: string; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
 export type HomeGiftLink = { flowId: string; pollToken: string; botUrl: string };
 export const homeGiftApi = {
@@ -1004,6 +1004,8 @@ export const referralsApi = {
 };
 
 export type PublicProfile = {
+  id: string;
+  username: string | null;
   name: string;
   avatarUrl: string | null;
   countryCode: string | null;
@@ -1176,4 +1178,4 @@ export const gameProgressApi = {
   },
 };
 
-export { API_URL };
+export { API_URL, request as authenticatedRequest };

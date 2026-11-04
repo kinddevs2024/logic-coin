@@ -2,9 +2,11 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { captureRaffleWinnerReply, winnerReplyContent } from "../src/services/raffle-winner-contact.service.js";
 import { RaffleWinNotice, RaffleWinnerReply } from "../src/models/RaffleWinNotice.js";
 import { NotificationEvent } from "../src/models/NotificationEvent.js";
+const relay = vi.hoisted(() => vi.fn().mockResolvedValue({ id: "support-message", seq: 1 }));
+vi.mock("../src/services/chat.service.js", () => ({ relaySupportReply: relay }));
 import { User } from "../src/models/User.js";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); relay.mockClear(); });
 
 describe("winner contact intake", () => {
   const base = { message_id: 1, chat: { id: 12, type: "private" }, from: { id: 12 } };
@@ -38,7 +40,8 @@ describe("winner reply routing", () => {
     const event = vi.spyOn(NotificationEvent, "updateOne").mockResolvedValue({} as never);
     vi.spyOn(RaffleWinnerReply, "updateOne").mockResolvedValue({} as never);
     expect(await captureRaffleWinnerReply(message)).toBe(true);
-    expect(event).toHaveBeenCalledWith({ eventKey: "winner-reply:42:12" }, expect.objectContaining({ $setOnInsert: expect.objectContaining({ audience: "specific_users", payload: expect.objectContaining({ userIds: ["admin"], body: expect.stringContaining("+998901234567") }) }) }), { upsert: true });
+    expect(event).not.toHaveBeenCalled();
+    expect(relay).toHaveBeenCalledWith("winner", "+998901234567", "telegram:42:12");
   });
   it("does not notify twice for a webhook already delivered to the admin", async () => {
     winner({ userId: "winner", amountCents: 500, round: 17 });

@@ -1,9 +1,10 @@
 import { API_URL, refreshAccessToken } from "@/lib/api";
 import { telegramChallengeInitData } from "./telegram-context";
 import type { TodayChallenges, PendingContestReward } from "@/types";
-export type LiveState = { raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
+export type LiveState = { chatTyping?: { conversationId: string; expiresAt: number }; chat?: { conversationId: string }; raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
 
 type Connection = {
+  watchChatId?: string | null;
   socket: WebSocket | null;
   listeners: Set<(state: LiveState) => void>;
   pending: Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout>; message: string; sent: boolean }>;
@@ -72,6 +73,7 @@ function connect(token: string, connection: Connection): void {
         if (!pending.sent) { pending.sent = true; socket.send(pending.message); }
       }
       if (reconnected) {
+        if (connection.watchChatId) void liveCommand(token, "chatWatch", { conversationId: connection.watchChatId }).catch(() => {});
         void liveCommand<TodayChallenges>(token, "today").then(today => notify(connection, { today })).catch(() => {});
         void liveCommand<PendingContestReward | null>(token, "pendingReward").then(reward => notify(connection, { reward })).catch(() => {});
       }
@@ -153,3 +155,14 @@ export function liveCommand<T>(token: string, method: string, input: unknown = {
     throw error;
   });
 }
+
+export function watchChatConversation(token: string, conversationId: string) {
+  const connection = connections.get(token);
+  if (connection) connection.watchChatId = conversationId;
+  void liveCommand(token, "chatWatch", { conversationId }).catch(() => {});
+  return () => {
+    const current = connections.get(token);
+    if (current?.watchChatId === conversationId) { current.watchChatId = null; if (current.authenticated) void liveCommand(token, "chatWatch", { conversationId: null }).catch(() => {}); }
+  };
+}
+export function sendChatTyping(token: string, conversationId: string) { return liveCommand(token, "chatTyping", { conversationId }); }
