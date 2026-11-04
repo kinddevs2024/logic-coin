@@ -190,13 +190,13 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
     userId,
     leftAt: { $exists: false },
   })
-    .sort({ pinned: -1, updatedAt: -1 })
-    .limit(100)
+    .select("conversationId userId role lastReadSeq muted pinned")
     .lean();
   const rooms = await ChatConversation.find({
     _id: { $in: memberships.map((m) => m.conversationId) },
   })
-    .sort({ lastMessageAt: -1 })
+    .sort({ lastMessageAt: -1, createdAt: -1 })
+    .limit(100)
     .lean();
   const roomAvatars = await ChatAttachment.find({
     _id: { $in: rooms.map((c) => c.avatarAttachmentId).filter(Boolean) },
