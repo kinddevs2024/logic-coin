@@ -45,7 +45,7 @@ const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 router.use("/withdrawals", adminWithdrawalRoutes);
 router.use(requireAuth, requireAdmin);
 router.get("/chat-reports", async (_req, res) => {
-  const reports = await ChatReport.find().sort({ createdAt: -1 }).limit(100).populate("userId", "name").populate("messageId", "text senderId conversationId deletedAt").lean();
+  const reports = await ChatReport.find().sort({ createdAt: -1 }).limit(100).populate({ path: "userId", model: "User", select: "name" }).populate({ path: "messageId", model: "ChatMessage", select: "text senderId conversationId deletedAt" }).lean();
   res.json({ data: { reports } });
 });
 router.patch("/chat-reports/:id", validateBody(z.object({ removeMessage: z.boolean() }).strict()), async (req, res) => {
