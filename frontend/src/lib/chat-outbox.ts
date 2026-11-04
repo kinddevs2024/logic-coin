@@ -40,7 +40,9 @@ export function useChatOutbox(
     try {
       while (queue.current.length && alive.current) {
         const item = queue.current[0]!;
-        await chatApi.send(token, conversationId, item);
+        await chatApi.send(token, conversationId, {
+          clientId: item.clientId, text: item.text, attachmentIds: item.attachmentIds, replyTo: item.replyTo,
+        });
         if (!alive.current) return;
         await persist(
           queue.current.filter((entry) => entry.clientId !== item.clientId),
