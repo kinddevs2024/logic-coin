@@ -793,6 +793,7 @@ export type AdminWithdrawal = {
 export type AdminWithdrawalPage = { withdrawals: AdminWithdrawal[]; nextCursor: string | null; summary: { status: string; count: number; amountCents: number }[] };
 
 export const adminApi = {
+ telegramContact(id:string,token:string){return request<{contact:{telegramId:string;chatId:string;firstName?:string;lastName?:string;username?:string;phoneNumber?:string;phoneVerifiedAt?:string;subscriptionCheckedAt?:string}|null}>(`/admin/users/${encodeURIComponent(id)}/telegram-contact`,{token});},
  users(q:string,page:number,token:string){return request<{users:any[];total:number}>(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`,{token});},
  editUser(id:string,input:any,token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}`,{method:"PATCH",token,body:JSON.stringify(input)});},
  resetBalances(input:{kind:"money"|"coins";confirmation:string;reason:string;operationId:string},token:string){return request<{count:number}>("/admin/users/reset-balances",{method:"POST",token,body:JSON.stringify(input)});},

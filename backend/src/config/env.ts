@@ -54,6 +54,7 @@ const rawEnvSchema = z.object({
   WEB_PUSH_PUBLIC_KEY: z.string().optional(),
   WEB_PUSH_PRIVATE_KEY: z.string().optional(),
   WEB_PUSH_SUBJECT: z.string().default("https://www.logic-coin.online"),
+  TELEGRAM_REGISTRATION_REQUIREMENTS: booleanFromString.default("false"),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().optional(),

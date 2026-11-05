@@ -1,3 +1,4 @@
+import {assertTelegramRegistration,handleRegistrationUpdate,prepareTelegramRegistration,type RegistrationUpdate} from "./telegram-registration.service.js";
 import { socialDisplayName } from "../lib/social-display-name.js";
 import { captureRaffleWinnerReply, type WinnerTelegramMessage } from "./raffle-winner-contact.service.js";
 import { localizeBuiltIn, type CopyLanguage } from "../lib/localize-built-in.js";
@@ -20,7 +21,7 @@ export type TelegramIdentity = {
   photoUrl?: string;
 };
 
-type TelegramMessageUpdate = {
+type TelegramMessageUpdate = RegistrationUpdate & {
   message?: WinnerTelegramMessage & {
     text?: string;
     chat?: { id?: number | string };
@@ -144,7 +145,7 @@ async function configureTelegramWebhook() {
       body: JSON.stringify({
         url: webhookUrl,
         secret_token: telegramWebhookSecret(),
-        allowed_updates: ["message"],
+        allowed_updates: ["message", "callback_query"],
         drop_pending_updates: false
       }),
       signal: AbortSignal.timeout(8_000)
@@ -183,6 +184,7 @@ export async function authenticateTelegram(identity: TelegramIdentity, referralC
   let user = await User.findOne({ "providers.telegramSub": identity.id });
   const now = new Date();
   if (!user) {
+    await assertTelegramRegistration(identity);
     user = await createUser({
       email: `telegram-${identity.id}@telegram.logiccoin.local`,
       name: socialDisplayName(telegramName(identity) || identity.username,"Logic member"),
@@ -358,19 +360,34 @@ export function buildTelegramReturnUrl(
 
 export async function confirmTelegramBotUpdate(update: TelegramMessageUpdate) {
   const message = update.message;
-  if (await captureRaffleWinnerReply(message)) return { accepted: true, matched: false };
+  const winnerReply=await captureRaffleWinnerReply(message);
+  if(await handleRegistrationUpdate(update,async(identity,chatId,flowId)=>{
+    if(flowId)await finishTelegramBotLogin({identity,chatId,flowId},message?.from?.language_code?.startsWith("uz")?"uz":message?.from?.language_code?.startsWith("en")?"en":"ru");
+    else await sendBotWelcome(chatId,update.callback_query?.from?.language_code?.startsWith("uz")?"uz":update.callback_query?.from?.language_code?.startsWith("en")?"en":"ru");
+  }))return {accepted:true,matched:false};
+  if(winnerReply)return {accepted:true,matched:false};
   let language: CopyLanguage = message?.from?.language_code?.startsWith("uz") ? "uz" : message?.from?.language_code?.startsWith("en") ? "en" : "ru";
   const text = message?.text?.trim() ?? "";
   if (
     /^\/(start|play|app|help)(?:@[A-Za-z0-9_]+)?$/i.test(text) &&
     message?.chat?.id !== undefined
   ) {
+    if(!message.from?.id||String(message.chat.id)!==String(message.from.id)||message.chat.type!=="private")return {accepted:true,matched:false};
+    if(!await prepareTelegramRegistration({id:String(message.from.id),firstName:message.from.first_name??"Logic member",...(message.from.last_name?{lastName:message.from.last_name}:{}),...(message.from.username?{username:message.from.username}:{})},String(message.chat.id),language))return {accepted:true,matched:false};
     await sendBotWelcome(String(message.chat.id), language);
     return { accepted: true, matched: false };
   }
   const parsed = parseStartIdentity(update);
   if (!parsed) return { accepted: true, matched: false };
 
+  const pending=await TelegramLoginChallenge.findOne({flowId:parsed.flowId,expiresAt:{$gt:new Date()},confirmedAt:{$exists:false}}).select("linkUserId language");
+  if(!pending)return {accepted:true,matched:false};
+  language=pending.language??language;
+  if (!pending.linkUserId && !await prepareTelegramRegistration(parsed.identity,parsed.chatId,language,parsed.flowId))return {accepted:true,matched:false};
+  return finishTelegramBotLogin(parsed,language);
+}
+
+async function finishTelegramBotLogin(parsed:{identity:TelegramIdentity;chatId:string;flowId:string},language:CopyLanguage){
   const resumeToken = randomBytes(32).toString("base64url");
   const challenge = await TelegramLoginChallenge.findOneAndUpdate(
     {

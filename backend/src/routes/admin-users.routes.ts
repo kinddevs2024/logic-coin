@@ -1,3 +1,4 @@
+import {TelegramContact} from "../models/TelegramContact.js";
 import { Router } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
@@ -17,6 +18,12 @@ export const editableUserProfile = z.object({
   wallet: z.object({ availableUnits: integer }).strict(), coins: z.object({ balance: integer }).strict(),
 }).strict();
 function id(value: string) {if(!/^[a-f0-9]{24}$/i.test(value))throw new ApiError(400,"invalid_user","Некорректный пользователь.");return new mongoose.Types.ObjectId(value);}
+router.get("/:id/telegram-contact",async(req,res)=>{
+ const user=await User.findById(id(String(req.params.id))).select("providers.telegramSub").lean();
+ if(!user)throw new ApiError(404,"not_found","Пользователь не найден.");
+ const contact=user.providers?.telegramSub?await TelegramContact.findOne({telegramId:user.providers.telegramSub}).select("+phoneNumber -__v").lean():null;
+ res.json({data:{contact}});
+});
 router.get("/",async(req,res)=>{
  const q=String(req.query.q??"").trim().slice(0,100),page=Math.max(0,Math.min(100000,Number(req.query.page)||0));
  const escaped=q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
