@@ -1,7 +1,5 @@
+import {requireOptionalNativeModule} from "expo-modules-core";
 import * as ImagePicker from "expo-image-picker";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 import type { ChatDraftFile } from "./chat-api";
 export async function pickChatPhoto(): Promise<ChatDraftFile | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
@@ -25,6 +23,7 @@ export async function readChatFile(
   mime: string,
   kind: ChatDraftFile["kind"],
 ): Promise<ChatDraftFile> {
+  const FileSystem=await import("expo-file-system/legacy");
   const info = await FileSystem.getInfoAsync(uri);
   if (info.exists && info.size > 8 * 1024 * 1024) throw new Error("8 MB");
   return {
@@ -37,6 +36,8 @@ export async function readChatFile(
   };
 }
 export async function pickChatFile(): Promise<ChatDraftFile | null> {
+  if(!requireOptionalNativeModule("ExpoDocumentPicker"))throw new Error("Для отправки файлов установите новый APK Logic Coin 1.4.1: https://logic-coin.online/downloads/logic-coin-latest.apk");
+  const DocumentPicker=await import("expo-document-picker");
   const result = await DocumentPicker.getDocumentAsync({
     type: "*/*",
     copyToCacheDirectory: true,
@@ -52,6 +53,9 @@ export async function pickChatFile(): Promise<ChatDraftFile | null> {
     : null;
 }
 export async function shareChatFile(url: string, name: string, mime: string) {
+  if(!requireOptionalNativeModule("ExpoSharing"))throw new Error("Для отправки файлов в другие приложения установите новый APK Logic Coin 1.4.1.");
+  const Sharing=await import("expo-sharing");
+  const FileSystem=await import("expo-file-system/legacy");
   const file = `${FileSystem.cacheDirectory}chat-${Date.now()}-${name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const saved = await FileSystem.downloadAsync(url, file);
   try {
