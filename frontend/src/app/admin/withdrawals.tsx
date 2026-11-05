@@ -64,7 +64,7 @@ export default function AdminWithdrawalsScreen() {
       <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: "90%", width: "100%", maxWidth: 560 }}>
     {selected ? <GlassSurface variant="strong" style={{ padding: 20, borderRadius: 24, gap: 12, backgroundColor: theme.surfaceRaised }}>
       <AppText variant="heading">{copyContent(actions[selected.action])}: {copyContent(money(selected.row.amountCents))}</AppText>
-      <AppText>{selected.row.user.name} · {selected.row.accountLabel ?? copyText("Банковская карта")}</AppText>
+      <AppText>{selected.row.user.name} · {selected.row.accountLabel ?? copyText("Банковская карта")}</AppText>{selected.row.cardNumber?<AppText selectable variant="heading">{selected.row.cardNumber.replace(/(.{4})/g,"$1 ").trim()}</AppText>:null}
       <AppText variant="caption" muted>{copyText("Заявка ")}{copyContent(selected.row.id)}</AppText>
       <AppText muted>{copyContent(selected.action === "approve" ? "Сумма останется в резерве до выплаты или отклонения." : selected.action === "reject" ? "Зарезервированная сумма вернётся пользователю. Это действие нельзя отменить." : "Это только отметка о сделанном переводе, а не отправка денег. После подтверждения резерв будет списан.")}</AppText>
       <TextInput accessibilityLabel={copyText(selected.action === "reject" ? "Причина отклонения" : "Комментарий администратора")} placeholder={copyText(selected.action === "reject" ? "Причина отклонения (обязательно)" : "Комментарий (необязательно)")} placeholderTextColor={String(theme.textMuted)} value={note} onChangeText={setNote} editable={!review.isPending} maxLength={400} multiline style={inputStyle} />
@@ -82,6 +82,7 @@ export default function AdminWithdrawalsScreen() {
       <AppText variant="heading">{copyContent(money(row.amountCents))} · {copyContent(labels[row.status] ?? row.status)}</AppText>
       <AppText variant="label">{row.user.name}</AppText>
       <AppText variant="caption" muted>{copyContent(row.user.email ?? row.user.id)}{copyContent(row.user.referralCode ? ` · ${row.user.referralCode}` : "")}</AppText>
+      {row.cardNumber?<AppText selectable variant="heading" accessibilityLabel={copyText("Номер карты для выплаты")}>{row.cardNumber.replace(/(.{4})/g,"$1 ").trim()}</AppText>:null}
       <AppText>{copyContent(row.accountLabel ?? "Карта не указана")}{copyContent(row.cardHolder ? ` · ${row.cardHolder}` : "")}</AppText>
       <AppText variant="caption" muted>{copyContent(new Date(row.requestedAt).toLocaleString(localeStore.getState().language ?? "uz"))} · {copyContent(row.id)}</AppText>
       {row.reviewNote ? <AppText variant="caption">{copyText("Комментарий: ")}{copyContent(row.reviewNote)}</AppText> : null}
@@ -89,7 +90,7 @@ export default function AdminWithdrawalsScreen() {
       {row.processedAt ? <AppText variant="caption" muted>{copyText("Обработана: ")}{copyContent(new Date(row.processedAt).toLocaleString(localeStore.getState().language ?? "uz"))}</AppText> : null}
       {row.reviewHistory.map((event, index) => <AppText key={index} variant="caption" muted>{copyContent(new Date(event.at).toLocaleString(localeStore.getState().language ?? "uz"))} · {copyContent(actions[event.action as Action] ?? event.action)} {copyText(" · админ …")}{copyContent(event.adminId.slice(-6))}</AppText>)}
       {row.method === "bank_card" && ["pending_review", "approved"].includes(row.status) ? <>
-        <AppText variant="caption" muted>{copyText("Сохранены только последние 4 цифры карты. Полные платёжные реквизиты здесь недоступны.")}</AppText>
+        {!row.cardNumber?<AppText variant="caption" muted>{copyText("Полный номер карты в старой заявке не сохранён. Запросите реквизиты у пользователя.")}</AppText>:null}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {row.status === "pending_review" ? <AppButton disabled={Boolean(selected)} onPress={() => select(row, "approve")}>{copyText("Одобрить")}</AppButton> : <AppButton disabled={Boolean(selected)} onPress={() => select(row, "mark_paid")}>{copyText("Отметить выплаченным")}</AppButton>}
           <AppButton variant="ghost" disabled={Boolean(selected)} onPress={() => select(row, "reject")}>{copyText("Отклонить")}</AppButton>

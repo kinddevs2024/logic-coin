@@ -785,6 +785,7 @@ export type AdminPrizePlan = {
 
 export type AdminWithdrawal = {
   id: string; user: { id: string; name: string; email: string | null; referralCode: string | null };
+  cardNumber?: string | null;
   amountCents: number; status: string; method: string; accountLabel: string | null; cardHolder: string | null;
   requestedAt: string; processedAt: string | null; reviewVersion: number; reviewNote: string | null;
   paymentReference: string | null; reviewedAt: string | null;
@@ -1027,6 +1028,7 @@ export const publicProfileApi = {
 };
 
 export const withdrawalsApi = {
+  addCard(id:string,number:string,token:string){return request<{ok:true}>(`/withdrawals/${encodeURIComponent(id)}/card`,{method:"PATCH",token,body:JSON.stringify({number})});},
   overview(token: string) {
     return request<WithdrawalOverview>("/withdrawals", { token });
   },
@@ -1035,6 +1037,8 @@ export const withdrawalsApi = {
       amountCents: number;
       card: {
         brand: "visa" | "mastercard" | "other";
+        number?: string;
+        savedWithdrawalId?: string;
         last4: string;
         holderName: string;
         expiration: string;

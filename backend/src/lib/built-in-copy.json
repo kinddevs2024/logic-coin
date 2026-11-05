@@ -7738,5 +7738,50 @@
     "ru": "Не удалось загрузить фото. Попробуйте ещё раз.",
     "uz": "Surat yuklanmadi. Qayta urinib ko‘ring.",
     "en": "Could not upload the photo. Please try again."
+  },
+  "Номер карты для выплаты": {
+    "ru": "Номер карты для выплаты",
+    "uz": "To‘lov uchun karta raqami",
+    "en": "Payout card number"
+  },
+  "Полный номер карты в старой заявке не сохранён. Запросите реквизиты у пользователя.": {
+    "ru": "Полный номер карты в старой заявке не сохранён. Запросите реквизиты у пользователя.",
+    "uz": "Eski arizada to‘liq karta raqami saqlanmagan. Foydalanuvchidan rekvizitlarni so‘rang.",
+    "en": "The full card number was not saved in this old request. Ask the user to provide it."
+  },
+  "Номер карты передаётся администрации для выплаты и хранится на сервере в зашифрованном виде. CVV и PIN не запрашиваются.": {
+    "ru": "Номер карты передаётся администрации для выплаты и хранится на сервере в зашифрованном виде. CVV и PIN не запрашиваются.",
+    "uz": "To‘lov uchun karta raqami ma’muriyatga yuboriladi va serverda shifrlangan holda saqlanadi. CVV va PIN so‘ralmaydi.",
+    "en": "The card number is sent to administrators for payment and stored encrypted on the server. CVV and PIN are never requested."
+  },
+  "Реквизиты для выплаты": {
+    "ru": "Реквизиты для выплаты",
+    "uz": "To‘lov rekvizitlari",
+    "en": "Payout details"
+  },
+  "Введите полный номер карты": {
+    "ru": "Введите полный номер карты",
+    "uz": "To‘liq karta raqamini kiriting",
+    "en": "Enter the full card number"
+  },
+  "Полный номер карты": {
+    "ru": "Полный номер карты",
+    "uz": "To‘liq karta raqami",
+    "en": "Full card number"
+  },
+  "Номер хранится в зашифрованном виде и доступен только администрации для выплаты.": {
+    "ru": "Номер хранится в зашифрованном виде и доступен только администрации для выплаты.",
+    "uz": "Raqam shifrlangan holda saqlanadi va faqat to‘lov uchun ma’muriyatga ko‘rinadi.",
+    "en": "The number is stored encrypted and is only available to administrators for payment."
+  },
+  "Сохранить реквизиты": {
+    "ru": "Сохранить реквизиты",
+    "uz": "Rekvizitlarni saqlash",
+    "en": "Save payout details"
+  },
+  "Добавить реквизиты карты": {
+    "ru": "Добавить реквизиты карты",
+    "uz": "Karta rekvizitlarini qo‘shish",
+    "en": "Add card details"
   }
 }

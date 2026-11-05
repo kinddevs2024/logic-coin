@@ -8,14 +8,14 @@ import { User } from "../models/User.js";
 import { Withdrawal } from "../models/Withdrawal.js";
 import { serializeWallet } from "../services/serialization.service.js";
 import { notifyWithdrawalAdmin } from "../services/telegram.service.js";
-import { createSandboxWithdrawal } from "../services/withdrawal.service.js";
+import { addWithdrawalCard, createSandboxWithdrawal } from "../services/withdrawal.service.js";
 
 const router = Router();
 
 router.get("/", async (request, response) => {
   const [user, withdrawals] = await Promise.all([
     User.findById(request.auth!.userId).select("wallet"),
-    Withdrawal.find({ userId: request.auth!.userId }).sort({ requestedAt: -1 }).limit(100).lean()
+    Withdrawal.find({ userId: request.auth!.userId }).select("+cardNumberEncrypted").sort({ requestedAt: -1 }).limit(100).lean()
   ]);
   if (!user) {
     throw new ApiError(404, "user_not_found", "User not found");
@@ -36,6 +36,7 @@ router.get("/", async (request, response) => {
         accountLabel: withdrawal.accountLabel ?? null,
         cardBrand: withdrawal.cardBrand ?? null,
         cardLast4: withdrawal.cardLast4 ?? null,
+        hasCardDetails: Boolean(withdrawal.cardNumberEncrypted),
         status: withdrawal.status,
         requestedAt: withdrawal.requestedAt,
         processedAt: withdrawal.processedAt ?? null
@@ -44,12 +45,19 @@ router.get("/", async (request, response) => {
   });
 });
 
+router.patch("/:id/card",withdrawalLimiter,validateBody(z.object({number:z.string().regex(/^\d{16,19}$/)}).strict()),async(req,res)=>{
+ if(!/^[a-f0-9]{24}$/i.test(String(req.params.id)))throw new ApiError(400,"invalid_withdrawal_id","Некорректный номер заявки.");
+ res.set("Cache-Control","no-store");res.json({data:await addWithdrawalCard(req.auth!.userId,String(req.params.id),req.body.number)});
+});
+
 const createWithdrawalSchema = z
   .object({
     amountCents: z.number().int().positive(),
     method: z.literal("bank_card"),
     card: z.object({
       brand: z.enum(["visa", "mastercard", "other"]),
+      number: z.string().regex(/^\d{16,19}$/).optional(),
+      savedWithdrawalId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
       last4: z.string().regex(/^\d{4}$/),
       holderName: z.string().trim().min(2).max(80),
       expiration: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/)
@@ -79,6 +87,8 @@ router.post(
       amountCents: input.amountCents,
       idempotencyKey,
       card: {
+        ...(input.card.number?{number:input.card.number}:{}),
+        ...(input.card.savedWithdrawalId?{savedWithdrawalId:input.card.savedWithdrawalId}:{}),
         brand: input.card.brand!,
         last4: input.card.last4!,
         holderName: input.card.holderName!,

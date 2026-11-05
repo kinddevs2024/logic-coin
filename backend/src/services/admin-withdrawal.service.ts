@@ -1,3 +1,4 @@
+import {decryptPayoutCard} from "../lib/payout-card.js";
 import mongoose, { Types } from "mongoose";
 import { ApiError } from "../lib/api-error.js";
 import { Withdrawal } from "../models/Withdrawal.js";
@@ -11,7 +12,7 @@ export type WithdrawalAction = "approve" | "reject" | "mark_paid";
 export async function listAdminWithdrawals(input: { status?: WithdrawalStatus; before?: string; limit: number }) {
   const filter = { ...(input.status ? { status: input.status } : {}), ...(input.before ? { _id: { $lt: new Types.ObjectId(input.before) } } : {}) };
   const [rows, summary] = await Promise.all([
-    Withdrawal.find(filter).sort({ _id: -1 }).limit(input.limit + 1).lean(),
+    Withdrawal.find(filter).select("+cardNumberEncrypted").sort({ _id: -1 }).limit(input.limit + 1).lean(),
     Withdrawal.aggregate<{ _id: WithdrawalStatus; count: number; amountCents: number }>([{ $group: { _id: "$status", count: { $sum: 1 }, amountCents: { $sum: "$amountCents" } } }]),
   ]);
   const page = rows.slice(0, input.limit);
@@ -22,6 +23,7 @@ export async function listAdminWithdrawals(input: { status?: WithdrawalStatus; b
       const user = byId.get(String(row.userId));
       return { id: String(row._id), user: { id: String(row.userId), name: user?.name ?? "Удалённый пользователь", email: user?.email ?? null, referralCode: user?.referralCode ?? null },
         amountCents: row.amountCents, status: row.status, method: row.method,
+        cardNumber: row.cardNumberEncrypted?decryptPayoutCard(row.cardNumberEncrypted,`${row.userId}:${row.idempotencyKey}`):null,
         accountLabel: row.accountLabel ?? null, cardHolder: row.cardHolder ?? null,
         requestedAt: row.requestedAt, processedAt: row.processedAt ?? null,
         reviewVersion: row.reviewVersion ?? 0, reviewNote: row.reviewNote ?? null,

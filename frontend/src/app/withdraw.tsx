@@ -5,7 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Modal, TextInput, Pressable, StyleSheet, View } from "react-native";
 
 
 import { AppFrame } from "@/components/app-frame";
@@ -67,25 +67,29 @@ export default function WithdrawScreen() {
   const missing = Math.max(0, minimum - balance);
   const processingHours = overview?.processingTimeHours ?? 12;
   const [guestWithdrawals, setGuestWithdrawals] = useState<Withdrawal[]>([]);
+  const [cardRequest,setCardRequest]=useState<Withdrawal|null>(null);
+  const [payoutNumber,setPayoutNumber]=useState("");
+  const [cardBusy,setCardBusy]=useState(false);
   const [amount, setAmount] = useState(eligible ? (minimum / 100).toFixed(2) : "");
   const [cardNumber, setCardNumber] = useState("");
   const [holderName, setHolderName] = useState(rememberedCard?.holderName ?? "");
   const [expiration, setExpiration] = useState(rememberedCard?.expiration ?? "");
-  const [useSavedCard, setUseSavedCard] = useState(Boolean(rememberedCard));
+  const [useSavedCard, setUseSavedCard] = useState(Boolean(rememberedCard?.withdrawalId));
   const [rememberCard, setRememberCard] = useState(Boolean(rememberedCard));
   const [agreementAccepted, setAgreementAccepted] = useState(false);
 
   const selectedCard = useMemo(() => {
-    if (useSavedCard && rememberedCard) return rememberedCard;
+    if (useSavedCard && rememberedCard?.withdrawalId) return {brand:rememberedCard.brand,last4:rememberedCard.last4,holderName:rememberedCard.holderName,expiration:rememberedCard.expiration,savedWithdrawalId:rememberedCard.withdrawalId};
     const digits = digitsOnly(cardNumber);
-    return { brand: detectCardBrand(digits), last4: digits.slice(-4), holderName: holderName.trim(), expiration };
+    return { number:digits,brand: detectCardBrand(digits), last4: digits.slice(-4), holderName: holderName.trim(), expiration };
   }, [cardNumber, expiration, holderName, rememberedCard, useSavedCard]);
-  const validCard = useSavedCard && rememberedCard ? true : isValidCardNumber(cardNumber) && holderName.trim().length >= 2 && isValidExpiration(expiration);
+  const validCard = useSavedCard && rememberedCard?.withdrawalId ? true : isValidCardNumber(cardNumber) && holderName.trim().length >= 2 && isValidExpiration(expiration);
 
   const createWithdrawal = useMutation({
     mutationFn: (amountCents: number) => withdrawalsApi.create({ amountCents, card: selectedCard, agreementAccepted: true }, accessToken!),
     onSuccess: (result) => {
-      setRememberedCard(rememberCard ? selectedCard : null);
+      setRememberedCard(rememberCard ? {brand:selectedCard.brand,last4:selectedCard.last4,holderName:selectedCard.holderName,expiration:selectedCard.expiration,withdrawalId:result.withdrawal.id} : null);
+      setCardNumber("");
       setBalance(result.wallet.availableUnits);
       void queryClient.invalidateQueries({ queryKey: ["withdrawals"] });
       void queryClient.invalidateQueries({ queryKey: ["bootstrap"] });
@@ -100,15 +104,31 @@ export default function WithdrawScreen() {
     if (!validCard) { Alert.alert(t("withdraw.title"), "Проверьте номер карты, имя владельца и срок действия."); return; }
     if (!agreementAccepted) { Alert.alert(t("withdraw.title"), "Подтвердите согласие с условиями выплаты."); return; }
     if (authenticated) { createWithdrawal.mutate(cents); return; }
-    setRememberedCard(rememberCard ? selectedCard : null);
+    setRememberedCard(rememberCard ? {brand:selectedCard.brand,last4:selectedCard.last4,holderName:selectedCard.holderName,expiration:selectedCard.expiration} : null);
+      setCardNumber("");
     setGuestWithdrawals((items) => [{ id: `guest-${Date.now()}`, amountCents: cents, amountUnits: cents, method: "bank_card", accountLabel: `${selectedCard.brand.toUpperCase()} •••• ${selectedCard.last4}`, cardBrand: selectedCard.brand, cardLast4: selectedCard.last4, status: "pending_review", requestedAt: new Date().toISOString() }, ...items]);
     setBalance(Math.max(0, localBalance - cents));
     Alert.alert(t("withdraw.title"), `Заявка отправлена на проверку. Срок обработки — до ${processingHours} часов.`);
+  };
+  const savePayoutNumber=async()=>{
+    if(!cardRequest||!accessToken)return;setCardBusy(true);
+    try{await withdrawalsApi.addCard(cardRequest.id,digitsOnly(payoutNumber),accessToken);setCardRequest(null);setPayoutNumber("");await queryClient.invalidateQueries({queryKey:["withdrawals"]});}
+    catch(error){Alert.alert(t("withdraw.title"),error instanceof Error?error.message:"Не удалось сохранить карту.");}
+    finally{setCardBusy(false);}
   };
   const withdrawals = authenticated ? (overview?.withdrawals ?? []) : guestWithdrawals;
 
   return (
     <AppFrame>
+      <Modal visible={Boolean(cardRequest)} transparent onRequestClose={()=>{if(!cardBusy){setCardRequest(null);setPayoutNumber("");}}}>
+        <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.6)",justifyContent:"center",padding:20}}><View style={{backgroundColor:theme.surfaceRaised,borderRadius:24,padding:20,gap:14}}>
+          <AppText variant="heading">{copyText("Реквизиты для выплаты")}</AppText><AppText>{copyText("Введите полный номер карты")} · •••• {cardRequest?.cardLast4}</AppText>
+          <TextInput accessibilityLabel={copyText("Полный номер карты")} keyboardType="number-pad" value={payoutNumber} onChangeText={v=>setPayoutNumber(v.replace(/[^\d ]/g,"").slice(0,24))} style={{borderWidth:1,borderColor:theme.border,borderRadius:14,padding:14,color:theme.text}} editable={!cardBusy}/>
+          <AppText variant="caption" muted>{copyText("Номер хранится в зашифрованном виде и доступен только администрации для выплаты.")}</AppText>
+          <AppButton loading={cardBusy} disabled={cardBusy||!isValidCardNumber(payoutNumber)} onPress={()=>void savePayoutNumber()}>{copyText("Сохранить реквизиты")}</AppButton>
+          <AppButton variant="ghost" disabled={cardBusy} onPress={()=>{setCardRequest(null);setPayoutNumber("");}}>{copyText("Отмена")}</AppButton>
+        </View></View>
+      </Modal>
       <ScreenHeader title={t("withdraw.title")} onBack={() => router.back()} />
       <GlassSurface intensity={84} variant="strong" style={styles.balanceCard}>
         <View style={[styles.walletIcon, { backgroundColor: eligible ? theme.success : theme.primary }]}><Ionicons name="wallet" size={27} color={String(theme.onPrimary)} /></View>
@@ -126,7 +146,7 @@ export default function WithdrawScreen() {
       ) : (
         <GlassSurface intensity={72} style={styles.card}>
           <View style={styles.formIntro}><View><AppText variant="heading">{copyText("Карта для выплаты")}</AppText><AppText variant="caption" muted>{copyText("Заполните данные прямо на карте")}</AppText></View><View style={[styles.timePill, { backgroundColor: theme.primarySoft }]}><Ionicons name="time-outline" size={16} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.primary)}>{copyText("до ")}{copyContent(processingHours)} {copyText(" ч")}</AppText></View></View>
-          {rememberedCard ? <View style={[styles.savedRow, { borderColor: theme.border }]}><Pressable accessibilityRole="button" onPress={() => setUseSavedCard(true)} style={[styles.savedChoice, useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="card-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">•••• {copyContent(rememberedCard.last4)}</AppText></Pressable><Pressable accessibilityRole="button" onPress={() => { setUseSavedCard(false); setCardNumber(""); }} style={[styles.savedChoice, !useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="add-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">{copyText("Другая карта")}</AppText></Pressable><Pressable accessibilityRole="button" accessibilityLabel={copyText("Удалить сохранённую карту")} onPress={() => { setRememberedCard(null); setUseSavedCard(false); setRememberCard(false); }} style={styles.forgetButton}><Ionicons name="trash-outline" size={18} color={String(theme.danger)} /></Pressable></View> : null}
+          {rememberedCard ? <View style={[styles.savedRow, { borderColor: theme.border }]}><Pressable accessibilityRole="button" onPress={() => {setUseSavedCard(Boolean(rememberedCard.withdrawalId));if(!rememberedCard.withdrawalId)Alert.alert(t("withdraw.title"),"Введите полный номер сохранённой карты заново для ручной выплаты.");}} style={[styles.savedChoice, useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="card-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">•••• {copyContent(rememberedCard.last4)}</AppText></Pressable><Pressable accessibilityRole="button" onPress={() => { setUseSavedCard(false); setCardNumber(""); }} style={[styles.savedChoice, !useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="add-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">{copyText("Другая карта")}</AppText></Pressable><Pressable accessibilityRole="button" accessibilityLabel={copyText("Удалить сохранённую карту")} onPress={() => { setRememberedCard(null); setUseSavedCard(false); setRememberCard(false); }} style={styles.forgetButton}><Ionicons name="trash-outline" size={18} color={String(theme.danger)} /></Pressable></View> : null}
           <PaymentCard cardNumber={cardNumber} holderName={useSavedCard && rememberedCard ? rememberedCard.holderName : holderName} expiration={useSavedCard && rememberedCard ? rememberedCard.expiration : expiration} savedLast4={useSavedCard ? rememberedCard?.last4 : undefined} savedBrand={useSavedCard ? rememberedCard?.brand : undefined} readOnly={useSavedCard && Boolean(rememberedCard)} onCardNumberChange={setCardNumber} onHolderNameChange={setHolderName} onExpirationChange={setExpiration} />
           <FormField label={`${t("withdraw.amount")} · USD`} icon="cash-outline" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder={copyText("2.00")} />
           <View style={styles.checks}>
@@ -134,13 +154,13 @@ export default function WithdrawScreen() {
             <View style={styles.agreementRow}><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: agreementAccepted }} onPress={() => setAgreementAccepted((value) => !value)} style={({ pressed }) => [styles.agreementCheck, pressed && styles.pressed]}><Ionicons name={agreementAccepted ? "checkbox" : "square-outline"} size={23} color={String(agreementAccepted ? theme.primary : theme.textMuted)} /></Pressable><AppText variant="caption" style={styles.agreementCopy}>{copyText("Я подтверждаю, что карта принадлежит мне, и принимаю ")}</AppText><Pressable accessibilityRole="link" onPress={() => router.push("/withdrawal-agreement" as never)}><AppText variant="caption" color={String(theme.primary)} style={styles.agreementLink}>{copyText("условия выплаты")}</AppText></Pressable></View>
           </View>
           <AppButton icon="send-outline" glow onPress={submit} loading={createWithdrawal.isPending} disabled={!eligible || !validCard || !agreementAccepted}>{copyContent(t("withdraw.submit"))}</AppButton>
-          <View style={[styles.securityNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={18} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.textMuted)} style={styles.flex}>{copyText("Полный номер не сохраняется в Logic Coin. Заявка содержит только маскированные данные карты.")}</AppText></View>
+          <View style={[styles.securityNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={18} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.textMuted)} style={styles.flex}>{copyText("Номер карты передаётся администрации для выплаты и хранится на сервере в зашифрованном виде. CVV и PIN не запрашиваются.")}</AppText></View>
         </GlassSurface>
       )}
 
       <GlassSurface variant="soft" intensity={60} style={styles.history}>
         <View style={styles.historyTitle}><AppText variant="heading">{copyContent(t("withdraw.history"))}</AppText><Ionicons name="receipt-outline" size={21} color={String(theme.textMuted)} /></View>
-        {withdrawals.length ? withdrawals.map((withdrawal) => <View key={withdrawal.id} style={[styles.historyRow, { borderTopColor: theme.border }]}><View style={styles.historyMeta}><AppText variant="label">{copyContent(formatMoney(withdrawal.amountCents))}</AppText><AppText variant="caption" muted>{copyContent(new Date(withdrawal.requestedAt).toLocaleDateString(localeStore.getState().language ?? "uz"))} · {withdrawal.accountLabel ?? copyText("Банковская карта")}</AppText></View><View style={[styles.statusChip, { backgroundColor: theme.primarySoft }]}><AppText variant="caption" color={String(theme.primary)}>{copyContent(statusLabel(withdrawal.status))}</AppText></View></View>) : <View style={styles.empty}><View style={[styles.emptyIcon, { backgroundColor: theme.glassFillStrong }]}><Ionicons name="time-outline" size={28} color={String(theme.textMuted)} /></View><AppText variant="caption" muted>{copyContent(overviewQuery.isLoading ? "Загружаем историю…" : t("withdraw.empty"))}</AppText></View>}
+        {withdrawals.length ? withdrawals.map((withdrawal) => <View key={withdrawal.id} style={[styles.historyRow, { borderTopColor: theme.border }]}><View style={styles.historyMeta}><AppText variant="label">{copyContent(formatMoney(withdrawal.amountCents))}</AppText><AppText variant="caption" muted>{copyContent(new Date(withdrawal.requestedAt).toLocaleDateString(localeStore.getState().language ?? "uz"))} · {withdrawal.accountLabel ?? copyText("Банковская карта")}</AppText>{authenticated&&withdrawal.status==="pending_review"&&!withdrawal.hasCardDetails?<Pressable accessibilityRole="button" onPress={()=>{setCardRequest(withdrawal);setPayoutNumber("");}} style={{paddingVertical:10}}><AppText color={String(theme.primary)}>{copyText("Добавить реквизиты карты")}</AppText></Pressable>:null}</View><View style={[styles.statusChip, { backgroundColor: theme.primarySoft }]}><AppText variant="caption" color={String(theme.primary)}>{copyContent(statusLabel(withdrawal.status))}</AppText></View></View>) : <View style={styles.empty}><View style={[styles.emptyIcon, { backgroundColor: theme.glassFillStrong }]}><Ionicons name="time-outline" size={28} color={String(theme.textMuted)} /></View><AppText variant="caption" muted>{copyContent(overviewQuery.isLoading ? "Загружаем историю…" : t("withdraw.empty"))}</AppText></View>}
       </GlassSurface>
     </AppFrame>
   );

@@ -54,6 +54,7 @@ const rawEnvSchema = z.object({
   WEB_PUSH_PUBLIC_KEY: z.string().optional(),
   WEB_PUSH_PRIVATE_KEY: z.string().optional(),
   WEB_PUSH_SUBJECT: z.string().default("https://www.logic-coin.online"),
+  WITHDRAWAL_CARD_KEY_FILE: z.string().default("/srv/apps/logic-coin/shared/payment-card.key"),
   TELEGRAM_REGISTRATION_REQUIREMENTS: booleanFromString.default("false"),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT: z.string().optional(),

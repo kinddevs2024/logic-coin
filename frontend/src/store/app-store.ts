@@ -15,6 +15,7 @@ import type {
 import type { ThemePreference } from "@/constants/theme";
 
 export type RememberedWithdrawalCard = {
+  withdrawalId?: string;
   brand: "visa" | "mastercard" | "other";
   last4: string;
   holderName: string;

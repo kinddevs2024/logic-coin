@@ -126,6 +126,7 @@ export type ReferralOverview = {
 
 export type Withdrawal = {
   id: string;
+  hasCardDetails?: boolean;
   amountCents: number;
   amountUnits: number;
   method: "sandbox" | "bank_card";
