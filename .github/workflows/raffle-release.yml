@@ -15,7 +15,7 @@ jobs:
       NODE_ENV: production
       LOGIC_UPDATE_CHANNEL: production
       EXPO_NO_TELEMETRY: '1'
-      EXPO_PUBLIC_API_URL: https://logic-coin.173.212.216.216.sslip.io/api/v1
+      EXPO_PUBLIC_API_URL: https://logic-coin.online/api/v1
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
       EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB }}
       EXPO_PUBLIC_APPODEAL_APP_KEY: ${{ secrets.EXPO_PUBLIC_APPODEAL_APP_KEY }}

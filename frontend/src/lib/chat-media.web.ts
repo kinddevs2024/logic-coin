@@ -22,9 +22,12 @@ function pick(
     const input = document.createElement("input");
     input.type = "file";
     input.accept = accept;
-    input.oncancel = () => resolve(null);
+    input.style.display = "none";
+    document.body.appendChild(input);
+    input.oncancel = () => { input.remove(); resolve(null); };
     input.onchange = () => {
       const f = input.files?.[0];
+      input.remove();
       if (!f) {
         resolve(null);
         return;

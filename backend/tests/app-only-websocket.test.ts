@@ -7,7 +7,7 @@ vi.mock("../src/services/challenge-attempt.service.js", () => ({ startChallengeA
 vi.mock("../src/services/daily-challenge.service.js", () => ({ getTodayChallengeOverview: async () => ({ games: [] }) }));
 vi.mock("../src/services/contest.service.js", () => ({ getPendingContestReward: async () => null, claimContestReward: async () => ({}) }));
 vi.mock("../src/services/telegram-auth.service.js", () => ({ verifyTelegramMiniApp: (value: string) => { if (value !== "valid-telegram-fixture") throw Error("Invalid signature"); return { id: "123" }; } }));
-import { attachLiveUpdates } from "../src/services/live-updates.service.js";
+import { attachLiveUpdates, notifyChatChange } from "../src/services/live-updates.service.js";
 describe("shared browser and APK commands over real WebSocket transport", () => {
   const server = createServer(); let stop: () => void; let url: string;
   beforeAll(async () => {
@@ -65,4 +65,20 @@ describe("shared browser and APK commands over real WebSocket transport", () => 
       expect(mocks.start).not.toHaveBeenCalled();
     } finally { client.terminate(); }
   });
+  it("delivers default channel and personal inbox changes without an open chat", async () => {
+    const client = new WebSocket(url, {headers:{Origin:"https://logic-coin.online"}});
+    try {
+      await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject)});
+      const authenticated = new Promise<void>(resolve=>client.once("message",()=>resolve()));
+      client.send(JSON.stringify({type:"authenticate",token:"test-only"})); await authenticated;
+      const seen:string[]=[];
+      const received = new Promise<void>(resolve=>client.on("message",raw=>{const value=JSON.parse(raw.toString());if(value.chat){seen.push(value.chat.conversationId);if(value.chat.conversationId==="personal")resolve();}}));
+      notifyChatChange(["507f1f77bcf86cd799439099"],"someone-elses-private-chat");
+      notifyChatChange(null,"public-news");
+      notifyChatChange(["507f1f77bcf86cd799439011"],"personal");
+      await received;
+      expect(seen).toEqual(["public-news","personal"]);
+    } finally {client.terminate();}
+  });
+
 });

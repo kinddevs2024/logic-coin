@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, AppState, FlatList, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewToken } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { AppText } from "@/components/app-text";
+import { ChatInboxMessages } from "@/components/chat/chat-inbox-messages";
 import { PushNotificationsControl } from "@/components/push-notifications-control";
 import { IconButton } from "@/components/buttons";
 import { GlassSurface } from "@/components/glass-surface";
@@ -167,7 +168,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
         {query.error ? <Pressable onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())}><AppText color={String(theme.danger)}>{copyText("Не удалось загрузить. Нажмите, чтобы повторить.")}</AppText></Pressable> : null}
         {readError ? <Pressable onPress={() => read([...failed.current])}><AppText color={String(theme.danger)}>{copyText("Не удалось сохранить просмотр. Повторить")}</AppText></Pressable> : null}
         <View ref={viewport} collapsable={false} style={styles.listViewport}>
-        <FlatList ref={list} data={section === "system" ? items : []} keyExtractor={item => item.id} style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 12) }]}
+        {section === "messages" ? <ChatInboxMessages token={token} onClose={onClose}/> : <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} ref={list} data={items} keyExtractor={item => item.id} style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 12) }]}
           initialNumToRender={4} maxToRenderPerBatch={2} windowSize={3} removeClippedSubviews={Platform.OS === "android"}
           onScroll={checkVisible} scrollEventThrottle={120} onLayout={checkVisible}
           onScrollBeginDrag={() => { scrolled.current = true; }}
@@ -184,9 +185,9 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
             <AppText onPress={item.conversationId ? () => { onClose(); router.push({ pathname: "/messages", params: { chat: item.conversationId } } as never); } : undefined}>{item.body}</AppText>
           </GlassSurface></View>}
           ListHeaderComponent={section === "system" ? <PushNotificationsControl /> : null}
-          ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>{copyContent(section === "messages" ? c.empty : language === "ru" ? "Уведомлений пока нет" : language === "uz" ? "Bildirishnomalar yo‘q" : "No notifications yet")}</AppText></GlassSurface> : null}
+          ListEmptyComponent={token && query.isSuccess ? <GlassSurface style={styles.card}><AppText>{copyContent(language === "ru" ? "Уведомлений пока нет" : language === "uz" ? "Bildirishnomalar yo‘q" : "No notifications yet")}</AppText></GlassSurface> : null}
           ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null}
-        />
+        />}
         </View>
       </Animated.View>
     </View>

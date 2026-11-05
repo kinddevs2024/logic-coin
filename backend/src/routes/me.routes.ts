@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { normalizeUsername } from "../lib/chat-policy.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { env } from "../config/env.js";
@@ -14,6 +15,22 @@ import { serializeUser } from "../services/serialization.service.js";
 import { storeAvatar } from "../services/avatar.service.js";
 
 const router = Router();
+
+const themePhotoSchema = z.object({base64:z.string().min(1).max(12_000_000), mime:z.enum(["image/jpeg","image/png","image/webp"])});
+router.post("/theme-photo", validateBody(themePhotoSchema), async (request,response) => {
+  const input = request.body as z.infer<typeof themePhotoSchema>;
+  let image: Buffer;
+  try {
+    image = await sharp(Buffer.from(input.base64,"base64"),{limitInputPixels:40_000_000}).rotate().resize(1920,1920,{fit:"inside",withoutEnlargement:true}).webp({quality:80}).toBuffer();
+  } catch {throw new ApiError(400,"invalid_photo","Choose a valid photo");}
+  const {dominant} = await sharp(image).resize(40,40,{fit:"inside"}).stats();
+  const dark = dominant.r*.2126+dominant.g*.7152+dominant.b*.0722<135;
+  const accent="#"+[dominant.r,dominant.g,dominant.b].map(v=>Math.round(dark?Math.max(115,v):Math.min(145,v)).toString(16).padStart(2,"0")).join("");
+  const wallpaperUrl=await storeAvatar(request.auth!.userId,`data:image/webp;base64,${image.toString("base64")}`);
+  const user=await User.findByIdAndUpdate(request.auth!.userId,{$set:{"preferences.customTheme":{wallpaperUrl,accent,dark},"preferences.theme":"custom"}},{new:true}).select("preferences");
+  if(!user)throw new ApiError(404,"user_not_found","User not found");
+  response.json({data:{preferences:user.preferences}});
+});
 
 router.get("/", async (request, response) => {
   const user = await User.findById(request.auth!.userId);

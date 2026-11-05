@@ -40,9 +40,10 @@ const copy = {
 const metrics: LeaderboardMetric[] = ["today", "yesterday", "allTime"];
 
 function EntryValue({ entry }: { entry: LeaderboardEntry }) {
+  const theme = useAppTheme();
   const { copyContent } = useUiCopy();
   return <View style={styles.combinedValue}>
-    <View style={styles.valueLine}><Ionicons name="wallet-outline" size={13} color="#007A57" /><AppText style={styles.valueText}>{copyContent(formatMoney(entry.walletBalanceUnits))}</AppText></View>
+    <View style={styles.valueLine}><Ionicons name="wallet-outline" size={13} color={String(theme.primary)} /><AppText style={styles.valueText}>{copyContent(formatMoney(entry.walletBalanceUnits))}</AppText></View>
     <View style={styles.valueLine}><Ionicons name="diamond" size={13} color="#F5B800" /><AppText style={styles.valueText}>{copyContent(entry.coinBalance)}</AppText></View>
   </View>;
 }
@@ -243,8 +244,8 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
   });
 
   const edgeOpacity = nativeScrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: "clamp" });
-  const edgeSolid = theme.mode === "dark" ? "#182A21" : "#FFFFFF";
-  const edgeClear = theme.mode === "dark" ? "rgba(16,37,27,0)" : "rgba(255,255,255,0)";
+  const edgeSolid = String(theme.surface);
+  const edgeClear = `${String(theme.surface)}00`;
   if (!visible) return null;
 
   return (
@@ -253,7 +254,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(16,37,27,0.32)", opacity: backdrop },
+            { backgroundColor: "rgba(0,0,0,0.32)", opacity: backdrop },
           ]}
         >
           <BlurView
@@ -291,6 +292,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                       width: filterCellWidth,
                       backgroundColor: theme.surfaceRaised,
                       borderColor: theme.glassBorder,
+                      shadowColor: theme.primary,
                       transform: [
                         {
                           translateX: activeFilter.interpolate({
@@ -340,7 +342,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                   <Ionicons name="person-circle-outline" size={38} color={String(theme.primary)} />
                   <AppText muted style={styles.stateText}>{copyContent(c.loginHint)}</AppText>
                   <Pressable onPress={signIn} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color="#FFFFFF" variant="label">{copyContent(c.login)}</AppText>
+                    <AppText color={String(theme.onPrimary)} variant="label">{copyContent(c.login)}</AppText>
                   </Pressable>
                 </View>
               ) : query.isLoading || !contentReady ? (
@@ -350,7 +352,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                   <Ionicons name="cloud-offline-outline" size={36} color={String(theme.textMuted)} />
                   <AppText muted style={styles.stateText}>{copyContent(c.error)}</AppText>
                   <Pressable onPress={() => void query.refetch()} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color="#FFFFFF" variant="label">{copyContent(c.retry)}</AppText>
+                    <AppText color={String(theme.onPrimary)} variant="label">{copyContent(c.retry)}</AppText>
                   </Pressable>
                 </View>
               ) : entries.length ? (
@@ -408,6 +410,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                         entry.isCurrentUser && {
                           backgroundColor: theme.primarySoft,
                           borderColor: theme.glassBorder,
+                      shadowColor: theme.primary,
                           opacity: selfDock ? 0 : 1,
                         },
                       ]}
@@ -496,7 +499,6 @@ const styles = StyleSheet.create({
     bottom: 4,
     borderRadius: 17,
     borderWidth: 1,
-    shadowColor: "#007A57",
     shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },

@@ -185,6 +185,8 @@ export async function applyReferralCode(
   } finally {
     await session.endSession();
   }
+  const {syncReferralFriends}=await import("./chat.service.js");
+  await syncReferralFriends(userId).catch(()=>console.warn("Referral chat connection pending; it will be retried when opening messages"));
 }
 
 export function calculateReferralPrizeShare(

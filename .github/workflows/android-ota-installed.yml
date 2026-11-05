@@ -36,7 +36,7 @@ jobs:
       NODE_ENV: production
       EXPO_NO_TELEMETRY: '1'
       LOGIC_UPDATE_CHANNEL: production
-      EXPO_PUBLIC_API_URL: https://logic-coin.173.212.216.216.sslip.io/api/v1
+      EXPO_PUBLIC_API_URL: https://logic-coin.online/api/v1
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
       EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB }}
       EXPO_PUBLIC_APPODEAL_APP_KEY: ${{ secrets.EXPO_PUBLIC_APPODEAL_APP_KEY }}
@@ -85,7 +85,7 @@ jobs:
           assert re.fullmatch('[a-f0-9]{40,64}',runtime)
           assert config['android']['package']=='com.kinddevs.logiccoin'
           assert config['updates']['requestHeaders']['expo-channel-name']=='production'
-          assert config['updates']['url']=='https://logic-coin.173.212.216.216.sslip.io/updates'
+          assert config['updates']['url']=='https://logic-coin.online/updates'
           config['runtimeVersion']=runtime
           for directory in ['ota-installed','ota-baseline']:
               root=pathlib.Path('artifacts')/directory

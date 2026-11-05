@@ -1,5 +1,5 @@
-/** Independent HTTPS endpoint on the new server; no legacy DNS lookup is needed. */
-export const MIGRATED_APP_ORIGIN = "https://logic-coin.173.212.216.216.sslip.io";
+/** Canonical public endpoint on the production server. */
+export const MIGRATED_APP_ORIGIN = "https://logic-coin.online";
 
 export function migratedAppUrl(value: string, sameOrigin = false): string {
   try {

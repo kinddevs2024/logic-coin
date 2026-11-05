@@ -119,12 +119,12 @@ html[data-theme="dark"] ::selection {
   inset: 0;
   border: 1px solid var(--nav-edge);
   border-radius: inherit;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.22), transparent 38%, transparent 64%, rgba(187, 221, 255, 0.13)), var(--nav-tint);
+  background: linear-gradient(145deg, var(--nav-highlight), transparent 45%), var(--nav-tint);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .logic-nav-glass[data-theme="dark"] .logic-nav-glass-rim {
-  background: linear-gradient(145deg, rgba(225, 239, 227, 0.06), transparent 45%, rgba(0, 122, 87, 0.025)), var(--nav-tint);
+  background: linear-gradient(145deg, var(--nav-highlight), transparent 45%), var(--nav-tint);
   box-shadow: inset 0 1px 0 rgba(225, 239, 227, 0.04);
 }
 

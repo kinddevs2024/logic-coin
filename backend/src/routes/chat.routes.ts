@@ -70,6 +70,11 @@ router.get("/search", async (req, res) =>
     ),
   }),
 );
+router.get("/directory", async(req,res)=>res.json({data:await chat.listFriendDirectory(req.auth!.userId,z.string().max(80).parse(req.query.q??""),req.query.cursor?parseId(req.query.cursor):undefined)}));
+router.get("/friends", async(req,res)=>res.json({data:await chat.listFriends(req.auth!.userId,z.string().max(100).parse(req.query.q ?? ""))}));
+router.get("/friend-requests", async (req,res)=>res.json({data:await chat.listFriendRequests(req.auth!.userId)}));
+router.post("/users/:id/friend-request", writeLimiter, async(req,res)=>res.json({data:await chat.requestFriend(req.auth!.userId,parseId(req.params.id))}));
+router.post("/users/:id/friend-answer", writeLimiter, validateBody(z.object({accept:z.boolean()}).strict()), async(req,res)=>res.json({data:await chat.answerFriend(req.auth!.userId,parseId(req.params.id),req.body.accept)}));
 router.get("/users/:id", async (req, res) => {
   const userId = parseId(req.params.id),
     user = await User.findById(userId)
@@ -79,6 +84,7 @@ router.get("/users/:id", async (req, res) => {
   res.json({
     data: {
       ...chat.chatProfile(user),
+      friendship: await chat.friendshipStatus(req.auth!.userId, userId),
       countryCode: user.countryCode,
       coinBalance: user.coins.balance,
       balanceUnits: user.wallet.availableUnits,
@@ -116,6 +122,7 @@ router.post(
         title: z.string().trim().min(1).max(100),
         description: z.string().max(1000).default(""),
         visibility: z.enum(["public", "invite"]).default("invite"),
+        username: z.string().trim().max(25).optional(),
       })
       .strict(),
   ),
@@ -149,6 +156,9 @@ router.post(
       data: await chat.uploadChatAttachment(req.auth!.userId, req.body),
     }),
 );
+router.post("/messages/:id/listen", writeLimiter, async (req, res) => {
+  res.json({ data: await chat.markVoiceListened(req.auth!.userId, parseId(req.params.id)) });
+});
 router.get("/:id/messages", async (req, res) => {
   const before =
       req.query.before === undefined
@@ -168,6 +178,12 @@ router.get("/:id/messages", async (req, res) => {
     ),
   });
 });
+router.patch("/:id/theme", writeLimiter, validateBody(z.object({
+  preset: z.enum(["system", "green", "blue", "pink", "graphite", "custom"]),
+  wallpaperAttachmentId: id.optional(),
+}).strict()), async (req, res) => {
+  res.json({ data: await chat.setChatTheme(req.auth!.userId, parseId(req.params.id), req.body) });
+});
 router.patch(
   "/:id",
   writeLimiter,
@@ -177,6 +193,8 @@ router.patch(
         title: z.string().trim().min(1).max(100),
         description: z.string().max(1000),
         avatarAttachmentId: id.optional(),
+        username: z.string().trim().max(25).optional(),
+        visibility: z.enum(["public", "invite"]).optional(),
       })
       .strict(),
   ),

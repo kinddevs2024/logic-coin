@@ -197,9 +197,10 @@ export function broadcastDailyChallengeUpdate(_dayKey: string, _revision?: strin
 
 export function broadcastRaffleState(raffle: unknown) { for (const client of clients) send(client, { type: "state", raffle }); }
 
+// null is used only for default public news/community; private chats always supply member IDs.
 export function notifyChatChange(userIds: string[] | null, conversationId: string) {
   const recipients = userIds ? new Set(userIds) : null;
-  for (const [client, identity] of identities) if (recipients ? recipients.has(String(identity.userId)) : chatWatches.get(client) === conversationId) {
+  for (const [client, identity] of identities) if (recipients ? recipients.has(String(identity.userId)) : true) {
     send(client, { type: "state", chat: { conversationId } });
   }
 }

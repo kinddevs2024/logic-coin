@@ -120,7 +120,7 @@ export function ProfileDrawer({
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(16,37,27,0.32)", opacity: backdrop },
+            { backgroundColor: "rgba(0,0,0,0.32)", opacity: backdrop },
           ]}
         >
           {visible && !(Platform.OS === "android" && editing) ? <BlurView
@@ -156,35 +156,35 @@ export function ProfileDrawer({
               showsVerticalScrollIndicator={false}
             >
               <LinearGradient
-                colors={theme.mode === "dark" ? ["#176648", "#193E2E", "#20372B"] : ["rgba(0,122,87,0.92)", "#006345", "#006345"]}
+                colors={[String(theme.surfaceRaised), String(theme.surface), String(theme.primarySoft)]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.profileCard}
               >
                 <LinearGradient
                   pointerEvents="none"
-                  colors={[theme.mode === "dark" ? "rgba(225,239,227,0.07)" : "rgba(255,255,255,0.5)", "rgba(255,255,255,0)"]}
+                  colors={[String(theme.glassHighlight), "transparent"]}
                   style={StyleSheet.absoluteFill}
                 />
                 <View style={styles.profileTop}>
                   <Avatar name={user.name} avatarUrl={user.avatarUrl} size={72} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <AppText variant="heading" color="#FFFFFF">
+                    <AppText variant="heading" color={String(theme.text)}>
                       {user.name}
                     </AppText>
-                    {user.username ? <AppText variant="caption" color="rgba(255,255,255,0.85)">@{user.username}</AppText> : null}
+                    {user.username ? <AppText variant="caption" color={String(theme.textMuted)}>@{user.username}</AppText> : null}
                     <View style={styles.drawerCountry}>
                       <CountryFlagBadge countryCode={user.countryCode} size={16} />
-                      <AppText variant="caption" color="rgba(255,255,255,0.78)">{copyContent(countryName(user.countryCode, language))}</AppText>
+                      <AppText variant="caption" color={String(theme.textMuted)}>{copyContent(countryName(user.countryCode, language))}</AppText>
                     </View>
                   </View>
                 </View>
                 <View style={styles.balanceRow}>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <AppText variant="caption" color="rgba(255,255,255,0.72)">
+                    <AppText variant="caption" color={String(theme.textMuted)}>
                       {copyContent(t("home.balance"))}
                     </AppText>
-                    <AppText variant="title" color="#FFFFFF">
+                    <AppText variant="title" color={String(theme.text)}>
                       {copyContent(formatMoney(balance))}
                     </AppText>
                   </View>
@@ -193,17 +193,17 @@ export function ProfileDrawer({
                     accessibilityRole="button"
                     accessibilityLabel={copyText(t("profile.edit"))}
                     onPress={() => setEditing(true)}
-                    style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.profileAction, {backgroundColor: theme.primarySoft, borderColor: theme.border}, pressed && styles.pressed]}
                   >
-                    <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+                    <Ionicons name="create-outline" size={18} color={String(theme.text)} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={copyText("Поделиться профилем")}
                     onPress={() => void sharePublicProfile(user.name, user.referralCode)}
-                    style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.profileAction, {backgroundColor: theme.primarySoft, borderColor: theme.border}, pressed && styles.pressed]}
                   >
-                    <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
+                    <Ionicons name="share-social-outline" size={18} color={String(theme.text)} />
                   </Pressable>
                 </View>
                 </View>

@@ -1,3 +1,5 @@
+import { useReducedMotion } from "react-native-reanimated";
+import { useVisibleChatSeq } from "./use-visible-chat-seq";
 import { MotionEntrance } from "@/components/motion-entrance";
 import { OfficialBadge } from "./official-badge";
 import {
@@ -6,7 +8,10 @@ import {
   sendChatTyping,
 } from "@/lib/challenge-live-updates";
 import { dismissInboxNotifications } from "@/lib/notifications";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { ChatThemeProvider } from "./chat-theme";
+import { ChatThemePreview } from "./chat-theme-preview";
+import { ChatPopover, type ChatAnchor } from "./chat-popover";
 import {
   useInfiniteQuery,
   useQuery,
@@ -14,6 +19,7 @@ import {
 } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
 import {
+  Animated,
   ActivityIndicator,
   AppState,
   FlatList,
@@ -29,6 +35,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { AppText } from "@/components/app-text";
+import { LogoMark } from "@/components/logo";
 import { Avatar } from "@/components/avatar";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import {
@@ -46,7 +53,17 @@ import { ChatAction, ChatSheet } from "./chat-sheet";
 import { ChatBubble } from "./chat-bubble";
 import { VoiceRecorder } from "./voice-recorder";
 
-export function ConversationPane({
+const ChatWallpaper = memo(function ChatWallpaper({ uri }: { uri: string }) {
+  const source = useMemo(() => ({ uri }), [uri]);
+  return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <Image source={source} resizeMode="cover" style={[StyleSheet.absoluteFill, { opacity: 0.3 }]} />
+  </View>;
+});
+
+export function ConversationPane(props: ComponentProps<typeof ConversationPaneContent>) {
+  return <ChatThemeProvider appearance={props.room.chatTheme}><ConversationPaneContent {...props} /></ChatThemeProvider>;
+}
+function ConversationPaneContent({
   room,
   token,
   accountId,
@@ -54,7 +71,9 @@ export function ConversationPane({
   onBack,
   onProfile,
   onInfo,
+  initialSearch = "",
 }: {
+  initialSearch?: string;
   room: ChatRoom;
   token: string;
   accountId: string;
@@ -63,7 +82,20 @@ export function ConversationPane({
   onProfile: (id: string) => void;
   onInfo: () => void;
 }) {
+  const peer = useQuery({queryKey:["chat-profile",token,room.peer?.id],enabled:room.kind === "direct" && Boolean(room.peer?.id),queryFn:()=>chatApi.profile(token,room.peer!.id),refetchInterval:15_000});
+  const needsFriend = room.kind === "direct" && peer.data?.friendship !== "friends";
   const [inputHeight, setInputHeight] = useState(44);
+  const [chatMenu, setChatMenu] = useState(false);
+  const [themesOpen, setThemesOpen] = useState(false);
+  const [actionAnchor, setActionAnchor] = useState<ChatAnchor>({x: 180, y: 180});
+  const [deleting, setDeleting] = useState<ChatItem | null>(null);
+  const [draftPhoto, setDraftPhoto] = useState<string | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(68);
+  const reducedMotion = useReducedMotion();
+  const [searchAnimation] = useState(
+    () => new Animated.Value(initialSearch ? 1 : 0),
+  );
+  const [voiceActive, setVoiceActive] = useState(false);
   const [typingUntil, setTypingUntil] = useState(0);
   const typingSent = useRef(0);
   useEffect(() => {
@@ -89,10 +121,19 @@ export function ConversationPane({
     c = useChatCopy(),
     client = useQueryClient();
   const [text, setText] = useState(""),
-    [searchDraft, setSearchDraft] = useState(""),
-    [search, setSearch] = useState(""),
-    [showSearch, setShowSearch] = useState(false),
+    [searchDraft, setSearchDraft] = useState(initialSearch),
+    [search, setSearch] = useState(initialSearch),
+    [showSearch, setShowSearch] = useState(Boolean(initialSearch)),
     [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const animation = Animated.timing(searchAnimation, {
+      toValue: showSearch ? 1 : 0,
+      duration: reducedMotion ? 0 : 220,
+      useNativeDriver: Platform.OS !== "web",
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [showSearch, searchAnimation, reducedMotion]);
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchDraft.trim()), 350);
     return () => clearTimeout(timer);
@@ -109,7 +150,7 @@ export function ConversationPane({
     [reason, setReason] = useState(""),
     [photo, setPhoto] = useState<ChatFile | null>(null);
   const [attachments, setAttachments] = useState<
-      { id: string; name: string }[]
+      { id: string; name: string; previewUri?: string }[]
     >([]),
     [uploading, setUploading] = useState(false),
     [busy, setBusy] = useState(false),
@@ -126,12 +167,34 @@ export function ConversationPane({
     refetchInterval: 15_000,
     staleTime: 3000,
   });
+  const [reactionOverrides, setReactionOverrides] = useState<Record<string, ChatItem["reactions"]>>({});
+  const reacting = useRef(false);
   const items = useMemo(() => {
     const map = new Map<string, ChatItem>();
     for (const page of [...(query.data?.pages ?? [])].reverse())
       for (const item of page.items) map.set(item.id, item);
-    return [...map.values()].sort((a, b) => a.seq - b.seq);
-  }, [query.data]);
+    return [...map.values()].map(item => reactionOverrides[item.id] ? { ...item, reactions: reactionOverrides[item.id] } : item).sort((a, b) => a.seq - b.seq);
+  }, [query.data, reactionOverrides]);
+  const pinnedMessages = query.data?.pages[0]?.pinned ?? items.filter(item => item.pinned && !item.deleted).slice().reverse();
+  const [pinIndex, setPinIndex] = useState(0);
+  const pinnedMessage = pinnedMessages[pinIndex % Math.max(1, pinnedMessages.length)];
+  const [jumpToPin, setJumpToPin] = useState<string | null>(null);
+  const { isFetching, hasNextPage, fetchNextPage } = query;
+  useEffect(() => {
+    if (!jumpToPin || isFetching) return;
+    const index = items.findIndex(item => item.id === jumpToPin);
+    if (index >= 0 || !hasNextPage) {
+      const frame = requestAnimationFrame(() => {
+        if (index >= 0) {
+          autoScroll.current = false;
+          list.current?.scrollToIndex({ index, animated: !reducedMotion, viewPosition: 0.3 });
+        }
+        setJumpToPin(null);
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+    void fetchNextPage();
+  }, [jumpToPin, items, isFetching, hasNextPage, fetchNextPage, reducedMotion]);
   const refresh = useCallback(() => {
     void client.invalidateQueries({
       queryKey: ["chat-messages", token, room.id],
@@ -161,12 +224,38 @@ export function ConversationPane({
       setBusy(false);
     }
   };
+  const reactToMessage = async (item: ChatItem, emoji: string) => {
+    if (reacting.current) return;
+    reacting.current = true;
+    setAction(null);
+    setError(null);
+    const next = item.reactions.some(r => r.userId === accountId && r.emoji === emoji) ? "" : emoji;
+    const ownReaction = item.reactions.find(r => r.userId === accountId);
+    const self = ownReaction?.user ?? items.find(message => message.sender.id === accountId)?.sender;
+    setReactionOverrides(current => ({ ...current, [item.id]: [
+      ...item.reactions.filter(r => r.userId !== accountId),
+      ...(next ? [{ userId: accountId, emoji: next, ...(self ? { user: self } : {}) }] : []),
+    ] }));
+    try {
+      await chatApi.change(token, item.id, { emoji: next });
+      await query.refetch();
+    } catch (err) {
+      showError(err);
+    } finally {
+      setReactionOverrides(current => {
+        const remaining = { ...current };
+        delete remaining[item.id];
+        return remaining;
+      });
+      reacting.current = false;
+    }
+  };
   const upload = async (file: ChatDraftFile) => {
     setUploading(true);
     setError(null);
     try {
       const a = await chatApi.upload(token, file);
-      setAttachments((current) => [...current, a].slice(0, 4));
+      setAttachments((current) => [...current, { ...a, ...(file.kind === "photo" ? { previewUri: `data:${file.mime};base64,${file.base64}` } : {}) }].slice(0, 4));
     } finally {
       setUploading(false);
     }
@@ -222,13 +311,9 @@ export function ConversationPane({
       await shareChatFile(chatMediaUrl(file.url), file.name, file.mime);
     } else await Share.share({ message: item.text });
   };
-  const visible = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken<ChatItem>[] }) => {
-      if (search || AppState.currentState !== "active") return;
-      const seq = Math.max(
-        0,
-        ...viewableItems.filter((v) => v.isViewable).map((v) => v.item.seq),
-      );
+  const markRead = useCallback(
+    (seq: number) => {
+      if (search || (Platform.OS !== "web" && AppState.currentState !== "active")) return;
       if (seq <= readSeq.current) return;
       readSeq.current = seq;
       void chatApi
@@ -247,6 +332,13 @@ export function ConversationPane({
         });
     },
     [token, room.id, search, client],
+  );
+  useVisibleChatSeq(!search, markRead);
+  const visible = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<ChatItem>[] }) => {
+      if (Platform.OS === "web") return;
+      markRead(Math.max(0, ...viewableItems.filter(v => v.isViewable).map(v => v.item.seq)));
+    }, [markRead],
   );
   const visibleHandler = useRef(visible);
   useEffect(() => {
@@ -273,7 +365,9 @@ export function ConversationPane({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={[styles.page, { backgroundColor: theme.background }]}
       >
+        {room.chatTheme?.preset === "custom" && room.chatTheme.wallpaperUrl ? <ChatWallpaper uri={chatMediaUrl(room.chatTheme.wallpaperUrl)} /> : theme.wallpaperUrl ? <ChatWallpaper uri={theme.wallpaperUrl} /> : null}
         <View
+          onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
           style={[
             styles.header,
             { borderBottomColor: theme.border, backgroundColor: theme.surface },
@@ -297,14 +391,18 @@ export function ConversationPane({
             onPress={onInfo}
             style={styles.person}
           >
-            <Avatar
-              name={room.title}
-              avatarUrl={
-                room.peer?.avatarUrl ??
-                (room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null)
-              }
-              size={42}
-            />
+            {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && room.isOwner !== true)) ? (
+              <LogoMark size={43} />
+            ) : (
+              <Avatar
+                name={room.title}
+                avatarUrl={
+                  room.peer?.avatarUrl ??
+                  (room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null)
+                }
+                size={42}
+              />
+            )}
             <View style={{ flex: 1 }}>
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
@@ -318,11 +416,11 @@ export function ConversationPane({
                     ? c.news
                     : room.systemKey === "community"
                       ? c.community
-                      : room.kind === "support" && !room.peer?.name
+                      : room.kind === "support" && room.isOfficial
                         ? c.support
                         : room.title}
                 </AppText>
-                {room.systemKey || room.kind === "support" ? (
+                {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && room.isOwner !== true)) ? (
                   <OfficialBadge />
                 ) : null}
               </View>
@@ -339,30 +437,67 @@ export function ConversationPane({
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={c.textSearch}
+            accessibilityLabel={showSearch ? c.close : c.settings}
             onPress={() => {
-              setShowSearch(!showSearch);
-              setSearch("");
-              setSearchDraft("");
+              if (showSearch) {
+                setShowSearch(false);
+                setSearch("");
+                setSearchDraft("");
+              } else setChatMenu(true);
             }}
-            style={styles.icon}
+            style={[styles.icon, { marginRight: 12 }]}
           >
             <Ionicons
-              name="search-outline"
-              size={22}
+              name={showSearch ? "close" : "ellipsis-horizontal"}
+              size={24}
               color={String(theme.primary)}
             />
           </Pressable>
         </View>
+        {pinnedMessage ? <MotionEntrance style={{backgroundColor: theme.surface, borderBottomWidth: 1, borderColor: theme.border}}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${c.pinnedMessage}: ${pinnedMessage.text || c.attach}`} onPress={() => {
+            autoScroll.current = false;
+            setSearch(""); setSearchDraft(""); setShowSearch(false);
+            setJumpToPin(pinnedMessage.id);
+            setPinIndex(index => (index + 1) % pinnedMessages.length);
+          }} style={{flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingVertical: 9}}>
+            <View style={{width: 3, height: 34, borderRadius: 2, backgroundColor: theme.primary}} />
+            <View style={{flex: 1, gap: 2}}>
+              <AppText variant="caption" color={String(theme.primary)}>{c.pinnedMessage}{pinnedMessages.length > 1 ? ` · ${(pinIndex % pinnedMessages.length) + 1}/${pinnedMessages.length}` : ""}</AppText>
+              <AppText numberOfLines={1}>{pinnedMessage.text || c.attach}</AppText>
+            </View>
+            <Ionicons name="pin-outline" size={21} color={String(theme.primary)} />
+          </Pressable>
+        </MotionEntrance> : null}
         {showSearch ? (
-          <TextInput
-            accessibilityLabel={c.textSearch}
-            value={searchDraft}
-            onChangeText={setSearchDraft}
-            placeholder={c.textSearch}
-            placeholderTextColor={theme.textMuted}
-            style={[...inputStyle, { margin: 10 }]}
-          />
+          <Animated.View
+            style={{
+              position: "absolute",
+              left: 12,
+              right: 12,
+              top: headerHeight + (pinnedMessage ? 60 : 0) + 8,
+              zIndex: 5,
+              opacity: searchAnimation,
+              transform: [
+                {
+                  translateY: searchAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-12, 0],
+                  }),
+                },
+              ],
+            }}
+          >
+            <TextInput
+              accessibilityLabel={c.textSearch}
+              autoFocus
+              value={searchDraft}
+              onChangeText={setSearchDraft}
+              placeholder={c.searchShort}
+              placeholderTextColor={theme.textMuted}
+              style={[...inputStyle, { minHeight: 44, margin: 0 }]}
+            />
+          </Animated.View>
         ) : null}
         {query.isPending ? (
           <ActivityIndicator
@@ -384,7 +519,11 @@ export function ConversationPane({
           data={items}
           keyExtractor={(item) => item.id}
           style={{ flex: 1 }}
-          contentContainerStyle={styles.history}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.history,
+            { paddingTop: showSearch ? 72 : 14 },
+          ]}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={20}
           windowSize={7}
@@ -398,6 +537,9 @@ export function ConversationPane({
                 e.layoutMeasurement.height -
                 e.contentOffset.y <
               140;
+          }}
+          onScrollToIndexFailed={({index, averageItemLength}) => {
+            list.current?.scrollToOffset({offset: index * averageItemLength, animated: !reducedMotion});
           }}
           scrollEventThrottle={100}
           onContentSizeChange={() => {
@@ -433,9 +575,18 @@ export function ConversationPane({
             <ChatBubble
               item={item}
               room={room}
-              onActions={setAction}
+              onActions={(message, anchor) => {
+                setActionAnchor(anchor ?? {x: 180, y: 180});
+                setAction(message);
+              }}
               onProfile={onProfile}
               onPhoto={setPhoto}
+              onListened={(message) => {
+                if (message.voiceListened) return;
+                void chatApi.listen(token, message.id).then(() => {
+                  void client.invalidateQueries({ queryKey: ["chat-messages", token, room.id] });
+                }).catch(showError);
+              }}
             />
           )}
           ListFooterComponent={
@@ -478,7 +629,7 @@ export function ConversationPane({
             </AppText>
           </Pressable>
         ) : null}
-        {room.canPost ? (
+        {room.canPost && !needsFriend ? (
           <View
             style={[
               styles.composer,
@@ -513,24 +664,25 @@ export function ConversationPane({
                 </Pressable>
               </View>
             ) : null}
-            {attachments.map((a) => (
-              <Pressable
-                key={a.id}
-                onPress={() =>
-                  setAttachments((current) =>
-                    current.filter((x) => x.id !== a.id),
-                  )
-                }
-              >
-                <AppText variant="caption">📎 {a.name} ×</AppText>
-              </Pressable>
-            ))}
+            {attachments.length ? <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8}}>
+              {attachments.map(a => <View key={a.id} style={{position: "relative", maxWidth: "100%"}}>
+                {a.previewUri ? <Pressable accessibilityRole="button" accessibilityLabel={`${c.view}: ${a.name}`} onPress={() => setDraftPhoto(a.previewUri!)}>
+                  <Image source={{uri: a.previewUri}} style={{width: 86, height: 86, borderRadius: 12}} />
+                </Pressable> : <AppText variant="caption" style={{padding: 10, paddingRight: 32}}>📎 {a.name}</AppText>}
+                <Pressable accessibilityRole="button" accessibilityLabel={`${c.removeAttachment}: ${a.name}`} onPress={() => setAttachments(current => current.filter(x => x.id !== a.id))} style={{position: "absolute", top: 3, right: 3, width: 24, height: 24, borderRadius: 12, backgroundColor: theme.surfaceRaised, alignItems: "center", justifyContent: "center"}}>
+                  <Ionicons name="close" size={17} color={String(theme.text)} />
+                </Pressable>
+              </View>)}
+            </View> : null}
             <View style={styles.composeLine}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={c.attach}
                 disabled={
-                  uploading || attachments.length >= 4 || Boolean(editing)
+                  voiceActive ||
+                  uploading ||
+                  attachments.length >= 4 ||
+                  Boolean(editing)
                 }
                 onPress={() => setAttachMenu(true)}
                 style={styles.icon}
@@ -549,6 +701,23 @@ export function ConversationPane({
                 accessibilityLabel={c.write}
                 multiline
                 submitBehavior="newline"
+                onKeyPress={(event) => {
+                  if (Platform.OS !== "web") return;
+                  const key = event.nativeEvent as typeof event.nativeEvent & {
+                    shiftKey?: boolean;
+                    isComposing?: boolean;
+                    keyCode?: number;
+                  };
+                  if (
+                    key.key === "Enter" &&
+                    !key.shiftKey &&
+                    !key.isComposing &&
+                    key.keyCode !== 229
+                  ) {
+                    event.preventDefault();
+                    void send();
+                  }
+                }}
                 blurOnSubmit={false}
                 numberOfLines={1}
                 onContentSizeChange={
@@ -588,6 +757,7 @@ export function ConversationPane({
                 style={[
                   ...inputStyle,
                   {
+                    display: voiceActive ? "none" : "flex",
                     flex: 1,
                     height: text ? inputHeight : 44,
                     maxHeight: 124,
@@ -599,7 +769,16 @@ export function ConversationPane({
                 ]}
               />
               {!text.trim() && !attachments.length && !editing ? (
-                <VoiceRecorder onFile={upload} onError={showError} />
+                <VoiceRecorder
+                  onActiveChange={setVoiceActive}
+                  onFile={async (file) => {
+                    const attachment = await chatApi.upload(token, file);
+                    await outbox.enqueue("", [attachment.id], reply?.id);
+                    setReply(null);
+                    autoScroll.current = true;
+                  }}
+                  onError={showError}
+                />
               ) : (
                 <Pressable
                   accessibilityRole="button"
@@ -625,7 +804,7 @@ export function ConversationPane({
           </View>
         ) : (
           <View style={styles.readOnly}>
-            <AppText muted>{c.readOnly}</AppText>
+            {needsFriend ? <><AppText muted>{c.friendsOnly}</AppText><ChatAction title={c.profile} icon="person-outline" onPress={()=>room.peer && onProfile(room.peer.id)} /></> : <AppText muted>{c.readOnly}</AppText>}
           </View>
         )}
         {attachMenu ? (
@@ -650,7 +829,7 @@ export function ConversationPane({
           </ChatSheet>
         ) : null}
         {action ? (
-          <ChatSheet title={c.messageActions} onClose={() => setAction(null)}>
+          <ChatPopover anchor={actionAnchor} onClose={() => setAction(null)}>
             {!action.deleted ? (
               <View
                 style={{
@@ -661,18 +840,11 @@ export function ConversationPane({
                 {["👍", "❤️", "😂", "🔥", "🎉", "😢"].map((emoji) => (
                   <Pressable
                     key={emoji}
+                    accessibilityRole="button"
                     accessibilityLabel={emoji}
                     disabled={busy}
                     onPress={() => {
-                      void run(() =>
-                        chatApi.change(token, action.id, {
-                          emoji: action.reactions.some(
-                            (r) => r.userId === accountId && r.emoji === emoji,
-                          )
-                            ? ""
-                            : emoji,
-                        }),
-                      );
+                      void reactToMessage(action, emoji);
                     }}
                     style={styles.icon}
                   >
@@ -738,27 +910,7 @@ export function ConversationPane({
                 }}
               />
             ) : null}
-            <ChatAction
-              title={c.hide}
-              icon="eye-off-outline"
-              onPress={() => {
-                void run(() =>
-                  chatApi.change(token, action.id, { remove: "self" }),
-                );
-              }}
-            />
-            {(action.own || room.canManage) && !action.deleted ? (
-              <ChatAction
-                title={c.remove}
-                danger
-                icon="trash-outline"
-                onPress={() => {
-                  void run(() =>
-                    chatApi.change(token, action.id, { remove: "all" }),
-                  );
-                }}
-              />
-            ) : null}
+            <ChatAction title={c.deleteMessage} danger icon="trash-outline" onPress={() => { setDeleting(action); setAction(null); }} />
             {!action.own ? (
               <ChatAction
                 title={c.report}
@@ -770,8 +922,13 @@ export function ConversationPane({
                 }}
               />
             ) : null}
-          </ChatSheet>
+          </ChatPopover>
         ) : null}
+        {deleting ? <ChatSheet title={c.deleteMessage} onClose={() => setDeleting(null)}>
+          <ChatAction title={c.hide} icon="person-outline" disabled={busy} onPress={() => void run(async () => { await chatApi.change(token, deleting.id, {remove: "self"}); setDeleting(null); })} />
+          {(deleting.own || room.canManage) && !deleting.deleted ? <ChatAction title={room.kind === "direct" || room.kind === "support" ? `${c.deleteForBoth} ${room.peer?.name ?? c.support}` : c.remove} icon="people-outline" danger disabled={busy} onPress={() => void run(async () => { await chatApi.change(token, deleting.id, {remove: "all"}); setDeleting(null); })} /> : null}
+          {error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{error}</AppText> : null}
+        </ChatSheet> : null}
         {forward ? (
           <ChatSheet title={c.choose} onClose={() => setForward(null)}>
             <TextInput
@@ -836,6 +993,104 @@ export function ConversationPane({
             />
           </ChatSheet>
         ) : null}
+        {chatMenu ? (
+          <View style={[StyleSheet.absoluteFill, { zIndex: 30 }]}>
+            <Pressable
+              accessibilityLabel={c.cancel}
+              onPress={() => setChatMenu(false)}
+              style={StyleSheet.absoluteFill}
+            />
+            <MotionEntrance
+              style={{
+                position: "absolute",
+                right: 16,
+                top: headerHeight - 2,
+                width: 280,
+                maxWidth: "90%",
+                borderRadius: 18,
+                padding: 6,
+                borderWidth: 1,
+                borderColor: theme.border,
+                backgroundColor: theme.surfaceRaised,
+                boxShadow: "0px 8px 28px rgba(0,0,0,0.16)",
+              }}
+            >
+              <ChatAction title={c.chatThemes} icon="color-palette-outline" onPress={() => { setChatMenu(false); setThemesOpen(true); }} />
+              <ChatAction
+                title={c.searchShort}
+                icon="search-outline"
+                onPress={() => {
+                  setChatMenu(false);
+                  setShowSearch(true);
+                }}
+              />
+              <ChatAction
+                title={
+                  (room.canEditInfo ?? room.canManage) &&
+                  ["group", "channel"].includes(room.kind)
+                    ? c.settings
+                    : c.profile
+                }
+                icon="person-circle-outline"
+                onPress={() => {
+                  setChatMenu(false);
+                  onInfo();
+                }}
+              />
+              {room.canManage &&
+              !room.systemKey &&
+              ["group", "channel"].includes(room.kind) ? (
+                <ChatAction
+                  title={c.addMembers}
+                  icon="person-add-outline"
+                  onPress={() => {
+                    setChatMenu(false);
+                    onInfo();
+                  }}
+                />
+              ) : null}
+              <ChatAction
+                title={room.muted ? c.unmute : c.mute}
+                icon="notifications-outline"
+                onPress={() => {
+                  setChatMenu(false);
+                  void run(() =>
+                    chatApi.member(token, room.id, { muted: !room.muted }),
+                  );
+                }}
+              />
+              <ChatAction
+                title={room.pinned ? c.unpin : c.pin}
+                icon="pin-outline"
+                onPress={() => {
+                  setChatMenu(false);
+                  void run(() =>
+                    chatApi.member(token, room.id, { pinned: !room.pinned }),
+                  );
+                }}
+              />
+            </MotionEntrance>
+          </View>
+        ) : null}
+        {themesOpen ? <ChatSheet title={c.chatThemes} onClose={() => setThemesOpen(false)}>
+          <View style={{flexDirection: "row", flexWrap: "wrap", gap: 10}}>
+          {([
+            ["system", c.themeSystem], ["green", c.themeGreen], ["blue", c.themeBlue], ["pink", c.themePink], ["graphite", c.themeGraphite],
+          ] as const).map(([preset, label]) => <ChatThemePreview key={preset} appearance={{preset}} label={label} selected={(room.chatTheme?.preset ?? "system") === preset} disabled={busy} onPress={() => void run(async () => { await chatApi.theme(token, room.id, preset); setThemesOpen(false); })} />)}
+          {room.chatTheme?.wallpaperUrl ? <ChatThemePreview appearance={{...room.chatTheme, preset: "custom"}} label={c.themeCustom} selected={room.chatTheme.preset === "custom"} disabled={busy} onPress={() => void run(async () => { await chatApi.theme(token, room.id, "custom"); setThemesOpen(false); })} /> : null}
+          </View>
+          <ChatAction title={room.chatTheme?.wallpaperUrl ? c.themeChangePhoto : c.themePhoto} icon="image-outline" disabled={busy} onPress={() => {
+            void (async () => {
+              try {
+                const file = await pickChatPhoto();
+                if (!file) return;
+                await run(async () => { const photo = await chatApi.upload(token, file); await chatApi.theme(token, room.id, "custom", photo.id); setThemesOpen(false); });
+              } catch (error) { showError(error); }
+            })();
+          }} />
+          {error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{error}</AppText> : null}
+        </ChatSheet> : null}
+        {draftPhoto ? <ChatSheet title={c.photo} onClose={() => setDraftPhoto(null)}><Image source={{uri: draftPhoto}} resizeMode="contain" style={{width: "100%", height: 350}} /></ChatSheet> : null}
         {photo ? (
           <ChatSheet title={photo.name} onClose={() => setPhoto(null)}>
             <Image
@@ -883,7 +1138,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  history: { padding: 14, paddingBottom: 20, flexGrow: 1 },
+  history: {
+    padding: 14,
+    paddingBottom: 20,
+    flexGrow: 1,
+    justifyContent: "flex-end",
+  },
   input: {
     borderWidth: 1,
     borderRadius: 22,
@@ -891,8 +1151,13 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     fontSize: 15,
   },
-  composer: { borderTopWidth: 1, padding: 9, gap: 7 },
-  composeLine: { flexDirection: "row", alignItems: "flex-end", gap: 6 },
+  composer: {
+    borderTopWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  composeLine: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   send: {
     width: 44,
     height: 44,

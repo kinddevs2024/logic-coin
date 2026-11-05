@@ -11,9 +11,7 @@ export function formatCompactUnits(units: number) {
 
 export function initials(name?: string) {
   const value = name?.trim() || "LC";
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
+  const Segmenter = (Intl as unknown as {Segmenter?: new (locale?: string, options?: {granularity: string}) => {segment: (text:string) => Iterable<{segment:string}>}}).Segmenter;
+  const first = Segmenter ? Array.from(new Segmenter(undefined,{granularity:"grapheme"}).segment(value))[0]?.segment : Array.from(value)[0];
+  return (first || "?").toUpperCase();
 }

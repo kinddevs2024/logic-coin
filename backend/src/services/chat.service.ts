@@ -1,7 +1,7 @@
 import { randomBytes, createHmac, timingSafeEqual } from "node:crypto";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
-import { Types } from "mongoose";
+import { Types, type Model } from "mongoose";
 import sharp from "sharp";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
@@ -15,6 +15,8 @@ import {
   ChatAttachment,
   ChatBlock,
   ChatReport,
+  ChatVoiceReceipt,
+  ChatFriendship,
 } from "../models/Chat.js";
 import { NotificationRead } from "../models/NotificationRead.js";
 import { NotificationEvent } from "../models/NotificationEvent.js";
@@ -70,6 +72,7 @@ async function ensureMember(
 }
 export async function ensureChatDefaults(userId: Types.ObjectId) {
   if ((defaultsReady.get(String(userId)) ?? 0) > Date.now()) return [];
+  await syncReferralFriends(userId);
   const result = [];
   for (const [systemKey, kind, title] of [
     ["news", "channel", "Logic Coin"],
@@ -91,12 +94,9 @@ export async function ensureChatDefaults(userId: Types.ObjectId) {
     await ensureMember(c._id, userId, "member", true);
     result.push(c);
   }
-  const admin = await User.findOne({
-    $or: [{ role: "admin" }, { email: { $in: env.ADMIN_EMAILS } }],
-  })
-    .sort({ createdAt: 1 })
-    .select("_id")
-    .lean();
+  const adminFilter = {$or: [{role:"admin"}, {email:{$in:env.ADMIN_EMAILS}}], _id:{$ne:userId}};
+  const admin = await User.findOne({...adminFilter, email:{$not:/@telegram\.logiccoin\.local$/}}).sort({createdAt:1}).select("_id").lean()
+    ?? await User.findOne(adminFilter).sort({createdAt:1}).select("_id").lean();
   if (admin && String(admin._id) !== String(userId)) {
     const directKey = `support:${userId}`;
     const c = await ChatConversation.findOneAndUpdate(
@@ -157,6 +157,7 @@ export async function chatAccess(
       conversationId: c._id,
       userId: { $ne: userId },
     });
+    if (c.kind === "direct") for (const other of others) await requireFriend(userId, String(other));
     if (
       await ChatBlock.exists({
         $or: [
@@ -190,16 +191,19 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
     userId,
     leftAt: { $exists: false },
   })
-    .select("conversationId userId role canEditInfo lastReadSeq muted pinned")
+    .select("conversationId userId role canEditInfo lastReadSeq muted pinned chatTheme themeExplicit wallpaperAttachmentId themeAccent themeDark")
     .lean();
-  const rooms = await ChatConversation.find({
+  const allRooms = await ChatConversation.find({
     _id: { $in: memberships.map((m) => m.conversationId) },
+    $or: [{kind:{$ne:"support"}}, {directKey:`support:${userId}`}, {lastSeq:{$gt:0}}],
   })
     .sort({ lastMessageAt: -1, createdAt: -1 })
     .limit(100)
     .lean();
+  // Empty auto-created support inboxes are not personal conversations. Keep all replies.
+  const rooms = allRooms.filter(c => c.kind !== "support" || c.directKey === `support:${userId}` || c.lastSeq > 0);
   const roomAvatars = await ChatAttachment.find({
-    _id: { $in: rooms.map((c) => c.avatarAttachmentId).filter(Boolean) },
+    _id: { $in: [...rooms.map((c) => c.avatarAttachmentId), ...memberships.map(m => m.wallpaperAttachmentId)].filter(Boolean) },
   })
     .select("name mime size kind")
     .lean();
@@ -267,11 +271,23 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
       id: String(c._id),
       kind: c.kind,
       systemKey: c.systemKey ?? null,
+      isOfficial: Boolean(c.systemKey || (c.kind === "support" && c.directKey === `support:${userId}`)),
       title:
-        c.kind === "support" && !admin
+        c.kind === "support" && c.directKey === `support:${userId}`
           ? "Logic Coin Support"
           : (profile?.name ?? c.title),
       description: c.description,
+      username: c.username ?? null,
+      visibility: c.visibility,
+      chatTheme: {
+        preset: member.chatTheme === "green" && !member.themeExplicit ? "system" : member.chatTheme ?? "system",
+        accent: member.themeAccent ?? null,
+        dark: member.themeDark ?? false,
+        wallpaperUrl: (() => {
+          const image = roomAvatars.find(a => String(a._id) === String(member.wallpaperAttachmentId));
+          return image ? attachmentView(image, userId, sessionId).url : null;
+        })(),
+      },
       avatarUrl: (() => {
         const a = roomAvatars.find(
           (a) => String(a._id) === String(c.avatarAttachmentId),
@@ -307,6 +323,88 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
     };
   });
 }
+
+const friendPair = (a: string | Types.ObjectId, b: string | Types.ObjectId) => [String(a), String(b)].sort().join(":");
+
+async function safeChatBulk(model: Model<any>, operations: any[]) {
+  if(!operations.length) return;
+  try {await model.bulkWrite(operations,{ordered:false});}
+  catch(error) {const errors=(error as {writeErrors?:{code:number}[]}).writeErrors;if(!errors?.length || errors.some(item=>item.code!==11000))throw error;}
+}
+/** A persisted invitation is mutual consent to connect; never connect unrelated or blocked users. */
+export async function syncReferralFriends(userId: Types.ObjectId) {
+  const links=await User.find({$or:[{_id:userId,referredBy:{$exists:true}},{referredBy:userId}]}).select("_id referredBy").lean();
+  const edges=[...new Map(links.filter(u=>u.referredBy && String(u._id)!==String(u.referredBy)).map(u=>[friendPair(u._id,u.referredBy!),{a:u._id,b:u.referredBy!,key:friendPair(u._id,u.referredBy!)}])).values()];
+  if(!edges.length)return;
+  const ids=[...new Set(edges.flatMap(e=>[String(e.a),String(e.b)]))];
+  const [existingUsers,blocks,relations,rooms]=await Promise.all([
+    User.distinct("_id",{_id:{$in:ids}}),
+    ChatBlock.find({userId:{$in:ids},blockedId:{$in:ids}}).select("userId blockedId").lean(),
+    ChatFriendship.find({pairKey:{$in:edges.map(e=>e.key)}}).select("pairKey status").lean(),
+    ChatConversation.find({directKey:{$in:edges.map(e=>e.key)}}).select("_id directKey").lean()
+  ]);
+  const memberships=await ChatMember.find({conversationId:{$in:rooms.map(r=>r._id)}}).select("conversationId userId").lean();
+  const membersByRoom=new Map<string,Set<string>>();
+  for(const member of memberships){const key=String(member.conversationId);if(!membersByRoom.has(key))membersByRoom.set(key,new Set());membersByRoom.get(key)!.add(String(member.userId));}
+  const accepted=new Set(relations.filter(r=>r.status==="accepted").map(r=>r.pairKey)),roomByKey=new Map(rooms.map(r=>[r.directKey,r]));
+  const validIds=new Set(existingUsers.map(String)),blocked=new Set(blocks.map(b=>friendPair(b.userId,b.blockedId)));
+  const pending=edges.filter(e=>{const room=roomByKey.get(e.key),members=room?membersByRoom.get(String(room._id)):undefined;return validIds.has(String(e.a)) && validIds.has(String(e.b)) && !blocked.has(e.key) && (!accepted.has(e.key) || !members?.has(String(e.a)) || !members.has(String(e.b)));});
+  if(!pending.length)return;
+  await safeChatBulk(ChatFriendship,pending.map(e=>({updateOne:{filter:{pairKey:e.key},update:{$set:{status:"accepted"},$setOnInsert:{pairKey:e.key,requesterId:e.b,recipientId:e.a}},upsert:true}})));
+  await safeChatBulk(ChatConversation,pending.map(e=>({updateOne:{filter:{directKey:e.key},update:{$setOnInsert:{directKey:e.key,kind:"direct"}},upsert:true}})));
+  const connected=await ChatConversation.find({directKey:{$in:pending.map(e=>e.key)}}).select("_id directKey").lean();
+  await safeChatBulk(ChatMember,connected.flatMap(room=>{const edge=pending.find(e=>e.key===room.directKey)!;return [edge.a,edge.b].map(id=>({updateOne:{filter:{conversationId:room._id,userId:id},update:{$setOnInsert:{conversationId:room._id,userId:id,role:"member"}},upsert:true}}));}));
+  notifyChatChange([...new Set(pending.flatMap(e=>[String(e.a),String(e.b)]))],"friends");
+}
+export async function listFriendDirectory(userId:Types.ObjectId,query:string,cursor?:string) {
+  const blocks=await ChatBlock.find({$or:[{userId},{blockedId:userId}]}).select("userId blockedId").lean();
+  const excluded=[userId,...blocks.map(b=>String(b.userId)===String(userId)?b.blockedId:b.userId)];
+  const text=query.trim().replace(/^@/,"");
+  const users=await User.find({_id:{$nin:excluded,...(cursor?{$gt:oid(cursor)}:{})},...(text?{$or:[{name:new RegExp(escapeRegex(text),"i")},{username:new RegExp(escapeRegex(text),"i")}]}:{})}).sort({_id:1}).select(userFields).limit(51).lean();
+  const page=users.slice(0,50),relations=await ChatFriendship.find({pairKey:{$in:page.map(p=>friendPair(userId,p._id))}}).lean();
+  return {users:page.map(p=>{const relation=relations.find(r=>r.pairKey===friendPair(userId,p._id));return {...chatProfile(p),friendship:!relation?"none":relation.status==="accepted"?"friends":String(relation.requesterId)===String(userId)?"outgoing":"incoming"};}),next:users.length>50?String(page[49]!._id):null};
+}
+export async function friendshipStatus(userId: Types.ObjectId, targetId: string) {
+  if (String(userId) === targetId) return "self";
+  const relation = await ChatFriendship.findOne({pairKey: friendPair(userId, targetId)}).lean();
+  return !relation ? "none" : relation.status === "accepted" ? "friends" : String(relation.requesterId) === String(userId) ? "outgoing" : "incoming";
+}
+async function requireFriend(userId: Types.ObjectId, targetId: string) {
+  if (await friendshipStatus(userId, targetId) !== "friends") return fail(403, "friendship_required", "Accept a friend request first");
+}
+export async function requestFriend(userId: Types.ObjectId, targetId: string) {
+  if (String(userId) === targetId) return fail(400, "chat_self", "Choose another user");
+  if (!await User.exists({_id: targetId})) return fail(404, "user_not_found", "User not found");
+  if (await ChatBlock.exists({$or:[{userId,blockedId:oid(targetId)},{userId:oid(targetId),blockedId:userId}]})) return fail(403,"chat_blocked","This user is unavailable");
+  await ChatFriendship.updateOne({pairKey:friendPair(userId,targetId)},{$setOnInsert:{pairKey:friendPair(userId,targetId),requesterId:userId,recipientId:oid(targetId),status:"pending"}},{upsert:true}).catch(error=>{if(error?.code!==11000) throw error;});
+  notifyChatChange([String(userId),targetId], "friends");
+  return {status:await friendshipStatus(userId,targetId)};
+}
+export async function listFriends(userId: Types.ObjectId, query: string) {
+  const rows=await ChatFriendship.find({status:"accepted",$or:[{requesterId:userId},{recipientId:userId}]}).select("requesterId recipientId").lean();
+  const ids=rows.map(row=>String(row.requesterId)===String(userId)?row.recipientId:row.requesterId);
+  const people=await User.find({_id:{$in:ids},...(query.trim()?{$or:[{name:new RegExp(escapeRegex(query.trim()),"i")},{username:new RegExp(escapeRegex(query.trim().replace(/^@/,"")),"i")}]}:{})}).select(userFields).limit(100).lean();
+  return {users:people.map(chatProfile)};
+}
+export async function listFriendRequests(userId: Types.ObjectId) {
+  const rows = await ChatFriendship.find({recipientId:userId,status:"pending"}).sort({createdAt:-1}).limit(200).lean();
+  const people=await User.find({_id:{$in:rows.map(r=>r.requesterId)}}).select(userFields).lean();
+  return {requests:rows.flatMap(row=>{const person=people.find(p=>String(p._id)===String(row.requesterId));return person?[{...chatProfile(person),requestedAt:row.createdAt.toISOString()}]:[];})};
+}
+export async function answerFriend(userId: Types.ObjectId,targetId: string,accept: boolean) {
+  const pairKey=friendPair(userId,targetId);
+  if (accept) {
+    if (await ChatBlock.exists({$or:[{userId,blockedId:oid(targetId)},{userId:oid(targetId),blockedId:userId}]})) return fail(403,"chat_blocked","This user is unavailable");
+    const row=await ChatFriendship.findOneAndUpdate({pairKey,recipientId:userId,status:"pending"},{$set:{status:"accepted"}},{new:true});
+    if(!row && await friendshipStatus(userId,targetId)!=="friends") return fail(404,"request_not_found","Friend request not found");
+    const room=await createDirect(userId,targetId);
+    notifyChatChange([String(userId),targetId], "friends");
+    return {status:"friends",id:room.id};
+  }
+  await ChatFriendship.deleteOne({pairKey,recipientId:userId,status:"pending"});
+  notifyChatChange([String(userId),targetId], "friends");
+  return {status:"none"};
+}
 export async function createDirect(userId: Types.ObjectId, targetId: string) {
   if (String(userId) === targetId)
     return fail(400, "chat_self", "Choose another user");
@@ -326,6 +424,7 @@ export async function createDirect(userId: Types.ObjectId, targetId: string) {
     .select("_id")
     .lean();
   if (support) return { id: String(support._id) };
+  await requireFriend(userId, targetId);
   const directKey = [String(userId), targetId].sort().join(":");
   const c = await ChatConversation.findOneAndUpdate(
     { directKey },
@@ -346,6 +445,7 @@ export async function createRoom(
     title: string;
     description: string;
     visibility: "public" | "invite";
+    username?: string;
   },
 ) {
   if (
@@ -359,10 +459,17 @@ export async function createRoom(
       "chat_room_limit",
       "You can own up to 20 groups and channels",
     );
+  const username = input.username?.trim() ? normalizeUsername(input.username) : null;
+  if (input.username?.trim() && !username) return fail(400, "invalid_username", "Use 4–24 Latin letters, numbers or underscores, starting with a letter");
+  if (username && await ChatConversation.exists({ username })) return fail(409, "username_taken", "This username is already taken");
   const c = await ChatConversation.create({
     ...input,
+    username: username ?? undefined,
     ownerId: userId,
     inviteCode: randomBytes(18).toString("base64url"),
+  }).catch(error => {
+    if (error?.code === 11000) return fail(409, "username_taken", "This username is already taken");
+    throw error;
   });
   await ensureMember(c._id, userId, "owner");
   return { id: String(c._id) };
@@ -373,6 +480,8 @@ export async function joinRoom(userId: Types.ObjectId, code: string) {
     kind: { $in: ["group", "channel"] },
   });
   if (!c) return fail(404, "chat_not_found", "Invalid invite link");
+  if (c.visibility !== "public" && !(await ChatMember.exists({ conversationId: c._id, userId, leftAt: { $exists: false } })))
+    return fail(403, "chat_private", "Only an administrator can add you to this private chat");
   await ChatMember.updateOne(
     { conversationId: c._id, userId },
     {
@@ -389,13 +498,17 @@ function escapeRegex(value: string) {
 }
 export async function searchChats(userId: Types.ObjectId, q: string) {
   const text = q.trim().replace(/^@/, "");
-  if (text.length < 2) return { users: [], rooms: [] };
+  if (text.length < 2) return { users: [], rooms: [], messages: [] };
   const regex = new RegExp(escapeRegex(text), "i");
   const users = await User.find({
     _id: { $ne: userId },
     $or: [
       { username: new RegExp(`^${escapeRegex(text)}`, "i") },
       { name: regex },
+      { email: new RegExp(`^${escapeRegex(text)}$`, "i") },
+      { telegramUsername: new RegExp(`^${escapeRegex(text)}$`, "i") },
+      { "providers.telegramSub": text },
+      { referralCode: text.toUpperCase() },
       ...(Types.ObjectId.isValid(text) ? [{ _id: oid(text) }] : []),
     ],
   })
@@ -405,16 +518,39 @@ export async function searchChats(userId: Types.ObjectId, q: string) {
   const rooms = await ChatConversation.find({
     visibility: "public",
     kind: { $in: ["group", "channel"] },
-    title: regex,
+    $or: [{ title: regex }, { username: new RegExp(`^${escapeRegex(text)}`, "i") }],
   })
-    .select("title kind description inviteCode")
+    .select("title username kind description inviteCode")
     .limit(20)
     .lean();
+  const memberships = await ChatMember.find({
+    userId,
+    leftAt: { $exists: false },
+  })
+    .select("conversationId")
+    .lean();
+  const messages = await ChatMessage.find({
+    conversationId: { $in: memberships.map((m) => m.conversationId) },
+    hiddenFor: { $ne: userId },
+    deletedAt: { $exists: false },
+    text: regex,
+  })
+    .sort({ createdAt: -1 })
+    .limit(30)
+    .select("conversationId text")
+    .maxTimeMS(3000)
+    .lean();
   return {
+    messages: messages.map((m) => ({
+      id: String(m._id),
+      conversationId: String(m.conversationId),
+      text: m.text.slice(0, 240),
+    })),
     users: users.map(chatProfile),
     rooms: rooms.map((c) => ({
       id: String(c._id),
       title: c.title,
+      username: c.username ?? null,
       kind: c.kind,
       description: c.description,
       inviteCode: c.inviteCode,
@@ -488,7 +624,10 @@ export async function listMessages(
     .sort({ seq: -1 })
     .limit(41)
     .lean();
+  const pinnedMessages = await ChatMessage.find({ conversationId: c._id, pinned: true, hiddenFor: { $ne: userId }, deletedAt: { $exists: false } })
+    .select("seq text attachmentIds").sort({ seq: -1 }).limit(100).lean();
   const selected = rows.slice(0, 40);
+  const listened = await ChatVoiceReceipt.find({ userId, messageId: { $in: selected.map(m => m._id) } }).select("messageId").lean();
   const replyIds = selected.map((m) => m.replyTo).filter(Boolean);
   const quoted = await ChatMessage.find({
     _id: { $in: replyIds },
@@ -502,6 +641,7 @@ export async function listMessages(
       $in: [
         ...selected.map((m) => m.senderId),
         ...quoted.map((m) => m.senderId),
+        ...selected.flatMap(m => [...new Set(m.reactions.map(r => r.emoji))].flatMap(emoji => m.reactions.filter(r => r.emoji === emoji).slice(0, 3).map(r => r.userId))),
       ],
     },
   })
@@ -514,7 +654,9 @@ export async function listMessages(
   })
     .select("name mime size kind")
     .lean();
+  const reactionProfiles = new Map(profiles.map(profile => [String(profile._id), chatProfile(profile)]));
   return {
+    pinned: pinnedMessages.map(m => ({ id: String(m._id), seq: m.seq, text: m.text, hasAttachments: Boolean(m.attachmentIds.length) })),
     items: selected.reverse().map((m) => {
       const sender = profiles.find((p) => String(p._id) === String(m.senderId));
       const quote = quoted.find((q) => String(q._id) === String(m.replyTo));
@@ -551,8 +693,10 @@ export async function listMessages(
           : m.reactions.map((r) => ({
               userId: String(r.userId),
               emoji: r.emoji,
+              user: reactionProfiles.get(String(r.userId)),
             })),
         own: String(m.senderId) === String(userId),
+        voiceListened: listened.some(receipt => String(receipt.messageId) === String(m._id)),
       };
     }),
     before: rows.length > 40 ? (selected[0]?.seq ?? null) : null,
@@ -892,6 +1036,7 @@ export async function addChatMember(
     })
   )
     return fail(403, "chat_blocked", "This user cannot be added");
+  await requireFriend(userId, targetId);
   const target = await ensureMember(c._id, oid(targetId));
   if (target.leftAt)
     await ChatMember.updateOne(
@@ -1112,10 +1257,35 @@ export async function relaySupportReply(
   });
 }
 
+export async function setChatTheme(userId: Types.ObjectId, id: string, input: { preset: "system" | "green" | "blue" | "pink" | "graphite" | "custom"; wallpaperAttachmentId?: string }) {
+  const { member } = await chatAccess(userId, id);
+  let accent: string | undefined, dark = false;
+  const wallpaperId = input.wallpaperAttachmentId ?? member.wallpaperAttachmentId?.toString();
+  if (input.preset === "custom") {
+    const photo = wallpaperId ? await ChatAttachment.findOne({ _id: wallpaperId, ownerId: userId, kind: "photo" }).lean() : null;
+    if (!photo) return fail(400, "invalid_wallpaper", "Choose a photo for this theme");
+    const { dominant } = await sharp(await readFile(path.join(root, photo.storageKey))).resize(40, 40, { fit: "inside" }).stats();
+    dark = dominant.r * 0.2126 + dominant.g * 0.7152 + dominant.b * 0.0722 < 135;
+    accent = "#" + [dominant.r, dominant.g, dominant.b].map(value => Math.round(dark ? Math.max(115, value) : Math.min(145, value)).toString(16).padStart(2, "0")).join("");
+  }
+  await ChatMember.updateOne({ _id: member._id }, {
+    $set: { chatTheme: input.preset, themeExplicit: input.preset !== "system", ...(input.preset === "custom" ? { themeDark: dark, themeAccent: accent, wallpaperAttachmentId: wallpaperId } : {}) },
+  });
+  return { ok: true };
+}
+export async function markVoiceListened(userId: Types.ObjectId, id: string) {
+  const message = await ChatMessage.findOne({ _id: oid(id), hiddenFor: { $ne: userId }, deletedAt: { $exists: false } });
+  if (!message) return fail(404, "message_not_found", "Message not found");
+  await chatAccess(userId, String(message.conversationId));
+  if (!(await ChatAttachment.exists({ _id: { $in: message.attachmentIds }, kind: "voice" })))
+    return fail(400, "not_voice", "This message has no voice recording");
+  await ChatVoiceReceipt.updateOne({ userId, messageId: message._id }, { $setOnInsert: { userId, messageId: message._id, listenedAt: new Date() } }, { upsert: true });
+  return { ok: true };
+}
 export async function updateChatRoom(
   userId: Types.ObjectId,
   id: string,
-  input: { title: string; description: string; avatarAttachmentId?: string },
+  input: { title: string; description: string; avatarAttachmentId?: string; username?: string; visibility?: "public" | "invite" },
 ) {
   const { c, member, admin } = await chatAccess(userId, id);
   if (
@@ -1139,7 +1309,21 @@ export async function updateChatRoom(
     }))
   )
     return fail(403, "attachment_denied", "Invalid chat photo");
-  await ChatConversation.updateOne({ _id: c._id }, { $set: input });
+  if ((input.username !== undefined || input.visibility !== undefined) && !admin && !["owner", "admin"].includes(member.role))
+    return fail(403, "chat_forbidden", "Only administrators can change chat access");
+  const { username: rawUsername, ...fields } = input;
+  const username = rawUsername?.trim() ? normalizeUsername(rawUsername) : null;
+  if (rawUsername?.trim() && !username) return fail(400, "invalid_username", "Use 4–24 Latin letters, numbers or underscores, starting with a letter");
+  if (username && await ChatConversation.exists({ username, _id: { $ne: c._id } })) return fail(409, "username_taken", "This username is already taken");
+  try {
+    await ChatConversation.updateOne({ _id: c._id }, {
+      $set: { ...fields, ...(username ? { username } : {}) },
+      ...(rawUsername !== undefined && !username ? { $unset: { username: 1 } } : {}),
+    });
+  } catch (error) {
+    if ((error as { code?: number }).code === 11000) return fail(409, "username_taken", "This username is already taken");
+    throw error;
+  }
   await changed(c);
   return { ok: true };
 }

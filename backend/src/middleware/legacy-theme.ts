@@ -36,7 +36,8 @@ export const legacyThemeCompatibility: RequestHandler = (request, response, next
   response.vary("Origin");
   response.vary("Sec-Fetch-Mode");
   response.vary("User-Agent");
-  if (!browser) {
+  response.vary("X-Appearance-Version");
+  if (!browser && request.get("x-appearance-version") !== "2") {
     const json = response.json.bind(response);
     response.json = (body: unknown) => json(legacyThemePayload(body));
   }

@@ -10,9 +10,9 @@ const pending = new Map<string, Promise<Image | null>>();
 const TTL = 5 * 60_000;
 
 async function loadAvatar(userId: string, revision: string, original: boolean): Promise<Image | null> {
-  const user = await User.findById(userId).select("avatarUrl").lean();
+  const user = await User.findById(userId).select("avatarUrl preferences.customTheme").lean();
   const avatar = user?.avatarUrl;
-  if (isStoredAvatarReference(avatar, userId, revision)) {
+  if (isStoredAvatarReference(avatar, userId, revision) || isStoredAvatarReference(user?.preferences?.customTheme?.wallpaperUrl, userId, revision)) {
     const stored = await UserAvatar.findOne({ userId, revision })
       .select(original ? "original contentType" : "thumbnail").lean();
     if (!stored) return null;

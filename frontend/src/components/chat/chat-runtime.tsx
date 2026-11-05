@@ -14,6 +14,11 @@ export function ChatRuntime() {
     const unsubscribe = subscribeToChallengeUpdates(token, (state) => {
       if (!state.chat) return;
       const id = state.chat.conversationId;
+      if (id === "friends") {
+        void client.invalidateQueries({queryKey:["chat-friend-requests",token]});
+        void client.invalidateQueries({queryKey:["chat-profile",token]});
+        void client.invalidateQueries({queryKey:["chat-invite-search",token]});
+      }
       if (!timers.has(id))
         timers.set(
           id,
@@ -30,9 +35,9 @@ export function ChatRuntime() {
           listTimer = undefined;
           void client.invalidateQueries({
             queryKey: ["chat-list", token],
-            refetchType: pathname === "/messages" ? "active" : "none",
+            refetchType: "active",
           });
-        }, 3000);
+        }, 800);
     });
     return () => {
       unsubscribe();

@@ -59,7 +59,7 @@ app.use(
       callback(new ApiError(403, "cors_origin_denied", "Origin is not allowed"));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["authorization", "content-type", "idempotency-key", "x-request-id", "accept-language", "x-telegram-init-data"],
+    allowedHeaders: ["authorization", "content-type", "idempotency-key", "x-request-id", "accept-language", "x-telegram-init-data", "x-appearance-version"],
     exposedHeaders: ["x-request-id", "ratelimit", "ratelimit-policy"]
   })
 );

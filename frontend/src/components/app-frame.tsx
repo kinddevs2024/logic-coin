@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "expo-router";
 import {
   Animated,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -57,6 +58,10 @@ function AmbientOrbs() {
     return () => animation.stop();
   }, [drift, isFocused, reduceMotion]);
 
+  if (theme.wallpaperUrl) return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <Image source={{uri:theme.wallpaperUrl}} resizeMode="cover" style={StyleSheet.absoluteFill}/>
+    <View style={[StyleSheet.absoluteFill,{backgroundColor:theme.mode === "dark" ? "rgba(0,0,0,0.52)" : "rgba(255,255,255,0.62)"}]}/>
+  </View>;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <LinearGradient
@@ -240,7 +245,8 @@ export function AppFrame({
     <SafeAreaView
       ref={wheelRootRef}
       {...swipeHandlers}
-      style={[styles.safe, { backgroundColor: theme.background }]}
+      style={[styles.safe, { backgroundColor: theme.background },
+        Platform.OS === "web" && !scroll ? ({ overflow: "clip" } as unknown as ViewStyle) : null]}
       edges={["top", "left", "right"]}
     >
       <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>

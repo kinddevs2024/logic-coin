@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { AppText } from "@/components/app-text";
+import { LogoMark } from "@/components/logo";
 import { Avatar } from "@/components/avatar";
 import { chatApi, chatMediaUrl, type ChatRoom } from "@/lib/chat-api";
 import { useChatCopy } from "@/lib/chat-copy";
@@ -34,6 +35,8 @@ export function ChatRoomInfo({
   const theme = useAppTheme();
   const [title, setTitle] = useState(room.title),
     [description, setDescription] = useState(room.description);
+  const [username, setUsername] = useState(room.username ?? "");
+  const [visibility, setVisibility] = useState(room.visibility ?? "invite");
   const c = useChatCopy(),
     router = useRouter(),
     client = useQueryClient();
@@ -54,8 +57,8 @@ export function ChatRoomInfo({
   }, [addSearch]);
   const candidates = useQuery({
     queryKey: ["chat-invite-search", token, room.id, search],
-    queryFn: () => chatApi.search(token, search),
-    enabled: addOpen && search.length >= 2,
+    queryFn: () => chatApi.friends(token, search),
+    enabled: addOpen,
     staleTime: 10000,
   });
   const selected = query.data?.members.find((p) => p.id === selectedId);
@@ -169,11 +172,14 @@ export function ChatRoomInfo({
   return (
     <ChatSheet title={room.title} onClose={onClose}>
       <View style={{ alignItems: "center", gap: 8, paddingBottom: 14 }}>
+        {room.username ? <AppText muted>@{room.username}</AppText> : null}
+        {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && !room.isOwner)) ? <LogoMark size={86} /> : (
         <Avatar
           name={room.title}
           avatarUrl={room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null}
           size={86}
         />
+        )}
         {!room.canManage && room.description ? (
           <AppText muted>{room.description}</AppText>
         ) : null}
@@ -182,6 +188,11 @@ export function ChatRoomInfo({
       ["group", "channel"].includes(room.kind) ? (
         <View style={{ gap: 8 }}>
           <AppText variant="label">{c.settings}</AppText>
+          {room.canManage ? <>
+            <TextInput accessibilityLabel={c.roomUsername} placeholder={c.roomUsername} value={username} onChangeText={setUsername} autoCapitalize="none" maxLength={25} style={{ padding: 12, borderRadius: 15, color: theme.text, backgroundColor: theme.surfaceRaised }} />
+            <ChatAction title={`${visibility === "public" ? "●" : "○"} ${c.publicRoom}`} onPress={() => setVisibility("public")} />
+            <ChatAction title={`${visibility === "invite" ? "●" : "○"} ${c.privateRoom}`} onPress={() => setVisibility("invite")} />
+          </> : null}
           <AppText variant="caption" muted>
             {c.name}
           </AppText>
@@ -222,6 +233,7 @@ export function ChatRoomInfo({
                 chatApi.updateRoom(token, room.id, {
                   title: title.trim(),
                   description,
+                  ...(room.canManage ? { username, visibility } : {}),
                 }),
               );
             }}
@@ -270,7 +282,7 @@ export function ChatRoomInfo({
           );
         }}
       />
-      {room.inviteCode ? (
+      {room.inviteCode && room.visibility === "public" ? (
         <ChatAction
           title={c.invite}
           icon="link-outline"
@@ -390,11 +402,10 @@ export function ChatRoomInfo({
                   color: theme.text,
                 }}
               />
-              {search.length >= 2 && candidates.isPending ? (
+              {candidates.isPending ? (
                 <ActivityIndicator color={String(theme.primary)} />
               ) : null}
-              {search.length >= 2 &&
-              !candidates.isPending &&
+              {!candidates.isPending &&
               !candidates.isError &&
               !people.length ? (
                 <AppText muted>{c.noPeople}</AppText>
@@ -405,7 +416,7 @@ export function ChatRoomInfo({
                   onPress={() => void candidates.refetch()}
                 />
               ) : null}
-              {search.length >= 2
+              {true
                 ? people.map((person) => (
                     <View
                       key={person.id}

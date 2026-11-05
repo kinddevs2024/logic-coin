@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Platform, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { NativeGlassLayer } from "@/components/native-glass-layer";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -12,7 +12,8 @@ export type NavigationGlassProps = {
 
 /** Native counterpart of the DOM-only liquid-glass-react surface. */
 export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
-  const dark = useAppTheme().mode === "dark";
+  const theme = useAppTheme();
+  const dark = theme.mode === "dark";
   const lens = variant === "lens";
 
   return (
@@ -24,18 +25,14 @@ export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
         StyleSheet.absoluteFill,
         styles.surface,
         {
-          backgroundColor: dark
-            ? lens ? "rgba(0,122,87,0.20)" : "rgba(16,37,27,0.88)"
-            : `rgba(249,255,241,${lens ? 0.18 : Platform.OS === "android" ? 0.92 : 0.48})`,
+          backgroundColor: lens ? theme.primarySoft : theme.tabBar,
         },
       ]}
     >
       {/* One blur capture for the whole bar; the sliding lens is a light overlay. */}
       {!lens ? <NativeGlassLayer intensity={42} dark={dark} /> : null}
       <LinearGradient
-        colors={dark
-          ? ["rgba(225,239,227,0.06)", "rgba(0,122,87,0.01)", "rgba(0,122,87,0.025)"]
-          : ["rgba(255,255,255,0.68)", "rgba(255,255,255,0.04)", "rgba(225,239,227,0.2)"]}
+        colors={[String(theme.glassHighlight), "transparent", "transparent"]}
         locations={[0, 0.45, 1]}
         start={{ x: 0.08, y: 0 }}
         end={{ x: 0.92, y: 1 }}
@@ -44,7 +41,7 @@ export function NavigationGlass({ variant = "bar" }: NavigationGlassProps) {
       <View style={[
         StyleSheet.absoluteFill,
         styles.rim,
-        { borderColor: dark ? lens ? "rgba(0,122,87,0.36)" : "rgba(0,122,87,0.22)" : "rgba(255,255,255,0.82)" },
+        { borderColor: theme.glassBorder },
       ]} />
     </View>
   );

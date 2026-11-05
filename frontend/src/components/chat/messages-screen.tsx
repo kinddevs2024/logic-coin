@@ -1,22 +1,30 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import {
+  Animated,
+  Easing,
   ActivityIndicator,
   FlatList,
   Keyboard,
+  Platform,
+  PanResponder,
+  type ViewStyle,
   Pressable,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { MotionEntrance } from "@/components/motion-entrance";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProfileDrawer } from "@/components/profile-drawer";
 import { OfficialBadge } from "./official-badge";
+import { useDismissSearch } from "./use-dismiss-search";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
+import { LogoMark } from "@/components/logo";
 import { Avatar } from "@/components/avatar";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -25,21 +33,47 @@ import { chatApi, chatMediaUrl, type ChatRoom } from "@/lib/chat-api";
 import { useChatCopy } from "@/lib/chat-copy";
 import { ConversationPane } from "./conversation-pane";
 import { ChatAction, ChatSheet } from "./chat-sheet";
+import { meApi } from "@/lib/api";
+import {InviteFriendsSheet} from "./invite-friends-sheet";
 import { ChatRoomInfo } from "./chat-room-info";
 
 export function MessagesScreen() {
   const theme = useAppTheme(),
     c = useChatCopy(),
     router = useRouter(),
-    params = useLocalSearchParams<{ chat?: string; invite?: string }>(),
+    params = useLocalSearchParams<{
+      chat?: string;
+      invite?: string;
+      messageSearch?: string;
+    }>(),
     { isDesktop } = useResponsiveLayout();
   const token = useAppStore((s) => s.accessToken),
     user = useAppStore((s) => s.user),
     focused = useIsFocused(),
     client = useQueryClient();
+  const [nickname, setNickname] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [savingNickname, setSavingNickname] = useState(false);
+  const [nicknameDismissed, setNicknameDismissed] = useState(false);
   const insets = useSafeAreaInsets();
   const chatOpen = Boolean(params.chat);
+  const [invitingFriends,setInvitingFriends]=useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchWidth, setSearchWidth] = useState(320);
+  const searchBox = useRef<View>(null);
+  const [searchMotion] = useState(() => new Animated.Value(0));
+  const reducedMotion = useReducedMotion();
+  useEffect(() => {
+    const animation = Animated.timing(searchMotion, {
+      toValue: searchOpen ? 1 : 0,
+      duration: reducedMotion ? 0 : 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [searchOpen, searchMotion, reducedMotion]);
   const [filter, setFilter] = useState("all"),
     [search, setSearch] = useState(""),
     [debounced, setDebounced] = useState(""),
@@ -47,12 +81,15 @@ export function MessagesScreen() {
       "menu" | "direct" | "group" | "channel" | null
     >(null);
   const [title, setTitle] = useState(""),
+    [roomUsername, setRoomUsername] = useState(""),
     [description, setDescription] = useState(""),
     [visibility, setVisibility] = useState<"public" | "invite">("invite"),
     [info, setInfo] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),
     [keyboardOpen, setKeyboardOpen] = useState(false);
+  const closeSearch = useCallback(() => { setSearchOpen(false); setSearch(""); setDebounced(""); Keyboard.dismiss(); }, []);
+  useDismissSearch(searchOpen, closeSearch);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(search.trim()), 350);
     return () => clearTimeout(timer);
@@ -69,6 +106,71 @@ export function MessagesScreen() {
       hide.remove();
     };
   }, []);
+  const folderWheel = useRef({ amount: 0, last: 0 });
+  const pointerSwipe = useRef({ x: 0, y: 0, active: false, suppressUntil: 0 });
+  const changeFolder = (direction: number) =>
+    setFilter((current) => {
+      const folders = ["all", "direct", "group", "channel", "requests"];
+      return folders[
+        Math.max(0, Math.min(4, folders.indexOf(current) + direction))
+      ]!;
+    });
+  const folderSwipe = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, gesture) =>
+          !chatOpen && !searchOpen && Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          !chatOpen &&
+          !searchOpen &&
+          Math.abs(gesture.dx) > 24 &&
+          Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+        onPanResponderRelease: (_, gesture) => {
+          if (Math.abs(gesture.dx) > 50) changeFolder(gesture.dx < 0 ? 1 : -1);
+        },
+      }),
+    [chatOpen, searchOpen],
+  );
+  const wheelProps =
+    Platform.OS === "web"
+      ? {
+          onPointerDown: (event: { nativeEvent: { clientX: number; clientY: number } }) => {
+            pointerSwipe.current.x = event.nativeEvent.clientX;
+            pointerSwipe.current.y = event.nativeEvent.clientY;
+            pointerSwipe.current.active = !chatOpen && !searchOpen;
+          },
+          onPointerUp: (event: { nativeEvent: { clientX: number; clientY: number }; preventDefault: () => void }) => {
+            const swipe = pointerSwipe.current;
+            if (!swipe.active) return;
+            swipe.active = false;
+            const dx = event.nativeEvent.clientX - swipe.x;
+            const dy = event.nativeEvent.clientY - swipe.y;
+            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+              event.preventDefault();
+              swipe.suppressUntil = Date.now() + 350;
+              changeFolder(dx < 0 ? 1 : -1);
+            }
+          },
+          onClickCapture: (event: { preventDefault: () => void; stopPropagation: () => void }) => {
+            if (Date.now() < pointerSwipe.current.suppressUntil) { event.preventDefault(); event.stopPropagation(); }
+          },
+          onWheel: (event: {
+            nativeEvent: { deltaX: number; deltaY: number };
+            preventDefault: () => void;
+          }) => {
+            const { deltaX, deltaY } = event.nativeEvent;
+            if (chatOpen || searchOpen || Math.abs(deltaX) <= Math.abs(deltaY))
+              return;
+            event.preventDefault();
+            if (Date.now() - folderWheel.current.last < 450) return;
+            folderWheel.current.amount += deltaX;
+            if (Math.abs(folderWheel.current.amount) > 55) {
+              changeFolder(folderWheel.current.amount > 0 ? 1 : -1);
+              folderWheel.current = { amount: 0, last: Date.now() };
+            }
+          },
+        }
+      : {};
   const query = useQuery({
     queryKey: ["chat-list", token],
     enabled: Boolean(token),
@@ -76,6 +178,18 @@ export function MessagesScreen() {
     staleTime: 15_000,
     refetchInterval: focused ? 30_000 : false,
   });
+  const requestsQuery = useQuery({queryKey: ["chat-friend-requests", token], enabled: Boolean(token), queryFn: () => chatApi.friendRequests(token!), refetchInterval: focused ? 10_000 : false});
+  const [requestBusy, setRequestBusy] = useState<string | null>(null);
+  const answerRequest = async (id: string, accept: boolean) => {
+    if (!token || requestBusy) return;
+    setRequestBusy(id); setError(null);
+    try {
+      const result = await chatApi.answerFriend(token,id,accept);
+      await Promise.all([requestsQuery.refetch(),query.refetch()]);
+      if (result.id) { router.setParams({chat:result.id}); setFilter("direct"); }
+    } catch (err) {setError(err instanceof Error ? err.message : c.error);}
+    finally {setRequestBusy(null);}
+  };
   const found = useQuery({
     queryKey: ["chat-search", token, debounced],
     enabled: Boolean(token && debounced.length >= 2),
@@ -87,24 +201,34 @@ export function MessagesScreen() {
       [...(query.data?.chats ?? [])].sort(
         (a, b) =>
           Number(b.pinned) - Number(a.pinned) ||
-          Number(Boolean(b.systemKey || b.kind === "support")) -
-            Number(Boolean(a.systemKey || a.kind === "support")) ||
+          Number(Boolean(b.isOfficial)) -
+            Number(Boolean(a.isOfficial)) ||
           Date.parse(b.lastMessageAt) - Date.parse(a.lastMessageAt),
       ),
     [query.data],
   );
   const selected = chats.find((room) => room.id === params.chat);
+  const unreadByFolder = useMemo(() => {
+    const counts: Record<string, number> = {all: 0, direct: 0, group: 0, channel: 0};
+    for (const room of chats) {
+      counts.all += room.unread;
+      counts[room.kind === "support" ? "direct" : room.kind] += room.unread;
+    }
+    counts.requests = requestsQuery.data?.requests.length ?? 0;
+    return counts;
+  }, [chats, requestsQuery.data]);
   const roomTitle = (room: ChatRoom) =>
     room.systemKey === "news"
       ? c.news
       : room.systemKey === "community"
         ? c.community
-        : room.kind === "support" && user.role !== "admin"
+        : room.kind === "support" && room.isOfficial
           ? c.support
           : room.title;
   const shown = chats.filter(
     (room) =>
-      (filter === "all" ||
+      ((searchOpen && Boolean(debounced)) ||
+        filter === "all" ||
         (filter === "direct" && ["direct", "support"].includes(room.kind)) ||
         (filter === "group" && room.kind === "group") ||
         (filter === "channel" && room.kind === "channel")) &&
@@ -112,10 +236,13 @@ export function MessagesScreen() {
         roomTitle(room).toLowerCase().includes(debounced.toLowerCase())),
   );
   const open = useCallback(
-    (id: string) => {
-      router.setParams({ chat: id, invite: "" });
+    (id: string, messageSearch = "") => {
+      if (Date.now() < pointerSwipe.current.suppressUntil) return;
+      router.setParams({ chat: id, invite: "", messageSearch });
       setCreating(null);
       setSearch("");
+      setDebounced("");
+      setSearchOpen(false);
       Keyboard.dismiss();
     },
     [router],
@@ -153,7 +280,13 @@ export function MessagesScreen() {
       cancelled = true;
     };
   }, [token, params.invite, client, open, c.error]);
-  const profile = (id: string) => router.push(`/player/${id}` as never);
+  const profile = useCallback((id: string) => {
+    if (Date.now() < pointerSwipe.current.suppressUntil) return;
+    setSearch("");
+    setDebounced("");
+    setSearchOpen(false);
+    router.push(`/player/${id}` as never);
+  }, [router]);
   const input = [
     styles.input,
     {
@@ -185,16 +318,24 @@ export function MessagesScreen() {
         paddingBottom: keyboardOpen
           ? 0
           : chatOpen
-            ? insets.bottom + 8
+            ? 0
             : isDesktop
               ? 24
-              : 112,
+              : 0,
       }}
     >
       <View
+        onTouchEnd={Platform.OS !== "web" && searchOpen ? event => {
+          const { pageX, pageY } = event.nativeEvent;
+          searchBox.current?.measureInWindow((x, y, width, height) => {
+            if (pageX < x || pageX > x + width || pageY < y || pageY > y + height) closeSearch();
+          });
+        } : undefined}
+        {...(Platform.OS !== "web" ? folderSwipe.panHandlers : {})}
+        {...wheelProps}
         style={[
           styles.shell,
-          { backgroundColor: theme.surface, borderColor: theme.border },
+          { backgroundColor: "transparent", borderColor: theme.border },
           isDesktop && styles.desktop,
         ]}
       >
@@ -224,7 +365,7 @@ export function MessagesScreen() {
               <View style={{ flex: 1 }}>
                 <AppText variant="title">{c.title}</AppText>
                 <AppText variant="caption" muted numberOfLines={1}>
-                  {user.username ? `@${user.username}` : c.groupHint}
+                  {user.username ? `@${user.username}` : ""}
                 </AppText>
               </View>
               <Pressable
@@ -253,66 +394,115 @@ export function MessagesScreen() {
               </Pressable>
             </View>
             <View
-              style={[styles.search, { backgroundColor: theme.surfaceRaised }]}
+              onLayout={(event) =>
+                setSearchWidth(event.nativeEvent.layout.width - 32)
+              }
+              style={{ height: 68, flexShrink: 0, marginHorizontal: 0 }}
             >
-              <Ionicons
-                name="search-outline"
-                size={19}
-                color={String(theme.textMuted)}
-              />
-              <TextInput
-                accessibilityLabel={c.search}
-                value={search}
-                onChangeText={setSearch}
-                placeholder={c.search}
-                placeholderTextColor={theme.textMuted}
-                style={{
-                  flex: 1,
-                  color: theme.text,
-                  minHeight: 42,
-                  fontSize: 14,
-                }}
-              />
-              {search ? (
+              <View
+                pointerEvents={searchOpen ? "none" : "auto"}
+                accessibilityElementsHidden={searchOpen}
+                style={[
+                  styles.filters,
+                  {
+                    height: 68,
+                    alignItems: "center",
+                    opacity: searchOpen ? 0 : 1,
+                  },
+                ]}
+              >
+                {[
+                  ["all", c.all],
+                  ["direct", c.direct],
+                  ["group", c.groups],
+                  ["channel", c.channels],
+                  ["requests", c.requests],
+                ].map(([key, label]) => (
+                  <Pressable
+                    key={key}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: filter === key }}
+                    onPress={() => setFilter(key!)}
+                    style={[
+                      styles.filter,
+                      filter === key && { backgroundColor: theme.primarySoft },
+                    ]}
+                  >
+                    <AppText
+                      variant="caption"
+                      style={{fontSize:12}}
+                      color={String(
+                        filter === key ? theme.primary : theme.textMuted,
+                      )}
+                    >
+                      {label}
+                    </AppText>
+                    {unreadByFolder[key!] > 0 ? <View accessibilityLabel={`${c.unreadMessages}: ${unreadByFolder[key!]}`} style={{minWidth: 16, height: 16, paddingHorizontal: 4, borderRadius: 8, marginLeft: 4, backgroundColor: theme.primary, alignItems: "center", justifyContent: "center"}}>
+                      <AppText style={{fontSize: 10, lineHeight: 13, color: theme.onPrimary}}>{unreadByFolder[key!] > 99 ? "99+" : unreadByFolder[key!]}</AppText>
+                    </View> : null}
+                  </Pressable>
+                ))}
                 <Pressable
-                  accessibilityLabel={c.cancel}
-                  onPress={() => setSearch("")}
+                  accessibilityRole="button"
+                  accessibilityLabel={c.search}
+                  onPress={() => setSearchOpen(true)}
+                  style={[styles.icon, { marginLeft: "auto" }]}
                 >
                   <Ionicons
-                    name="close-circle"
-                    size={19}
-                    color={String(theme.textMuted)}
+                    name="search-outline"
+                    size={22}
+                    color={String(theme.primary)}
                   />
                 </Pressable>
-              ) : null}
-            </View>
-            <View style={styles.filters}>
-              {[
-                ["all", c.all],
-                ["direct", c.direct],
-                ["group", c.groups],
-                ["channel", c.channels],
-              ].map(([key, label]) => (
-                <Pressable
-                  key={key}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: filter === key }}
-                  onPress={() => setFilter(key!)}
-                  style={[
-                    styles.filter,
-                    filter === key && { backgroundColor: theme.primarySoft },
-                  ]}
-                >
-                  <AppText
-                    variant="caption"
-                    color={String(
-                      filter === key ? theme.primary : theme.textMuted,
-                    )}
-                  >
-                    {label}
-                  </AppText>
-                </Pressable>
-              ))}
+              </View>
+              <Animated.View
+                ref={searchBox}
+                nativeID="chat-list-search"
+                pointerEvents={searchOpen ? "auto" : "none"}
+                style={{
+                  position: "absolute",
+                  right: 16,
+                  top: 12,
+                  height: 44,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: theme.surfaceRaised,
+                  opacity: searchMotion,
+                  width: searchMotion.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [36, Math.max(36, searchWidth)],
+                  }),
+                }}
+              >
+                {searchOpen ? (
+                  <>
+                    <TextInput
+                      accessibilityLabel={c.search}
+                      autoFocus
+                      value={search}
+                      onChangeText={setSearch}
+                      placeholderTextColor={theme.textMuted}
+                      style={{
+                        paddingLeft: 14,
+                        flex: 1,
+                        minWidth: 0,
+                        height: 44,
+                        color: theme.text,
+                        fontSize: 14,
+                      }}
+                    />
+                    <View style={styles.icon}>
+                      <Ionicons
+                        name="search-outline"
+                        size={22}
+                        color={String(theme.primary)}
+                      />
+                    </View>
+                  </>
+                ) : null}
+              </Animated.View>
             </View>
             {query.isPending ? (
               <ActivityIndicator
@@ -329,10 +519,35 @@ export function MessagesScreen() {
                 }}
               />
             ) : null}
+            {filter === "requests" && !searchOpen ? <View style={{flex:1, paddingHorizontal:16}}>
+              {requestsQuery.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
+              {requestsQuery.isError ? <ChatAction title={c.retry} onPress={()=>void requestsQuery.refetch()} /> : null}
+              {error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{error}</AppText> : null}
+              {requestsQuery.data?.requests.length === 0 ? <AppText muted style={{padding:24,textAlign:"center"}}>{c.noRequests}</AppText> : null}
+              <FlatList showsVerticalScrollIndicator={false} data={requestsQuery.data?.requests ?? []} keyExtractor={person=>person.id} renderItem={({item:person})=><MotionEntrance style={{paddingVertical:12,gap:10}}>
+                <Pressable onPress={()=>profile(person.id)} style={{flexDirection:"row",alignItems:"center",gap:12}}><Avatar name={person.name} avatarUrl={person.avatarUrl} size={46}/><View style={{flex:1}}><AppText variant="label">{person.name}</AppText>{person.username ? <AppText muted>@{person.username}</AppText>:null}</View></Pressable>
+                <View style={{flexDirection:"row",gap:12}}><ChatAction title={c.acceptFriend} icon="checkmark" disabled={Boolean(requestBusy)} onPress={()=>void answerRequest(person.id,true)}/><ChatAction title={c.declineFriend} icon="close" disabled={Boolean(requestBusy)} onPress={()=>void answerRequest(person.id,false)}/></View>
+              </MotionEntrance>} />
+            </View> : null}
             <FlatList
-              data={shown}
+              style={
+                filter === "requests" && !searchOpen ? {display:"none"} : Platform.OS === "web"
+                  ? ({
+                      maskImage:
+                        "linear-gradient(to bottom, transparent 0px, black 24px)",
+                      WebkitMaskImage:
+                        "linear-gradient(to bottom, transparent 0px, black 24px)",
+                    } as ViewStyle)
+                  : undefined
+              }
+              showsVerticalScrollIndicator={false}
+              data={filter === "requests" && !searchOpen ? [] : shown}
               keyExtractor={(room) => room.id}
-              contentContainerStyle={{ paddingBottom: 15 }}
+              contentContainerStyle={{
+                paddingTop: 12,
+                paddingBottom:
+                  !isDesktop && !chatOpen ? 128 + insets.bottom : 15,
+              }}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item: room }) => (
                 <MotionEntrance
@@ -346,7 +561,15 @@ export function MessagesScreen() {
                     },
                   ]}
                 >
-                  {room.peer || room.avatarUrl ? (
+                  {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && room.isOwner !== true)) ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={roomTitle(room)}
+                      onPress={() => open(room.id)}
+                    >
+                      <LogoMark size={52} />
+                    </Pressable>
+                  ) : room.peer || room.avatarUrl ? (
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={c.profile}
@@ -355,7 +578,7 @@ export function MessagesScreen() {
                       }
                     >
                       <Avatar
-                        name={room.title}
+                        name={room.peer?.username || room.peer?.name || room.title}
                         avatarUrl={
                           room.peer?.avatarUrl ??
                           (room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null)
@@ -377,9 +600,7 @@ export function MessagesScreen() {
                         name={
                           room.systemKey === "news" || room.kind === "channel"
                             ? "megaphone-outline"
-                            : room.kind === "support"
-                              ? "headset-outline"
-                              : "people-outline"
+                            : "people-outline"
                         }
                         size={25}
                         color={String(theme.primary)}
@@ -406,7 +627,7 @@ export function MessagesScreen() {
                       >
                         {roomTitle(room)}
                       </AppText>
-                      {room.systemKey || room.kind === "support" ? (
+                      {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && room.isOwner !== true)) ? (
                         <OfficialBadge />
                       ) : null}
                       {room.pinned ? (
@@ -419,11 +640,11 @@ export function MessagesScreen() {
                       <AppText variant="caption" muted>
                         {room.lastSeq
                           ? new Date(room.lastMessageAt).toLocaleTimeString(
-                              [],
+                              "en-US",
                               {
                                 hour: "2-digit",
                                 minute: "2-digit",
-                                hour12: false,
+                                hour12: true,
                               },
                             )
                           : ""}
@@ -478,6 +699,14 @@ export function MessagesScreen() {
               ListFooterComponent={
                 debounced.length >= 2 ? (
                   <View style={{ padding: 14, gap: 5 }}>
+                    {found.data?.messages?.map((message) => (
+                      <ChatAction
+                        key={message.id}
+                        title={`${chats.find((room) => room.id === message.conversationId)?.title ?? c.search} · ${message.text}`}
+                        icon="chatbubble-outline"
+                        onPress={() => open(message.conversationId, debounced)}
+                      />
+                    ))}
                     {found.data?.users.map((person) => (
                       <View key={person.id} style={styles.person}>
                         <Pressable
@@ -504,9 +733,7 @@ export function MessagesScreen() {
                         <Pressable
                           accessibilityLabel={c.newChat}
                           onPress={() => {
-                            void execute(() =>
-                              chatApi.direct(token, person.id),
-                            );
+                            profile(person.id);
                           }}
                         >
                           <Ionicons
@@ -520,7 +747,7 @@ export function MessagesScreen() {
                     {found.data?.rooms.map((room) => (
                       <ChatAction
                         key={room.id}
-                        title={`${room.title} · ${c.join}`}
+                        title={`${room.title}${room.username ? ` · @${room.username}` : ""} · ${c.join}`}
                         disabled={busy}
                         onPress={() => {
                           void execute(() =>
@@ -541,6 +768,7 @@ export function MessagesScreen() {
               key={selected.id}
               room={{ ...selected, title: roomTitle(selected) }}
               token={token}
+              initialSearch={params.messageSearch ?? ""}
               accountId={user.id ?? ""}
               chats={chats}
               onBack={() => router.setParams({ chat: "" })}
@@ -576,6 +804,12 @@ export function MessagesScreen() {
           <AppText color={String(theme.danger)}>{error}</AppText>
         </Pressable>
       ) : null}
+      {invitingFriends && token ? <InviteFriendsSheet token={token} onClose={()=>setInvitingFriends(false)}/> : null}
+      {!user.username && !nicknameDismissed ? <ChatSheet title={c.chooseUsername} onClose={() => setNicknameDismissed(true)}>
+          <TextInput accessibilityLabel={c.username} autoCapitalize="none" autoCorrect={false} value={nickname} onChangeText={setNickname} placeholder="@username" style={[styles.input,{color:theme.text,borderColor:theme.border}]} />
+          {nicknameError ? <AppText color={String(theme.danger)}>{nicknameError}</AppText> : null}
+          <ChatAction title={c.save} icon="checkmark-outline" disabled={savingNickname || !nickname.trim()} onPress={() => { if(!token) return; setSavingNickname(true);setNicknameError(""); void meApi.updateProfile({username:nickname.trim().replace(/^@/,"")},token).then(value=>useAppStore.getState().updateUser(value)).catch(error=>setNicknameError(error instanceof Error ? error.message : String(error))).finally(()=>setSavingNickname(false)); }} />
+      </ChatSheet> : null}
       {creating ? (
         <ChatSheet
           title={
@@ -589,6 +823,7 @@ export function MessagesScreen() {
         >
           {creating === "menu" ? (
             <>
+              <ChatAction title={c.addFriends} icon="person-add-outline" onPress={()=>{setCreating(null);setInvitingFriends(true);}}/>
               <ChatAction
                 title={c.newChat}
                 icon="chatbubble-outline"
@@ -621,13 +856,14 @@ export function MessagesScreen() {
                   title={`${person.name}${person.username ? ` · @${person.username}` : ""}`}
                   disabled={busy}
                   onPress={() => {
-                    void execute(() => chatApi.direct(token, person.id));
+                    profile(person.id);
                   }}
                 />
               ))}
             </>
           ) : (
             <>
+              <TextInput accessibilityLabel={c.roomUsername} placeholder={c.roomUsername} value={roomUsername} onChangeText={setRoomUsername} autoCapitalize="none" maxLength={25} style={input} />
               <TextInput
                 value={title}
                 onChangeText={setTitle}
@@ -664,6 +900,7 @@ export function MessagesScreen() {
                       title: title.trim(),
                       description,
                       visibility,
+                      username: roomUsername,
                     }),
                   );
                 }}
@@ -720,8 +957,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  filters: { flexDirection: "row", gap: 4, padding: 12, paddingHorizontal: 16 },
-  filter: { paddingVertical: 8, paddingHorizontal: 11, borderRadius: 14 },
+  filters: { flexDirection: "row", gap: 2, padding: 12, paddingHorizontal: 12 },
+  filter: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 6, borderRadius: 14 },
   chatRow: {
     flexDirection: "row",
     gap: 12,

@@ -55,3 +55,21 @@ describe("green brand themes", () => {
     }
   });
 });
+
+describe("shared app and chat appearance", () => {
+  it.each(["green", "blue", "pink", "graphite"] as const)("provides a complete %s palette", preset => {
+    const palette=themes[preset];
+    expect(palette.primary).toMatch(/^#[a-f0-9]{6}$/i);
+    expect(contrastRatio(String(palette.text),String(palette.background))).toBeGreaterThan(7);
+    expect(contrastRatio(String(palette.textMuted),String(palette.surface))).toBeGreaterThan(4.5);
+  });
+});
+
+
+describe("dark preset glass", () => {
+  it.each(["pink","graphite"] as const)("keeps %s highlights subtle", preset => {
+    expect(themes[preset].glassHighlight).toBe("rgba(255,255,255,0.045)");
+    expect(themes[preset].glassShadow).toBe("#000000");
+    expect(themes[preset].tabBar).not.toBe(themes.dark.tabBar);
+  });
+});

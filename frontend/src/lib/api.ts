@@ -86,6 +86,7 @@ export async function request<T>(
   const { token, skipAuthRefresh, ...fetchOptions } = options;
   const headers = new Headers(fetchOptions.headers);
   headers.set("Accept", "application/json");
+  headers.set("X-Appearance-Version", "2");
   headers.set("Accept-Language", useAppStore.getState().language ?? "uz");
   const telegramInitData = Platform.OS === "web" && /\/challenges\/[^/]+\/start$/.test(path) ? telegramChallengeInitData() : undefined;
   if (telegramInitData) headers.set("X-Telegram-Init-Data", telegramInitData);
@@ -1087,6 +1088,10 @@ export const meApi = {
       body: JSON.stringify(input),
     });
     return payload.user;
+  },
+  async themePhoto(input: {base64:string;mime:string}, token:string) {
+    const payload=await request<{preferences:UserPreferences}>("/me/theme-photo",{method:"POST",token,body:JSON.stringify(input)});
+    return payload.preferences;
   },
   async preferences(token: string) {
     const payload = await request<{ preferences: UserPreferences }>(

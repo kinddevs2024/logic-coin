@@ -24,7 +24,7 @@ export default function PlayerProfileScreen() {
     [busy, setBusy] = useState(false);
   const id = typeof params.id === "string" ? params.id : "";
   const query = useQuery({
-    queryKey: ["chat-profile", id],
+    queryKey: ["chat-profile", token, id],
     enabled: Boolean(token && /^[a-f\d]{24}$/i.test(id)),
     queryFn: () => chatApi.profile(token!, id),
   });
@@ -37,6 +37,11 @@ export default function PlayerProfileScreen() {
     if (busy) return;
     setBusy(true);
     try {
+      if (p?.friendship !== "friends") {
+        const result = p?.friendship === "incoming" ? await chatApi.answerFriend(token,id,true) : await chatApi.requestFriend(token,id);
+        await query.refetch();
+        if (!("id" in result) || !result.id) return;
+      }
       const room = await chatApi.direct(token, id);
       router.push({
         pathname: "/messages",
@@ -93,7 +98,7 @@ export default function PlayerProfileScreen() {
             <>
               <Pressable
                 accessibilityRole="button"
-                disabled={busy}
+                disabled={busy || p.friendship === "outgoing" || p.blocked}
                 onPress={() => {
                   void write();
                 }}
@@ -106,7 +111,7 @@ export default function PlayerProfileScreen() {
                 }}
               >
                 <AppText color={String(theme.onPrimary)} variant="label">
-                  {c.newChat}
+                  {p.friendship === "friends" ? c.newChat : p.friendship === "incoming" ? c.acceptFriend : p.friendship === "outgoing" ? c.requestSent : c.friendRequest}
                 </AppText>
               </Pressable>
               <ChatAction

@@ -14,6 +14,7 @@ const preferencesSchema = new Schema(
   {
     language: { type: String, enum: SUPPORTED_LANGUAGES, default: "ru", required: true },
     theme: { type: String, enum: THEMES, default: "auto", required: true },
+    customTheme: { type: new Schema({ wallpaperUrl: {type: String, required: true}, accent: {type: String, required: true}, dark: {type: Boolean, required: true} }, {_id:false}), default: undefined },
     savingsGoalCents: { type: Number, min: 0, default: 1_000, required: true },
     notificationsEnabled: { type: Boolean, default: true, required: true },
     dailyReminderEnabled: { type: Boolean, default: true, required: true },
@@ -51,6 +52,7 @@ const userSchema = new Schema(
     role: { type: String, enum: USER_ROLES, default: "user", required: true },
     name: { type: String, required: true, trim: true, minlength: 1, maxlength: 80 },
     username: { type: String, trim: true, lowercase: true, maxlength: 24 },
+    telegramUsername: { type: String, trim: true, lowercase: true, maxlength: 64 },
     avatarUrl: { type: String, trim: true, maxlength: 14_000_000 },
     countryCode: { type: String, trim: true, uppercase: true, match: /^[A-Z]{2}$/ },
     providers: { type: providerSchema, required: true, default: () => ({}) },

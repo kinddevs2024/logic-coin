@@ -7,11 +7,15 @@ export type ChatPerson = {
   referralCode?: string;
 };
 export type ChatRoom = {
+  chatTheme?: { preset: "system" | "green" | "blue" | "pink" | "graphite" | "custom"; accent?: string | null; dark?: boolean; wallpaperUrl?: string | null };
   id: string;
   kind: "direct" | "support" | "group" | "channel";
+  isOfficial?: boolean;
   systemKey: "news" | "community" | null;
   title: string;
   description: string;
+  username?: string | null;
+  visibility?: "public" | "invite";
   avatarUrl?: string | null;
   peer: ChatPerson | null;
   unread: number;
@@ -49,8 +53,9 @@ export type ChatItem = {
   forwardedFrom: string | null;
   reply: { id: string; text: string; sender: string } | null;
   attachments: ChatFile[];
-  reactions: { userId: string; emoji: string }[];
+  reactions: { userId: string; emoji: string; user?: ChatPerson }[];
   own: boolean;
+  voiceListened?: boolean;
 };
 export type ChatDraftFile = {
   name: string;
@@ -70,15 +75,19 @@ const call = <T>(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 export const chatApi = {
+  directory: (token:string,q="",cursor="")=>call<{users:(ChatPerson & {friendship:string})[];next:string|null}>(token,`/directory?q=${encodeURIComponent(q)}${cursor?`&cursor=${cursor}`:""}`),
+  theme: (token: string, id: string, preset: NonNullable<ChatRoom["chatTheme"]>["preset"], wallpaperAttachmentId?: string) => call<{ok: boolean}>(token, `/${id}/theme`, "PATCH", {preset, ...(wallpaperAttachmentId ? {wallpaperAttachmentId} : {})}),
   list: (token: string) => call<{ chats: ChatRoom[] }>(token, "/"),
   search: (token: string, q: string) =>
     call<{
       users: ChatPerson[];
+      messages?: { id: string; conversationId: string; text: string }[];
       rooms: {
         id: string;
         title: string;
         kind: string;
         description: string;
+        username?: string | null;
         inviteCode: string;
       }[];
     }>(token, `/search?q=${encodeURIComponent(q)}`),
@@ -89,8 +98,13 @@ export const chatApi = {
         coinBalance: number;
         balanceUnits: number;
         blocked: boolean;
+        friendship: "self" | "none" | "incoming" | "outgoing" | "friends";
       }
     >(token, `/users/${id}`),
+  friends: (token: string, q = "") => call<{users: ChatPerson[]}>(token, `/friends?q=${encodeURIComponent(q)}`),
+  friendRequests: (token: string) => call<{ requests: (ChatPerson & {requestedAt: string})[] }>(token, "/friend-requests"),
+  requestFriend: (token: string, id: string) => call<{status: string}>(token, `/users/${id}/friend-request`, "POST"),
+  answerFriend: (token: string, id: string, accept: boolean) => call<{status: string; id?: string}>(token, `/users/${id}/friend-answer`, "POST", {accept}),
   username: (token: string, username: string) =>
     call<{ username: string | null }>(token, "/username", "PUT", { username }),
   direct: (token: string, userId: string) =>
@@ -102,17 +116,19 @@ export const chatApi = {
       title: string;
       description: string;
       visibility: "public" | "invite";
+      username?: string;
     },
   ) => call<{ id: string }>(token, "/rooms", "POST", input),
   updateRoom: (
     token: string,
     id: string,
-    input: { title: string; description: string; avatarAttachmentId?: string },
+    input: { title: string; description: string; avatarAttachmentId?: string; username?: string; visibility?: "public" | "invite" },
   ) => call<{ ok: boolean }>(token, `/${id}`, "PATCH", input),
   join: (token: string, code: string) =>
     call<{ id: string }>(token, "/join", "POST", { code }),
+  listen: (token: string, id: string) => call<{ok: boolean}>(token, `/messages/${id}/listen`, "POST"),
   messages: (token: string, id: string, before?: number, q?: string) =>
-    call<{ items: ChatItem[]; before: number | null }>(
+    call<{ items: ChatItem[]; before: number | null; pinned?: {id: string; seq: number; text: string; hasAttachments: boolean}[] }>(
       token,
       `/${id}/messages?${new URLSearchParams({ ...(before ? { before: String(before) } : {}), ...(q ? { q } : {}) })}`,
     ),
@@ -176,7 +192,22 @@ export const chatApi = {
   block: (token: string, id: string, blocked: boolean) =>
     call<{ blocked: boolean }>(token, `/users/${id}/block`, "PUT", { blocked }),
 };
+// Keep a still-valid media ticket across polling responses. Tickets are scoped
+// to both user and session; a different attachment or session gets a new entry.
+const mediaTickets = new Map<string, { url: string; expires: number }>();
 export function chatMediaUrl(value: string) {
+  if (value.startsWith("/api/v1/chat/media/")) {
+    const parsed = new URL(value, "http://chat.local");
+    const expires = Number(parsed.searchParams.get("e"));
+    const key = `${parsed.pathname}:${parsed.searchParams.get("u")}:${parsed.searchParams.get("s")}`;
+    const previous = mediaTickets.get(key);
+    if (previous && previous.expires > Date.now() + 30_000) {
+      value = previous.url;
+    } else if (Number.isFinite(expires) && expires > Date.now() + 30_000) {
+      if (mediaTickets.size >= 500) mediaTickets.delete(mediaTickets.keys().next().value!);
+      mediaTickets.set(key, { url: value, expires });
+    }
+  }
   if (!value.startsWith("/")) return value;
   return API_URL.startsWith("/")
     ? value

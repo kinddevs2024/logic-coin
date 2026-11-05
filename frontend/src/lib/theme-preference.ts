@@ -4,10 +4,9 @@ import type { ThemeMode } from "@/constants/theme";
 export function resolveThemePreference(
   preference: unknown,
   systemScheme: string | null | undefined,
-  now = new Date(),
+  _now = new Date(),
 ): ThemeMode {
-  if (preference === "light" || preference === "sky" || preference === "dark") return preference;
+  if (preference === "light" || preference === "sky" || preference === "dark" || preference === "green" || preference === "blue" || preference === "pink" || preference === "graphite") return preference;
   // Resolve auto, legacy or corrupt values before RootLayout reads background.
-  const hour = now.getHours();
-  return systemScheme === "dark" || hour >= 19 || hour < 7 ? "dark" : "sky";
+  return systemScheme === "dark" ? "dark" : "sky";
 }

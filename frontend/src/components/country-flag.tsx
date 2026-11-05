@@ -1,5 +1,8 @@
-import CountryFlag from "react-native-country-flag";
-import { StyleSheet, View } from "react-native";
+import {useState} from "react";
+import {AppText} from "@/components/app-text";
+import {useAppTheme} from "@/hooks/use-app-theme";
+import {countryFlags} from "@/constants/country-flags";
+import { Image, StyleSheet, View } from "react-native";
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json";
 import ruLocale from "i18n-iso-countries/langs/ru.json";
@@ -26,23 +29,17 @@ export function countryName(countryCode: string | null | undefined, language: La
   return countries.getName(code, language) ?? countries.getName(code, "en") ?? code;
 }
 
-export function CountryFlagBadge({ countryCode, size = 28 }: { countryCode?: string | null; size?: number }) {
-  if (!countryCode) return null;
-  return (
-    <View style={[styles.wrap, { height: size, width: Math.round(size * 1.48), borderRadius: Math.max(5, Math.round(size * 0.24)) }]}>
-      <CountryFlag isoCode={countryCode.toLowerCase()} size={size} style={styles.flag} />
-    </View>
-  );
+export function CountryFlagBadge({countryCode,size=28}: {countryCode?:string|null;size?:number}) {
+  const code = countryCode?.trim().toUpperCase();
+  return code ? <FlagImage key={code} code={code} size={size}/> : null;
+}
+function FlagImage({code,size}: {code:string;size:number}) {
+  const theme=useAppTheme();
+  const [failed,setFailed]=useState(false);
+  const source=countryFlags[code];
+  return <View accessibilityLabel={countryName(code)} style={{height:size,width:Math.round(size*1.6),borderRadius:Math.max(2,Math.round(size*0.14)),overflow:"hidden",backgroundColor:theme.primarySoft,alignItems:"center",justifyContent:"center"}}>
+    <AppText style={{fontSize:Math.max(8,size*0.42),lineHeight:size,color:theme.textMuted}}>{code}</AppText>
+    {source && !failed ? <Image source={source} resizeMode="contain" onError={()=>setFailed(true)} style={[StyleSheet.absoluteFill, {width:Math.round(size*1.6),height:size}]}/> : null}
+  </View>;
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    overflow: "hidden",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(16,42,76,0.17)",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  flag: { margin: 0 },
-});

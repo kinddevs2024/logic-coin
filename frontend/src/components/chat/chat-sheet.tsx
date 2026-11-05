@@ -73,6 +73,7 @@ export function ChatSheet({
             </MotionPressable>
           </View>
           <ScrollView
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ gap: 10, paddingBottom: 10 }}
           >
@@ -97,10 +98,13 @@ export function ChatAction({
   disabled?: boolean;
 }) {
   const theme = useAppTheme();
+  const [hovered, setHovered] = useState(false);
   return (
     <MotionPressable
       accessibilityRole="button"
       accessibilityState={{ disabled: Boolean(disabled) }}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -111,7 +115,8 @@ export function ChatAction({
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
-          backgroundColor: pressed ? theme.primarySoft : "transparent",
+          backgroundColor:
+            pressed || hovered ? theme.primarySoft : "transparent",
           opacity: disabled ? 0.45 : 1,
         },
       ]}

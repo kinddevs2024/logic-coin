@@ -25,6 +25,7 @@ export type CoinWallet = {
 export type UserPreferences = {
   language: Language;
   theme: ThemePreference;
+  customTheme?: {wallpaperUrl: string; accent: string; dark: boolean};
   savingsGoalCents: number;
   notificationsEnabled: boolean;
   dailyReminderEnabled: boolean;

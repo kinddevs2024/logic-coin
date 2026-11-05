@@ -1,10 +1,11 @@
 import { useId } from "react";
+import { Platform } from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from "react-native-svg";
 
 // Official Telegram artwork: https://telegram.org/img/t_logo.svg
 export function TelegramBrandIcon() {
   const gradient = useId().replace(/:/g, "");
-  return <Svg width={28} height={28} viewBox="0 0 128 128" accessible={false}>
+  return <Svg width={28} height={28} viewBox="0 0 128 128" {...(Platform.OS === "web" ? { "aria-hidden": true } : { accessible: false })}>
     <Defs><LinearGradient id={gradient} x1="50%" x2="50%" y1="0%" y2="99.258%">
       <Stop offset="0%" stopColor="#2AABEE" /><Stop offset="100%" stopColor="#229ED9" />
     </LinearGradient></Defs>

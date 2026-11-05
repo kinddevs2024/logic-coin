@@ -26,7 +26,7 @@ export function PushNotificationsControl() {
   const pushStatus: PushStatus = useSyncExternalStore(subscribePushStatus, getPushStatus, () => "idle");
   const status: PushStatus = enabled ? pushStatus : "disabled";
   const [busy, setBusy] = useState(false);
-  if (!token || status === "ready" || status === "local_only") return null;
+  if (!token || !enabled || status === "ready" || status === "local_only") return null;
   const c = labels[language];
   const enable = async () => {
     if (busy) return;
@@ -54,7 +54,7 @@ export function PushNotificationsControl() {
     <AppText variant="caption" muted accessibilityLiveRegion="polite">{copyContent(c[status])}</AppText>
     {status !== "unsupported" && status !== "setup_required" && !(status === "denied" && Platform.OS === "web") ?
       <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void enable().catch(() => {}); }} style={{ padding: 12, borderRadius: 14, backgroundColor: theme.primary }}>
-        <AppText color="#FFFFFF" variant="label">{copyContent(busy ? c.busy : c.enable)}</AppText>
+        <AppText color={String(theme.onPrimary)} variant="label">{copyContent(busy ? c.busy : c.enable)}</AppText>
       </Pressable> : null}
   </View>;
 }

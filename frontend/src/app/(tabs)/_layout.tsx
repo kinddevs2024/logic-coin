@@ -265,6 +265,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
             isDesktop && styles.tabBarDesktop,
             {
               shadowColor: theme.shadow,
+              ...(Platform.OS === "web" ? {boxShadow: `0 8px 32px ${String(theme.shadow)}24, 0 2px 6px ${String(theme.shadow)}0d`} : {}),
             },
           ]}
         >
@@ -276,6 +277,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
               styles.liquidLens,
               isDesktop && styles.liquidLensDesktop,
               lensStyle,
+              { shadowColor: theme.primary, ...(Platform.OS === "web" ? {boxShadow: `0 2px 10px ${String(theme.primary)}22`} : {}) },
             ]}
           >
             <NavigationGlass variant="lens" width={lensWidth} height={lensHeight} />
@@ -333,7 +335,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
                   variant="caption"
                   color={String(focused ? theme.primary : theme.textMuted)}
                   numberOfLines={1}
-                  style={[styles.tabLabel, focused && styles.activeLabel]}
+                  style={[styles.tabLabel, focused && styles.activeLabel, focused && {textShadowColor: `${String(theme.primary)}33`}]}
                 >
                   {copyContent(t(meta.label))}
                 </AppText>
@@ -469,7 +471,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
     overflow: "visible",
-    ...(Platform.OS === "web" ? ({ boxShadow: "0 8px 32px rgba(82,108,92,0.14), 0 2px 6px rgba(82,108,92,0.05)", touchAction: "none" } as unknown as ViewStyle) : null),
+    ...(Platform.OS === "web" ? ({ touchAction: "none" } as unknown as ViewStyle) : null),
   },
   tabBarDesktop: {
     width: 110,
@@ -486,13 +488,12 @@ const styles = StyleSheet.create({
     top: 6,
     zIndex: 0,
     borderRadius: radii.pill,
-    shadowColor: "#60846B",
     shadowOpacity: 0.14,
     shadowRadius: 9,
     shadowOffset: { width: 0, height: 2 },
     ...(Platform.OS === "web"
       ? ({
-          boxShadow: "0 2px 10px rgba(82,108,92,0.13)",
+
         } as ViewStyle)
       : null),
   },
@@ -531,7 +532,6 @@ const styles = StyleSheet.create({
   tabContentActive: { transform: [{ scale: 1.04 }] },
   tabLabel: { fontSize: 11, lineHeight: 15, fontWeight: "600" },
   activeLabel: {
-    textShadowColor: "rgba(0,122,87,0.2)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 5,
   },

@@ -1,5 +1,5 @@
 import LiquidGlass from "liquid-glass-react";
-import { memo, useState } from "react";
+import { memo, useState, type CSSProperties } from "react";
 
 import type { NavigationGlassProps } from "./navigation-glass";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -13,7 +13,8 @@ export const NavigationGlass = memo(function NavigationGlass({
   height,
   variant = "bar",
 }: NavigationGlassProps) {
-  const dark = useAppTheme().mode === "dark";
+  const theme = useAppTheme();
+  const dark = theme.mode === "dark";
   const [refraction] = useState(() => {
     if (typeof navigator === "undefined") return false;
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
@@ -25,6 +26,12 @@ export const NavigationGlass = memo(function NavigationGlass({
     <div
       aria-hidden="true"
       className="logic-nav-glass"
+      style={{
+        "--nav-tint": String(lens ? theme.primarySoft : theme.tabBar),
+        "--nav-edge": String(theme.glassBorder),
+        "--nav-highlight": String(theme.glassHighlight),
+        "--nav-shade": dark ? "rgba(0,0,0,0.22)" : "rgba(0,0,0,0.08)",
+      } as CSSProperties}
       data-variant={variant}
       data-theme={dark ? "dark" : "light"}
       data-refraction={refraction ? "true" : "false"}

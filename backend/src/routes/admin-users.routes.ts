@@ -13,7 +13,7 @@ const integer = z.number().int().min(0).max(1_000_000_000);
 export const editableUserProfile = z.object({
   name: z.string().trim().min(1).max(80), email: z.string().email().max(254).transform(v=>v.toLowerCase()),
   countryCode: z.string().regex(/^[A-Z]{2}$/).optional(), avatarUrl: z.string().max(14000000).optional(),
-  preferences: z.object({ language: z.enum(["ru","uz","en"]), theme: z.enum(["light","dark","auto"]), savingsGoalCents: integer, notificationsEnabled: z.boolean(), dailyReminderEnabled: z.boolean(), timezone: z.string().max(80).refine(v=>{try{new Intl.DateTimeFormat("en",{timeZone:v});return true;}catch{return false;}}) }).strict(),
+  preferences: z.object({ language: z.enum(["ru","uz","en"]), theme: z.enum(["light","sky","dark","auto","green","blue","pink","graphite"]), savingsGoalCents: integer, notificationsEnabled: z.boolean(), dailyReminderEnabled: z.boolean(), timezone: z.string().max(80).refine(v=>{try{new Intl.DateTimeFormat("en",{timeZone:v});return true;}catch{return false;}}) }).strict(),
   wallet: z.object({ availableUnits: integer }).strict(), coins: z.object({ balance: integer }).strict(),
 }).strict();
 function id(value: string) {if(!/^[a-f0-9]{24}$/i.test(value))throw new ApiError(400,"invalid_user","Некорректный пользователь.");return new mongoose.Types.ObjectId(value);}

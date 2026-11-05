@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
 
 
 import { AppFrame } from "@/components/app-frame";
@@ -18,12 +18,13 @@ import { radii, themes, type ThemePreference } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
+import { pickChatPhoto } from "@/lib/chat-media";
 import { meApi } from "@/lib/api";
 import { configureDailyReminder, syncPushNotifications } from "@/lib/notifications";
 import { useAppStore } from "@/store/app-store";
 import type { Language } from "@/types";
 
-const themeModes: ThemePreference[] = ["auto", "light", "sky", "dark"];
+const themeModes: Exclude<ThemePreference,"custom">[] = ["auto", "sky", "dark", "green", "blue", "pink", "graphite"];
 const languages: Language[] = ["ru", "uz", "en"];
 
 const legalCopy = {
@@ -56,6 +57,9 @@ export default function SettingsScreen() {
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
   const setNotifications = useAppStore((state) => state.setNotifications);
+  const user = useAppStore(state=>state.user);
+  const updateUser = useAppStore(state=>state.updateUser);
+  const [photoBusy,setPhotoBusy] = useState(false);
   const mode = useAppStore((state) => state.theme);
   const setTheme = useAppStore((state) => state.setTheme);
   const setLanguage = useAppStore((state) => state.setLanguage);
@@ -106,6 +110,17 @@ export default function SettingsScreen() {
   const changeTheme = (nextTheme: ThemePreference) => {
     setTheme(nextTheme);
     patchPreferences({ theme: nextTheme });
+  };
+
+  const choosePhoto = async () => {
+    if(!accessToken){Alert.alert(copyText("Войдите в аккаунт"));return;}
+    try {
+      const photo=await pickChatPhoto(); if(!photo)return;
+      setPhotoBusy(true);
+      const preferences=await meApi.themePhoto(photo,accessToken);
+      updateUser({preferences}); setTheme("custom");
+    } catch {Alert.alert(copyText("Не удалось загрузить фото. Попробуйте ещё раз."));}
+    finally {setPhotoBusy(false);}
   };
 
   const changeLanguage = async (nextLanguage: Language) => {
@@ -175,7 +190,7 @@ export default function SettingsScreen() {
         <AppText variant="heading">{copyContent(t("settings.theme"))}</AppText>
         <View style={styles.themeGrid}>
           {themeModes.map((themeMode) => {
-            const palette = themeMode === "auto" ? theme : themes[themeMode];
+            const palette = themeMode === "auto" ? themes.sky : themes[themeMode];
             const selected = mode === themeMode;
             return (
               <Pressable
@@ -241,7 +256,17 @@ export default function SettingsScreen() {
               </Pressable>
             );
           })}
+          <Pressable accessibilityRole="button" accessibilityLabel={copyText("Тема с фото")} disabled={photoBusy}
+            onPress={()=> user.preferences?.customTheme ? changeTheme("custom") : void choosePhoto()}
+            style={[styles.themeCard,{borderColor:mode === "custom" ? theme.primary : theme.border,backgroundColor:theme.surfaceRaised}]}>
+            <View style={[styles.themePreview,{backgroundColor:theme.primarySoft,overflow:"hidden",alignItems:"center",justifyContent:"center"}]}>
+              {user.preferences?.customTheme?.wallpaperUrl ? <Image source={{uri:user.preferences.customTheme.wallpaperUrl}} resizeMode="cover" style={StyleSheet.absoluteFill}/> : <Ionicons name="image-outline" size={28} color={String(theme.primary)}/>}
+              {mode === "custom" ? <Ionicons name="checkmark-circle" size={20} color={String(theme.primary)} style={{position:"absolute",right:4,top:4}}/> : null}
+            </View>
+            <AppText variant="caption" style={{textAlign:"center",paddingTop:8}}>{copyText(photoBusy ? "Загрузка…" : "Тема с фото")}</AppText>
+          </Pressable>
         </View>
+        {user.preferences?.customTheme ? <Pressable accessibilityRole="button" disabled={photoBusy} onPress={()=>void choosePhoto()} style={{paddingVertical:10,flexDirection:"row",gap:8,alignItems:"center"}}><Ionicons name="image-outline" size={20} color={String(theme.primary)}/><AppText>{copyText("Изменить фото")}</AppText></Pressable> : null}
         </GlassSurface>
 
         <GlassSurface
@@ -362,14 +387,16 @@ const styles = StyleSheet.create({
   },
   themeGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 9,
   },
   themeCard: {
-    flex: 1,
+    flexBasis: "46%",
+    flexGrow: 1,
     borderWidth: 2,
     borderRadius: radii.lg,
     padding: 8,
-    minWidth: 0,
+    minWidth: 90,
   },
   themePreview: {
     height: 72,

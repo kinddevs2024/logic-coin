@@ -14,6 +14,7 @@ const conversationSchema = new Schema(
       required: true,
     },
     title: { type: String, maxlength: 100, default: "" },
+    username: { type: String, lowercase: true, maxlength: 24 },
     description: { type: String, maxlength: 1000, default: "" },
     ownerId: { type: Schema.Types.ObjectId, ref: "User" },
     avatarAttachmentId: { type: Schema.Types.ObjectId, ref: "ChatAttachment" },
@@ -28,6 +29,7 @@ const conversationSchema = new Schema(
   { timestamps: true, versionKey: false },
 );
 conversationSchema.index({ systemKey: 1 }, { unique: true, sparse: true });
+conversationSchema.index({ username: 1 }, { unique: true, sparse: true });
 conversationSchema.index({ directKey: 1 }, { unique: true, sparse: true });
 conversationSchema.index({ inviteCode: 1 }, { unique: true, sparse: true });
 conversationSchema.index({ visibility: 1, title: 1 });
@@ -50,6 +52,11 @@ const memberSchema = new Schema(
       default: "member",
     },
     canEditInfo: { type: Boolean, default: false },
+    chatTheme: { type: String, enum: ["system", "green", "blue", "pink", "graphite", "custom"], default: "system" },
+    wallpaperAttachmentId: { type: Schema.Types.ObjectId, ref: "ChatAttachment" },
+    themeExplicit: {type: Boolean, default: false},
+    themeAccent: String,
+    themeDark: Boolean,
     lastReadSeq: { type: Number, default: 0 },
     muted: { type: Boolean, default: false },
     pinned: { type: Boolean, default: false },
@@ -146,3 +153,23 @@ type Report = InferSchemaType<typeof reportSchema>;
 export const ChatReport =
   (models.ChatReport as Model<Report> | undefined) ??
   model<Report>("ChatReport", reportSchema);
+
+const voiceReceiptSchema = new Schema({
+  userId: { type: Schema.Types.ObjectId, required: true },
+  messageId: { type: Schema.Types.ObjectId, required: true },
+  listenedAt: { type: Date, default: Date.now },
+}, { versionKey: false });
+voiceReceiptSchema.index({ userId: 1, messageId: 1 }, { unique: true });
+type VoiceReceipt = InferSchemaType<typeof voiceReceiptSchema>;
+export const ChatVoiceReceipt = (models.ChatVoiceReceipt as Model<VoiceReceipt> | undefined) ?? model<VoiceReceipt>("ChatVoiceReceipt", voiceReceiptSchema);
+
+const friendshipSchema = new Schema({
+  pairKey: { type: String, required: true, unique: true },
+  requesterId: { type: Schema.Types.ObjectId, required: true },
+  recipientId: { type: Schema.Types.ObjectId, required: true },
+  status: { type: String, enum: ["pending", "accepted"], required: true, default: "pending" },
+}, { timestamps: true, versionKey: false });
+friendshipSchema.index({ recipientId: 1, status: 1, createdAt: -1 });
+friendshipSchema.index({ requesterId: 1, status: 1 });
+type Friendship = InferSchemaType<typeof friendshipSchema>;
+export const ChatFriendship = (models.ChatFriendship as Model<Friendship> | undefined) ?? model<Friendship>("ChatFriendship", friendshipSchema);

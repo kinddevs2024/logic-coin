@@ -191,8 +191,9 @@ export async function authenticateTelegram(identity: TelegramIdentity, referralC
       ...(language ? { language } : {}),
       ...(referralCode ? { referralCode } : {})
     });
-    if (identity.photoUrl) {
-      user.avatarUrl = identity.photoUrl;
+    if (identity.username) user.telegramUsername = identity.username;
+    if (identity.photoUrl || identity.username) {
+      if (identity.photoUrl) user.avatarUrl = identity.photoUrl;
       await user.save();
     }
     const session = await mongoose.startSession();
@@ -207,6 +208,7 @@ export async function authenticateTelegram(identity: TelegramIdentity, referralC
   }
 
   user.lastLoginAt = now;
+  if (identity.username) user.telegramUsername = identity.username;
   const nextName = telegramName(identity);
   if (nextName) user.name = socialDisplayName(nextName, user.name);
   if (identity.photoUrl) user.avatarUrl = identity.photoUrl;

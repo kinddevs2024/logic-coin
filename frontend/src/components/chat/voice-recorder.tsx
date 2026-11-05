@@ -8,7 +8,7 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from "expo-audio";
-import { AppText } from "@/components/app-text";
+
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useChatCopy } from "@/lib/chat-copy";
 import { readChatFile } from "@/lib/chat-media";
@@ -16,18 +16,34 @@ import type { ChatDraftFile } from "@/lib/chat-api";
 export function VoiceRecorder({
   onFile,
   onError,
+  onActiveChange,
 }: {
   onFile: (file: ChatDraftFile) => Promise<void>;
   onError: (error: unknown) => void;
+  onActiveChange: (active: boolean) => void;
 }) {
   const c = useChatCopy(),
     theme = useAppTheme();
   const busyRef = useRef(false),
     finishRef = useRef<() => Promise<void>>(async () => {});
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY, (event) => {
-    if (event.isFinished && !busyRef.current) void finishRef.current();
-  });
-  const status = useAudioRecorderState(recorder, 250);
+  const recorder = useAudioRecorder(
+    { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true },
+    (event) => {
+      if (event.isFinished && !busyRef.current) void finishRef.current();
+    },
+  );
+  const status = useAudioRecorderState(recorder, 100);
+  const [waveWidth, setWaveWidth] = useState(0);
+  const [levels, setLevels] = useState<number[]>(Array(256).fill(4));
+  useEffect(() => {
+    if (!status.isRecording) return;
+    const timer = setInterval(() => {
+      const db = recorder.getStatus().metering ?? -60;
+      const height = Math.max(4, Math.min(26, 4 + Math.pow(10, db / 40) * 28));
+      setLevels(previous => [...previous.slice(1), height]);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [status.isRecording, recorder]);
   const [busy, setBusy] = useState(false),
     [retryClip, setRetryClip] = useState<ChatDraftFile | null>(null);
   const finish = async () => {
@@ -49,8 +65,7 @@ export function VoiceRecorder({
           "voice",
         );
       if (clip) {
-        await onFile(clip);
-        setRetryClip(null);
+        setRetryClip(clip);
       }
     } catch (error) {
       if (clip) setRetryClip(clip);
@@ -65,7 +80,22 @@ export function VoiceRecorder({
   });
   const press = async () => {
     if (busyRef.current) return;
-    if (status.isRecording || retryClip) {
+    if (retryClip) {
+      busyRef.current = true;
+      setBusy(true);
+      try {
+        await onFile(retryClip);
+        setRetryClip(null);
+        onActiveChange(false);
+      } catch (error) {
+        onError(error);
+      } finally {
+        busyRef.current = false;
+        setBusy(false);
+      }
+      return;
+    }
+    if (status.isRecording) {
       await finish();
       return;
     }
@@ -79,7 +109,9 @@ export function VoiceRecorder({
         playsInSilentMode: true,
       });
       await recorder.prepareToRecordAsync();
+      setLevels(Array(256).fill(4));
       recorder.record({ forDuration: 120 });
+      onActiveChange(true);
     } catch (error) {
       onError(error);
     } finally {
@@ -88,16 +120,84 @@ export function VoiceRecorder({
     }
   };
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-      {status.isRecording ? (
-        <AppText style={{ color: theme.danger }}>
-          {Math.floor(status.durationMillis / 1000)}s
-        </AppText>
+    <View
+      onLayout={(event) => setWaveWidth(event.nativeEvent.layout.width)}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        justifyContent: "flex-end",
+        minHeight: 44,
+        borderRadius: 24,
+        flex: status.isRecording || retryClip ? 1 : undefined,
+        paddingLeft: status.isRecording || retryClip ? 14 : 0,
+        backgroundColor:
+          status.isRecording || retryClip ? theme.primarySoft : "transparent",
+      }}
+    >
+      {retryClip ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={c.cancel}
+          disabled={busy}
+          onPress={() => {
+            setRetryClip(null);
+            onActiveChange(false);
+          }}
+          style={{ padding: 8, marginRight: "auto", zIndex: 1 }}
+        >
+          <Ionicons name="trash-outline" size={22} color={theme.danger} />
+        </Pressable>
+      ) : null}
+      {status.isRecording || retryClip ? (
+        <View
+          accessibilityLabel={c.voice}
+          pointerEvents="none"
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            position: "absolute",
+            left: 12,
+            right: 12,
+            top: 4,
+            bottom: 4,
+            justifyContent: "space-between",
+          }}
+        >
+          {levels
+            .slice(
+              -Math.max(2, Math.min(256, Math.floor((waveWidth - 24) / 7))),
+            )
+            .map((height, index, bars) => {
+              const x =
+                12 + (index * (waveWidth - 27)) / Math.max(1, bars.length - 1);
+              // Fade the waveform before controls, keeping their hit areas clear.
+              const rightFade = Math.max(
+                0,
+                Math.min(1, (waveWidth - 44 - x) / 32),
+              );
+              const leftFade = retryClip
+                ? Math.max(0, Math.min(1, (x - 50) / 32))
+                : 1;
+              return (
+                <View
+                  key={index}
+                  style={{
+                    width: 3,
+                    height,
+                    borderRadius: 2,
+                    backgroundColor: theme.primary,
+                    opacity: 0.65 * rightFade * leftFade,
+                  }}
+                />
+              );
+            })}
+        </View>
       ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={
-          retryClip ? c.retry : status.isRecording ? c.stop : c.voice
+          retryClip ? c.send : status.isRecording ? c.stop : c.voice
         }
         onPress={() => {
           void press();
@@ -109,9 +209,8 @@ export function VoiceRecorder({
           borderRadius: 21,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: status.isRecording
-            ? theme.primarySoft
-            : "transparent",
+          zIndex: 1,
+          backgroundColor: "transparent",
         }}
       >
         {busy ? (
@@ -120,9 +219,9 @@ export function VoiceRecorder({
           <Ionicons
             name={
               retryClip
-                ? "refresh"
+                ? "arrow-up"
                 : status.isRecording
-                  ? "stop-circle"
+                  ? "stop"
                   : "mic-outline"
             }
             size={23}
