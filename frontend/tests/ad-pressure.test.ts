@@ -37,3 +37,17 @@ it("releases failed requests without creating an immediate retry loop", async ()
   time += FORCED_AD_INTERVAL_MS;
   expect(await pressure.forced(async () => true)).toBe(true);
 });
+
+
+it("allows one startup attempt without removing the shared cooldown", async () => {
+  const pressure = createAdPressure(() => 0);
+  expect(await pressure.forced(async () => true, true)).toBe(true);
+  expect(await pressure.forced(async () => true, true)).toBe(false);
+  expect(await pressure.forced(async () => true)).toBe(false);
+});
+
+it("does not bypass an active reward with a startup ad", async () => {
+  const pressure = createAdPressure(() => 0);
+  await pressure.rewarded(async () => true);
+  expect(await pressure.forced(async () => true, true)).toBe(false);
+});

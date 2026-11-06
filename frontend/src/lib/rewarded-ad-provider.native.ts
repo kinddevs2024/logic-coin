@@ -19,5 +19,5 @@ export const rewardedAds: RewardedAdProvider = {
   diagnostics: () => provider.diagnostics(),
   show: (placement, context) => pressure.rewarded(() => provider.show(placement, context)),
   showInterstitial: placement => pressure.forced(() => provider.showInterstitial(placement)),
-  showAppOpen: () => pressure.forced(() => provider.showAppOpen()),
+  showAppOpen: () => pressure.forced(() => provider.showAppOpen(), true),
 };
