@@ -239,7 +239,7 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
     { $match: { conversationId: { $in: rooms.map(c => c._id) }, senderId: { $ne: userId }, hiddenFor: { $ne: userId }, deletedAt: { $exists: false } } },
     { $sort: { conversationId: 1, seq: -1 } },
     { $group: { _id: "$conversationId", message: { $first: "$$ROOT" } } },
-    { $project: { _id: 1, "message.text": 1, "message.seq": 1, "message.createdAt": 1, "message.attachmentIds": 1 } },
+    { $project: { _id: 1, "message.senderId": 1, "message.text": 1, "message.seq": 1, "message.createdAt": 1, "message.attachmentIds": 1 } },
   ]) : [];
   const unreadRows = rooms.length
     ? await ChatMessage.aggregate<{ _id: Types.ObjectId; count: number }>([
@@ -310,7 +310,7 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
         c.lastMessageAt?.toISOString() ?? c.createdAt.toISOString(),
       incoming: (() => {
         const message = incomingRows.find(row => String(row._id) === String(c._id))?.message;
-        return message ? { preview: message.text ?? "", hasAttachment: Boolean(message.attachmentIds?.length), at: new Date(message.createdAt).toISOString(), seq: message.seq } : null;
+        return message ? { senderId: String(message.senderId), preview: message.text ?? "", hasAttachment: Boolean(message.attachmentIds?.length), at: new Date(message.createdAt).toISOString(), seq: message.seq } : null;
       })(),
       preview: last?.deletedAt ? "" : (last?.text ?? ""),
       hasAttachment: Boolean(last?.attachmentIds.length),
