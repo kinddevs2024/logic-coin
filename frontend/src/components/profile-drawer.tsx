@@ -149,7 +149,7 @@ export function ProfileDrawer({
           <GlassSurface
             intensity={82}
             variant="strong"
-            style={styles.drawerGlass}
+            style={[styles.drawerGlass, { backgroundColor: theme.surface }]}
           >
             <ScrollView
               contentContainerStyle={styles.content}

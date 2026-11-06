@@ -95,11 +95,11 @@ export default function InviteScreen() {
           </AppText>
         </GlassSurface>
         <GlassSurface variant="soft" intensity={56} style={styles.stat}>
-          <View style={[styles.statIcon, { backgroundColor: theme.mode === "dark" ? `${String(theme.success)}18` : "#ECFDF3" }]}>
+          <View style={[styles.statIcon, { backgroundColor: theme.primarySoft }]}>
             <Ionicons
               name="trending-up"
               size={22}
-              color={String(theme.success)}
+              color={String(theme.primary)}
             />
           </View>
           <AppText variant="title">
@@ -116,7 +116,7 @@ export default function InviteScreen() {
             <View key={friend.id} style={styles.friendRow}>
               <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={40} />
               <Pressable accessibilityRole="button" onPress={()=>router.push(`/player/${friend.id}` as never)} style={{flex:1,gap:4}}><AppText variant="label">{friend.name}</AppText><AppText variant="caption" muted>{language==="uz"?"Daromad":language==="en"?"Revenue":"Доход"}: ${((friend.earnedCents??0)/100).toFixed(2)} · {language==="uz"?"Taklif qilgan":language==="en"?"Invited":"Пригласил"}: {friend.invitedCount??0}</AppText></Pressable>
-              {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.success)} /> : null}
+              {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.primary)} /> : null}
             </View>
           ))}
           {referralQuery.hasNextPage ? <AppButton disabled={referralQuery.isFetchingNextPage} onPress={() => void referralQuery.fetchNextPage()}>{copyContent(language === "ru" ? "Загрузить ещё" : language === "uz" ? "Yana yuklash" : "Load more")}</AppButton> : null}

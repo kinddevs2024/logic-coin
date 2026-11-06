@@ -80,6 +80,13 @@ export function MessagesScreen() {
     [creating, setCreating] = useState<
       "menu" | "direct" | "group" | "channel" | null
     >(null);
+  const [folderMotion] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    folderMotion.setValue(reducedMotion ? 1 : 0);
+    const animation = Animated.timing(folderMotion, { toValue: 1, duration: reducedMotion ? 0 : 220, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    animation.start();
+    return () => animation.stop();
+  }, [filter, folderMotion, reducedMotion]);
   const [title, setTitle] = useState(""),
     [roomUsername, setRoomUsername] = useState(""),
     [description, setDescription] = useState(""),
@@ -519,6 +526,7 @@ export function MessagesScreen() {
                 }}
               />
             ) : null}
+            <Animated.View style={{flex:1,minHeight:0,opacity:folderMotion,transform:[{translateX:folderMotion.interpolate({inputRange:[0,1],outputRange:[14,0]})}]}}>
             {filter === "requests" && !searchOpen ? <View style={{flex:1, paddingHorizontal:16}}>
               {requestsQuery.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
               {requestsQuery.isError ? <ChatAction title={c.retry} onPress={()=>void requestsQuery.refetch()} /> : null}
@@ -760,6 +768,7 @@ export function MessagesScreen() {
                 ) : null
               }
             />
+            </Animated.View>
           </View>
         ) : null}
         {selected ? (

@@ -31,6 +31,12 @@ const contentByLanguage: Record<
   },
 };
 
+export async function deviceNotificationsPermitted(): Promise<boolean> {
+  if (Platform.OS === "web") return typeof Notification !== "undefined" && Notification.permission === "granted";
+  if (isExpoGo) return false;
+  try { return (await (await import("expo-notifications")).getPermissionsAsync()).granted; } catch { return false; }
+}
+
 export async function configureDailyReminder(
   enabled: boolean,
   time: string,

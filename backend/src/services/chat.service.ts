@@ -234,6 +234,13 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
         .select("conversationId text deletedAt attachmentIds senderId")
         .lean()
     : [];
+  // Membership-scoped latest received message, independent of the last outgoing message.
+  const incomingRows = rooms.length ? await ChatMessage.aggregate([
+    { $match: { conversationId: { $in: rooms.map(c => c._id) }, senderId: { $ne: userId }, hiddenFor: { $ne: userId }, deletedAt: { $exists: false } } },
+    { $sort: { conversationId: 1, seq: -1 } },
+    { $group: { _id: "$conversationId", message: { $first: "$$ROOT" } } },
+    { $project: { _id: 1, "message.text": 1, "message.seq": 1, "message.createdAt": 1, "message.attachmentIds": 1 } },
+  ]) : [];
   const unreadRows = rooms.length
     ? await ChatMessage.aggregate<{ _id: Types.ObjectId; count: number }>([
         {
@@ -301,6 +308,10 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
       peerReadSeq: other?.lastReadSeq ?? 0,
       lastMessageAt:
         c.lastMessageAt?.toISOString() ?? c.createdAt.toISOString(),
+      incoming: (() => {
+        const message = incomingRows.find(row => String(row._id) === String(c._id))?.message;
+        return message ? { preview: message.text ?? "", hasAttachment: Boolean(message.attachmentIds?.length), at: new Date(message.createdAt).toISOString(), seq: message.seq } : null;
+      })(),
       preview: last?.deletedAt ? "" : (last?.text ?? ""),
       hasAttachment: Boolean(last?.attachmentIds.length),
       muted: member.muted,

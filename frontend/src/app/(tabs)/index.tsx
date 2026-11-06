@@ -43,7 +43,7 @@ function ProgressDonut({ value, progress, color, accessibilityLabel }: { value: 
   return (
     <View accessible accessibilityLabel={copyText(accessibilityLabel)} style={styles.donut}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(0,122,87,0.18)" strokeWidth={strokeWidth} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={`${color}30`} strokeWidth={strokeWidth} fill="none" />
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${circumference - dash}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
       </Svg>
       <AppText style={[styles.donutValue, { color }]}>{copyContent(value)}</AppText>
@@ -201,7 +201,7 @@ export default function HomeScreen() {
               <ProgressDonut
                 value={today?.monthlyCompletedDays === undefined ? "—" : `${today.monthlyCompletedDays}/${today.monthlyDaysInMonth}`}
                 progress={today?.monthlyDaysInMonth ? Math.min(1, (today.monthlyCompletedDays ?? 0) / today.monthlyDaysInMonth) : 0}
-                color={theme.mode === "dark" ? "#9FE6C5" : "#007A57"}
+                color={String(theme.primary)}
                   accessibilityLabel={copyText(language === "uz" ? "Oyda to‘liq yopilgan kunlar" : language === "en" ? "Fully completed challenge days this month" : "Полностью завершённые дни челленджа за месяц")}
               />
             </View>

@@ -22,6 +22,7 @@ export type ChatRoom = {
   lastSeq: number;
   peerReadSeq: number;
   lastMessageAt: string;
+  incoming?: { preview: string; hasAttachment: boolean; at: string; seq: number } | null;
   preview: string;
   hasAttachment: boolean;
   muted: boolean;

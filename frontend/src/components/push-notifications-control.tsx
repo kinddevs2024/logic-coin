@@ -1,12 +1,12 @@
 import { useUiCopy } from "@/components/localized-native";
 
-import { useState, useSyncExternalStore } from "react";
-import { Platform, Pressable, View } from "react-native";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { AppState, Platform, Pressable, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
-import { configureDailyReminder, openNotificationSettings, syncPushNotifications } from "@/lib/notifications";
+import { configureDailyReminder, deviceNotificationsPermitted, openNotificationSettings, syncPushNotifications } from "@/lib/notifications";
 import { getPushStatus, subscribePushStatus, type PushStatus } from "@/lib/push-status";
 import { useAppStore } from "@/store/app-store";
 
@@ -26,7 +26,16 @@ export function PushNotificationsControl() {
   const pushStatus: PushStatus = useSyncExternalStore(subscribePushStatus, getPushStatus, () => "idle");
   const status: PushStatus = enabled ? pushStatus : "disabled";
   const [busy, setBusy] = useState(false);
-  if (!token || !enabled || status === "ready" || status === "local_only") return null;
+  const [permitted, setPermitted] = useState<boolean | null>(null);
+  useEffect(() => {
+    let active = true;
+    const refresh = () => { void deviceNotificationsPermitted().then(value => { if (active) setPermitted(value); }); };
+    refresh();
+    const subscription = AppState.addEventListener("change", refresh);
+    if (Platform.OS === "web") window.addEventListener("focus", refresh);
+    return () => { active = false; subscription.remove(); if (Platform.OS === "web") window.removeEventListener("focus", refresh); };
+  }, [pushStatus, busy]);
+  if (!token || permitted !== false || !enabled || status === "ready" || status === "local_only") return null;
   const c = labels[language];
   const enable = async () => {
     if (busy) return;

@@ -43,7 +43,7 @@ export function ChallengeCard({
     <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(420)}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={formatCopy("{0}: {1}", [copyText(completed ? "Пройдено" : "Играть"), game.title])}
+        accessibilityLabel={formatCopy("{0}: {1}", [copyText(completed ? "ÐŸÑ€Ð¾Ð¹Ð´ÐµÐ½Ð¾" : "Ð˜Ð³Ñ€Ð°Ñ‚ÑŒ"), game.title])}
         disabled={loading || completed}
         onPress={() => {
           void Haptics.selectionAsync().catch(() => {});
@@ -57,7 +57,7 @@ export function ChallengeCard({
           style={[
             styles.card,
             compact && styles.cardCompact,
-            { borderColor: completed ? `${String(theme.success)}55` : theme.border },
+            { borderColor: completed ? `${String(theme.primary)}55` : theme.border },
           ]}
         >
           <View style={[styles.icon, compact && styles.iconCompact, { backgroundColor: theme.primarySoft, borderColor: theme.border }]}>
@@ -76,9 +76,9 @@ export function ChallengeCard({
           ) : null}
           <View style={[styles.action, { backgroundColor: completed ? theme.primarySoft : theme.primary }]}>
             {loading ? (
-              <ActivityIndicator color={completed ? String(theme.success) : actionForeground} size="small" />
+              <ActivityIndicator color={completed ? String(theme.primary) : actionForeground} size="small" />
             ) : (
-              <Ionicons name={completed ? "checkmark" : "arrow-forward"} color={completed ? String(theme.success) : actionForeground} size={18} />
+              <Ionicons name={completed ? "checkmark" : "arrow-forward"} color={completed ? String(theme.primary) : actionForeground} size={18} />
             )}
           </View>
         </GlassSurface>
