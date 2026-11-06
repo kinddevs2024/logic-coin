@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.kinddevs.logiccoin",
-      "versionCode": 18,
+      "versionCode": 19,
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/brand/adaptive-icon.png"
