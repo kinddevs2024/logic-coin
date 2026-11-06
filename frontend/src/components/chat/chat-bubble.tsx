@@ -39,7 +39,7 @@ export const ChatBubble = memo(function ChatBubble({
   const hasVoice = !item.deleted && item.attachments.some(file => file.kind === "voice");
   const voiceOnly = hasVoice && item.attachments.length === 1 && !item.text;
   const inlineTime = Boolean(item.text) && !item.deleted && !item.attachments.length && !item.reactions.length && !item.edited && !item.pinned;
-  const time = new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const time = new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).replace(/\s/g, "\u00a0");
   return (
     <Animated.View entering={reactionEntering} layout={reactionLayout}
       style={[styles.row, item.own && { justifyContent: "flex-end" }]}
@@ -152,7 +152,7 @@ export const ChatBubble = memo(function ChatBubble({
               >
                 {item.text}
                 {inlineTime ? <AppText variant="caption" color={String(theme.textMuted)} style={{fontSize:11,lineHeight:16}}>
-                  {"   "}{time}{item.own ? " " : ""}{item.own ? <Ionicons accessibilityLabel={room.peerReadSeq >= item.seq ? c.read : c.sent} name={room.peerReadSeq >= item.seq ? "checkmark-done" : "checkmark"} size={13} color={room.peerReadSeq >= item.seq ? theme.primary : theme.textMuted} /> : null}
+                  {"   "}{time}{item.own ? "\u00a0" : ""}{item.own ? <Ionicons accessibilityLabel={room.peerReadSeq >= item.seq ? c.read : c.sent} name={room.peerReadSeq >= item.seq ? "checkmark-done" : "checkmark"} size={13} color={room.peerReadSeq >= item.seq ? theme.primary : theme.textMuted} /> : null}
                 </AppText> : null}
               </AppText>
             ) : null}
