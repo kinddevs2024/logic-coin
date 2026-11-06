@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
 import { useVisibleChatSeq } from "./use-visible-chat-seq";
 import { MotionEntrance } from "@/components/motion-entrance";
@@ -82,6 +83,7 @@ function ConversationPaneContent({
   onProfile: (id: string) => void;
   onInfo: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const peer = useQuery({queryKey:["chat-profile",token,room.peer?.id],enabled:room.kind === "direct" && Boolean(room.peer?.id),queryFn:()=>chatApi.profile(token,room.peer!.id),refetchInterval:15_000});
   const needsFriend = room.kind === "direct" && peer.data?.friendship !== "friends";
   const [inputHeight, setInputHeight] = useState(44);
@@ -633,7 +635,7 @@ function ConversationPaneContent({
           <View
             style={[
               styles.composer,
-              { backgroundColor: theme.surface, borderTopColor: theme.border },
+              { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: 9 + (Platform.OS === "web" ? 0 : insets.bottom) },
             ]}
           >
             {reply || editing ? (

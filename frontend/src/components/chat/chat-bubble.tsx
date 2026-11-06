@@ -38,7 +38,8 @@ export const ChatBubble = memo(function ChatBubble({
     c = useChatCopy();
   const hasVoice = !item.deleted && item.attachments.some(file => file.kind === "voice");
   const voiceOnly = hasVoice && item.attachments.length === 1 && !item.text;
-  const compactText = !item.deleted && !item.attachments.length && !item.reply && !item.forwardedFrom && !item.reactions.length && (item.own || room.kind === "direct");
+  const inlineTime = Boolean(item.text) && !item.deleted && !item.attachments.length && !item.reactions.length && !item.edited && !item.pinned;
+  const time = new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   return (
     <Animated.View entering={reactionEntering} layout={reactionLayout}
       style={[styles.row, item.own && { justifyContent: "flex-end" }]}
@@ -70,7 +71,6 @@ export const ChatBubble = memo(function ChatBubble({
             backgroundColor: item.own ? theme.primarySoft : theme.surface,
             borderColor: theme.border,
           },
-          compactText && { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-end", columnGap: 8, rowGap: 2 },
           {
             borderBottomLeftRadius: item.own ? 20 : 5,
             borderBottomRightRadius: item.own ? 5 : 20,
@@ -84,7 +84,7 @@ export const ChatBubble = memo(function ChatBubble({
               onProfile(item.sender.id);
             }}
           >
-            <AppText variant="label" color={String(theme.primary)}>
+            <AppText variant="label" color={String(theme.primary)} style={{lineHeight:17, fontSize:13}}>
               {item.sender.name}
             </AppText>
           </Pressable>
@@ -151,11 +151,14 @@ export const ChatBubble = memo(function ChatBubble({
                 style={{ lineHeight: 22, flexShrink: 1, maxWidth: "100%" }}
               >
                 {item.text}
+                {inlineTime ? <AppText variant="caption" color={String(theme.textMuted)} style={{fontSize:11,lineHeight:16}}>
+                  {"   "}{time}{item.own ? " " : ""}{item.own ? <Ionicons accessibilityLabel={room.peerReadSeq >= item.seq ? c.read : c.sent} name={room.peerReadSeq >= item.seq ? "checkmark-done" : "checkmark"} size={13} color={room.peerReadSeq >= item.seq ? theme.primary : theme.textMuted} /> : null}
+                </AppText> : null}
               </AppText>
             ) : null}
           </>
         )}
-        <View style={[styles.footer, compactText && { marginLeft: "auto" }, voiceOnly && !item.reactions.length && { position: "absolute", right: 10, bottom: 7 }]}>
+        {!inlineTime ? <View style={[styles.footer, voiceOnly && !item.reactions.length && { position: "absolute", right: 10, bottom: 7 }]}>
         {item.reactions.length ? (
           <View style={styles.reactions}>
             {[...new Set(item.reactions.map((r) => r.emoji))].map((emoji) => {
@@ -208,20 +211,22 @@ export const ChatBubble = memo(function ChatBubble({
             />
           ) : null}
         </View>
-        </View>
+        </View> : null}
       </Pressable>
     </Animated.View>
   );
 });
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: 7, paddingVertical: 5 },
+  row: { flexDirection: "row", gap: 7, paddingVertical: 3 },
   bubble: {
     maxWidth: "84%",
     minWidth: 80,
-    padding: 12,
+    paddingHorizontal: 10,
+    paddingTop: 7,
+    paddingBottom: 6,
     borderRadius: 20,
     borderWidth: 1,
-    gap: 7,
+    gap: 3,
   },
   quote: { borderLeftWidth: 3, paddingLeft: 9, gap: 2 },
   photo: { width: 230, maxWidth: "100%", height: 190, borderRadius: 14 },
