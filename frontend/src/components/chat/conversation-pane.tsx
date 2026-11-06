@@ -25,6 +25,7 @@ import {
   AppState,
   FlatList,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -84,6 +85,12 @@ function ConversationPaneContent({
   onInfo: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const peer = useQuery({queryKey:["chat-profile",token,room.peer?.id],enabled:room.kind === "direct" && Boolean(room.peer?.id),queryFn:()=>chatApi.profile(token,room.peer!.id),refetchInterval:15_000});
   const needsFriend = room.kind === "direct" && peer.data?.friendship !== "friends";
   const [inputHeight, setInputHeight] = useState(44);
@@ -364,7 +371,8 @@ function ConversationPaneContent({
   return (
     <MotionEntrance style={{ flex: 1, minHeight: 0 }}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : Platform.OS === "android" ? "height" : undefined}
+        keyboardVerticalOffset={Platform.OS === "android" ? insets.top : 0}
         style={[styles.page, { backgroundColor: theme.background }]}
       >
         {room.chatTheme?.preset === "custom" && room.chatTheme.wallpaperUrl ? <ChatWallpaper uri={chatMediaUrl(room.chatTheme.wallpaperUrl)} /> : theme.wallpaperUrl ? <ChatWallpaper uri={theme.wallpaperUrl} /> : null}
@@ -635,7 +643,7 @@ function ConversationPaneContent({
           <View
             style={[
               styles.composer,
-              { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: 9 + (Platform.OS === "web" ? 0 : insets.bottom) },
+              { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: 9 + (Platform.OS === "web" || keyboardVisible ? 0 : insets.bottom) },
             ]}
           >
             {reply || editing ? (

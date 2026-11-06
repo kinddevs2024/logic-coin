@@ -33,7 +33,7 @@ import { chatApi, chatMediaUrl, type ChatRoom } from "@/lib/chat-api";
 import { useChatCopy } from "@/lib/chat-copy";
 import { ConversationPane } from "./conversation-pane";
 import { ChatAction, ChatSheet } from "./chat-sheet";
-import { meApi } from "@/lib/api";
+import { ApiError, meApi } from "@/lib/api";
 import {InviteFriendsSheet} from "./invite-friends-sheet";
 import { ChatRoomInfo } from "./chat-room-info";
 
@@ -263,7 +263,7 @@ export function MessagesScreen() {
       await query.refetch();
       open(result.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : c.error);
+      setError(e instanceof ApiError && e.code === "invalid_username" ? c.usernameInvalid : e instanceof ApiError && e.code === "username_taken" ? c.usernameTaken : e instanceof Error ? e.message : c.error);
     } finally {
       setBusy(false);
     }
@@ -808,7 +808,7 @@ export function MessagesScreen() {
           </View>
         ) : null}
       </View>
-      {error ? (
+      {error && !creating ? (
         <Pressable style={{ padding: 10 }} onPress={() => setError(null)}>
           <AppText color={String(theme.danger)}>{error}</AppText>
         </Pressable>
@@ -828,7 +828,7 @@ export function MessagesScreen() {
                 ? c.newChannel
                 : c.newChat
           }
-          onClose={() => setCreating(null)}
+          onClose={() => {setCreating(null);setError(null);}}
         >
           {creating === "menu" ? (
             <>
@@ -872,8 +872,9 @@ export function MessagesScreen() {
             </>
           ) : (
             <>
-              <TextInput accessibilityLabel={c.roomUsername} placeholder={c.roomUsername} value={roomUsername} onChangeText={setRoomUsername} autoCapitalize="none" maxLength={25} style={input} />
+              <AppText variant="caption" muted>{c.name}</AppText>
               <TextInput
+                accessibilityLabel={c.name}
                 value={title}
                 onChangeText={setTitle}
                 placeholder={c.name}
@@ -881,7 +882,9 @@ export function MessagesScreen() {
                 maxLength={100}
                 style={input}
               />
+              <AppText variant="caption" muted>{c.description}</AppText>
               <TextInput
+                accessibilityLabel={c.description}
                 value={description}
                 onChangeText={setDescription}
                 placeholder={c.description}
@@ -890,6 +893,9 @@ export function MessagesScreen() {
                 multiline
                 style={input}
               />
+              <AppText variant="caption" muted>{c.roomUsername}</AppText>
+              <TextInput accessibilityLabel={c.roomUsername} placeholder="@username" value={roomUsername} onChangeText={setRoomUsername} autoCapitalize="none" autoCorrect={false} maxLength={25} style={input} />
+              <AppText variant="caption" muted>{c.usernameHint}</AppText>
               <ChatAction
                 title={`${visibility === "public" ? "●" : "○"} ${c.publicRoom}`}
                 onPress={() => setVisibility("public")}

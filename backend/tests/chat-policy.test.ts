@@ -33,6 +33,9 @@ describe("chat permissions", () => {
   });
 });
 describe("optional unique usernames", () => {
+  it("accepts the reported public channel handle", () => {
+    expect(normalizeUsername("Toshkentlik_01")).toBe("toshkentlik_01");
+  });
   it("normalizes case and removes @", () =>
     expect(normalizeUsername(" @AbCd_12 ")).toBe("abcd_12"));
   it("rejects reserved names, markup, invalid lengths and non-Latin usernames", () => {
