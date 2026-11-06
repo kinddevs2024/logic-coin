@@ -83,7 +83,7 @@ export function MessagesScreen() {
   const [folderMotion] = useState(() => new Animated.Value(1));
   useEffect(() => {
     folderMotion.setValue(reducedMotion ? 1 : 0);
-    const animation = Animated.timing(folderMotion, { toValue: 1, duration: reducedMotion ? 0 : 220, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    const animation = Animated.timing(folderMotion, { toValue: 1, duration: reducedMotion ? 0 : 220, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== "web" });
     animation.start();
     return () => animation.stop();
   }, [filter, folderMotion, reducedMotion]);

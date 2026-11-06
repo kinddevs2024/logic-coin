@@ -3,6 +3,10 @@ import { getDeviceId } from "@/lib/device-id";
 import { setPushStatus } from "@/lib/push-status";
 import type { Language } from "@/types";
 
+export async function deviceNotificationsPermitted(): Promise<boolean> {
+  return typeof Notification !== "undefined" && Notification.permission === "granted";
+}
+
 export async function configureDailyReminder(_enabled: boolean, _time: string, _language: Language) {
   return true; // Native scheduled reminders do not apply to browsers.
 }
