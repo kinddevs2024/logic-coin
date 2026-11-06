@@ -13,7 +13,7 @@ export function AdRuntime() {
   const rafflePaused = useRafflePause();
   const pathname = usePathname();
   const currentPath = useRef(pathname);
-  currentPath.current = pathname;
+  useEffect(() => { currentPath.current = pathname; }, [pathname]);
   const previousPath = useRef<string | null>(null);
   const startupAttempted = useRef(false);
   const hydrated = useAppStore((state) => state.hydrated);
