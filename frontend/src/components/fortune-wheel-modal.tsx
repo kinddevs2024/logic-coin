@@ -6,8 +6,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { NotebookLayer, NotebookPaper, Hand, notebookPanel } from '../games/hangman/notebook';
 import { endCopy, NotebookAction } from '../games/hangman/result';
 import { useAppStore } from '../store/app-store';
+import { fortuneWheelOutcome } from '@/lib/fortune-wheel';
 
-const NOTEBOOK_PRIZES = ['+200', '+150', '+200', '+100', '+50'];
 const invitation = {
   ru: 'Больше коинов? Испытай удачу!',
   uz: 'Ko‘proq koin? Omadingizni sinang!',
@@ -16,13 +16,6 @@ const invitation = {
 
 const WHEEL_SIZE = 272;
 const WHEEL_CENTER = WHEEL_SIZE / 2;
-const PRIZES = [
-  { label: "+1000", caption: "ДЖЕКПОТ" },
-  { label: "+500", caption: "БОНУС" },
-  { label: "+200", caption: "COIN" },
-  { label: "+150", caption: "COIN" },
-  { label: "+50", caption: "COIN" },
-] as const;
 
 function polar(angle: number, radius: number) {
   const radians = (angle - 90) * Math.PI / 180;
@@ -46,9 +39,8 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
   const [rotation] = useState(() => new Animated.Value(0));
   const onEnd = useRef(onSpinEnd);
   useEffect(() => { onEnd.current = onSpinEnd; }, [onSpinEnd]);
-  const prizeIndex = Math.max(0, paper ? NOTEBOOK_PRIZES.indexOf(selected ?? "") : PRIZES.findIndex(prize => prize.label === selected));
-  const finalAngle = 1440 + (360 - (prizeIndex * 72 + 36));
-  const prizePositions = useMemo(() => PRIZES.map((_, index) => polar(index * 72 + 36, 88)), []);
+  const { prizes, angle: finalAngle } = fortuneWheelOutcome(selected);
+  const prizePositions = useMemo(() => Array.from({ length: 5 }, (_, index) => polar(index * 72 + 36, 88)), []);
   useEffect(() => {
     if (!spinning) return;
     rotation.setValue(0);
@@ -72,7 +64,7 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
     <Ionicons name="caret-down" size={38} color="#F54763" style={{ marginTop: 18, marginBottom: -5, zIndex: 2 }} />
     <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }], shadowOpacity: 0, marginBottom: 15 }]}>
       <Image source={require("../../assets/images/fortune-wheel-v2.webp")} resizeMode="contain" style={styles.wheelArtwork} />
-      {NOTEBOOK_PRIZES.map((prize, index) => <View key={index} pointerEvents="none" style={[styles.prizeBlock, { left: prizePositions[index].x - 40, top: prizePositions[index].y - 25 }]}><Hand style={{ color: '#FFF', fontSize: 27 }}>{copyContent(prize)}</Hand></View>)}
+      {prizes.map((prize, index) => <View key={index} pointerEvents="none" style={[styles.prizeBlock, { left: prizePositions[index].x - 40, top: prizePositions[index].y - 25 }]}><Hand style={{ color: '#FFF', fontSize: 27 }}>{copyContent(prize)}</Hand></View>)}
       <View style={styles.hub}><Image source={require("../../assets/brand/logo-mark.png")} resizeMode="contain" style={styles.hubImage} /></View>
     </Animated.View>
     {selected && !spinning ? <Hand style={{ fontSize: 34 }}>{copyContent(selected)} {copyText(" coin")}</Hand> : null}
@@ -87,8 +79,8 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
       <View style={styles.pointer} accessibilityLabel={copyText("Указатель колеса")}><View style={styles.pointerTip} /></View>
       <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }] }]}>
         <Image source={require("../../assets/images/fortune-wheel-v2.webp")} resizeMode="contain" style={styles.wheelArtwork} />
-        {PRIZES.map((prize, index) => <View key={prize.label} pointerEvents="none" style={[styles.prizeBlock, { left: prizePositions[index].x - 40, top: prizePositions[index].y - 25 }]}>
-          <Text style={styles.prize}>{copyContent(prize.label)}</Text><Text style={styles.prizeCaption}>{copyContent(prize.caption)}</Text>
+        {prizes.map((prize, index) => <View key={index} pointerEvents="none" style={[styles.prizeBlock, { left: prizePositions[index].x - 40, top: prizePositions[index].y - 25 }]}>
+          <Text style={styles.prize}>{copyContent(prize)}</Text><Text style={styles.prizeCaption}>COIN</Text>
         </View>)}
         <View style={styles.hub}><Image source={require("../../assets/brand/logo-mark.png")} resizeMode="contain" style={styles.hubImage} /></View>
       </Animated.View>
