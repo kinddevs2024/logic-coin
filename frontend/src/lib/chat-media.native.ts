@@ -5,17 +5,10 @@ export async function pickChatPhoto(): Promise<ChatDraftFile | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     quality: 0.85,
-    base64: true,
+    base64: false,
   });
   const a = result.assets?.[0];
-  return a?.base64
-    ? {
-        name: a.fileName || "photo.jpg",
-        mime: a.mimeType || "image/jpeg",
-        kind: "photo",
-        base64: a.base64,
-      }
-    : null;
+  return a ? readChatFile(a.uri, a.fileName || "photo.jpg", a.mimeType || "image/jpeg", "photo") : null;
 }
 export async function readChatFile(
   uri: string,
@@ -25,14 +18,13 @@ export async function readChatFile(
 ): Promise<ChatDraftFile> {
   const FileSystem=await import("expo-file-system/legacy");
   const info = await FileSystem.getInfoAsync(uri);
-  if (info.exists && info.size > 8 * 1024 * 1024) throw new Error("8 MB");
+  if (info.exists && info.size > 200 * 1024 * 1024) throw new Error("Maximum file size: 200 MB");
   return {
     name,
     mime,
     kind,
-    base64: await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    }),
+    uri,
+    size: info.exists ? info.size : 0,
   };
 }
 export async function pickChatFile(): Promise<ChatDraftFile | null> {

@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 const read = vi.hoisted(() => vi.fn());
 vi.mock("../src/services/chat.service.js", () => ({ readChatAttachment: read }));
 import { chatMediaRoutes } from "../src/routes/chat.routes.js";
+import path from "node:path";
 const app = express();
 app.use("/api/v1/chat", chatMediaRoutes);
 const url = "/api/v1/chat/media/aaaaaaaaaaaaaaaaaaaaaaaa?u=bbbbbbbbbbbbbbbbbbbbbbbb&s=cccccccccccccccccccccccc&e=123&t=signed";
@@ -34,4 +35,13 @@ it("validates media access before serving any byte range", async () => {
   const res = await request(app).get(url).set("Range", "bytes=0-1");
   expect(res.status).toBe(500);
   expect(res.headers["content-range"]).toBeUndefined();
+});
+it("streams stored files with range support after access validation", async () => {
+  read.mockResolvedValueOnce({ bytes: Buffer.alloc(0), filePath: path.resolve("package.json"), mime: "application/octet-stream", name: "file.bin" });
+  const res = await request(app).get(url).set("Range", "bytes=0-15");
+  expect(res.status).toBe(206);
+  expect(res.headers["content-length"]).toBe("16");
+  expect(res.headers["content-disposition"]).toContain("attachment");
+  expect(res.headers["cache-control"]).toBe("private, no-store");
+  expect(read).toHaveBeenCalledOnce();
 });

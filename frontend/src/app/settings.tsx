@@ -1,3 +1,4 @@
+import { chatPhotoData } from "@/lib/chat-photo-data";
 import { AccountPanel, AccountActions } from "@/components/account-panel";
 import { useUiCopy , Alert } from "@/components/localized-native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -117,7 +118,7 @@ export default function SettingsScreen() {
     try {
       const photo=await pickChatPhoto(); if(!photo)return;
       setPhotoBusy(true);
-      const preferences=await meApi.themePhoto(photo,accessToken);
+      const preferences=await meApi.themePhoto(await chatPhotoData(photo),accessToken);
       updateUser({preferences}); setTheme("custom");
     } catch {Alert.alert(copyText("Не удалось загрузить фото. Попробуйте ещё раз."));}
     finally {setPhotoBusy(false);}

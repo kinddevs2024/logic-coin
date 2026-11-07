@@ -1,3 +1,4 @@
+import { uploadChatBinary } from "./chat-upload";
 import { API_URL, authenticatedRequest as request } from "./api";
 export type ChatPerson = {
   id: string;
@@ -62,7 +63,10 @@ export type ChatDraftFile = {
   name: string;
   mime: string;
   kind: ChatFile["kind"];
-  base64: string;
+  base64?: string;
+  blob?: Blob;
+  uri?: string;
+  size?: number;
 };
 const call = <T>(
   token: string,
@@ -183,13 +187,9 @@ export const chatApi = {
       count: number;
       members: (ChatPerson & { role: string; canEditInfo: boolean })[];
     }>(token, `/${id}/members`),
-  upload: (token: string, file: ChatDraftFile) =>
-    call<{ id: string; name: string; kind: string; size: number }>(
-      token,
-      "/attachments",
-      "POST",
-      file,
-    ),
+  upload: (token: string, file: ChatDraftFile) => file.uri || file.blob
+    ? uploadChatBinary(token, file)
+    : call<{ id: string; name: string; kind: string; size: number }>(token, "/attachments", "POST", { name: file.name, mime: file.mime, kind: file.kind, base64: file.base64 }),
   block: (token: string, id: string, blocked: boolean) =>
     call<{ blocked: boolean }>(token, `/users/${id}/block`, "PUT", { blocked }),
 };

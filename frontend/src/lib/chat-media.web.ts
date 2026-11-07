@@ -5,14 +5,8 @@ async function fileData(
   mime: string,
   kind: ChatDraftFile["kind"],
 ): Promise<ChatDraftFile> {
-  if (file.size > 8 * 1024 * 1024) throw new Error("8 MB");
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
-    reader.onerror = () => reject(new Error("File unavailable"));
-    reader.readAsDataURL(file);
-  });
-  return { name, mime, kind, base64 };
+  if (file.size > 200 * 1024 * 1024) throw new Error("Maximum file size: 200 MB");
+  return { name, mime, kind, blob: file, size: file.size };
 }
 function pick(
   accept: string,

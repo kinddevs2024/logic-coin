@@ -1101,10 +1101,16 @@ export async function uploadChatAttachment(
 ) {
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(input.base64))
     return fail(400, "invalid_attachment", "Invalid file encoding");
-  let bytes: Buffer<ArrayBufferLike> = Buffer.from(input.base64, "base64"),
-    mime = input.mime;
-  if (!bytes.length || bytes.length > 8 * 1024 * 1024)
-    return fail(400, "attachment_too_large", "Files must be smaller than 8 MB");
+  return uploadChatAttachmentBuffer(userId, input, Buffer.from(input.base64, "base64"));
+}
+export async function uploadChatAttachmentBuffer(
+  userId: Types.ObjectId,
+  input: { name: string; mime: string; kind: "photo" | "file" | "voice" },
+  data: Buffer,
+) {
+  let bytes: Buffer<ArrayBufferLike> = data, mime = input.mime;
+  if (!bytes.length || bytes.length > 200 * 1024 * 1024)
+    return fail(400, "attachment_too_large", "Maximum file size is 200 MB");
   const usage = await ChatAttachment.aggregate<{ bytes: number }>([
     {
       $match: {
@@ -1114,7 +1120,7 @@ export async function uploadChatAttachment(
     },
     { $group: { _id: null, bytes: { $sum: "$size" } } },
   ]);
-  if ((usage[0]?.bytes ?? 0) + bytes.length > 100 * 1024 * 1024)
+  if ((usage[0]?.bytes ?? 0) + bytes.length > 1024 * 1024 * 1024)
     return fail(
       429,
       "upload_quota",
@@ -1227,7 +1233,8 @@ export async function readChatAttachment(
       return fail(403, "media_denied", "File access denied");
   }
   return {
-    bytes: await readFile(path.join(root, a.storageKey)),
+    bytes: a.kind === "file" ? Buffer.alloc(0) : await readFile(path.join(root, a.storageKey)),
+    filePath: a.kind === "file" ? path.join(root, a.storageKey) : null,
     mime: a.mime,
     name: a.name,
   };

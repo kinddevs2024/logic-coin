@@ -6,6 +6,7 @@ import { ApiError } from "../lib/api-error.js";
 import { User } from "../models/User.js";
 import { ChatBlock } from "../models/Chat.js";
 import * as chat from "../services/chat.service.js";
+import { uploadChatStream } from "../services/chat-upload.service.js";
 const id = z.string().regex(/^[a-f\d]{24}$/i);
 const parseId = (value: unknown) => {
   const parsed = id.safeParse(value);
@@ -13,7 +14,7 @@ const parseId = (value: unknown) => {
   return parsed.data;
 };
 export const chatMediaRoutes = Router();
-chatMediaRoutes.get("/media/:id", async (req, res) => {
+chatMediaRoutes.get("/media/:id", async (req, res, next) => {
   const attachmentId = parseId(req.params.id),
     userId = parseId(req.query.u);
   const session = parseId(req.query.s),
@@ -33,6 +34,10 @@ chatMediaRoutes.get("/media/:id", async (req, res) => {
     "Content-Disposition": `${value.mime.startsWith("image/") || value.mime.startsWith("audio/") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(value.name)}`,
   });
   res.type(value.mime);
+  if (value.filePath) {
+    res.sendFile(value.filePath, { cacheControl: false, lastModified: false }, error => { if (error) next(error); });
+    return;
+  }
   if (value.mime.startsWith("audio/")) {
     res.set("Accept-Ranges", "bytes");
     const ranges = req.range(value.bytes.length);
@@ -154,6 +159,10 @@ router.post(
   async (req, res) =>
     res.json({ data: await chat.joinRoom(req.auth!.userId, req.body.code) }),
 );
+router.post("/attachments/binary", uploadLimiter, async (req, res) => {
+  const metadata = z.object({ name: z.string().min(1).max(180), mime: z.string().max(100), kind: z.enum(["photo", "file", "voice"]) }).parse(req.query);
+  res.json({ data: await uploadChatStream(req.auth!.userId, metadata, req, Number(req.headers["content-length"])) });
+});
 router.post(
   "/attachments",
   uploadLimiter,

@@ -165,6 +165,13 @@ function ConversationPaneContent({
     [uploading, setUploading] = useState(false),
     [busy, setBusy] = useState(false),
     [attachMenu, setAttachMenu] = useState(false);
+  const previewUrls = useRef(new Set<string>());
+  useEffect(() => {
+    const next = new Set(attachments.map(file => file.previewUri).filter((uri): uri is string => Boolean(uri?.startsWith("blob:"))));
+    for (const uri of previewUrls.current) if (!next.has(uri)) URL.revokeObjectURL(uri);
+    previewUrls.current = next;
+  }, [attachments]);
+  useEffect(() => () => { for (const uri of previewUrls.current) URL.revokeObjectURL(uri); }, []);
   const list = useRef<FlatList<ChatItem>>(null),
     autoScroll = useRef(true),
     readSeq = useRef(0);
@@ -282,7 +289,7 @@ function ConversationPaneContent({
     setError(null);
     try {
       const a = await chatApi.upload(token, file);
-      setAttachments((current) => [...current, { ...a, ...(file.kind === "photo" ? { previewUri: `data:${file.mime};base64,${file.base64}` } : {}) }].slice(0, 4));
+      setAttachments((current) => [...current, { ...a, ...(file.kind === "photo" ? { previewUri: file.uri || (file.blob ? URL.createObjectURL(file.blob) : `data:${file.mime};base64,${file.base64}`) } : {}) }].slice(0, 4));
     } finally {
       setUploading(false);
     }
@@ -844,9 +851,6 @@ function ConversationPaneContent({
                 void pick("file");
               }}
             />
-            <AppText variant="caption" muted>
-              {c.fileLimit}
-            </AppText>
           </ChatSheet>
         ) : null}
         {action ? (
