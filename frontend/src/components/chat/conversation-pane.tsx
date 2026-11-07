@@ -188,15 +188,22 @@ function ConversationPaneContent({
       for (const item of page.items) map.set(item.id, item);
     return [...map.values()].map(item => reactionOverrides[item.id] ? { ...item, reactions: reactionOverrides[item.id] } : item).sort((a, b) => a.seq - b.seq);
   }, [query.data, reactionOverrides]);
+  const displayItems = useMemo(() => [...items].reverse(), [items]);
   const pinnedMessages = query.data?.pages[0]?.pinned ?? items.filter(item => item.pinned && !item.deleted).slice().reverse();
   const [pinIndex, setPinIndex] = useState(0);
   const pinnedMessage = pinnedMessages[pinIndex % Math.max(1, pinnedMessages.length)];
   const [jumpToPin, setJumpToPin] = useState<string | null>(null);
   const { isFetching, hasNextPage, fetchNextPage } = query;
   const historyLaidOut = useRef(false);
+  const olderHistoryRequested = useRef(false);
+  useEffect(() => {
+    if (!olderHistoryRequested.current || isFetching || !hasNextPage) return;
+    olderHistoryRequested.current = false;
+    void fetchNextPage({ cancelRefetch: false }).catch(() => {});
+  }, [isFetching, hasNextPage, fetchNextPage]);
   useEffect(() => {
     if (!jumpToPin || isFetching) return;
-    const index = items.findIndex(item => item.id === jumpToPin);
+    const index = displayItems.findIndex(item => item.id === jumpToPin);
     if (index >= 0 || !hasNextPage) {
       const frame = requestAnimationFrame(() => {
         if (index >= 0) {
@@ -208,7 +215,7 @@ function ConversationPaneContent({
       return () => cancelAnimationFrame(frame);
     }
     void fetchNextPage();
-  }, [jumpToPin, items, isFetching, hasNextPage, fetchNextPage, reducedMotion]);
+  }, [jumpToPin, displayItems, isFetching, hasNextPage, fetchNextPage, reducedMotion]);
   const refresh = useCallback(() => {
     void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
     return client.invalidateQueries({
@@ -537,13 +544,14 @@ function ConversationPaneContent({
         ) : null}
         <FlatList
           ref={list}
-          data={items}
+          inverted
+          data={displayItems}
           keyExtractor={(item) => item.id}
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.history,
-            { paddingTop: showSearch ? 72 : 14 },
+            { paddingTop: 14, paddingBottom: showSearch ? 72 : 14 },
           ]}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={20}
@@ -553,11 +561,12 @@ function ConversationPaneContent({
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           onScroll={(event) => {
             const e = event.nativeEvent;
-            autoScroll.current =
-              e.contentSize.height -
-                e.layoutMeasurement.height -
-                e.contentOffset.y <
-              140;
+            autoScroll.current = e.contentOffset.y < 140;
+            const distanceToHistory = e.contentSize.height - e.layoutMeasurement.height - e.contentOffset.y;
+            if (e.contentOffset.y > 30 && distanceToHistory < 250 && hasNextPage) {
+              if (isFetching) olderHistoryRequested.current = true;
+              else void fetchNextPage({ cancelRefetch: false }).catch(() => {});
+            } else olderHistoryRequested.current = false;
           }}
           onScrollToIndexFailed={({index, averageItemLength}) => {
             list.current?.scrollToOffset({offset: index * averageItemLength, animated: !reducedMotion});
@@ -565,22 +574,12 @@ function ConversationPaneContent({
           scrollEventThrottle={100}
           onContentSizeChange={() => {
             if (autoScroll.current)
-              list.current?.scrollToEnd({ animated: historyLaidOut.current && !reducedMotion });
+              list.current?.scrollToOffset({ offset: 0, animated: historyLaidOut.current && !reducedMotion });
             historyLaidOut.current = true;
           }}
-          ListHeaderComponent={
-            query.hasNextPage ? (
-              <ChatAction
-                disabled={query.isFetchingNextPage}
-                title={c.earlier}
-                icon="chevron-up"
-                onPress={() => {
-                  autoScroll.current = false;
-                  void query.fetchNextPage();
-                }}
-              />
-            ) : null
-          }
+          ListFooterComponent={query.isFetchingNextPage ? (
+            <ActivityIndicator color={String(theme.primary)} style={{ padding: 14 }} />
+          ) : null}
           ListEmptyComponent={
             !query.isPending ? (
               <View style={{ padding: 40, alignItems: "center", gap: 10 }}>
@@ -611,7 +610,7 @@ function ConversationPaneContent({
               }}
             />
           )}
-          ListFooterComponent={
+          ListHeaderComponent={
             <>
               {outbox.items.map((item) => (
                 <View
@@ -1164,7 +1163,7 @@ const styles = StyleSheet.create({
     padding: 14,
     paddingBottom: 20,
     flexGrow: 1,
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
   },
   input: {
     borderWidth: 1,
