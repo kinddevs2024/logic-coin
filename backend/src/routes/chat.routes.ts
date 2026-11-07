@@ -28,10 +28,26 @@ chatMediaRoutes.get("/media/:id", async (req, res) => {
   res.set({
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "default-src 'none'; sandbox",
+    "Content-Security-Policy": "default-src 'none'; media-src 'self'; sandbox allow-same-origin",
+    "Referrer-Policy": "no-referrer",
     "Content-Disposition": `${value.mime.startsWith("image/") || value.mime.startsWith("audio/") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(value.name)}`,
   });
-  res.type(value.mime).send(value.bytes);
+  res.type(value.mime);
+  if (value.mime.startsWith("audio/")) {
+    res.set("Accept-Ranges", "bytes");
+    const ranges = req.range(value.bytes.length);
+    if (ranges === -1) {
+      res.set("Content-Range", `bytes */${value.bytes.length}`).status(416).end();
+      return;
+    }
+    if (ranges && ranges !== -2 && ranges.type === "bytes" && ranges.length === 1) {
+      const range = ranges[0]!;
+      res.set("Content-Range", `bytes ${range.start}-${range.end}/${value.bytes.length}`)
+        .status(206).send(value.bytes.subarray(range.start, range.end + 1));
+      return;
+    }
+  }
+  res.send(value.bytes);
 });
 const router = Router();
 const writeLimiter = rateLimit({

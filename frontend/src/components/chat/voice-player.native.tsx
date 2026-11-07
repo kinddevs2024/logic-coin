@@ -10,7 +10,7 @@ const player = loadChatAudio(() => require("./voice-player-implementation") as t
 export function VoicePlayer(props: Props) {
   const c = useChatCopy(), theme = useAppTheme();
   if (player) return <player.VoicePlayer {...props} />;
-  return <Pressable accessibilityRole="button" accessibilityLabel={c.voice} onPress={event => {event.stopPropagation();void Linking.openURL(props.url).then(() => props.onListened?.()).catch(() => {});}} style={{minWidth:180,minHeight:60,flexDirection:"row",gap:12,alignItems:"center"}}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={c.voice} onPress={event => {event.stopPropagation();void Linking.openURL(props.url).catch(() => {});}} style={{minWidth:180,minHeight:60,flexDirection:"row",gap:12,alignItems:"center"}}>
     <Ionicons name="play-circle" size={44} color={String(theme.primary)} />
     <View><AppText>{c.voice}</AppText><AppText muted variant="caption">{c.openVoice}</AppText></View>
   </Pressable>;
