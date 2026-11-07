@@ -1,3 +1,4 @@
+import { createSerialChatRefresh } from "@/lib/chat-sync";
 import { useEffect } from "react";
 import { usePathname } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,23 @@ export function ChatRuntime() {
     if (!token) return;
     let listTimer: ReturnType<typeof setTimeout> | undefined;
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const refreshers = new Map<string, () => Promise<void>>();
+    const refresh = (id: string) => {
+      let run = refreshers.get(id);
+      if (!run) {
+        run = createSerialChatRefresh(() => client.invalidateQueries({
+          queryKey: id === "*" ? ["chat-messages", token] : ["chat-messages", token, id],
+          refetchType: pathname === "/messages" ? "active" : "none",
+        }, { cancelRefetch: false }));
+        refreshers.set(id, run);
+      }
+      void run().catch(() => {});
+    };
     const unsubscribe = subscribeToChallengeUpdates(token, (state) => {
+      if (state.chatSync) {
+        refresh("*");
+        void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
+      }
       if (!state.chat) return;
       const id = state.chat.conversationId;
       if (id === "friends") {
@@ -24,10 +41,7 @@ export function ChatRuntime() {
           id,
           setTimeout(() => {
             timers.delete(id);
-            void client.invalidateQueries({
-              queryKey: ["chat-messages", token, id],
-              refetchType: pathname === "/messages" ? "active" : "none",
-            });
+            refresh(id);
           }, 400),
         );
       if (!listTimer)
@@ -36,7 +50,7 @@ export function ChatRuntime() {
           void client.invalidateQueries({
             queryKey: ["chat-list", token],
             refetchType: "active",
-          });
+          }, { cancelRefetch: false });
         }, 800);
     });
     return () => {

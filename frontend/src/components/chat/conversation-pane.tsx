@@ -1,3 +1,4 @@
+import { catchUpChatHead } from "@/lib/chat-sync";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
 import { useVisibleChatSeq } from "./use-visible-chat-seq";
@@ -169,11 +170,14 @@ function ConversationPaneContent({
     readSeq = useRef(0);
   const query = useInfiniteQuery({
     queryKey: ["chat-messages", token, room.id, search],
-    queryFn: ({ pageParam }) =>
-      chatApi.messages(token, room.id, pageParam, search || undefined),
+    queryFn: ({ pageParam }) => {
+      if (pageParam !== undefined || search) return chatApi.messages(token, room.id, pageParam, search || undefined);
+      const cached = client.getQueryData<{ pages: { items: ChatItem[]; before: number | null }[] }>(["chat-messages", token, room.id, search]);
+      return catchUpChatHead(before => chatApi.messages(token, room.id, before), cached?.pages[0]);
+    },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (last) => last.before ?? undefined,
-    refetchInterval: 15_000,
+    refetchInterval: 5000,
     staleTime: 3000,
   });
   const [reactionOverrides, setReactionOverrides] = useState<Record<string, ChatItem["reactions"]>>({});
@@ -189,6 +193,7 @@ function ConversationPaneContent({
   const pinnedMessage = pinnedMessages[pinIndex % Math.max(1, pinnedMessages.length)];
   const [jumpToPin, setJumpToPin] = useState<string | null>(null);
   const { isFetching, hasNextPage, fetchNextPage } = query;
+  const historyLaidOut = useRef(false);
   useEffect(() => {
     if (!jumpToPin || isFetching) return;
     const index = items.findIndex(item => item.id === jumpToPin);
@@ -205,12 +210,18 @@ function ConversationPaneContent({
     void fetchNextPage();
   }, [jumpToPin, items, isFetching, hasNextPage, fetchNextPage, reducedMotion]);
   const refresh = useCallback(() => {
-    void client.invalidateQueries({
+    void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
+    return client.invalidateQueries({
       queryKey: ["chat-messages", token, room.id],
-    });
-    void client.invalidateQueries({ queryKey: ["chat-list", token] });
+    }, { cancelRefetch: false });
   }, [client, token, room.id]);
-  const outbox = useChatOutbox(token, accountId, room.id, refresh);
+  const confirmSent = useCallback(async () => {
+    // A running request may have started before send was acknowledged. Finish
+    // it first, then fetch a post-ack snapshot before removing the local bubble.
+    await refresh();
+    await client.invalidateQueries({ queryKey: ["chat-messages", token, room.id] }, { cancelRefetch: false, throwOnError: true });
+  }, [client, token, room.id, refresh]);
+  const outbox = useChatOutbox(token, accountId, room.id, confirmSent);
   const forwardResults = useQuery({
     queryKey: ["chat-search", token, forwardSearch],
     enabled: Boolean(forward && forwardSearch.trim().length >= 2),
@@ -554,7 +565,8 @@ function ConversationPaneContent({
           scrollEventThrottle={100}
           onContentSizeChange={() => {
             if (autoScroll.current)
-              list.current?.scrollToEnd({ animated: false });
+              list.current?.scrollToEnd({ animated: historyLaidOut.current && !reducedMotion });
+            historyLaidOut.current = true;
           }}
           ListHeaderComponent={
             query.hasNextPage ? (

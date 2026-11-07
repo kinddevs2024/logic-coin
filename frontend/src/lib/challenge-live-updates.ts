@@ -1,7 +1,7 @@
 import { API_URL, refreshAccessToken } from "@/lib/api";
 import { telegramChallengeInitData } from "./telegram-context";
 import type { TodayChallenges, PendingContestReward } from "@/types";
-export type LiveState = { chatTyping?: { conversationId: string; expiresAt: number }; chat?: { conversationId: string }; raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
+export type LiveState = { chatSync?: boolean; chatTyping?: { conversationId: string; expiresAt: number }; chat?: { conversationId: string }; raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
 
 type Connection = {
   watchChatId?: string | null;
@@ -69,6 +69,7 @@ function connect(token: string, connection: Connection): void {
       connection.hasConnected = true;
       connection.authenticated = true;
       connection.retryAttempt = 0;
+      notify(connection, { chatSync: true });
       for (const pending of connection.pending.values()) {
         if (!pending.sent) { pending.sent = true; socket.send(pending.message); }
       }

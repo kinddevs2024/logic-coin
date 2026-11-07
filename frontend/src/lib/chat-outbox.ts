@@ -13,7 +13,7 @@ export function useChatOutbox(
   token: string,
   accountId: string,
   conversationId: string,
-  onSent: () => void,
+  onSent: () => Promise<unknown>,
 ) {
   const key = `chat-outbox-v1:${accountId}:${conversationId}`;
   const [items, setItems] = useState<OutgoingChatMessage[]>([]);
@@ -44,11 +44,13 @@ export function useChatOutbox(
           clientId: item.clientId, text: item.text, attachmentIds: item.attachmentIds, replyTo: item.replyTo,
         });
         if (!alive.current) return;
+        // Keep the local bubble visible until the server history has caught up.
+        await callback.current();
+        if (!alive.current) return;
         await persist(
           queue.current.filter((entry) => entry.clientId !== item.clientId),
         );
         setFailed(false);
-        callback.current();
       }
     } catch {
       if (alive.current) setFailed(true);
