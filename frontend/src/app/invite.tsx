@@ -1,3 +1,4 @@
+import { FeedAd } from "@/components/feed-ad";
 import { useUiCopy } from "@/components/localized-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -78,6 +79,7 @@ export default function InviteScreen() {
         </AppButton>
       </GlassSurface>
 
+      <FeedAd placement="invite-friends"/>
       <View style={styles.stats}>
         <GlassSurface variant="soft" intensity={56} style={styles.stat}>
           <View style={[styles.statIcon, { backgroundColor: theme.primarySoft }]}>

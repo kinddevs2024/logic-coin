@@ -1,3 +1,4 @@
+import { FeedAd } from "@/components/feed-ad";
 import { useUiCopy } from "@/components/localized-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -389,7 +390,8 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                     if (movingDown) requestNextPage(contentOffset.y, layoutMeasurement.height, contentSize.height);
                     },
                   })}
-                  renderItem={({ item: entry }) => (
+                  renderItem={({ item: entry, index }) => (
+                    <>
                     <View
                       key={`${metric}-${entry.rank}-${entry.userId}`}
                       ref={entry.isCurrentUser ? selfRowRef : undefined}
@@ -422,7 +424,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                         {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={15} /> : null}
                       </View>
                       <EntryValue entry={entry} />
-                    </View>
+                    </View>{index===9?<FeedAd placement="leaderboard"/>:null}</>
                   )}
                   ListFooterComponent={<>
                   {query.isFetchNextPageError ? (

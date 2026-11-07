@@ -1,3 +1,4 @@
+import { FeedAd } from "@/components/feed-ad";
 import { useUiCopy } from "@/components/localized-native";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -95,6 +96,7 @@ export default function ChallengeHistory() {
     </View>
     {data && (data.status === "live" || data.status === "pending" || data.status === "missing") ? <AppText muted style={styles.status}>{copyContent(c[data.status])}</AppText> : null}
     {!token ? <AppText>{copyContent(c.login)}</AppText> : query.isPending || query.isPlaceholderData ? <ActivityIndicator color={String(theme.primary)} /> : null}
+    {data && rows.length ? <FeedAd placement="challenge-history"/> : null}
     <View onLayout={event => setRankingTop(event.nativeEvent.layout.y)}>
     {rows.map(row => <GlassSurface key={row.userId} style={[styles.row, { height: 64 }, row.isSelf && data?.self && { opacity: 0 }]}>
       <AppText style={styles.rank}>{copyContent(row.rank)}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={38} />

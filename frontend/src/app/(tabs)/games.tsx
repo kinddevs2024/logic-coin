@@ -1,10 +1,11 @@
+import { FeedAd } from "@/components/feed-ad";
 import { useUiCopy } from "@/components/localized-native";
 
 import { isGameVisible } from "@/constants/game-availability";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { memo, useCallback, useMemo, useState } from "react";
+import { Fragment, memo, useCallback, useMemo, useState } from "react";
 import { FlatList, Image, Platform, Pressable, StyleSheet, View, type ListRenderItemInfo, type StyleProp, type ViewStyle } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
@@ -180,10 +181,10 @@ export default function GamesScreen() {
     }
     return result;
   }, [games, wide]);
-  const renderRow = useCallback(({ item }: ListRenderItemInfo<GameCatalogItem[]>) => (
-    <View style={wide ? styles.listRowWide : undefined}>
+  const renderRow = useCallback(({ item, index }: ListRenderItemInfo<GameCatalogItem[]>) => (
+    <View><View style={wide ? styles.listRowWide : undefined}>
       {item.map((game) => <GameCard key={game.key} game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId} />)}
-    </View>
+    </View>{index === (wide ? 2 : 5) ? <FeedAd placement="games-catalog"/> : null}</View>
   ), [ready, wide]);
   const renderNativeCatalog = (contentContainerStyle: StyleProp<ViewStyle>) => (
     <>
@@ -216,7 +217,7 @@ export default function GamesScreen() {
           <>
             <GamesHeader />
             <View style={[styles.grid, wide && styles.gridWide]}>
-              {games.map((game) => <GameCard key={game.key} game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId} />)}
+              {games.map((game,index) => <Fragment key={game.key}><GameCard game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId}/>{index===5?<FeedAd placement="games-catalog"/>:null}</Fragment>)}
             </View>
             {economyGameId === "bottle-flip" ? <BottleThemes visible onClose={() => setEconomyGameId(null)} /> : economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
           </>

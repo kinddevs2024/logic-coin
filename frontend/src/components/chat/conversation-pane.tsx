@@ -1,3 +1,4 @@
+import { FeedAd } from "@/components/feed-ad";
 import { catchUpChatHead } from "@/lib/chat-sync";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
@@ -619,6 +620,7 @@ function ConversationPaneContent({
           )}
           ListHeaderComponent={
             <>
+              {room.systemKey === "news" ? <FeedAd placement="official-news"/> : null}
               {outbox.items.map((item) => (
                 <View
                   key={item.clientId}
