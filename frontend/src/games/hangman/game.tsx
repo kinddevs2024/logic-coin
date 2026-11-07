@@ -18,8 +18,8 @@ import { copy, keyboards, words } from './content';
 import { challengeCoins, guessLetter, letters, newRound, nextHint, roundStatus, wordCoins, type Round } from './logic';
 
 const gallows = require('../../../assets/hangman/gallows-reference.png');
-const figure = require('../../../assets/hangman/figure.png');
-const victory = require('../../../assets/hangman/victory.png');
+const figure = require('../../../assets/hangman/figure.webp');
+const victory = require('../../../assets/hangman/victory.webp');
 type Saved = { rounds: Round[]; batch: number; tutorialDone: boolean };
 function FigurePart({ rect }: { rect: [number, number, number, number] }) {
   const [left, top, width, height] = rect;

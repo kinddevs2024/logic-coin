@@ -8,7 +8,7 @@ import { useAppStore } from '../../store/app-store';
 
 export const ink = '#0879B7';
 export const FontContext = createContext('Notebook');
-const paper = require('../../../assets/hangman/paper-tile.png');
+const paper = require('../../../assets/hangman/paper-tile.webp');
 
 export function NotebookPaper({ children, style }: { children?: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[style, { overflow: 'hidden', backgroundColor: '#F8F7F3' }]}><View pointerEvents="none" style={StyleSheet.absoluteFill}>{[0, 1, 2].flatMap(row => [0, 1].map(col => <Image key={`${row}:${col}`} source={paper} style={{ position: 'absolute', top: row * 456, left: col * 456, width: 456, height: 456 }} />))}</View>{children}</View>;

@@ -71,7 +71,7 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
     <Hand style={{ fontSize: 25, textAlign: 'center', marginTop: 10 }}>{invitation[language]}</Hand>
     <Ionicons name="caret-down" size={38} color="#F54763" style={{ marginTop: 18, marginBottom: -5, zIndex: 2 }} />
     <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }], shadowOpacity: 0, marginBottom: 15 }]}>
-      <Image source={require("../../assets/images/fortune-wheel-v2.png")} resizeMode="contain" style={styles.wheelArtwork} />
+      <Image source={require("../../assets/images/fortune-wheel-v2.webp")} resizeMode="contain" style={styles.wheelArtwork} />
       {NOTEBOOK_PRIZES.map((prize, index) => <View key={index} pointerEvents="none" style={[styles.prizeBlock, { left: prizePositions[index].x - 40, top: prizePositions[index].y - 25 }]}><Hand style={{ color: '#FFF', fontSize: 27 }}>{copyContent(prize)}</Hand></View>)}
       <View style={styles.hub}><Image source={require("../../assets/brand/logo-mark.png")} resizeMode="contain" style={styles.hubImage} /></View>
     </Animated.View>
@@ -86,7 +86,7 @@ export function FortuneWheelModal({ visible, selected, spinning, busy, notice, o
       <Text style={styles.invitation}>{invitation[language]}</Text>
       <View style={styles.pointer} accessibilityLabel={copyText("Указатель колеса")}><View style={styles.pointerTip} /></View>
       <Animated.View style={[styles.wheel, { transform: [{ rotate: spin }] }]}>
-        <Image source={require("../../assets/images/fortune-wheel-v2.png")} resizeMode="contain" style={styles.wheelArtwork} />
+        <Image source={require("../../assets/images/fortune-wheel-v2.webp")} resizeMode="contain" style={styles.wheelArtwork} />
         {PRIZES.map((prize, index) => <View key={prize.label} pointerEvents="none" style={[styles.prizeBlock, { left: prizePositions[index].x - 40, top: prizePositions[index].y - 25 }]}>
           <Text style={styles.prize}>{copyContent(prize.label)}</Text><Text style={styles.prizeCaption}>{copyContent(prize.caption)}</Text>
         </View>)}

@@ -128,7 +128,7 @@ jobs:
           assert metadata['expo.modules.updates.EXPO_UPDATE_URL']=='https://logic-coin.online/updates'
           assert metadata.get('expo.modules.updates.DISABLE_ANTI_BRICKING_MEASURES','false')=='false'
           cfg=json.loads(pathlib.Path('frontend/app.json').read_text())['expo']
-          assert cfg['android']['versionCode']==19
+          assert cfg['android']['versionCode']==20
           pathlib.Path('artifacts/unsigned').mkdir(parents=True,exist_ok=True)
           (pathlib.Path('artifacts/unsigned')/'native-strings.xml').write_bytes((root/'res/values/strings.xml').read_bytes())
           (pathlib.Path('artifacts/unsigned')/'native-update-config.json').write_text(json.dumps(metadata,indent=2))

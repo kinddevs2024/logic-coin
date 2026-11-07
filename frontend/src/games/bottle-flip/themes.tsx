@@ -10,9 +10,9 @@ import { AppText } from "@/components/app-text";
 import { useTranslation } from "@/hooks/use-translation";
 import { BOTTLE_THEME_PRICES, bottleThemeOwnership } from "./pricing";
 export const BOTTLE_THEMES = [
-  { id: "classic", color: "#0E7490", background: "#DCEFF9", foreground: "#123C53", success: "#15703C", bottle: require("../../../assets/bottle-flip.png"), room: require("../../../assets/bottle-room.png") },
-  { id: "amber", color: "#C56E16", background: "#FFE5B5", foreground: "#633509", success: "#15703C", bottle: require("../../../assets/bottle-amber.png"), room: require("../../../assets/bottle-room-amber.png") },
-  { id: "violet", color: "#7C3AED", background: "#39265C", foreground: "#F4EFFF", success: "#8FF0BC", bottle: require("../../../assets/bottle-violet.png"), room: require("../../../assets/bottle-room-violet.png") },
+  { id: "classic", color: "#0E7490", background: "#DCEFF9", foreground: "#123C53", success: "#15703C", bottle: require("../../../assets/bottle-flip.webp"), room: require("../../../assets/bottle-room.webp") },
+  { id: "amber", color: "#C56E16", background: "#FFE5B5", foreground: "#633509", success: "#15703C", bottle: require("../../../assets/bottle-amber.webp"), room: require("../../../assets/bottle-room-amber.webp") },
+  { id: "violet", color: "#7C3AED", background: "#39265C", foreground: "#F4EFFF", success: "#8FF0BC", bottle: require("../../../assets/bottle-violet.webp"), room: require("../../../assets/bottle-room-violet.webp") },
 ] as const;
 const themePrice = (id: string) => BOTTLE_THEME_PRICES[id] ?? 0;
 export function BottleThemes({ visible, onClose }: { visible: boolean; onClose: () => void }) {

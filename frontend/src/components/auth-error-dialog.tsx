@@ -27,7 +27,7 @@ export function AuthErrorProvider({ children }: PropsWithChildren) {
       <View style={styles.overlay}>
         <ScrollView contentContainerStyle={styles.center} bounces={false}>
           <View testID="auth-error-dialog" accessibilityViewIsModal accessibilityLabel={title} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            {connection ? <Image source={require("../../assets/illustrations/connection-lost.png")} style={styles.image} resizeMode="contain" accessible={false} /> :
+            {connection ? <Image source={require("../../assets/illustrations/connection-lost.webp")} style={styles.image} resizeMode="contain" accessible={false} /> :
               <View style={styles.errorIcon}><Ionicons name="alert-circle-outline" size={68} color={String(theme.primary)} /></View>}
             <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>{title}</Text>
             <Text style={[styles.body, { color: theme.textMuted }]}>{connection ? c.connectionBody : c.body}</Text>
