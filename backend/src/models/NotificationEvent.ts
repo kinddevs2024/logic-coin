@@ -10,8 +10,11 @@ const notificationEventSchema = new Schema(
         "daily_contest_settled",
         "referral_signup",
         "admin_broadcast",
+        "raffle",
+        "chat_message",
         "new_game_available",
-        "gift_received"
+        "gift_received",
+        "withdrawal_approved"
       ],
       required: true
     },
@@ -39,6 +42,10 @@ const notificationEventSchema = new Schema(
 
 notificationEventSchema.index({ eventKey: 1 }, { unique: true });
 notificationEventSchema.index({ status: 1, createdAt: 1 });
+notificationEventSchema.index({ type: 1, "payload.conversationId": 1, "payload.userIds": 1, "payload.seq": 1 });
+notificationEventSchema.index({ audience: 1, createdAt: -1 });
+notificationEventSchema.index({ audience: 1, "payload.userIds": 1, createdAt: -1 });
+notificationEventSchema.index({ audience: 1, "payload.dayKey": 1, createdAt: -1 });
 
 export type NotificationEventDocument = InferSchemaType<typeof notificationEventSchema>;
 export const NotificationEvent =

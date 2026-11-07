@@ -1,10 +1,11 @@
+import type { CopyLanguage } from "../lib/localize-built-in.js";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
 import { generateOtp, hashOtp, normalizeEmail, otpMatches } from "../lib/crypto.js";
 import { OtpChallenge } from "../models/OtpChallenge.js";
 import { sendVerificationCode } from "./email.service.js";
 
-export async function createAndSendOtp(emailInput: string) {
+export async function createAndSendOtp(emailInput: string, language: CopyLanguage = "ru") {
   const email = normalizeEmail(emailInput);
   const dailyWindowStart = new Date(Date.now() - 24 * 60 * 60_000);
   const sentToday = await OtpChallenge.countDocuments({
@@ -48,7 +49,7 @@ export async function createAndSendOtp(emailInput: string) {
 
   let delivery: "sent" | "disabled";
   try {
-    delivery = await sendVerificationCode(email, code);
+    delivery = await sendVerificationCode(email, code, language);
   } catch (error) {
     await OtpChallenge.deleteOne({ _id: challenge._id });
     throw error;

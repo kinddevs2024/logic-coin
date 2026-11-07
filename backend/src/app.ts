@@ -9,6 +9,8 @@ import { requireAuth } from "./middleware/auth.js";
 import { requireDatabase } from "./middleware/database.js";
 import { attachRequestId, errorHandler, notFoundHandler } from "./middleware/errors.js";
 import { globalLimiter } from "./middleware/rate-limits.js";
+import { recordPerformance } from "./middleware/performance.js";
+import raffleRoutes from "./routes/raffle.routes.js";
 import activityRoutes from "./routes/activity.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import bonusesRoutes from "./routes/bonuses.routes.js";
@@ -30,8 +32,12 @@ import adsRoutes from "./routes/ads.routes.js";
 import notificationsRoutes from "./routes/notifications.routes.js";
 import shareRoutes from "./routes/share.routes.js";
 import homeGiftRoutes from "./routes/home-gift.routes.js";
+import homeRoutes from "./routes/home.routes.js";
+import avatarsRoutes from "./routes/avatars.routes.js";
+import chatRoutes, { chatMediaRoutes } from "./routes/chat.routes.js";
 
 export const app = express();
+app.use(recordPerformance);
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
@@ -53,7 +59,7 @@ app.use(
       callback(new ApiError(403, "cors_origin_denied", "Origin is not allowed"));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["authorization", "content-type", "idempotency-key", "x-request-id"],
+    allowedHeaders: ["authorization", "content-type", "idempotency-key", "x-request-id", "accept-language", "x-telegram-init-data", "x-appearance-version"],
     exposedHeaders: ["x-request-id", "ratelimit", "ratelimit-policy"]
   })
 );
@@ -66,11 +72,16 @@ api.use(legacyThemeCompatibility);
 api.use("/health", healthRoutes);
 api.use("/share", shareRoutes);
 api.use(requireDatabase);
+api.use("/avatars", avatarsRoutes);
+api.use("/chat", chatMediaRoutes);
 api.use("/auth", authRoutes);
 api.use("/admin", adminRoutes);
 api.use("/profile", publicProfileRoutes);
 api.use("/ads", adsRoutes);
 api.use(requireAuth);
+api.use("/chat", chatRoutes);
+api.use("/raffle", raffleRoutes);
+api.use("/home", homeRoutes);
 api.use("/notifications", notificationsRoutes);
 api.use("/home-gift", homeGiftRoutes);
 api.use("/bootstrap", bootstrapRoutes);

@@ -1,3 +1,4 @@
+import { requestLanguage } from "../lib/request-language.js";
 import { Router, type Request } from "express";
 import { isNativeAppClient } from "../lib/native-client.js";
 import { serveAppReturnPage } from "../lib/app-return-page.js";
@@ -160,6 +161,7 @@ router.post(
     if (!user) {
       const localName = email.split("@")[0]?.replace(/[._-]+/g, " ").trim();
       user = await createUser({
+      language: requestLanguage(request),
         email,
         name: localName || "Logic member",
         registrationTokenHash,
@@ -190,7 +192,7 @@ router.post(
       );
     }
 
-    const verification = await createAndSendOtp(email);
+    const verification = await createAndSendOtp(email, request.header("accept-language")?.startsWith("uz") ? "uz" : request.header("accept-language")?.startsWith("en") ? "en" : "ru");
     response.status(202).json({
       data: {
         email,
@@ -320,7 +322,7 @@ router.post("/telegram/start", authLimiter, async (request, response) => {
   const parsed = z.object({ deviceId: deviceIdSchema, referralCode: z.string().trim().regex(/^[A-Za-z0-9-]{4,32}$/).optional() }).strict().safeParse(request.body ?? {});
   if (!parsed.success) throw new ApiError(400, "validation_error", "Telegram login data is invalid");
   await assertDeviceNotBanned(parsed.data.deviceId);
-  response.status(201).json({ data: await createTelegramLogin(parsed.data.referralCode, parsed.data.deviceId, isNativeAppClient(request.headers) ? "app" : "web") });
+  response.status(201).json({ data: await createTelegramLogin(parsed.data.referralCode, parsed.data.deviceId, isNativeAppClient(request.headers) ? "app" : "web", undefined, requestLanguage(request)) });
 });
 
 router.post("/telegram/status", authLimiter, async (request, response) => {
@@ -376,7 +378,7 @@ router.post("/telegram/mini-app", authLimiter, async (request, response) => {
   }
   const user = await authenticateTelegram(
     verifyTelegramMiniApp(parsed.data.initData), parsed.data.referralCode
-  );
+  , requestLanguage(request));
   const tokens = await issueTokenPair(
     user._id,
     sessionContext(request, parsed.data.deviceId)
@@ -423,6 +425,7 @@ router.post("/register", authLimiter, validateBody(registerSchema), async (reque
     user = updatedUser;
   } else {
     user = await createUser({
+      language: requestLanguage(request),
       email,
       name,
       passwordHash,
@@ -433,7 +436,7 @@ router.post("/register", authLimiter, validateBody(registerSchema), async (reque
     });
   }
 
-  const verification = await createAndSendOtp(email);
+  const verification = await createAndSendOtp(email, request.header("accept-language")?.startsWith("uz") ? "uz" : request.header("accept-language")?.startsWith("en") ? "en" : "ru");
   response.status(202).json({
     data: {
       userId: user._id.toString(),
@@ -528,7 +531,7 @@ router.post(
     if (user.emailVerifiedAt && user.passwordHash) {
       throw new ApiError(409, "email_already_verified", "Email is already verified");
     }
-    const verification = await createAndSendOtp(email);
+    const verification = await createAndSendOtp(email, request.header("accept-language")?.startsWith("uz") ? "uz" : request.header("accept-language")?.startsWith("en") ? "en" : "ru");
     response.status(202).json({ data: { email, verification } });
   }
 );
@@ -583,7 +586,7 @@ router.post(
 router.post("/google", authLimiter, validateBody(googleSchema), async (request, response) => {
   const { idToken, deviceId, referralCode, countryCode } = request.body as z.infer<typeof googleSchema>;
   await assertDeviceNotBanned(deviceId);
-  const { user, created } = await authenticateGoogle(idToken, referralCode);
+  const { user, created } = await authenticateGoogle(idToken, referralCode, requestLanguage(request));
   if (countryCode && !user.countryCode) {
     user.countryCode = countryCode;
     await user.save();

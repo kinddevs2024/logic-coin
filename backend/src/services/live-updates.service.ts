@@ -4,18 +4,22 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { API_PREFIX } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import { isNativeAppClient } from "../lib/native-client.js";
+import { isTelegramChallengeClient } from "./challenge-client.service.js";
 import { isAccessSessionActive, verifyAccessToken } from "./token.service.js";
 
 const AUTH_TIMEOUT_MS = 10_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const clients = new Set<WebSocket>();
+const chatWatches = new Map<WebSocket, string>();
 const identities = new Map<WebSocket, { userId: Types.ObjectId; token: string }>();
 const limits = new Map<string, { start: number; count: number }>();
 
 async function snapshot(userId: Types.ObjectId) {
   const { executeLiveCommand } = await import("./live-command.service.js");
-  const today = await executeLiveCommand(userId, "today", {});
-  const reward = await executeLiveCommand(userId, "pendingReward", {});
+  const [today, reward] = await Promise.all([
+    executeLiveCommand(userId, "today", {}),
+    executeLiveCommand(userId, "pendingReward", {}),
+  ]);
   return { today, reward };
 }
 
@@ -43,7 +47,7 @@ function textFromRawData(data: RawData): string {
 
 /** Attach the authenticated events endpoint to the API HTTP server. */
 export function attachLiveUpdates(server: Server): () => void {
-  const websocketServer = new WebSocketServer({ noServer: true, maxPayload: 2_048 });
+  const websocketServer = new WebSocketServer({ noServer: true, maxPayload: 16_384 });
   server.on("upgrade", (request, socket, head) => {
     const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
     if (pathname !== `${API_PREFIX}/events`) {
@@ -58,6 +62,7 @@ export function attachLiveUpdates(server: Server): () => void {
 
   websocketServer.on("connection", (websocket, request) => {
     const nativeClient = isNativeAppClient(request.headers);
+    let challengeClient = nativeClient;
     let authenticated = false;
     let authInProgress = false;
     let alive = true;
@@ -74,18 +79,32 @@ export function attachLiveUpdates(server: Server): () => void {
             const identity = identities.get(websocket)!;
             const payload = verifyAccessToken(identity.token);
             if (!await isAccessSessionActive(identity.userId, payload.sid)) throw new ApiError(401, "session_expired", "Session expired");
-            const key = identity.userId.toString();
+            const chatCommand = ["chatWatch", "chatTyping"].includes(message.method);
+            const key = `${identity.userId}:${chatCommand ? "chat" : message.method === "raffleState" || message.method === "rafflePresence" ? "raffle" : "game"}`;
             let limit = limits.get(key);
             if (!limit || Date.now() - limit.start >= 60_000) {
               limit = { start: Date.now(), count: 0 };
               limits.set(key, limit);
             }
-            if (++limit.count > 30) throw new Error("Too many commands; try again later");
+            if (++limit.count > (chatCommand ? 120 : 30)) throw new Error("Too many commands; try again later");
+            if (chatCommand) {
+              const conversationId = message.input?.conversationId;
+              if (message.method === "chatWatch" && conversationId === null) chatWatches.delete(websocket);
+              else {
+                if (typeof conversationId !== "string" || !/^[a-f\d]{24}$/i.test(conversationId)) throw new ApiError(400, "invalid_chat", "Invalid conversation");
+                const { chatAccess } = await import("./chat.service.js");
+                await chatAccess(identity.userId, conversationId, message.method === "chatTyping");
+                if (message.method === "chatWatch") chatWatches.set(websocket, conversationId);
+                else for (const [other, watched] of chatWatches) if (other !== websocket && watched === conversationId) send(other, { type: "state", chatTyping: { conversationId, expiresAt: Date.now() + 5500 } });
+              }
+              send(websocket, { type: "response", id, data: { ok: true } });
+              return;
+            }
             const { executeLiveCommand } = await import("./live-command.service.js");
-            const data = await executeLiveCommand(identity.userId, message.method, message.input ?? {}, nativeClient);
+            const data = await executeLiveCommand(identity.userId, message.method, message.input ?? {}, challengeClient, payload.sid);
             // A committed mutation is acknowledged even if refreshing its view fails.
             let state;
-            if (!["today", "pendingReward"].includes(message.method)) {
+            if (!["today", "pendingReward", "raffleState", "rafflePresence"].includes(message.method)) {
               try { state = await snapshot(identity.userId); } catch { /* preserve acknowledgement */ }
             }
             send(websocket, { type: "response", id, data, ...(state ? { state } : {}) });
@@ -99,7 +118,7 @@ export function attachLiveUpdates(server: Server): () => void {
         return;
       }
       if (authInProgress) return;
-      let message: { type?: unknown; token?: unknown };
+      let message: { type?: unknown; token?: unknown; telegramInitData?: unknown };
       try {
         message = JSON.parse(textFromRawData(raw)) as { type?: unknown; token?: unknown };
       } catch {
@@ -123,6 +142,7 @@ export function attachLiveUpdates(server: Server): () => void {
             return;
           }
           if (websocket.readyState !== WebSocket.OPEN) return;
+          challengeClient = nativeClient || isTelegramChallengeClient(message.telegramInitData);
           authenticated = true;
           clearTimeout(authTimeout);
           clients.add(websocket);
@@ -139,6 +159,7 @@ export function attachLiveUpdates(server: Server): () => void {
       clearInterval(heartbeat);
       clients.delete(websocket);
       identities.delete(websocket);
+      chatWatches.delete(websocket);
     };
     websocket.on("close", cleanup);
     websocket.on("error", cleanup);
@@ -164,6 +185,7 @@ export function attachLiveUpdates(server: Server): () => void {
     for (const client of clients) client.close(1001, "Server shutting down");
     clients.clear();
     identities.clear();
+    chatWatches.clear();
     limits.clear();
     websocketServer.close();
   };
@@ -171,4 +193,14 @@ export function attachLiveUpdates(server: Server): () => void {
 
 export function broadcastDailyChallengeUpdate(_dayKey: string, _revision?: string | null): void {
   for (const client of clients) void pushSnapshot(client);
+}
+
+export function broadcastRaffleState(raffle: unknown) { for (const client of clients) send(client, { type: "state", raffle }); }
+
+// null is used only for default public news/community; private chats always supply member IDs.
+export function notifyChatChange(userIds: string[] | null, conversationId: string) {
+  const recipients = userIds ? new Set(userIds) : null;
+  for (const [client, identity] of identities) if (recipients ? recipients.has(String(identity.userId)) : true) {
+    send(client, { type: "state", chat: { conversationId } });
+  }
 }

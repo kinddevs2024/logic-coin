@@ -70,7 +70,7 @@ export function GlassSurface({
           // elevated background independently behind each flattened child.
           // An opaque tinted base keeps the whole card one continuous surface.
           backgroundColor: Platform.OS === "android"
-            ? dark ? "#19273E" : variant === "strong" ? "#F3FAFF" : "#E7F5FD"
+            ? variant === "strong" ? theme.surfaceRaised : theme.surface
             : fill,
           borderColor: theme.glassBorder,
           shadowColor: theme.glassShadow,
@@ -93,8 +93,8 @@ export function GlassSurface({
         pointerEvents="none"
         colors={[
           String(theme.glassHighlight),
-          dark ? "rgba(190,215,250,0.01)" : "rgba(255,255,255,0.03)",
-          dark ? "rgba(58,101,163,0.025)" : "rgba(76,164,255,0.015)",
+          dark ? "rgba(184,204,188,0.01)" : "rgba(255,255,238,0.03)",
+          dark ? "rgba(23,102,72,0.025)" : "rgba(120,221,176,0.015)",
         ]}
         locations={[0, 0.42, 1]}
         start={{ x: 0.08, y: 0 }}
@@ -108,8 +108,8 @@ export function GlassSurface({
           {
             borderTopColor: theme.glassHighlight,
             borderLeftColor: theme.glassHighlight,
-            borderRightColor: dark ? "rgba(156,185,225,0.06)" : "rgba(255,255,255,0.18)",
-            borderBottomColor: dark ? "rgba(156,185,225,0.04)" : "rgba(83,139,190,0.12)",
+            borderRightColor: dark ? "rgba(162,212,180,0.06)" : "rgba(255,255,238,0.18)",
+            borderBottomColor: dark ? "rgba(162,212,180,0.04)" : "rgba(50,111,80,0.12)",
           },
           corners,
         ]}

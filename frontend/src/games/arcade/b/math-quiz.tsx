@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -68,6 +70,7 @@ function buildRound(): MathQuestion[] {
 }
 
 export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
+  const { copyContent } = useUiCopy();
   const accent = arcadeSkinAccent(skin, B_COLORS.gold);
   const timeBonus = Math.max(0, extraTimeSeconds);
   const [screen, setScreen] = useState<"menu" | "play" | "result">("menu");
@@ -205,16 +208,16 @@ export function MathQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
           <ProgressTrack value={(index + 1) / TOTAL} color={accent} />
           <View style={styles.timerWrap}>
             <View style={[styles.timer, { borderColor: timeLeft / duration < 0.3 ? B_COLORS.red : accent }]}>
-              <Text style={[styles.timerText, { color: timeLeft / duration < 0.3 ? B_COLORS.red : B_COLORS.ink }]}>{Math.ceil(timeLeft)}</Text>
+              <Text style={[styles.timerText, { color: timeLeft / duration < 0.3 ? B_COLORS.red : B_COLORS.ink }]}>{copyContent(Math.ceil(timeLeft))}</Text>
             </View>
           </View>
           <Animated.View key={`${index}-${question.expression}`} entering={FadeInDown.duration(240)} style={styles.questionWrap}>
-            <Text style={styles.badge}>{question.double ? `ДВА ДЕЙСТВИЯ · 12.5С${question.hard ? " · HARD" : ""}` : "ОДНО ДЕЙСТВИЕ · 7.5С"}</Text>
+            <Text style={styles.badge}>{copyContent(question.double ? `ДВА ДЕЙСТВИЯ · 12.5С${question.hard ? " · HARD" : ""}` : "ОДНО ДЕЙСТВИЕ · 7.5С")}</Text>
             <Panel style={styles.questionCard}>
               <View style={styles.questionIcon}>
                 <ArcadeIcon name={MATH_OPERATION_ICONS[question.op][index % MATH_OPERATION_ICONS[question.op].length]} size={28} color={accent} />
               </View>
-              <Text adjustsFontSizeToFit numberOfLines={1} style={styles.expression}>{question.expression} = ?</Text>
+              <Text adjustsFontSizeToFit numberOfLines={1} style={styles.expression}>{copyContent(question.expression)} = ?</Text>
             </Panel>
             <View style={styles.answers}>
               {question.options.map((option) => <View key={option} style={styles.answerSlot}><AnswerButton label={String(option)} onPress={() => answer(option)} accent={accent} state={answerState(option)} disabled={selected !== null || timedOut} /></View>)}

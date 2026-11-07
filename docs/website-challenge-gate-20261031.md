@@ -1,0 +1,11 @@
+# Website challenge play restriction (2026-10-31)
+
+Ordinary browsers now show an app/Telegram notice on the challenge page and on direct challenge-game URLs. Telegram Mini Apps and installed APKs remain playable. The notice is translated into ru/en/uz and links to the app and Logic_coinn_bot. Practice game routes remain available on the website.
+
+New challenge starts are gated on both REST and WebSocket transports. Installed APKs retain the existing native HTTP-client compatibility check. Telegram browser clients provide official WebApp initData: the backend validates its bot-token HMAC and expiration using the existing Telegram authentication verifier. A client-supplied Telegram label or URL flag alone does not authorize a start. Launch data is not returned in responses or written to logs. WebSocket payload bounds were increased to 16 KiB to accommodate signed launch data plus the access token. Existing account authentication and session revocation checks remain mandatory.
+
+Reads, practice completions and server-validated completions of previously started challenge attempts remain available so an in-flight game can save its result. This is a product/platform gate, not cryptographic device attestation for APKs.
+
+Verification: backend build passed; full backend suite 187 passed, 17 skipped, plus two real-HMAC gate tests passed separately. Frontend typecheck and 17 targeted tests passed, including native-window safety. Isolated browser tests show ordinary web challenge URLs blocked, Telegram challenge intro playable, and ordinary practice unchanged, with zero page errors. Production helper verification: browser start rejected 403, native accepted, genuinely signed synthetic Telegram data accepted, forged data rejected. Synthetic verification did not authenticate a user or create a game attempt. API health is 200 with database connected.
+
+Release 20261031-site-challenge-gate published on all three web origins and all 13 existing signed Android OTA configurations; 172 immutable assets verified. Backups: /srv/apps/logic-coin/backups/site-challenge-gate-20261031. Reopen an already-running Telegram Mini App to load the client that sends its signed launch context. Unfinished login redesign remains outside this release.

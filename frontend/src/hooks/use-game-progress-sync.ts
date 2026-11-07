@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { AppState } from "react-native";
+import { createProgressSyncQueue } from "@/lib/progress-sync-queue";
 
 import { useGameProgressStore } from "@/games/progress-store";
 import { gameProgressApi } from "@/lib/api";
@@ -13,46 +15,28 @@ function serverGameProgress(games: GamesProgress): GamesProgress {
 }
 
 export function useGameProgressSync() {
-  const accessToken = useAppStore((state) => state.accessToken);
-  const authMode = useAppStore((state) => state.authMode);
-  const hydrated = useGameProgressStore((state) => state.hydrated);
-  const games = useGameProgressStore((state) => state.games);
-  const mergeRemote = useGameProgressStore((state) => state.mergeRemote);
-  const readyToken = useRef<string | null>(null);
-  const latestGames = useRef(games);
-
-  useEffect(() => {
-    latestGames.current = games;
-  }, [games]);
-
-  useEffect(() => {
-    if (!hydrated || authMode !== "authenticated" || !accessToken) {
-      readyToken.current = null;
-      return;
-    }
-    let cancelled = false;
-    readyToken.current = null;
-    gameProgressApi
-      .get(accessToken)
-      .then(({ games: remote }) => {
-        if (cancelled) return;
-        const merged = mergeRemote(remote);
-        readyToken.current = accessToken;
-        return gameProgressApi.put(serverGameProgress(merged), accessToken);
-      })
-      .catch(() => {
-        if (!cancelled) readyToken.current = accessToken;
-      });
-    return () => {
-      cancelled = true;
+  const authenticated=useAppStore(state=>state.authMode==="authenticated"&&Boolean(state.accessToken));
+  const accountId=useAppStore(state=>state.user.id);
+  const hydrated=useGameProgressStore(state=>state.hydrated);
+  const mergeRemote=useGameProgressStore(state=>state.mergeRemote);
+  useEffect(()=>{
+    if(!hydrated||!authenticated)return;
+    let cancelled=false,ready=false,loading=false,retry=5000;
+    let retryTimer:ReturnType<typeof setTimeout>|undefined;
+    const currentToken=()=>{const state=useAppStore.getState();return state.authMode==="authenticated"&&state.user.id===accountId?state.accessToken:null;};
+    const queue=createProgressSyncQueue<GamesProgress>(async value=>{const token=currentToken();if(!token)throw new Error("Account changed");await gameProgressApi.put(value,token);});
+    const load=async()=>{
+      const token=currentToken();if(cancelled||loading||!token)return;loading=true;
+      try{
+        const {games:remote}=await gameProgressApi.get(token);if(cancelled||!currentToken())return;
+        queue.markSynced(serverGameProgress(remote));const merged=mergeRemote(remote);ready=true;queue.schedule(serverGameProgress(merged));
+      }catch{if(!cancelled){retryTimer=setTimeout(()=>void load(),retry);retry=Math.min(60000,retry*2);}}
+      finally{loading=false;}
     };
-  }, [accessToken, authMode, hydrated, mergeRemote]);
-
-  useEffect(() => {
-    if (!accessToken || readyToken.current !== accessToken) return;
-    const timeout = setTimeout(() => {
-      gameProgressApi.put(serverGameProgress(latestGames.current), accessToken).catch(() => undefined);
-    }, 700);
-    return () => clearTimeout(timeout);
-  }, [accessToken, games]);
+    // Subscribe outside React rendering: saves must not re-render the catalog.
+    const unsubscribe=useGameProgressStore.subscribe((next,previous)=>{if(ready&&next.games!==previous.games)queue.schedule(serverGameProgress(next.games));});
+    const subscription=AppState.addEventListener("change",state=>{if(state==="active"&&!ready){if(retryTimer)clearTimeout(retryTimer);void load();}else if(ready)void queue.flush();});
+    void load();
+    return()=>{cancelled=true;if(retryTimer)clearTimeout(retryTimer);unsubscribe();subscription.remove();queue.dispose();};
+  },[accountId,authenticated,hydrated,mergeRemote]);
 }

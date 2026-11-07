@@ -3,7 +3,7 @@ import { ApiError } from "../lib/api-error.js";
 import { localDayKey } from "../lib/date.js";
 import { Task } from "../models/Task.js";
 import { TaskClaim } from "../models/TaskClaim.js";
-import { User } from "../models/User.js";
+import { User, type UserDocument } from "../models/User.js";
 import { serializeTask, serializeWallet } from "./serialization.service.js";
 import { creditReward } from "./wallet.service.js";
 
@@ -13,8 +13,8 @@ function taskFilter(identifier: string) {
     : { key: identifier };
 }
 
-export async function listTasksForUser(userId: Types.ObjectId) {
-  const user = await User.findById(userId).select("preferences.language preferences.timezone");
+export async function listTasksForUser(userId: Types.ObjectId, account?: Pick<UserDocument, "preferences">) {
+  const user = account ?? await User.findById(userId).select("preferences.language preferences.timezone");
   if (!user) {
     throw new ApiError(404, "user_not_found", "User not found");
   }

@@ -1,5 +1,7 @@
-import type { PropsWithChildren, ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { useUiCopy } from "@/components/localized-native";
+
+import { useEffect, useRef, type PropsWithChildren, type ReactNode } from "react";
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -11,18 +13,33 @@ export function AuthScaffold({
   subtitle,
   headerAction,
   children,
+  compact = false,
 }: PropsWithChildren<{
   title?: string;
   subtitle?: string;
   headerAction?: ReactNode;
+  compact?: boolean;
 }>) {
+  const { copyContent } = useUiCopy();
+  const { height } = useWindowDimensions();
+  const scrollRef = useRef<ScrollView>(null);
+  const keepFieldVisible = () => {
+    if (compact && Keyboard.isVisible()) scrollRef.current?.scrollToEnd({ animated: false });
+  };
+  useEffect(() => {
+    if (!compact) return;
+    const subscription = Keyboard.addListener("keyboardDidShow", () => scrollRef.current?.scrollToEnd({ animated: true }));
+    return () => subscription.remove();
+  }, [compact]);
   return (
+    <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : "height"} onLayout={keepFieldVisible}>
     <AppFrame
-      contentStyle={styles.page}
-      scrollProps={{ contentContainerStyle: undefined }}
+      scrollRef={scrollRef}
+      contentStyle={compact ? styles.compactPage : styles.page}
+      scrollProps={{ keyboardDismissMode: "on-drag" }}
     >
-      <View style={styles.brand}>
-        <LogicCoinLogo compact />
+      <View style={[styles.brand, compact && styles.compactBrand, compact && { paddingTop: Math.min(100, Math.round(height * 0.12)) }]}>
+        <LogicCoinLogo compact size={compact ? 120 : undefined} />
       </View>
       <GlassSurface intensity={64} variant="strong" style={styles.card}>
         {headerAction ? (
@@ -32,14 +49,14 @@ export function AuthScaffold({
         ) : null}
         {title || subtitle ? (
           <View style={styles.heading}>
-            {title ? <AppText variant="heading">{title}</AppText> : null}
+            {title ? <AppText variant="heading">{copyContent(title)}</AppText> : null}
             {subtitle ? (
               <AppText
                 variant="caption"
                 muted
                 style={[{ textAlign: "center" }, styles.subtitle]}
               >
-                {subtitle}
+                {copyContent(subtitle)}
               </AppText>
             ) : null}
           </View>
@@ -47,15 +64,19 @@ export function AuthScaffold({
         {children}
       </GlassSurface>
     </AppFrame>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboard: { flex: 1 },
+  compactBrand: { flexGrow: 1, marginBottom: 32, justifyContent: "flex-start" },
+  compactPage: { flexGrow: 1, justifyContent: "space-between", paddingTop: 24, paddingBottom: 24 },
   page: {
-    minHeight: "100%",
+    flexGrow: 1,
     justifyContent: "center",
-    paddingBottom: 40,
-    paddingTop: 40,
+    paddingBottom: 24,
+    paddingTop: 24,
   },
   brand: {
     alignItems: "center",

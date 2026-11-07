@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -42,6 +44,7 @@ export function AppButton({
   style,
   accessibilityLabel,
 }: AppButtonProps) {
+  const { copyText } = useUiCopy();
   const theme = useAppTheme();
   const isPrimary = variant === "primary";
   const foreground =
@@ -85,7 +88,7 @@ export function AppButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={copyText(accessibilityLabel)}
       onPress={handlePress}
       disabled={disabled || loading}
       style={({ pressed }) => [
@@ -108,7 +111,7 @@ export function AppButton({
           locations={[0, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.gradient, theme.mode === "dark" && { borderColor: "rgba(183,216,255,0.18)" }]}
+          style={[styles.gradient, theme.mode === "dark" && { borderColor: "rgba(225,239,227,0.18)" }]}
         >
           <LinearGradient
             pointerEvents="none"
@@ -145,11 +148,12 @@ export function IconButton({
   label: string;
   filled?: boolean;
 }) {
+  const { copyText } = useUiCopy();
   const theme = useAppTheme();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={copyText(label)}
       onPress={onPress}
       style={({ pressed }) => [
         styles.iconPressable,

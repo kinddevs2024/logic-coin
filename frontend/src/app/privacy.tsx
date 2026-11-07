@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useRouter } from "expo-router";
 import { Linking, StyleSheet, View } from "react-native";
 
@@ -135,6 +137,7 @@ const copy = {
 } as const;
 
 export default function PrivacyScreen() {
+  const { copyContent } = useUiCopy();
   const router = useRouter();
   const { language } = useTranslation();
   const c = copy[language];
@@ -144,13 +147,13 @@ export default function PrivacyScreen() {
       <ScreenHeader title={c.title} onBack={() => router.back()} />
       <GlassSurface intensity={64} variant="strong" style={styles.card}>
         <AppText variant="caption" muted>
-          {c.updated}
+          {copyContent(c.updated)}
         </AppText>
-        <AppText>{c.intro}</AppText>
+        <AppText>{copyContent(c.intro)}</AppText>
         {c.sections.map((section) => (
           <View key={section.title} style={styles.section}>
-            <AppText variant="heading">{section.title}</AppText>
-            <AppText muted>{section.body}</AppText>
+            <AppText variant="heading">{copyContent(section.title)}</AppText>
+            <AppText muted>{copyContent(section.body)}</AppText>
           </View>
         ))}
         <View style={styles.actions}>
@@ -159,7 +162,7 @@ export default function PrivacyScreen() {
             variant="secondary"
             onPress={() => router.push("/account-deletion" as never)}
           >
-            {c.deleteAccount}
+            {copyContent(c.deleteAccount)}
           </AppButton>
           <AppButton
             icon="mail-outline"
@@ -168,7 +171,7 @@ export default function PrivacyScreen() {
               void Linking.openURL(`mailto:${supportEmail}?subject=Logic%20Coin%20privacy`)
             }
           >
-            {c.contact}
+            {copyContent(c.contact)}
           </AppButton>
         </View>
       </GlassSurface>

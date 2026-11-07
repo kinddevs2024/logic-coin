@@ -14,6 +14,7 @@ const preferencesSchema = new Schema(
   {
     language: { type: String, enum: SUPPORTED_LANGUAGES, default: "ru", required: true },
     theme: { type: String, enum: THEMES, default: "auto", required: true },
+    customTheme: { type: new Schema({ wallpaperUrl: {type: String, required: true}, accent: {type: String, required: true}, dark: {type: Boolean, required: true} }, {_id:false}), default: undefined },
     savingsGoalCents: { type: Number, min: 0, default: 1_000, required: true },
     notificationsEnabled: { type: Boolean, default: true, required: true },
     dailyReminderEnabled: { type: Boolean, default: true, required: true },
@@ -50,6 +51,8 @@ const userSchema = new Schema(
     emailVerifiedAt: { type: Date },
     role: { type: String, enum: USER_ROLES, default: "user", required: true },
     name: { type: String, required: true, trim: true, minlength: 1, maxlength: 80 },
+    username: { type: String, trim: true, lowercase: true, maxlength: 24 },
+    telegramUsername: { type: String, trim: true, lowercase: true, maxlength: 64 },
     avatarUrl: { type: String, trim: true, maxlength: 14_000_000 },
     countryCode: { type: String, trim: true, uppercase: true, match: /^[A-Z]{2}$/ },
     providers: { type: providerSchema, required: true, default: () => ({}) },
@@ -63,6 +66,7 @@ const userSchema = new Schema(
     wallet: { type: walletSchema, required: true, default: () => ({}) },
     coins: { type: coinsSchema, required: true, default: () => ({}) },
     lastLoginAt: { type: Date },
+    inboxReadThrough: { type: Date },
     timezoneChangedAt: { type: Date }
   },
   {
@@ -73,6 +77,7 @@ const userSchema = new Schema(
 );
 
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ username: 1 }, { unique: true, sparse: true });
 userSchema.index({ referralCode: 1 }, { unique: true });
 userSchema.index({ "providers.googleSub": 1 }, { unique: true, sparse: true });
 userSchema.index({ "providers.yandexSub": 1 }, { unique: true, sparse: true });

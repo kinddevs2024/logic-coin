@@ -1,0 +1,106 @@
+name: Android installed APK update export
+on:
+  push:
+    branches: [codex/independent-server-apk-20261027]
+    paths:
+      - '.github/workflows/android-ota-installed.yml'
+      - 'frontend/src/app/(auth)/login.tsx'
+      - 'frontend/src/components/styled-input.tsx'
+      - 'frontend/src/constants/auth-entry-copy.ts'
+      - 'frontend/src/components/auth-scaffold.tsx'
+      - 'frontend/src/components/login-email-entry.tsx'
+      - 'frontend/src/components/social-buttons.tsx'
+      - 'frontend/src/components/telegram-brand-icon.tsx'
+      - 'frontend/src/app/_layout.tsx'
+      - 'frontend/src/components/applied-update-notice.tsx'
+      - 'frontend/src/lib/applied-update-notice.ts'
+      - 'frontend/src/components/native-update-messages.tsx'
+      - 'frontend/src/components/logo.tsx'
+      - 'frontend/src/lib/update-message.ts'
+      - 'frontend/src/lib/notifications.ts'
+  workflow_dispatch:
+    inputs:
+      baseline_run:
+        description: Successful signed APK build used on the phone
+        required: true
+        default: '41201834027'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      NODE_ENV: production
+      EXPO_NO_TELEMETRY: '1'
+      LOGIC_UPDATE_CHANNEL: production
+      EXPO_PUBLIC_API_URL: https://logic-coin.online/api/v1
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB }}
+      EXPO_PUBLIC_APPODEAL_APP_KEY: ${{ secrets.EXPO_PUBLIC_APPODEAL_APP_KEY }}
+      EXPO_PUBLIC_APPODEAL_TEST_MODE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --global npm@11.18.0
+      - name: Verify immutable native inputs against installed APK build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE_RUN: ${{ inputs.baseline_run || '41201834027' }}
+        run: |
+          node -e 'if(!/^\d+$/.test(process.env.BASELINE_RUN))throw Error("Invalid build");'
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BASELINE_RUN" > baseline-run.json
+          node -e 'const fs=require("fs"),r=JSON.parse(fs.readFileSync("baseline-run.json"));if(r.conclusion!=="success"||r.head_repository.full_name!==process.env.GITHUB_REPOSITORY||!r.head_sha.match(/^[a-f0-9]{40}$/))throw Error("Invalid baseline");fs.writeFileSync("baseline-sha",r.head_sha)'
+          baseline="$(cat baseline-sha)"
+          git merge-base --is-ancestor "$baseline" HEAD
+          git diff --exit-code "$baseline" -- package.json package-lock.json .npmrc frontend/package.json frontend/app.json frontend/app.config.ts frontend/certs frontend/plugins frontend/android frontend/ios
+          node -e 'if(!process.env.EXPO_PUBLIC_APPODEAL_APP_KEY||!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.endsWith(".apps.googleusercontent.com"))throw Error("Missing original client config")'
+      - uses: actions/download-artifact@v4
+        with:
+          name: logic-coin-android-release
+          run-id: ${{ inputs.baseline_run || '41201834027' }}
+          github-token: ${{ github.token }}
+          path: artifacts/apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: independent-apk-ota-export
+          run-id: ${{ inputs.baseline_run || '41201834027' }}
+          github-token: ${{ github.token }}
+          path: artifacts/ota-baseline
+      - name: Read exact embedded APK runtime and public configuration
+        run: |
+          mkdir -p artifacts/ota-installed
+          python3 - <<'PY'
+          import json,re,zipfile,pathlib
+          with zipfile.ZipFile('artifacts/apk/logic-coin.apk') as z:
+              runtime=z.read('assets/fingerprint').decode().strip()
+              config=json.loads(z.read('assets/app.config'))
+          assert re.fullmatch('[a-f0-9]{40,64}',runtime)
+          assert config['android']['package']=='com.kinddevs.logiccoin'
+          assert config['updates']['requestHeaders']['expo-channel-name']=='production'
+          assert config['updates']['url']=='https://logic-coin.online/updates'
+          config['runtimeVersion']=runtime
+          for directory in ['ota-installed','ota-baseline']:
+              root=pathlib.Path('artifacts')/directory
+              (root/'public-config.json').write_text(json.dumps(config))
+              (root/'runtime.json').write_text(json.dumps({'runtimeVersion':runtime,'channel':'production','platform':'android'}))
+          PY
+      - run: npm ci --workspace frontend --include=dev
+      - run: npm run typecheck --workspace frontend
+      - name: Export only JavaScript and assets, without building APK
+        working-directory: frontend
+        run: npx expo export --platform android --output-dir ../artifacts/ota-installed --max-workers 2 --clear
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logic-coin-installed-ota
+          path: |
+            artifacts/ota-installed
+            artifacts/ota-baseline
+          retention-days: 7

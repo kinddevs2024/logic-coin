@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
@@ -37,13 +39,14 @@ const rouletteKinds = [
   "extra_time",
   "replay",
   "coin",
+  "hint",
 ] as const;
 
 const confetti = Array.from({ length: 22 }, (_, index) => ({
   left: `${(index * 37) % 96}%` as `${number}%`,
   delay: (index % 7) * 65,
   rotate: (index * 71) % 240,
-  color: ["#1183F7", "#7A5AF8", "#FFCA3A", "#22C77A", "#FF5C8A"][index % 5]!,
+  color: ["#007A57", "#007A57", "#FFCA3A", "#22C77A", "#FF5C8A"][index % 5]!,
 }));
 
 function rewardLabel(result: ContestRewardResult) {
@@ -62,17 +65,19 @@ function rewardIcon(type: ContestRewardType) {
 }
 
 function RouletteItem({ kind }: { kind: (typeof rouletteKinds)[number] }) {
-  const icon = kind === "coin" ? "diamond" : kind === "replay" ? "refresh" : "time";
-  const label = kind === "coin" ? "COIN" : kind === "replay" ? "ПОВТОР" : "ВРЕМЯ";
+  const { copyContent } = useUiCopy();
+  const icon = kind === "hint" ? "bulb" : kind === "coin" ? "diamond" : kind === "replay" ? "refresh" : "time";
+  const label = kind === "hint" ? "ПОДСКАЗКА" : kind === "coin" ? "COIN" : kind === "replay" ? "ПОВТОР" : "ВРЕМЯ";
   return (
     <View style={styles.rouletteItem}>
       <Ionicons name={icon} size={25} color="#FFFFFF" />
-      <AppText style={styles.rouletteLabel}>{label}</AppText>
+      <AppText style={styles.rouletteLabel}>{copyContent(label)}</AppText>
     </View>
   );
 }
 
 function ResultContents({ result }: { result: ContestRewardResult }) {
+  if (result.giftKind === "hint") return <View style={styles.contentsRow}><PrizeChip icon="bulb" value="Подсказка ×1" /></View>;
   if (result.rewardType === "box") {
     return (
       <View style={styles.contentsRow}>
@@ -101,16 +106,18 @@ function ResultContents({ result }: { result: ContestRewardResult }) {
   return null;
 }
 
-function PrizeChip({ icon, value }: { icon: "diamond" | "refresh" | "time"; value: string }) {
+function PrizeChip({ icon, value }: { icon: "diamond" | "refresh" | "time" | "bulb"; value: string }) {
+  const { copyContent } = useUiCopy();
   return (
     <View style={styles.prizeChip}>
       <Ionicons name={icon} size={17} color="#FFFFFF" />
-      <AppText style={styles.prizeChipText}>{value}</AppText>
+      <AppText style={styles.prizeChipText}>{copyContent(value)}</AppText>
     </View>
   );
 }
 
 export function ContestRewardModal() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const accessToken = useAppStore((state) => state.accessToken);
   const authenticated = useAppStore((state) => state.authMode === "authenticated" && Boolean(state.accessToken));
@@ -156,16 +163,17 @@ export function ContestRewardModal() {
   const flightItems = useMemo(() => {
     if (!result) return [];
     if (result.rewardType === "cash") {
-      return [{ icon: "wallet" as const, x: -150, y: -360, color: "#1183F7" }];
+      return [{ icon: "wallet" as const, x: -150, y: -360, color: "#007A57" }];
     }
     if (result.rewardType === "box") {
       return [
         { icon: "diamond" as const, x: 150, y: -350, color: "#F3B61F" },
-        { icon: "refresh" as const, x: -145, y: -300, color: "#7A5AF8" },
+        { icon: "refresh" as const, x: -145, y: -300, color: "#007A57" },
         { icon: "time" as const, x: 145, y: 300, color: "#22C77A" },
       ];
     }
-    if (result.giftKind === "replay") return [{ icon: "refresh" as const, x: -145, y: -330, color: "#7A5AF8" }];
+    if (result.giftKind === "replay") return [{ icon: "refresh" as const, x: -145, y: -330, color: "#007A57" }];
+    if (result.giftKind === "hint") return [{ icon: "bulb" as const, x: 150, y: -330, color: "#F3B61F" }];
     if (result.giftKind === "extra_time") return [{ icon: "time" as const, x: 145, y: 300, color: "#22C77A" }];
     return [{ icon: "diamond" as const, x: 150, y: -350, color: "#F3B61F" }];
   }, [result]);
@@ -281,13 +289,13 @@ export function ContestRewardModal() {
           ]}
         >
           <GlassSurface intensity={90} variant="strong" style={styles.card}>
-            <LinearGradient colors={["rgba(17,131,247,0.22)", "rgba(122,90,248,0.08)", "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={["rgba(0,122,87,0.22)", "rgba(240,212,140,0.08)", "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} />
             <View style={[styles.heroIcon, { backgroundColor: theme.primary }]}>
               <Ionicons name={rewardIcon(result.rewardType)} size={31} color="#FFFFFF" />
             </View>
-            <AppText style={styles.eyebrow}>ИТОГИ ЧЕЛЛЕНДЖА</AppText>
-            <AppText style={styles.title}>Вы заняли {result.rank} место</AppText>
-            <AppText style={[styles.rewardValue, { color: theme.primary }]}>{rewardLabel(result)}</AppText>
+            <AppText style={styles.eyebrow}>{copyText("ИТОГИ ЧЕЛЛЕНДЖА")}</AppText>
+            <AppText style={styles.title}>{copyText("Вы заняли ")}{copyContent(result.rank)} {copyText(" место")}</AppText>
+            <AppText style={[styles.rewardValue, { color: theme.primary }]}>{copyContent(rewardLabel(result))}</AppText>
 
             {result.rewardType === "random" && showResult ? (
               <View style={styles.rouletteWindow}>
@@ -301,33 +309,33 @@ export function ContestRewardModal() {
             {showResult ? <ResultContents result={result} /> : null}
 
             <View style={styles.standingsHeader}>
-              <AppText variant="label">Результаты игроков</AppText>
-              <AppText variant="caption" muted>{reward.standings.length}</AppText>
+              <AppText variant="label">{copyText("Результаты игроков")}</AppText>
+              <AppText variant="caption" muted>{copyContent(reward.standings.length)}</AppText>
             </View>
             <ScrollView style={styles.standings} contentContainerStyle={styles.standingsContent} showsVerticalScrollIndicator={false}>
               {reward.standings.map((entry) => (
                 <View key={entry.id} style={[styles.standingRow, entry.userId === result.userId && { backgroundColor: theme.primarySoft }]}>
-                  <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F3B61F" : theme.textMuted }]}>{entry.rank}</AppText>
+                  <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F3B61F" : theme.textMuted }]}>{copyContent(entry.rank)}</AppText>
                   <Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={34} />
                   <View style={styles.person}>
                     <AppText style={styles.personName} numberOfLines={1}>{entry.name}</AppText>
                     {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={13} /> : null}
                   </View>
-                  <AppText style={styles.standingReward}>{rewardLabel(entry)}</AppText>
+                  <AppText style={styles.standingReward}>{copyContent(rewardLabel(entry))}</AppText>
                 </View>
               ))}
             </ScrollView>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Забрать приз"
+              accessibilityLabel={copyText("Забрать приз")}
               disabled={claim.isPending || showResult}
               onPress={() => claim.mutate()}
               style={({ pressed }) => [styles.claimButton, { backgroundColor: theme.primary }, pressed && styles.pressed, (claim.isPending || showResult) && styles.disabled]}
             >
-              {claim.isPending ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="gift" size={20} color="#FFFFFF" /><AppText color="#FFFFFF" variant="label">Забрать</AppText></>}
+              {claim.isPending ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons name="gift" size={20} color="#FFFFFF" /><AppText color="#FFFFFF" variant="label">{copyText("Забрать")}</AppText></>}
             </Pressable>
-            {claim.isError ? <AppText style={styles.error}>Не удалось забрать приз. Попробуйте ещё раз.</AppText> : null}
+            {claim.isError ? <AppText style={styles.error}>{copyText("Не удалось забрать приз. Попробуйте ещё раз.")}</AppText> : null}
           </GlassSurface>
         </Animated.View>
 
@@ -359,18 +367,18 @@ export function ContestRewardModal() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 70 },
-  dim: { backgroundColor: "rgba(3,12,30,0.38)" },
+  dim: { backgroundColor: "rgba(16,37,27,0.38)" },
   confetti: { position: "absolute", top: 0, width: 8, height: 18, borderRadius: 3, zIndex: 3 },
   cardWrap: { width: "100%", maxWidth: 560, maxHeight: "82%", zIndex: 8 },
   card: { overflow: "hidden", borderRadius: 34, padding: 18, alignItems: "center", maxHeight: "100%" },
-  heroIcon: { width: 64, height: 64, borderRadius: 23, alignItems: "center", justifyContent: "center", marginBottom: 9, shadowColor: "#1183F7", shadowOpacity: 0.35, shadowRadius: 20 },
+  heroIcon: { width: 64, height: 64, borderRadius: 23, alignItems: "center", justifyContent: "center", marginBottom: 9, shadowColor: "#007A57", shadowOpacity: 0.35, shadowRadius: 20 },
   eyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 2, opacity: 0.54 },
   title: { fontSize: 25, lineHeight: 31, fontWeight: "900", textAlign: "center", marginTop: 5 },
   rewardValue: { fontSize: 28, lineHeight: 34, fontWeight: "900", textAlign: "center", marginTop: 2 },
   contentsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 7, marginTop: 9 },
-  prizeChip: { minHeight: 35, paddingHorizontal: 10, borderRadius: 18, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(17,131,247,0.80)" },
+  prizeChip: { minHeight: 35, paddingHorizontal: 10, borderRadius: 18, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(0,122,87,0.80)" },
   prizeChipText: { color: "#FFFFFF", fontSize: 11, fontWeight: "900" },
-  rouletteWindow: { width: "100%", height: 84, overflow: "hidden", borderRadius: 22, backgroundColor: "rgba(5,18,42,0.88)", marginTop: 12, justifyContent: "center" },
+  rouletteWindow: { width: "100%", height: 84, overflow: "hidden", borderRadius: 22, backgroundColor: "rgba(16,37,27,0.88)", marginTop: 12, justifyContent: "center" },
   rouletteTrack: { flexDirection: "row", gap: 8, width: 680 },
   rouletteItem: { width: 80, height: 66, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", gap: 4 },
   rouletteLabel: { color: "#FFFFFF", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
@@ -383,7 +391,7 @@ const styles = StyleSheet.create({
   person: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5 },
   personName: { flexShrink: 1, fontSize: 13, fontWeight: "800" },
   standingReward: { maxWidth: 120, fontSize: 11, fontWeight: "900", textAlign: "right" },
-  claimButton: { width: "100%", minHeight: 56, borderRadius: 21, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 11, shadowColor: "#1183F7", shadowOpacity: 0.28, shadowRadius: 16 },
+  claimButton: { width: "100%", minHeight: 56, borderRadius: 21, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 11, shadowColor: "#007A57", shadowOpacity: 0.28, shadowRadius: 16 },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
   disabled: { opacity: 0.62 },
   error: { color: "#D63A55", fontSize: 11, fontWeight: "800", marginTop: 7, textAlign: "center" },

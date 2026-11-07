@@ -20,6 +20,17 @@ describe("fortune reward belongs to one completed game", () => {
   it("does not accept a game association on another placement", async () => {
     await expect(startRewardedAdSession(new Types.ObjectId(), "navigation-frequency", "yandex", new Types.ObjectId().toString())).rejects.toThrow("Неверная");
   });
+  it("allows fortune after a Hangman challenge has already earned its maximum 1000", async () => {
+    const userId = new Types.ObjectId();
+    const attemptId = new Types.ObjectId().toString();
+    vi.spyOn(ChallengeAttempt, "findOne").mockResolvedValue({ gameKey: "hangman", mode: "challenge", coinsAwarded: 1000, dailyChallengeSetId: new Types.ObjectId() } as never);
+    vi.spyOn(DailyChallengeSet, "findOne").mockResolvedValue({ dayKey: challengeDayKey() } as never);
+    vi.spyOn(RewardedAdSession, "updateMany").mockResolvedValue({} as never);
+    vi.spyOn(RewardedAdSession, "create").mockImplementation(async (data: unknown) => ({ ...data as object, status: "started" }) as never);
+    const session = await startRewardedAdSession(userId, "fortune-wheel", "yandex", attemptId);
+    expect(session.rewardCoins).toBeGreaterThan(0);
+    expect(session.placement).toBe("fortune-wheel");
+  });
   it("credits the wallet and challenge points once, and replays without double credit", async () => {
     const userId = new Types.ObjectId(); const attemptId = new Types.ObjectId();
     const sessionId = "7bc84887-1936-40f1-a87c-39141652b4bd";

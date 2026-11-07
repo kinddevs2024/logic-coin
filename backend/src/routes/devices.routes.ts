@@ -7,6 +7,8 @@ import { Device } from "../models/Device.js";
 import { env } from "../config/env.js";
 import { isPushEndpoint, webPushConfigured } from "../services/web-push.service.js";
 
+import { fcmConfigured } from "../services/fcm-push.service.js";
+
 const router = Router();
 const deviceIdSchema = z.string().trim().min(1).max(160);
 const webPushSchema = z.object({
@@ -19,7 +21,7 @@ const webPushSchema = z.object({
 
 router.get("/push-config", (_request, response) => {
   response.setHeader("Cache-Control", "no-store");
-  response.json({ data: { publicKey: webPushConfigured() ? env.WEB_PUSH_PUBLIC_KEY : null } });
+  response.json({ data: { fcmEnabled: fcmConfigured(), publicKey: webPushConfigured() ? env.WEB_PUSH_PUBLIC_KEY : null } });
 });
 
 router.get("/", async (request, response) => {
@@ -36,7 +38,7 @@ router.get("/", async (request, response) => {
         dailyReminderEnabled: device.dailyReminderEnabled,
         reminderTime: device.reminderTime,
         timezone: device.timezone,
-        pushConfigured: Boolean(device.pushToken || device.webPush?.endpoint),
+        pushConfigured: Boolean(device.fcmToken || device.pushToken || device.webPush?.endpoint),
         lastSeenAt: device.lastSeenAt
       }))
     }
@@ -46,6 +48,7 @@ router.get("/", async (request, response) => {
 const devicePreferencesSchema = z
   .object({
     platform: z.enum(["android", "ios", "web"]),
+    fcmToken: z.string().trim().min(8).max(4_096).nullable().optional(),
     pushToken: z.string().trim().min(8).max(4_096).nullable().optional(),
     webPush: webPushSchema.nullable().optional(),
     notificationsEnabled: z.boolean().default(true),
@@ -73,6 +76,8 @@ router.put(
       lastSeenAt: new Date()
     };
     const unset: Record<string, number> = {};
+    if (input.fcmToken === null) unset.fcmToken = 1;
+    if (input.fcmToken) set.fcmToken = input.fcmToken;
     if (input.pushToken === null) unset.pushToken = 1;
     if (input.webPush === null) unset.webPush = 1;
     if (input.pushToken) set.pushToken = input.pushToken;
@@ -81,12 +86,13 @@ router.put(
     // An installation/subscription belongs to the most recently signed-in user.
     // Do not send the previous account's private notifications to a shared device.
     const ownership = [
+      ...(input.fcmToken ? [{ fcmToken: input.fcmToken }] : []),
       ...(input.pushToken ? [{ pushToken: input.pushToken }] : []),
       ...(input.webPush ? [{ "webPush.endpoint": input.webPush.endpoint }] : [])
     ];
     if (ownership.length) await Device.updateMany(
       { userId: { $ne: request.auth!.userId }, $or: ownership },
-      { $unset: { pushToken: 1, webPush: 1 }, $set: { notificationsEnabled: false } }
+      { $unset: { fcmToken: 1, pushToken: 1, webPush: 1 }, $set: { notificationsEnabled: false } }
     );
 
     const device = await Device.findOneAndUpdate(
@@ -108,7 +114,7 @@ router.put(
           dailyReminderEnabled: device.dailyReminderEnabled,
           reminderTime: device.reminderTime,
           timezone: device.timezone,
-          pushConfigured: Boolean(device.pushToken || device.webPush?.endpoint),
+          pushConfigured: Boolean(device.fcmToken || device.pushToken || device.webPush?.endpoint),
           lastSeenAt: device.lastSeenAt
         }
       }

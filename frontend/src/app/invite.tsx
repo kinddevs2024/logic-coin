@@ -1,6 +1,9 @@
+import { FeedAd } from "@/components/feed-ad";
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { InviteQr } from "@/components/invite-qr";
 import { InviteAvatarBubbles } from "@/components/invite-avatar-bubbles";
 
@@ -17,11 +20,14 @@ import { useReferrals } from "@/hooks/use-referrals";
 import { useAppStore } from "@/store/app-store";
 import { formatMoney } from "@/lib/format";
 import { shareLink } from "@/lib/share-link";
+import { MIGRATED_APP_ORIGIN } from "@/lib/server-migration";
+import { referralInvitationMessage } from "@/lib/referral-invitation";
 
 export default function InviteScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const user = useAppStore((state) => state.user);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
@@ -31,7 +37,7 @@ export default function InviteScreen() {
   const friends = referral?.friends ?? [];
   const code = authenticated ? referral?.code ?? user.referralCode ?? "—" : "—";
   const inviteUrl = authenticated
-    ? (code !== "—" ? `https://www.logic-coin.online/invite/${encodeURIComponent(code)}?preview=2` : "")
+    ? (code !== "—" ? `${MIGRATED_APP_ORIGIN}/invite/${encodeURIComponent(code)}?preview=3&lang=${language}` : "")
     : "";
 
   const share = () => {
@@ -39,7 +45,7 @@ export default function InviteScreen() {
       router.push("/login");
       return;
     }
-    void shareLink("Logic Coin", "Играй со мной в Logic Coin: игры, челленджи и денежные призы.", inviteUrl);
+    void shareLink("Logic Coin", referralInvitationMessage(language), inviteUrl);
   };
 
   return (
@@ -56,24 +62,24 @@ export default function InviteScreen() {
           color={String(theme.primary)}
           style={{ textAlign: "center" }}
         >
-          Logic is better together
-        </AppText>
+          {copyText(" Logic is better together ")}</AppText>
         <AppText muted style={{ textAlign: "center" }}>
-          {t("invite.subtitle")}
+          {copyContent(t("invite.subtitle"))}
         </AppText>
       </GlassSurface>
 
       <GlassSurface intensity={68} style={styles.codeCard}>
         {inviteUrl ? (
-          <View testID="invite-qr" accessible accessibilityRole="image" accessibilityLabel={t("invite.share")} style={styles.qr}>
+          <View testID="invite-qr" accessible accessibilityRole="image" accessibilityLabel={copyText(t("invite.share"))} style={styles.qr}>
             <InviteQr value={inviteUrl} />
           </View>
         ) : null}
         <AppButton icon="share-social-outline" glow onPress={share}>
-          {t("invite.share")}
+          {copyContent(t("invite.share"))}
         </AppButton>
       </GlassSurface>
 
+      <FeedAd placement="invite-friends"/>
       <View style={styles.stats}>
         <GlassSurface variant="soft" intensity={56} style={styles.stat}>
           <View style={[styles.statIcon, { backgroundColor: theme.primarySoft }]}>
@@ -84,38 +90,39 @@ export default function InviteScreen() {
             />
           </View>
           <AppText variant="title">
-            {authenticated ? referral?.invitedCount ?? 0 : 0}
+            {copyContent(authenticated ? referral?.invitedCount ?? 0 : 0)}
           </AppText>
           <AppText variant="caption" muted>
-            {t("invite.invited")}
+            {copyContent(t("invite.invited"))}
           </AppText>
         </GlassSurface>
         <GlassSurface variant="soft" intensity={56} style={styles.stat}>
-          <View style={[styles.statIcon, { backgroundColor: theme.mode === "dark" ? `${String(theme.success)}18` : "#ECFDF3" }]}>
+          <View style={[styles.statIcon, { backgroundColor: theme.primarySoft }]}>
             <Ionicons
               name="trending-up"
               size={22}
-              color={String(theme.success)}
+              color={String(theme.primary)}
             />
           </View>
           <AppText variant="title">
-            {formatMoney(authenticated ? referral?.earnedUnits ?? 0 : 0)} · {authenticated ? referral?.earnedCoins ?? 0 : 0} coin
-          </AppText>
+            {copyContent(formatMoney(authenticated ? referral?.earnedUnits ?? 0 : 0))} · {copyContent(authenticated ? referral?.earnedCoins ?? 0 : 0)} {copyText(" coin ")}</AppText>
           <AppText variant="caption" muted>
-            {t("invite.reward")}
+            {copyContent(t("invite.reward"))}
           </AppText>
         </GlassSurface>
       </View>
 
       {friends.length ? (
         <GlassSurface intensity={58} variant="soft" style={styles.friendList}>
-          {friends.slice(0, 6).map((friend) => (
+          {friends.map((friend) => (
             <View key={friend.id} style={styles.friendRow}>
               <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={40} />
-              <AppText variant="label" style={{ flex: 1 }}>{friend.name}</AppText>
-              {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.success)} /> : null}
+              <Pressable accessibilityRole="button" onPress={()=>router.push(`/player/${friend.id}` as never)} style={{flex:1,gap:4}}><AppText variant="label">{friend.name}</AppText><AppText variant="caption" muted>{language==="uz"?"Daromad":language==="en"?"Revenue":"Доход"}: ${((friend.earnedCents??0)/100).toFixed(2)} · {language==="uz"?"Taklif qilgan":language==="en"?"Invited":"Пригласил"}: {friend.invitedCount??0}</AppText></Pressable>
+              {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.primary)} /> : null}
             </View>
           ))}
+          {referralQuery.hasNextPage ? <AppButton disabled={referralQuery.isFetchingNextPage} onPress={() => void referralQuery.fetchNextPage()}>{copyContent(language === "ru" ? "Загрузить ещё" : language === "uz" ? "Yana yuklash" : "Load more")}</AppButton> : null}
+          {referralQuery.isFetchNextPageError ? <AppButton onPress={() => void referralQuery.fetchNextPage()}>{copyContent(language === "ru" ? "Повторить" : language === "uz" ? "Qayta urinish" : "Retry")}</AppButton> : null}
         </GlassSurface>
       ) : null}
 
@@ -128,9 +135,7 @@ export default function InviteScreen() {
           />
         </View>
         <AppText variant="caption" muted style={{ flex: 1 }}>
-          15% денежного приза друга начисляются вам; от приза друга второго
-          уровня — ещё 5%. За само приглашение бонуса нет. Баланс победителя не уменьшается.
-        </AppText>
+          {copyText(" 15% денежного приза друга начисляются вам; от приза друга второго уровня — ещё 5%. За само приглашение бонуса нет. Баланс победителя не уменьшается. ")}</AppText>
       </GlassSurface>
     </AppFrame>
   );

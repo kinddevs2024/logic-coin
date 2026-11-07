@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import * as Haptics from "expo-haptics";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -30,6 +32,7 @@ export function GlassSwitch({
   disabled?: boolean;
   accessibilityLabel: string;
 }) {
+  const { copyText } = useUiCopy();
   const theme = useAppTheme();
   const reduceMotion = useReducedMotion();
   const progress = useSharedValue(value ? 1 : 0);
@@ -57,7 +60,7 @@ export function GlassSwitch({
   return (
     <Pressable
       accessibilityRole="switch"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={copyText(accessibilityLabel)}
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
       onPress={handlePress}

@@ -15,6 +15,7 @@ import { createTelegramLogin } from "./telegram-auth.service.js";
 import { bonusDay, DAILY_BONUS_LIMIT, nextBonusDeadline } from "../lib/daily-bonus-schedule.js";
 
 export const HOME_GIFT_CHANNEL = "@logic_coin_global";
+export const HOME_GIFT_INSTAGRAM_URL = "https://www.instagram.com/logic_coin/";
 export const HOME_GIFT_COOLDOWN_MS = 120_000;
 const CYCLE_TTL_MS = 10 * 60_000;
 
@@ -33,7 +34,7 @@ async function stateFor(userId: Types.ObjectId) {
   await HomeGiftState.updateOne({ userId, rewardDayKey: { $ne: dayKey } }, { $set: { rewardDayKey: dayKey, dailyClaimCount: 0, availableAt: nextBonusDeadline(now, 0) }, $unset: { cycleId: 1, cycleDayKey: 1, cycleExpiresAt: 1 } });
   return HomeGiftState.findOne({ userId });
 }
-export async function getHomeGiftOffer(userId: Types.ObjectId) {
+export async function getHomeGiftOffer(userId: Types.ObjectId, includeInstagram = false) {
   const now = new Date();
   const [state, user, set] = await Promise.all([
     stateFor(userId), User.findById(userId).select("providers.telegramSub"),
@@ -42,11 +43,55 @@ export async function getHomeGiftOffer(userId: Types.ObjectId) {
   if (!state || !user) throw new ApiError(404, "user_not_found", "User not found");
   const completedAds = state.cycleId && state.cycleExpiresAt && state.cycleExpiresAt > now
     ? await RewardedAdSession.countDocuments({ userId, placement: "home-gift", homeGiftCycleId: state.cycleId, status: "completed", expiresAt: { $gt: now } }) : 0;
-  return { kind: state.telegramRewardedAt ? "ads" : "telegram", rewardCoins: state.telegramRewardedAt ? 75 : 50,
+  const telegramDone = Boolean(state.telegramRewardedAt || state.telegramSkippedAt);
+  const kind = includeInstagram && !state.instagramRewardedAt ? "instagram" : !telegramDone ? "telegram" : "ads";
+  return { kind, rewardCoins: kind === "instagram" ? 100 : kind === "telegram" ? 50 : 75, instagramUrl: HOME_GIFT_INSTAGRAM_URL,
     eligible: Boolean(set), available: Boolean(set) && state.dailyClaimCount < DAILY_BONUS_LIMIT && state.availableAt <= now, availableAt: state.availableAt.toISOString(), serverNow: now.toISOString(),
     dailyClaimCount: state.dailyClaimCount, dailyLimit: DAILY_BONUS_LIMIT, exhausted: state.dailyClaimCount >= DAILY_BONUS_LIMIT,
     telegramLinked: Boolean(user.providers.telegramSub), channelUrl: "https://t.me/logic_coin_global", completedAds: Math.min(2, completedAds),
   };
+}
+
+// A failed social task is resolved without a reward. Repeated requests cannot
+// advance the daily schedule again or turn a skipped subscription into a claim.
+export async function skipHomeGiftTelegram(userId: Types.ObjectId) {
+  const state = await stateFor(userId); const now = new Date();
+  if (!state || state.telegramRewardedAt || state.telegramSkippedAt) return { skipped: false };
+  if (state.availableAt > now || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "home_gift_unavailable", "Подарок ещё не доступен.");
+  const updated = await HomeGiftState.findOneAndUpdate({ userId, telegramRewardedAt: { $exists: false }, telegramSkippedAt: { $exists: false }, rewardDayKey: bonusDay(now).dayKey, dailyClaimCount: state.dailyClaimCount, availableAt: { $lte: now } },
+    { $set: { telegramSkippedAt: now, availableAt: nextBonusDeadline(now, state.dailyClaimCount + 1) }, $inc: { dailyClaimCount: 1 } }, { new: true });
+  return { skipped: Boolean(updated) };
+}
+
+export async function startHomeGiftInstagram(userId: Types.ObjectId) {
+  await requireCurrentChallenge();
+  const state = await stateFor(userId); const now = new Date();
+  if (!state || state.instagramRewardedAt || state.availableAt > now || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "home_gift_unavailable", "Задание сейчас недоступно.");
+  const visitId = randomUUID();
+  const updated = await HomeGiftState.findOneAndUpdate({ userId, instagramRewardedAt: { $exists: false }, availableAt: { $lte: now }, rewardDayKey: bonusDay(now).dayKey, dailyClaimCount: state.dailyClaimCount }, { $set: { instagramVisitId: visitId, instagramOpenedAt: now } }, { new: true });
+  if (!updated) throw new ApiError(409, "home_gift_changed", "Откройте подарок заново.");
+  return { visitId, url: HOME_GIFT_INSTAGRAM_URL };
+}
+
+export async function claimHomeGiftInstagram(userId: Types.ObjectId, visitId: string) {
+  const session = await mongoose.startSession(); let credited = 0; let rewardDay = "";
+  try { await session.withTransaction(async () => {
+    credited = 0;
+    const now = new Date();
+    const state = await HomeGiftState.findOne({ userId }).session(session);
+    if (state?.instagramRewardedAt) return;
+    if (!state || state.instagramVisitId !== visitId || !state.instagramOpenedAt || state.instagramOpenedAt.getTime() > now.getTime() - 2000
+      || state.instagramOpenedAt.getTime() < now.getTime() - CYCLE_TTL_MS || state.availableAt > now
+      || state.rewardDayKey !== bonusDay(now).dayKey || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "instagram_visit_required", "Откройте Instagram и вернитесь к заданию.");
+    const set = await requireCurrentChallenge(undefined, session); rewardDay = set.dayKey;
+    const updated = await HomeGiftState.findOneAndUpdate({ userId, instagramVisitId: visitId, instagramRewardedAt: { $exists: false }, dailyClaimCount: state.dailyClaimCount, rewardDayKey: bonusDay(now).dayKey },
+      { $set: { instagramRewardedAt: now, availableAt: nextBonusDeadline(now, state.dailyClaimCount + 1) }, $inc: { dailyClaimCount: 1 }, $unset: { instagramVisitId: 1, instagramOpenedAt: 1 } }, { new: true, session });
+    if (!updated) return;
+    await ChallengeAdReward.create([{ userId, sessionId: `home-gift:instagram:${userId}`, dayKey: set.dayKey, amount: 100 }], { session });
+    credited = 100;
+  }); } finally { await session.endSession(); }
+  if (credited) invalidateContestProgress(rewardDay);
+  return { credited, alreadyClaimed: credited === 0 };
 }
 export async function startHomeGiftTelegramLink(userId: Types.ObjectId) {
   const user = await User.findById(userId).select("providers.telegramSub");
@@ -89,6 +134,7 @@ export async function claimHomeGiftTelegram(userId: Types.ObjectId) {
   if (!telegramId) throw new ApiError(409, "telegram_link_required", "Сначала привяжите Telegram к своему аккаунту.");
   const state = await stateFor(userId);
   if (state?.telegramRewardedAt) return { credited: 0, alreadyClaimed: true };
+  if (state?.telegramSkippedAt) throw new ApiError(409, "telegram_task_skipped", "Это задание пропущено без награды.");
   if (!state || state.availableAt > new Date()) throw new ApiError(429, "home_gift_cooldown", "Подарок ещё не доступен.");
   if (state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(429, "home_gift_daily_limit", "Все подарки на сегодня получены.");
   if (!await verifyMembership(telegramId)) throw new ApiError(409, "telegram_subscription_required", "Подпишитесь на канал и нажмите «Проверить».");
@@ -96,7 +142,7 @@ export async function claimHomeGiftTelegram(userId: Types.ObjectId) {
   try { await session.withTransaction(async () => {
     const set = await requireCurrentChallenge(undefined, session); rewardDay = set.dayKey;
     const now = new Date();
-    const claimed = await HomeGiftState.findOneAndUpdate({ userId, telegramRewardedAt: { $exists: false }, availableAt: { $lte: now }, rewardDayKey: bonusDay(now).dayKey, dailyClaimCount: state.dailyClaimCount },
+    const claimed = await HomeGiftState.findOneAndUpdate({ userId, telegramRewardedAt: { $exists: false }, telegramSkippedAt: { $exists: false }, availableAt: { $lte: now }, rewardDayKey: bonusDay(now).dayKey, dailyClaimCount: state.dailyClaimCount },
       { $set: { telegramRewardedAt: now, availableAt: nextBonusDeadline(now, state.dailyClaimCount + 1) }, $inc: { dailyClaimCount: 1 } }, { new: true, session });
     if (!claimed) { credited = 0; return; }
     await ChallengeAdReward.create([{ userId, sessionId: `home-gift:telegram:${telegramId}`, dayKey: set.dayKey, amount: 50 }], { session }); credited = 50;
@@ -106,10 +152,10 @@ export async function claimHomeGiftTelegram(userId: Types.ObjectId) {
 }
 export async function startHomeGiftAds(userId: Types.ObjectId) {
   const state = await stateFor(userId); const now = new Date(); const set = await requireCurrentChallenge();
-  if (!state?.telegramRewardedAt) throw new ApiError(409, "home_gift_telegram_first", "Сначала выполните задание Telegram.");
+  if (!state || !(state.telegramRewardedAt || state.telegramSkippedAt)) throw new ApiError(409, "home_gift_telegram_first", "Сначала завершите задание Telegram.");
   if (state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(429, "home_gift_daily_limit", "Все подарки на сегодня получены.");
   if (state.availableAt > now) throw new ApiError(429, "home_gift_cooldown", "Следующий подарок ещё не доступен.");
-  let active = await HomeGiftState.findOneAndUpdate({ userId, telegramRewardedAt: { $exists: true }, availableAt: { $lte: now },
+  let active = await HomeGiftState.findOneAndUpdate({ userId, $and: [{ $or: [{ telegramRewardedAt: { $exists: true } }, { telegramSkippedAt: { $exists: true } }] }], availableAt: { $lte: now },
     $or: [{ cycleId: { $exists: false } }, { cycleExpiresAt: { $lte: now } }, { cycleDayKey: { $ne: set.dayKey } }] },
     { $set: { cycleId: randomUUID(), cycleDayKey: set.dayKey, cycleExpiresAt: new Date(now.getTime() + CYCLE_TTL_MS) } }, { new: true });
   active ??= await HomeGiftState.findOne({ userId, cycleDayKey: set.dayKey, cycleExpiresAt: { $gt: now }, availableAt: { $lte: now } });
@@ -118,7 +164,7 @@ export async function startHomeGiftAds(userId: Types.ObjectId) {
   return { cycleId: active.cycleId, completedAds: Math.min(2, completedAds) };
 }
 export async function requireHomeGiftAdFlow(userId: Types.ObjectId) {
-  const state = await HomeGiftState.findOne({ userId, telegramRewardedAt: { $exists: true }, cycleId: { $exists: true }, cycleExpiresAt: { $gt: new Date() }, availableAt: { $lte: new Date() } });
+  const state = await HomeGiftState.findOne({ userId, $or: [{ telegramRewardedAt: { $exists: true } }, { telegramSkippedAt: { $exists: true } }], cycleId: { $exists: true }, cycleExpiresAt: { $gt: new Date() }, availableAt: { $lte: new Date() } });
   if (!state?.cycleId || !state.cycleDayKey || state.rewardDayKey !== bonusDay(new Date()).dayKey || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "home_gift_cycle_unavailable", "Сначала откройте задание подарка.");
   await requireCurrentChallenge(state.cycleDayKey); return state;
 }

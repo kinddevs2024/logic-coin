@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -94,13 +96,14 @@ export function GameRoot({ colors, children, skin }: { colors: GradientColors; c
 }
 
 export function GameHeader({ title, accent, onExit, right }: { title: string; accent: string; onExit?: () => void; right?: ReactNode }) {
+  const { copyText, copyContent } = useUiCopy();
   const session = useGameSession();
   return (
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Назад" hitSlop={12} onPress={onExit} style={styles.iconButton}>
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText("Назад")} hitSlop={12} onPress={onExit} style={styles.iconButton}>
         <Ionicons name="chevron-back" color="#FFFFFF" size={23} />
       </Pressable>
-      <Text numberOfLines={1} style={[styles.headerTitle, { color: accent }]}>{title}</Text>
+      <Text numberOfLines={1} style={[styles.headerTitle, { color: accent }]}>{copyContent(title)}</Text>
       <View style={[styles.headerRight, { flexDirection: "row", alignItems: "center", gap: 8 }]}>{right}{session?.headerAction}</View>
     </View>
   );
@@ -111,22 +114,24 @@ export function GlassPanel({ children, style }: { children: ReactNode; style?: V
 }
 
 export function HudStat({ label, value, color = "#FFFFFF", style }: { label: string; value: string | number; color?: string; style?: ViewStyle }) {
+  const { copyContent } = useUiCopy();
   const session = useGameSession();
   const visibleLabel = label;
   const visibleValue = label === "COIN" && session?.practiceCoins !== undefined ? session.practiceCoins : value;
   return (
     <View style={[styles.stat, style]}>
-      <Text style={styles.statLabel}>{visibleLabel}</Text>
-      <Text numberOfLines={1} style={[styles.statValue, { color }]}>{visibleValue}</Text>
+      <Text style={styles.statLabel}>{copyContent(visibleLabel)}</Text>
+      <Text numberOfLines={1} style={[styles.statValue, { color }]}>{copyContent(visibleValue)}</Text>
     </View>
   );
 }
 
 export function LivesStat({ lives, total = 3, color = "#FF5572", style }: { lives: number; total?: number; color?: string; style?: ViewStyle }) {
+  const { copyText, formatCopy } = useUiCopy();
   return (
     <View style={[styles.stat, style]}>
-      <Text style={styles.statLabel}>Жизни</Text>
-      <View accessibilityLabel={`${Math.max(0, lives)} из ${total} жизней`} style={styles.lifeRow}>
+      <Text style={styles.statLabel}>{copyText("Жизни")}</Text>
+      <View accessibilityLabel={formatCopy("{0} из {1} жизней", [Math.max(0, lives), total])} style={styles.lifeRow}>
         {Array.from({ length: total }, (_, index) => (
           <View key={index} style={[styles.lifePip, { borderColor: color }, index < lives ? { backgroundColor: color } : styles.lifePipEmpty]} />
         ))}
@@ -160,26 +165,28 @@ export function ArcadeButton({ children, onPress, accent = "#FFFFFF", textColor 
 }
 
 export function IntroScreen({ eyebrow, title, subtitle, accent, children, onStart }: { eyebrow?: string; title: string; subtitle: string; accent: string; children?: ReactNode; onStart: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const session = useGameSession();
   return (
     <Animated.View entering={FadeIn.duration(260)} exiting={FadeOut.duration(180)} style={styles.centerScreen}>
-      <Text style={styles.heroTitle}>{title}</Text>
-      <ArcadeButton accent={accent} onPress={() => { session?.onStart(); onStart(); }} style={styles.wideButton}>НАЧАТЬ</ArcadeButton>
+      <Text style={styles.heroTitle}>{copyContent(title)}</Text>
+      <ArcadeButton accent={accent} onPress={() => { session?.onStart(); onStart(); }} style={styles.wideButton}>{copyText("НАЧАТЬ")}</ArcadeButton>
     </Animated.View>
   );
 }
 
 export function ResultScreen({ title, score, accent, stats, onRestart, onExit }: { title: string; score: number; accent: string; stats: { label: string; value: string | number }[]; onRestart: () => void; onExit?: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const coins = gameCoinReward(score, false, useGameSession()?.gameKey);
   return (
     <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.centerScreen}>
-      <Text style={[styles.eyebrow, { color: accent }]}>РЕЗУЛЬТАТ</Text>
-      <Text style={styles.resultTitle}>{title}</Text>
-      <Text style={[styles.resultScore, { color: accent }]}>{coins}</Text>
-      <Text style={styles.resultLabel}>COIN</Text>
+      <Text style={[styles.eyebrow, { color: accent }]}>{copyText("РЕЗУЛЬТАТ")}</Text>
+      <Text style={styles.resultTitle}>{copyContent(title)}</Text>
+      <Text style={[styles.resultScore, { color: accent }]}>{copyContent(coins)}</Text>
+      <Text style={styles.resultLabel}>{copyText("COIN")}</Text>
       <View style={styles.resultGrid}>{stats.map((item) => <HudStat key={item.label} label={item.label} value={item.value} />)}</View>
-      <ArcadeButton accent={accent} onPress={onRestart} style={styles.wideButton}>ЕЩЁ РАЗ</ArcadeButton>
-      {onExit ? <Pressable onPress={onExit} style={styles.exitLink}><Text style={styles.exitText}>Выйти</Text></Pressable> : null}
+      <ArcadeButton accent={accent} onPress={onRestart} style={styles.wideButton}>{copyText("ЕЩЁ РАЗ")}</ArcadeButton>
+      {onExit ? <Pressable onPress={onExit} style={styles.exitLink}><Text style={styles.exitText}>{copyText("Выйти")}</Text></Pressable> : null}
     </Animated.View>
   );
 }

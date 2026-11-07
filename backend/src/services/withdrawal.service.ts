@@ -1,3 +1,4 @@
+import {encryptPayoutCard,decryptPayoutCard,validPayoutCard} from "../lib/payout-card.js";
 import mongoose, { Types } from "mongoose";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
@@ -14,6 +15,8 @@ export async function createSandboxWithdrawal(input: {
   card: {
     brand: "visa" | "mastercard" | "other";
     last4: string;
+    number?: string;
+    savedWithdrawalId?: string;
     holderName: string;
     expiration: string;
   };
@@ -49,6 +52,14 @@ export async function createSandboxWithdrawal(input: {
     };
   }
 
+  let number=input.card.number;
+  if(!number && input.card.savedWithdrawalId){
+    const saved=await Withdrawal.findOne({_id:input.card.savedWithdrawalId,userId:input.userId}).select("+cardNumberEncrypted");
+    if(!saved?.cardNumberEncrypted)throw new ApiError(400,"card_number_required","Введите полный номер карты заново.");
+    number=decryptPayoutCard(saved.cardNumberEncrypted,`${input.userId}:${saved.idempotencyKey}`);
+  }
+  if(number && (!validPayoutCard(number)||number.slice(-4)!==input.card.last4))throw new ApiError(400,"invalid_card_number","Проверьте номер карты.");
+  const encrypted=number?encryptPayoutCard(number,`${input.userId}:${input.idempotencyKey}`):undefined;
   const session = await mongoose.startSession();
   let withdrawalId: Types.ObjectId | null = null;
   try {
@@ -80,6 +91,7 @@ export async function createSandboxWithdrawal(input: {
             amountUnits,
             method: "bank_card",
             accountLabel: `${input.card.brand.toUpperCase()} •••• ${input.card.last4}`,
+            ...(encrypted ? {cardNumberEncrypted:encrypted}:{}),
             cardBrand: input.card.brand,
             cardLast4: input.card.last4,
             cardHolder: input.card.holderName,
@@ -150,4 +162,14 @@ export async function createSandboxWithdrawal(input: {
     wallet: serializeWallet(user.wallet),
     idempotentReplay: false
   };
+}
+
+export async function addWithdrawalCard(userId:Types.ObjectId,id:string,number:string){
+ const row=await Withdrawal.findOne({_id:id,userId,status:"pending_review"});
+ if(!row)throw new ApiError(409,"withdrawal_not_editable","Можно дополнить только свою заявку, которая ещё на проверке.");
+ if(!validPayoutCard(number)||number.slice(-4)!==row.cardLast4)throw new ApiError(400,"invalid_card_number","Введите полный номер той же карты, которая указана в заявке.");
+ const encrypted=encryptPayoutCard(number,`${userId}:${row.idempotencyKey}`);
+ const updated=await Withdrawal.updateOne({_id:row._id,userId,status:"pending_review",reviewVersion:row.reviewVersion??0},{$set:{cardNumberEncrypted:encrypted},$inc:{reviewVersion:1}});
+ if(!updated.modifiedCount)throw new ApiError(409,"withdrawal_changed","Заявка изменилась. Обновите страницу.");
+ return {ok:true};
 }

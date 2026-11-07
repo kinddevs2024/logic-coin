@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
 import { useEffect } from "react";
 import { AppState } from "react-native";
@@ -10,14 +10,16 @@ export function useReferrals() {
   const accessToken = useAppStore(state => state.accessToken);
   const authMode = useAppStore(state => state.authMode);
   const enabled = focused && authMode === "authenticated" && Boolean(accessToken);
-  const query = useQuery({
-    queryKey: ["referrals", accessToken],
-    queryFn: () => referralsApi.overview(accessToken!),
+  const query = useInfiniteQuery({
+    queryKey: ["referrals", accessToken, "pages"],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => referralsApi.overview(accessToken!, pageParam),
+    getNextPageParam: page => page.nextOffset ?? undefined,
     enabled,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: enabled ? 15_000 : false,
+    refetchInterval: false,
   });
   const { refetch } = query;
   useEffect(() => {
@@ -28,5 +30,5 @@ export function useReferrals() {
     });
     return () => subscription.remove();
   }, [enabled, refetch]);
-  return query;
+  return { ...query, data: query.data ? { ...query.data.pages[0], friends: [...new Map(query.data.pages.flatMap(page => page.friends).map(friend => [friend.id, friend])).values()] } : undefined };
 }

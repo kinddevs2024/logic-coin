@@ -24,6 +24,7 @@ export function questionRewardScore(correct: number, total: number): number {
  * non-finite values can never create an invalid balance.
  */
 export function gameCoinReward(score: number, _won = false, gameKey?: string): number {
+  if (gameKey === "hangman") return Number.isFinite(score) ? Math.max(0, Math.min(1000, Math.round(score))) : 0;
   if (gameKey === "bottle-flip") return _won ? 50 : 0;
   const safeScore = Number.isFinite(score) ? Math.max(0, Math.round(score)) : 0;
   if (safeScore === 0) return 0;

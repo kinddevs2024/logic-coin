@@ -22,8 +22,11 @@ export function isPushEndpoint(endpoint: string) {
 export async function sendWebPush(subscription: webpush.PushSubscription, payload: object) {
   if (!webPushConfigured()) throw new Error("web_push_not_configured");
   if (!isPushEndpoint(subscription.endpoint)) throw new Error("invalid_push_endpoint");
+  const expiresAt = (payload as { data?: { expiresAt?: unknown } }).data?.expiresAt;
+  const expires = typeof expiresAt === "string" ? Date.parse(expiresAt) : NaN;
+  const ttl = Number.isFinite(expires) ? Math.max(0, Math.min(86400, Math.ceil((expires - Date.now()) / 1000))) : 86400;
   return webpush.sendNotification(subscription, JSON.stringify(payload), {
-    TTL: 86400,
+    TTL: ttl,
     timeout: 8000,
     vapidDetails: {
       subject: env.WEB_PUSH_SUBJECT,

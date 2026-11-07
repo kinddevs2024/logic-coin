@@ -6,7 +6,7 @@ import { Platform } from "react-native";
 import { demoTodayGames } from "@/constants/games";
 import { gameCoinReward } from "@/games/rewards";
 import { useTranslation } from "@/hooks/use-translation";
-import { bootstrapApi, challengesApi } from "@/lib/api";
+import { challengesApi } from "@/lib/api";
 import { liveCommand, subscribeToChallengeUpdates } from "@/lib/challenge-live-updates";
 import { localDayKey } from "@/lib/date";
 import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
@@ -86,14 +86,13 @@ export function useChallenges() {
     queryFn: async ({ signal }) => {
       const queryKey = ["challenges", "today", accessToken] as const;
       if (!queryClient.getQueryData<TodayChallenges>(queryKey)) {
-        const bootstrap = await queryClient.ensureQueryData({
-          queryKey: ["bootstrap", accessToken],
-          queryFn: () => bootstrapApi.get(accessToken!),
-          staleTime: Infinity,
-        });
-        if (bootstrap.todayChallenges) return bootstrap.todayChallenges;
+        const bootstrap = queryClient.getQueryData<{ todayChallenges?: TodayChallenges }>(["bootstrap", accessToken]);
+        if (bootstrap?.todayChallenges) return bootstrap.todayChallenges;
+        // Do not hold this screen behind bonuses, referral history and activity.
+        return challengesApi.today(accessToken!, signal);
       }
-      return liveCommand<TodayChallenges>(accessToken!, "today");
+      try{return await liveCommand<TodayChallenges>(accessToken!, "today");}
+      catch{return challengesApi.today(accessToken!,signal);}
     },
     enabled: authenticated,
     staleTime: Infinity,
@@ -113,7 +112,10 @@ export function useChallenges() {
     () => buildGuestToday(language, results, gameDoubled, dayDoubled, coinBalance),
     [coinBalance, dayDoubled, gameDoubled, language, results],
   );
-  const today = authenticated ? query.data : guestToday;
+  const sourceToday = authenticated ? query.data : guestToday;
+  const today = useMemo(() => sourceToday ? { ...sourceToday, games: sourceToday.games.map(game => ({
+    ...game, title: game.titleI18n?.[language] ?? game.title, description: game.descriptionI18n?.[language] ?? game.description,
+  })) } : undefined, [sourceToday, language]);
 
   useEffect(() => {
     if (!hydrated || !today) return;

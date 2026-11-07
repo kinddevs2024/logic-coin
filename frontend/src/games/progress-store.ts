@@ -7,6 +7,7 @@ import { gameCoinReward } from "./rewards";
 import { bottleThemeOwnership } from "./bottle-flip/pricing";
 
 export type GameId =
+  | "hangman"
   | "tetris"
   | "chess"
   | "2048"
@@ -93,6 +94,7 @@ function initialProgress(gameId: GameId): GameProgress {
 }
 
 const DEFAULT_GAME_PROGRESS: Partial<Record<GameId, Readonly<GameProgress>>> = {
+  hangman: initialProgress("hangman"),
   tetris: initialProgress("tetris"),
   chess: initialProgress("chess"),
   "2048": initialProgress("2048"),

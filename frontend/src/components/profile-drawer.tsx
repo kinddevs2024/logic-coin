@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -38,6 +40,7 @@ export function ProfileDrawer({
   onSettings: () => void;
   onInvite: () => void;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const blurTarget = useModalBlurTarget();
   const { t, language } = useTranslation();
@@ -117,7 +120,7 @@ export function ProfileDrawer({
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(4,16,38,0.32)", opacity: backdrop },
+            { backgroundColor: "rgba(0,0,0,0.32)", opacity: backdrop },
           ]}
         >
           {visible && !(Platform.OS === "android" && editing) ? <BlurView
@@ -146,60 +149,61 @@ export function ProfileDrawer({
           <GlassSurface
             intensity={82}
             variant="strong"
-            style={styles.drawerGlass}
+            style={[styles.drawerGlass, { backgroundColor: theme.surface }]}
           >
             <ScrollView
               contentContainerStyle={styles.content}
               showsVerticalScrollIndicator={false}
             >
               <LinearGradient
-                colors={theme.mode === "dark" ? ["#21416C", "#25385B", "#34365D"] : ["rgba(33,139,255,0.92)", "#155DD8", "#5745E9"]}
+                colors={[String(theme.surfaceRaised), String(theme.surface), String(theme.primarySoft)]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.profileCard}
               >
                 <LinearGradient
                   pointerEvents="none"
-                  colors={[theme.mode === "dark" ? "rgba(181,209,250,0.07)" : "rgba(255,255,255,0.5)", "rgba(255,255,255,0)"]}
+                  colors={[String(theme.glassHighlight), "transparent"]}
                   style={StyleSheet.absoluteFill}
                 />
                 <View style={styles.profileTop}>
                   <Avatar name={user.name} avatarUrl={user.avatarUrl} size={72} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <AppText variant="heading" color="#FFFFFF">
+                    <AppText variant="heading" color={String(theme.text)}>
                       {user.name}
                     </AppText>
+                    {user.username ? <AppText variant="caption" color={String(theme.textMuted)}>@{user.username}</AppText> : null}
                     <View style={styles.drawerCountry}>
                       <CountryFlagBadge countryCode={user.countryCode} size={16} />
-                      <AppText variant="caption" color="rgba(255,255,255,0.78)">{countryName(user.countryCode, language)}</AppText>
+                      <AppText variant="caption" color={String(theme.textMuted)}>{copyContent(countryName(user.countryCode, language))}</AppText>
                     </View>
                   </View>
                 </View>
                 <View style={styles.balanceRow}>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <AppText variant="caption" color="rgba(255,255,255,0.72)">
-                      {t("home.balance")}
+                    <AppText variant="caption" color={String(theme.textMuted)}>
+                      {copyContent(t("home.balance"))}
                     </AppText>
-                    <AppText variant="title" color="#FFFFFF">
-                      {formatMoney(balance)}
+                    <AppText variant="title" color={String(theme.text)}>
+                      {copyContent(formatMoney(balance))}
                     </AppText>
                   </View>
                 <View style={styles.profileActions}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={t("profile.edit")}
+                    accessibilityLabel={copyText(t("profile.edit"))}
                     onPress={() => setEditing(true)}
-                    style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.profileAction, {backgroundColor: theme.primarySoft, borderColor: theme.border}, pressed && styles.pressed]}
                   >
-                    <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+                    <Ionicons name="create-outline" size={18} color={String(theme.text)} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Поделиться профилем"
+                    accessibilityLabel={copyText("Поделиться профилем")}
                     onPress={() => void sharePublicProfile(user.name, user.referralCode)}
-                    style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.profileAction, {backgroundColor: theme.primarySoft, borderColor: theme.border}, pressed && styles.pressed]}
                   >
-                    <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
+                    <Ionicons name="share-social-outline" size={18} color={String(theme.text)} />
                   </Pressable>
                 </View>
                 </View>
@@ -208,18 +212,17 @@ export function ProfileDrawer({
               <View style={styles.stats}>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>
-                    {coinBalance}
+                    {copyContent(coinBalance)}
                   </AppText>
                   <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                    coin
-                  </AppText>
+                    {copyText(" coin ")}</AppText>
                 </GlassSurface>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>
-                    {streak}
+                    {copyContent(streak)}
                   </AppText>
                   <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                    {t("home.drawer.streak")}
+                    {copyContent(t("home.drawer.streak"))}
                   </AppText>
                 </GlassSurface>
               </View>
@@ -229,14 +232,14 @@ export function ProfileDrawer({
                 icon="settings-outline"
                 onPress={() => closeWithAction(onSettings)}
               >
-                {t("profile.settings")}
+                {copyContent(t("profile.settings"))}
               </AppButton>
               <AppButton
                 icon="person-add-outline"
                 glow
                 onPress={() => closeWithAction(onInvite)}
               >
-                {t("home.drawer.invite")}
+                {copyContent(t("home.drawer.invite"))}
               </AppButton>
             </ScrollView>
           </GlassSurface>

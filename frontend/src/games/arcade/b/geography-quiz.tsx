@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -55,6 +57,7 @@ const ROUND_LENGTH = 12;
 const TIMER_BY_DIFFICULTY: Record<GeoDifficulty, number> = { easy: 12, medium: 10, hard: 8 };
 
 export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
+  const { copyContent } = useUiCopy();
   const accent = arcadeSkinAccent(skin, B_COLORS.cyan);
   const timeBonus = Math.max(0, extraTimeSeconds);
   const [screen, setScreen] = useState<"menu" | "play" | "result">("menu");
@@ -196,7 +199,7 @@ export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTim
               <View style={[styles.questionIcon, { borderColor: accent }]}>
                 <ArcadeIcon name={current.icon} size={42} color={accent} />
               </View>
-              <Text style={styles.question}>{current.prompt}</Text>
+              <Text style={styles.question}>{copyContent(current.prompt)}</Text>
             </Panel>
             <View style={styles.answers}>
               {current.answers.map((label, answerIndex) => {
@@ -231,11 +234,12 @@ export function GeographyQuizGame({ onExit, onFinish, initialCoins = 0, extraTim
 }
 
 function ChoiceRow<T extends string>({ items, value, accent, onChange }: { items: { id: T; label: string }[]; value: T; accent: string; onChange: (value: T) => void }) {
+  const { copyContent } = useUiCopy();
   return (
     <View style={styles.choiceRow}>
       {items.map((item) => (
         <Pressable key={item.id} onPress={() => onChange(item.id)} style={[styles.choice, value === item.id && styles.choiceActive, value === item.id && { borderColor: accent }]}>
-          <Text style={[styles.choiceText, value === item.id && styles.choiceTextActive, value === item.id && { color: accent }]}>{item.label}</Text>
+          <Text style={[styles.choiceText, value === item.id && styles.choiceTextActive, value === item.id && { color: accent }]}>{copyContent(item.label)}</Text>
         </Pressable>
       ))}
     </View>

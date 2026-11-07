@@ -21,12 +21,14 @@ export async function getDailyContestRules(day?: string) {
   const dayKey = day ?? challengeDayKey();
   if (!validHistoryDay(dayKey) || dayKey > challengeDayKey()) throw new ApiError(400, "invalid_day_key", "Invalid challenge day");
   const [set, settlement] = await Promise.all([
-    DailyChallengeSet.findOne({ dayKey, status: "published" }).lean(),
+    DailyChallengeSet.findOne({ dayKey, status: { $in: ["published", "settled"] } }).lean(),
     DailyContestSettlement.findOne({ dayKey, status: "settled" }).lean(),
   ]);
   if (settlement) {
     const results = await DailyContestResult.find({ dayKey }).select("rank cashUnits").lean();
     return { dayKey, source: "saved" as const, final: true, poolUnits: settlement.prizePoolUnits, participantCount: results.length,
+      cashPrizeLimitUnits: set?.cashPrizeLimitUnits ?? null,
+      unallocatedUnits: Math.max(0, settlement.prizePoolUnits - results.reduce((sum, row) => sum + (row.cashUnits ?? 0), 0)),
       ...summarizeDailyPrizes(results.map(row => ({ rank: row.rank, cashUnits: row.cashUnits ?? 0 }))) };
   }
   if (!set) throw new ApiError(404, "challenge_not_found", "Challenge not found for this day");
@@ -34,5 +36,6 @@ export async function getDailyContestRules(day?: string) {
   const standings = await collectContestStandings(dayKey);
   const allocation = contestPrizePlan(standings, set);
   return { dayKey, source, final: false, poolUnits: set.prizePoolUnits, participantCount: standings.length,
+    cashPrizeLimitUnits: set.cashPrizeLimitUnits ?? null, unallocatedUnits: allocation.unallocatedUnits,
     ...summarizeDailyPrizes(allocation.ranked.map(row => ({ rank: row.rank, cashUnits: row.cashUnits }))) };
 }

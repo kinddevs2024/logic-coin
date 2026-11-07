@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -101,6 +103,7 @@ function GameControl({
 }
 
 export default function MergeScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const challengeMode = mode === "challenge";
   const session = useGameSession();
@@ -192,7 +195,7 @@ export default function MergeScreen() {
   };
 
   return (
-    <GameShell title="2048" gameId="2048" meta={<AppText style={styles.metaScore}>{gameCoinReward(score, false, "2048")} coin</AppText>}>
+    <GameShell title="2048" gameId="2048" meta={<AppText style={styles.metaScore}>{copyContent(gameCoinReward(score, false, "2048"))} {copyText(" coin")}</AppText>}>
       <View style={styles.layout}>
         <View style={styles.stats}>
           <PixelStat label="Рекорд" value={Math.max(progress.bestScore, score)} />
@@ -226,7 +229,7 @@ export default function MergeScreen() {
                         color={value >= 128 ? "#FFFFFF" : PIXEL_GAME_COLORS.ink}
                         style={{ fontSize: value >= 1024 ? 20 : value >= 128 ? 24 : 29, lineHeight: 34, fontWeight: "800" }}
                       >
-                        {value}
+                        {copyContent(value)}
                       </AppText>
                     ) : null}
                   </View>
@@ -235,7 +238,7 @@ export default function MergeScreen() {
             ))}
             {over ? (
               <View style={styles.overlay}>
-                <AppText variant="heading" color="#FFFFFF">Игра окончена</AppText>
+                <AppText variant="heading" color="#FFFFFF">{copyText("Игра окончена")}</AppText>
                 {!challengeMode ? <PixelActionButton label="Ещё раз" icon="refresh" onPress={restart} /> : null}
               </View>
             ) : null}

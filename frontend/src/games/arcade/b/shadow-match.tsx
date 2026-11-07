@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
@@ -28,6 +30,7 @@ function initialStats(): ShadowStats {
 }
 
 export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin, challengeMode = false }: ArcadeGameProps) {
+  const { copyText, copyContent } = useUiCopy();
   const accent = arcadeSkinAccent(skin, B_COLORS.green);
   const { width } = useWindowDimensions();
   const sessionDuration = TOTAL_SECONDS + Math.max(0, extraTimeSeconds);
@@ -199,7 +202,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
           <ProgressTrack value={1 - elapsed / sessionDuration} color={phase.color} />
           <ProgressTrack value={revealing ? 1 : roundLeft} color={roundLeft < 0.2 ? B_COLORS.red : phase.color} />
           <View style={styles.targetZone}>
-            <Text style={styles.targetLabel}>{revealing ? "ЗАПОМНИ" : "НАЙДИ"}</Text>
+            <Text style={styles.targetLabel}>{copyContent(revealing ? "ЗАПОМНИ" : "НАЙДИ")}</Text>
             <View style={styles.targets}>
               {targets.map((target) => (
                 <View key={target} style={[styles.targetBox, { borderColor: `${phase.color}66` }, found.has(target) && styles.targetFound, found.has(target) && { borderColor: accent }]}>
@@ -207,7 +210,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
                 </View>
               ))}
             </View>
-            <Text style={[styles.phase, { color: phase.color }]}>{phase.label} · РАУНД {stats.round}</Text>
+            <Text style={[styles.phase, { color: phase.color }]}>{copyContent(phase.label)} {copyText(" · РАУНД ")}{copyContent(stats.round)}</Text>
           </View>
           <Panel style={styles.boardPanel}>
             <View style={[styles.board, { width: boardWidth, gap }]}>
@@ -220,7 +223,7 @@ export function ShadowMatchGame({ onExit, onFinish, initialBest = 0, initialCoin
               ))}
             </View>
           </Panel>
-          <Text style={styles.foundText}>{revealing ? "СМОТРИ ВНИМАТЕЛЬНО" : `НАЙДЕНО ${foundCount}/${targets.length}`}</Text>
+          <Text style={styles.foundText}>{copyContent(revealing ? "СМОТРИ ВНИМАТЕЛЬНО" : `НАЙДЕНО ${foundCount}/${targets.length}`)}</Text>
         </View>
       ) : null}
       {screen === "result" ? (

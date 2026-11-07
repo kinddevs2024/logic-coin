@@ -4,6 +4,7 @@ import { canonicalGameKey } from "../lib/game-key.js";
 import { Game } from "../models/Game.js";
 import { User } from "../models/User.js";
 import { serializeGame } from "./serialization.service.js";
+import { cachedRead } from "../lib/read-cache.js";
 
 async function resolveLanguage(userId: Types.ObjectId): Promise<"en" | "ru" | "uz"> {
   const user = await User.findById(userId).select("preferences.language");
@@ -12,9 +13,9 @@ async function resolveLanguage(userId: Types.ObjectId): Promise<"en" | "ru" | "u
 
 export async function listGamesForUser(userId: Types.ObjectId) {
   const language = await resolveLanguage(userId);
-  const games = await Game.find({ enabled: true, practiceEnabled: true })
+  const games = await cachedRead("practice-catalog", 3_000, async () => Game.find({ enabled: true, practiceEnabled: true })
     .sort({ sortOrder: 1, _id: 1 })
-    .lean();
+    .lean());
   return games.map((game) => serializeGame(game, language));
 }
 

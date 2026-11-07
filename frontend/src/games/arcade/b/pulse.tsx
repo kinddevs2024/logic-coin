@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePauseClock } from "@/games/pause-clock";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -113,6 +115,7 @@ function pulseSolutionLength(source: Cell[]): number {
 }
 
 export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = false }: ArcadeGameProps) {
+  const { copyText, copyContent } = useUiCopy();
   const { width } = useWindowDimensions();
   const accent = arcadeSkinAccent(skin, B_COLORS.violet);
   const cellColors = useMemo(
@@ -232,9 +235,9 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = f
             <Metric label="ЯЧЕЙКИ" value={alive} color={B_COLORS.cyan} />
             <Metric label="COIN" value={rewardCoins(totalScore + levelScore, true, "pulse")} color={B_COLORS.gold} />
           </View>
-          <View style={styles.movesRow}><Text style={styles.movesLabel}>ОСТАЛОСЬ ХОДОВ</Text><Text style={[styles.movesValue, moves <= 2 && { color: B_COLORS.red }]}>{moves}</Text></View>
+          <View style={styles.movesRow}><Text style={styles.movesLabel}>{copyText("ОСТАЛОСЬ ХОДОВ")}</Text><Text style={[styles.movesValue, moves <= 2 && { color: B_COLORS.red }]}>{copyContent(moves)}</Text></View>
           <ProgressTrack value={moves / Math.max(1, snapshot.moves)} color={moves <= 2 ? B_COLORS.red : accent} />
-          <Text style={styles.chain}>{chainMax >= 2 ? `ЛУЧШАЯ ЦЕПЬ ×${chainMax}` : "4 ЗАРЯДА = ВЗРЫВ"}</Text>
+          <Text style={styles.chain}>{copyContent(chainMax >= 2 ? `ЛУЧШАЯ ЦЕПЬ ×${chainMax}` : "4 ЗАРЯДА = ВЗРЫВ")}</Text>
           <Panel style={styles.boardPanel}>
             <View style={[styles.board, { width: boardWidth }]}>
               {grid.map((cell, index) => (
@@ -256,8 +259,8 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = f
         <Animated.View entering={FadeIn} style={styles.overlay}>
           <Panel style={styles.overlayCard}>
             <ArcadeIcon name="check-decagram-outline" size={52} color={accent} />
-            <Text style={[styles.overlayTitle, { color: accent }]}>ОЧИЩЕНО!</Text>
-            <Text style={styles.overlayScore}>{lastLevelPoints}</Text>
+            <Text style={[styles.overlayTitle, { color: accent }]}>{copyText("ОЧИЩЕНО!")}</Text>
+            <Text style={styles.overlayScore}>{copyContent(lastLevelPoints)}</Text>
             <View style={styles.metrics}><Metric label="ЦЕПЬ" value={`×${chainMax}`} color="#FF9D45" /><Metric label="ПОПЫТКА" value={attempt} color={accent} /><Metric label="COIN" value={`+${rewardCoins(lastLevelPoints, true, "pulse")}`} color={B_COLORS.gold} /></View>
             <GameButton label="СЛЕДУЮЩИЙ" accent={accent} onPress={() => beginLevel(level + 1, totalScore)} />
             <GameButton label="ПОВТОРИТЬ" accent={accent} secondary onPress={restart} />
@@ -269,8 +272,8 @@ export function PulseGame({ onExit, onFinish, initialCoins = 0, skin, paused = f
         <Animated.View entering={FadeIn} style={styles.overlay}>
           <Panel style={styles.overlayCard}>
             <ArcadeIcon name="close-octagon-outline" size={52} color={B_COLORS.red} />
-            <Text style={[styles.overlayTitle, { color: B_COLORS.red }]}>НЕТ ХОДОВ</Text>
-            <Text style={styles.overlayCaption}>ОСТАЛОСЬ {alive} ЯЧЕЕК</Text>
+            <Text style={[styles.overlayTitle, { color: B_COLORS.red }]}>{copyText("НЕТ ХОДОВ")}</Text>
+            <Text style={styles.overlayCaption}>{copyText("ОСТАЛОСЬ ")}{copyContent(alive)} {copyText(" ЯЧЕЕК")}</Text>
             <GameButton label="ЕЩЁ РАЗ" accent={B_COLORS.red} onPress={restart} />
             <GameButton label="ВЫЙТИ" accent={B_COLORS.red} secondary onPress={() => onExit?.()} />
           </Panel>

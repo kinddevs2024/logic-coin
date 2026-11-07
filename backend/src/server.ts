@@ -1,3 +1,4 @@
+import { runDailyCycleSteps } from "./lib/daily-cycle.js";
 import { createServer } from "node:http";
 import { dayBoundsInTimeZone } from "./lib/date.js";
 import { challengeDayKey, ensureDailyChallengeSet } from "./services/daily-challenge.service.js";
@@ -8,9 +9,11 @@ import { startTelegramLocalPolling, stopTelegramLocalPolling } from "./services/
 import { settleExpiredDailyContests } from "./services/contest.service.js";
 import { startNotificationWorker } from "./services/notification.service.js";
 
+import { startRaffleWorker } from "./services/raffle.service.js";
 const server = createServer(app);
 const closeLiveUpdates = attachLiveUpdates(server);
 const stopNotificationWorker = startNotificationWorker();
+const stopRaffleWorker = startRaffleWorker();
 server.listen(env.PORT, () => {
   console.log(`Logic Coin API listening on http://localhost:${env.PORT}`);
   void startTelegramLocalPolling().catch((error) => {
@@ -25,9 +28,11 @@ async function runDailyCycle(): Promise<void> {
   if (dailyCycleRunning) return;
   dailyCycleRunning = true;
   try {
-    await settleExpiredDailyContests();
-    // Existing draft/published/manual settings are returned untouched.
-    await ensureDailyChallengeSet(challengeDayKey());
+    await runDailyCycleSteps({
+      publish: () => ensureDailyChallengeSet(challengeDayKey()),
+      settle: () => settleExpiredDailyContests(),
+      onError: (step, error) => console.error(`Daily challenge ${step} failed:`, error instanceof Error ? error.message : "unknown error"),
+    });
   } catch (error) {
     console.error("Daily challenge cycle failed:", error instanceof Error ? error.message : "unknown error");
   } finally { dailyCycleRunning = false; }
@@ -52,6 +57,7 @@ function shutdown(signal: string): void {
   console.log(`${signal} received; shutting down`);
   stopTelegramLocalPolling();
   stopNotificationWorker();
+  stopRaffleWorker();
   clearInterval(contestSweep);
   if (rolloverTimer) clearTimeout(rolloverTimer);
   closeLiveUpdates();

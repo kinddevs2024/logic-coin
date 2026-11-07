@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/services/withdrawal.service.js", () => ({
+  addWithdrawalCard: vi.fn(),
   createSandboxWithdrawal: mocks.createWithdrawal
 }));
 vi.mock("../src/services/telegram.service.js", () => ({
@@ -74,7 +75,14 @@ describe("withdrawal card boundary", () => {
     }));
   });
 
-  it("rejects a full PAN field at the API boundary", async () => {
+  it("accepts a payout number without returning it or notifying Telegram with it",async()=>{
+    const number="4242424242424242";
+    const result=await request(app).post("/").send({...validBody,card:{...validBody.card,number}}).expect(201);
+    expect(mocks.createWithdrawal).toHaveBeenCalledWith(expect.objectContaining({card:expect.objectContaining({number})}));
+    expect(JSON.stringify(result.body)).not.toContain(number);
+    expect(JSON.stringify(mocks.notifyAdmin.mock.calls)).not.toContain(number);
+  });
+  it("rejects unsupported card fields at the API boundary", async () => {
     await request(app).post("/").send({
       ...validBody,
       card: { ...validBody.card, cardNumber: "4242424242424242" }

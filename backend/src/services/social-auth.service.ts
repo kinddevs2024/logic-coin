@@ -1,3 +1,5 @@
+import { socialDisplayName } from "../lib/social-display-name.js";
+import type { CopyLanguage } from "../lib/localize-built-in.js";
 import { OAuth2Client } from "google-auth-library";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -78,7 +80,7 @@ async function processNewSocialReferral(userId: mongoose.Types.ObjectId): Promis
   }
 }
 
-export async function authenticateGoogle(idToken: string, referralCode?: string) {
+export async function authenticateGoogle(idToken: string, referralCode?: string, language?: CopyLanguage) {
   const validClientIds = [
     env.GOOGLE_CLIENT_ID,
     env.GOOGLE_CLIENT_ID_WEB,
@@ -116,9 +118,10 @@ export async function authenticateGoogle(idToken: string, referralCode?: string)
   if (!user) {
     user = await createUser({
       email,
-      name: payload.name || email.split("@")[0] || "Logic Coin user",
+      name: socialDisplayName(payload.name || email.split("@")[0]),
       emailVerifiedAt: new Date(),
       googleSub: payload.sub,
+      ...(language ? { language } : {}),
       ...(referralCode ? { referralCode } : {})
     });
     created = true;
@@ -326,7 +329,7 @@ export async function authenticateYandex(
   if (!user) {
     user = await createUser({
       email,
-      name: profile.real_name || profile.display_name || email.split("@")[0] || "Logic Coin user",
+      name: socialDisplayName(profile.real_name || profile.display_name || email.split("@")[0]),
       emailVerifiedAt: new Date(),
       yandexSub: profile.id,
       ...(challenge.referralCode ? { referralCode: challenge.referralCode } : {})

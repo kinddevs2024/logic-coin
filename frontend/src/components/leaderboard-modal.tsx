@@ -1,16 +1,19 @@
+import { FeedAd } from "@/components/feed-ad";
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
+  FlatList,
   StyleSheet,
   View,
 } from "react-native";
@@ -20,7 +23,6 @@ import { AppText } from "@/components/app-text";
 import { Avatar } from "@/components/avatar";
 import { CountryFlagBadge } from "@/components/country-flag";
 import { useModalBlurTarget } from "@/components/glass-blur-target";
-import { GlassSurface } from "@/components/glass-surface";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { leaderboardApi } from "@/lib/api";
@@ -31,44 +33,28 @@ import { useAppStore } from "@/store/app-store";
 import type { LeaderboardEntry, LeaderboardMetric } from "@/types";
 
 const copy = {
-  ru: { wealth: "Все", wallet: "Деньги", coins: "Coin", me: "Мой аккаунт", close: "Закрыть", login: "Войти", loginHint: "Войдите, чтобы увидеть рейтинг", empty: "В рейтинге пока никого нет", error: "Не удалось загрузить рейтинг", retry: "Повторить", more: "Загружаем ещё…" },
-  en: { wealth: "All", wallet: "Money", coins: "Coin", me: "My account", close: "Close", login: "Sign in", loginHint: "Sign in to view the ranking", empty: "The ranking is empty", error: "Could not load the ranking", retry: "Try again", more: "Loading more…" },
-  uz: { wealth: "Barchasi", wallet: "Pul", coins: "Coin", me: "Mening akkauntim", close: "Yopish", login: "Kirish", loginHint: "Reytingni ko‘rish uchun kiring", empty: "Reyting hozircha bo‘sh", error: "Reyting yuklanmadi", retry: "Qayta urinish", more: "Yana yuklanmoqda…" },
+  ru: { today: "Сегодня", yesterday: "Вчера", allTime: "Всё время", me: "Мой аккаунт", close: "Закрыть", login: "Войти", loginHint: "Войдите, чтобы увидеть рейтинг", empty: "В рейтинге пока никого нет", error: "Не удалось загрузить рейтинг", retry: "Повторить", more: "Загружаем ещё…" },
+  en: { today: "Today", yesterday: "Yesterday", allTime: "All time", me: "My account", close: "Close", login: "Sign in", loginHint: "Sign in to view the ranking", empty: "The ranking is empty", error: "Could not load the ranking", retry: "Try again", more: "Loading more…" },
+  uz: { today: "Bugun", yesterday: "Kecha", allTime: "Jami", me: "Mening akkauntim", close: "Yopish", login: "Kirish", loginHint: "Reytingni ko‘rish uchun kiring", empty: "Reyting hozircha bo‘sh", error: "Reyting yuklanmadi", retry: "Qayta urinish", more: "Yana yuklanmoqda…" },
 } as const;
 
-const metrics: LeaderboardMetric[] = ["wealth", "wallet", "coins"];
+const metrics: LeaderboardMetric[] = ["today", "yesterday", "allTime"];
 
-function EntryValue({ entry, metric }: { entry: LeaderboardEntry; metric: LeaderboardMetric }) {
-  if (metric === "wealth") {
-    return (
-      <View style={styles.combinedValue}>
-        <View style={styles.valueLine}>
-          <Ionicons name="wallet-outline" size={13} color="#1183F7" />
-          <AppText style={styles.valueText}>{formatMoney(entry.walletBalanceUnits)}</AppText>
-        </View>
-        <View style={styles.valueLine}>
-          <Ionicons name="diamond" size={13} color="#F5B800" />
-          <AppText style={styles.valueText}>{entry.coinBalance}</AppText>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.valueLine}>
-      <Ionicons
-        name={metric === "coins" ? "diamond" : "wallet-outline"}
-        size={14}
-        color={metric === "coins" ? "#F5B800" : "#1183F7"}
-      />
-      <AppText style={styles.valueText}>
-        {metric === "coins" ? entry.coinBalance : formatMoney(entry.walletBalanceUnits)}
-      </AppText>
-    </View>
-  );
+function EntryValue({ entry }: { entry: LeaderboardEntry }) {
+  const theme = useAppTheme();
+  const { copyContent } = useUiCopy();
+  return <View style={styles.combinedValue}>
+    <View style={styles.valueLine}><Ionicons name="wallet-outline" size={13} color={String(theme.primary)} /><AppText style={styles.valueText}>{copyContent(formatMoney(entry.walletBalanceUnits))}</AppText></View>
+    <View style={styles.valueLine}><Ionicons name="diamond" size={13} color="#F5B800" /><AppText style={styles.valueText}>{copyContent(entry.coinBalance)}</AppText></View>
+  </View>;
 }
 
 export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  return visible ? <OpenLeaderboardModal visible onClose={onClose} /> : null;
+}
+
+function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const blurTarget = useModalBlurTarget();
   const router = useRouter();
@@ -78,14 +64,16 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const authenticated = authMode === "authenticated" && Boolean(accessToken);
-  const [metric, setMetric] = useState<LeaderboardMetric>("wealth");
+  const [metric, setMetric] = useState<LeaderboardMetric>("yesterday");
+  const [contentReady, setContentReady] = useState(false);
   const [filtersWidth, setFiltersWidth] = useState(0);
   const [contentDirection, setContentDirection] = useState(1);
   const [translateY] = useState(() => new Animated.Value(900));
   const [backdrop] = useState(() => new Animated.Value(0));
-  const [activeFilter] = useState(() => new Animated.Value(0));
+  const [activeFilter] = useState(() => new Animated.Value(1));
   const [contentProgress] = useState(() => new Animated.Value(1));
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlatList<LeaderboardEntry>>(null);
+  const selfRowRef = useRef<View>(null);
   const meOffset = useRef<{ y: number; height: number } | null>(null);
   const scrollY = useRef(0);
   const [nativeScrollY] = useState(() => new Animated.Value(0));
@@ -100,7 +88,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   const [selfDock, setSelfDock] = useState<SelfDock>("bottom");
   const pageSize = 15;
   const query = useInfiniteQuery({
-    queryKey: ["leaderboard", accessToken, pageSize],
+    queryKey: ["leaderboard", accessToken, pageSize, "periods"],
     queryFn: ({ pageParam, signal }) => leaderboardApi.getPage(pageParam, pageSize, accessToken!, signal),
     enabled: visible && authenticated,
     initialPageParam: 0,
@@ -113,7 +101,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   });
   const pages = query.data?.pages ?? [];
   const selectedBoard = pages[0]?.leaderboards[metric];
-  const entries = pages.flatMap((page) => page.leaderboards[metric].entries);
+  const entries = useMemo(() => query.data?.pages.flatMap(page => page.leaderboards[metric].entries) ?? [], [query.data, metric]);
   const self = selectedBoard?.me ?? null;
 
   const requestNextPage = useCallback((
@@ -156,8 +144,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   };
 
   useEffect(() => {
-    if (!visible) return;
     closing.current = false;
+    activeFilter.setValue(1);
     scrollY.current = 0;
     nativeScrollY.setValue(0);
     translateY.setValue(900);
@@ -175,15 +163,17 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
           mass: 0.9,
           useNativeDriver: Platform.OS !== "web",
         });
-    Animated.parallel([
+    const animation = Animated.parallel([
       entrance,
       Animated.timing(backdrop, {
         toValue: 1,
         duration: reduceMotion ? 0 : 210,
         useNativeDriver: Platform.OS !== "web",
       }),
-    ]).start();
-  }, [backdrop, nativeScrollY, reduceMotion, translateY, visible]);
+    ]);
+    animation.start(({ finished }) => { if (finished && !closing.current) setContentReady(true); });
+    return () => animation.stop();
+  }, [activeFilter, backdrop, nativeScrollY, reduceMotion, translateY, visible]);
 
   const closeWithAction = (afterClose?: () => void) => {
     if (closing.current) return;
@@ -201,6 +191,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
       }),
     ]).start(({ finished }) => {
       if (finished) {
+        setContentReady(false);
         onClose();
         afterClose?.();
       } else {
@@ -223,7 +214,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
     nativeScrollY.setValue(0);
     setSelfDock("bottom");
     scrollY.current = 0;
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    scrollRef.current?.scrollToOffset({ offset: 0, animated: false });
 
     Animated.spring(activeFilter, {
       toValue: nextIndex,
@@ -254,8 +245,8 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
   });
 
   const edgeOpacity = nativeScrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: "clamp" });
-  const edgeSolid = theme.mode === "dark" ? "#19273E" : "#FFFFFF";
-  const edgeClear = theme.mode === "dark" ? "rgba(25,39,62,0)" : "rgba(255,255,255,0)";
+  const edgeSolid = String(theme.surface);
+  const edgeClear = `${String(theme.surface)}00`;
   if (!visible) return null;
 
   return (
@@ -264,7 +255,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(4,16,38,0.32)", opacity: backdrop },
+            { backgroundColor: "rgba(0,0,0,0.32)", opacity: backdrop },
           ]}
         >
           <BlurView
@@ -279,7 +270,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
               : {})}
             style={StyleSheet.absoluteFill}
           />
-          <Pressable accessibilityRole="button" accessibilityLabel={c.close} style={StyleSheet.absoluteFill} onPress={close} />
+          <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.close)} style={StyleSheet.absoluteFill} onPress={close} />
         </Animated.View>
 
         <Animated.View
@@ -302,6 +293,7 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                       width: filterCellWidth,
                       backgroundColor: theme.surfaceRaised,
                       borderColor: theme.glassBorder,
+                      shadowColor: theme.primary,
                       transform: [
                         {
                           translateX: activeFilter.interpolate({
@@ -323,11 +315,11 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                   style={styles.filter}
                 >
                   <Ionicons
-                    name={key === "wealth" ? "layers-outline" : key === "wallet" ? "wallet-outline" : "diamond-outline"}
+                    name={key === "today" ? "today-outline" : key === "yesterday" ? "calendar-outline" : "infinite-outline"}
                     size={16}
                     color={String(metric === key ? theme.primary : theme.textMuted)}
                   />
-                  <AppText style={[styles.filterText, { color: metric === key ? theme.text : theme.textMuted }]}>{c[key]}</AppText>
+                  <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.filterText, { color: metric === key ? theme.text : theme.textMuted }]}>{copyContent(c[key])}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -349,23 +341,29 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
               {!authenticated ? (
                 <View style={styles.state}>
                   <Ionicons name="person-circle-outline" size={38} color={String(theme.primary)} />
-                  <AppText muted style={styles.stateText}>{c.loginHint}</AppText>
+                  <AppText muted style={styles.stateText}>{copyContent(c.loginHint)}</AppText>
                   <Pressable onPress={signIn} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color="#FFFFFF" variant="label">{c.login}</AppText>
+                    <AppText color={String(theme.onPrimary)} variant="label">{copyContent(c.login)}</AppText>
                   </Pressable>
                 </View>
-              ) : query.isLoading ? (
+              ) : query.isLoading || !contentReady ? (
                 <View style={styles.state}><ActivityIndicator color={String(theme.primary)} /></View>
               ) : query.isError && !entries.length ? (
                 <View style={styles.state}>
                   <Ionicons name="cloud-offline-outline" size={36} color={String(theme.textMuted)} />
-                  <AppText muted style={styles.stateText}>{c.error}</AppText>
+                  <AppText muted style={styles.stateText}>{copyContent(c.error)}</AppText>
                   <Pressable onPress={() => void query.refetch()} style={[styles.stateButton, { backgroundColor: theme.primary }]}>
-                    <AppText color="#FFFFFF" variant="label">{c.retry}</AppText>
+                    <AppText color={String(theme.onPrimary)} variant="label">{copyContent(c.retry)}</AppText>
                   </Pressable>
                 </View>
               ) : entries.length ? (
-                <Animated.ScrollView
+                <Animated.FlatList<LeaderboardEntry>
+                  data={entries}
+                  keyExtractor={entry => `${metric}-${entry.userId}`}
+                  initialNumToRender={6}
+                  maxToRenderPerBatch={3}
+                  updateCellsBatchingPeriod={32}
+                  windowSize={5}
                   ref={scrollRef}
                   testID="leaderboard-scroll"
                   onContentSizeChange={(_width, height) => { contentHeight.current = height; }}
@@ -392,46 +390,57 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                     if (movingDown) requestNextPage(contentOffset.y, layoutMeasurement.height, contentSize.height);
                     },
                   })}
-                >
-                  {entries.map((entry) => (
+                  renderItem={({ item: entry, index }) => (
+                    <>
                     <View
                       key={`${metric}-${entry.rank}-${entry.userId}`}
-                      onLayout={entry.isCurrentUser ? (event) => {
-                        meOffset.current = event.nativeEvent.layout;
-                        setNativeSelfLayout({ y: event.nativeEvent.layout.y, height: event.nativeEvent.layout.height });
-                        updateSelfVisibility(scrollY.current, viewportHeight.current);
+                      ref={entry.isCurrentUser ? selfRowRef : undefined}
+                      onLayout={entry.isCurrentUser ? () => {
+                        // FlatList cells have their own local coordinate system.
+                        // Resolve the self row relative to the scroll viewport instead.
+                        paginationRegion.current?.measureInWindow((_x, top) => {
+                          selfRowRef.current?.measureInWindow((_rx, y, _w, height) => {
+                            const layout = { y: y - top + scrollY.current, height };
+                            meOffset.current = layout;
+                            setNativeSelfLayout(layout);
+                            updateSelfVisibility(scrollY.current, viewportHeight.current);
+                          });
+                        });
                       } : undefined}
                       style={[
                         styles.row,
                         entry.isCurrentUser && {
                           backgroundColor: theme.primarySoft,
                           borderColor: theme.glassBorder,
+                      shadowColor: theme.primary,
                           opacity: selfDock ? 0 : 1,
                         },
                       ]}
                     >
-                      <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F5A623" : theme.textMuted }]}>{entry.rank}</AppText>
-                      <Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={38} />
+                      <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F5A623" : theme.textMuted }]}>{copyContent(entry.rank)}</AppText>
+                      <Pressable accessibilityRole="button" accessibilityLabel={entry.name} onPress={() => { close(); router.push(`/player/${entry.userId}` as never); }}><Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={38} /></Pressable>
                       <View style={styles.nameBlock}>
-                        <AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{entry.isCurrentUser ? `${language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: ` : ""}{entry.name}</AppText>
+                        <AppText onPress={() => { close(); router.push(`/player/${entry.userId}` as never); }} style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(entry.isCurrentUser ? `${language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: ` : "")}{entry.name}</AppText>
                         {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={15} /> : null}
                       </View>
-                      <EntryValue entry={entry} metric={metric} />
-                    </View>
-                  ))}
+                      <EntryValue entry={entry} />
+                    </View>{index===9?<FeedAd placement="leaderboard"/>:null}</>
+                  )}
+                  ListFooterComponent={<>
                   {query.isFetchNextPageError ? (
                     <Pressable accessibilityRole="button" onPress={() => requestNextPage()} style={styles.moreLoading}>
-                      <AppText muted>{c.error} · {c.retry}</AppText>
+                      <AppText muted>{copyContent(c.error)} · {copyContent(c.retry)}</AppText>
                     </Pressable>
                   ) : null}
                   {query.isFetchingNextPage ? (
-                    <View style={styles.moreLoading}><ActivityIndicator size="small" color={String(theme.primary)} /><AppText muted style={styles.moreText}>{c.more}</AppText></View>
+                    <View style={styles.moreLoading}><ActivityIndicator size="small" color={String(theme.primary)} /><AppText muted style={styles.moreText}>{copyContent(c.more)}</AppText></View>
                   ) : null}
-                </Animated.ScrollView>
+                  </>}
+                />
               ) : (
                 <View style={styles.state}>
                   <Ionicons name="podium-outline" size={36} color={String(theme.textMuted)} />
-                  <AppText muted style={styles.stateText}>{c.empty}</AppText>
+                  <AppText muted style={styles.stateText}>{copyContent(c.empty)}</AppText>
                 </View>
               )}
 
@@ -446,10 +455,10 @@ export function LeaderboardModal({ visible, onClose }: { visible: boolean; onClo
                     : selfDock === "top" ? { top: 10 } : { bottom: 0 },
                   { backgroundColor: "transparent" }]}>
                   <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: "transparent" }, Platform.OS !== "web" && nativeSelfLayout ? { minHeight: nativeSelfLayout.height } : null]}>
-                    <AppText style={[styles.rank, { color: theme.textMuted }]}>{self.rank}</AppText>
+                    <AppText style={[styles.rank, { color: theme.textMuted }]}>{copyContent(self.rank)}</AppText>
                     <Avatar name={self.name} avatarUrl={self.avatarUrl} size={38} />
-                    <View style={styles.nameBlock}><AppText style={[styles.name, { color: theme.text }]} numberOfLines={1}>{language === "ru" ? "Я" : language === "uz" ? "Men" : "Me"}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
-                    <EntryValue entry={self} metric={metric} />
+                    <View style={styles.nameBlock}><AppText onPress={() => { close(); router.push(`/player/${self.userId}` as never); }} style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(language === "ru" ? "Я" : language === "uz" ? "Men" : "Me")}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
+                    <EntryValue entry={self} />
                   </View>
                 </Animated.View>
               ) : null}
@@ -492,7 +501,6 @@ const styles = StyleSheet.create({
     bottom: 4,
     borderRadius: 17,
     borderWidth: 1,
-    shadowColor: "#157DFB",
     shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },

@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { FadeOut, ZoomIn } from "react-native-reanimated";
@@ -29,6 +31,7 @@ function numberInk(background: string) {
 }
 
 export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = false, skin, challengeMode = false }: ArcadeGameProps) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const { width } = useWindowDimensions();
   const accent = arcadeSkinAccent(skin, B_COLORS.gold);
   const palette = skin && skin.id !== "classic"
@@ -137,8 +140,8 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
           options={challengeMode ? undefined : <View style={styles.difficultyRow}>
             {(Object.keys(CONFIG) as VoltDifficulty[]).map((value) => (
               <Pressable key={value} onPress={() => setDifficulty(value)} style={[styles.difficulty, difficulty === value && styles.difficultyActive]}>
-                <Text style={[styles.difficultyLabel, difficulty === value && { color: accent }]}>{CONFIG[value].label}</Text>
-                <Text style={styles.difficultyCount}>{CONFIG[value].count}</Text>
+                <Text style={[styles.difficultyLabel, difficulty === value && { color: accent }]}>{copyContent(CONFIG[value].label)}</Text>
+                <Text style={styles.difficultyCount}>{copyContent(CONFIG[value].count)}</Text>
               </Pressable>
             ))}
           </View>}
@@ -153,7 +156,7 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
             <Metric label="ОСТАЛОСЬ" value={remaining.size} color={B_COLORS.ink} />
             <Metric label="ИЩИ" value={phase === "look" ? config.count : current} color={accent} />
           </View>
-          <View style={styles.progressInfo}><Text style={styles.progressLabel}>{config.label}</Text><Text style={styles.progressLabel}>{Math.round(okTaps / config.count * 100)}%</Text></View>
+          <View style={styles.progressInfo}><Text style={styles.progressLabel}>{copyContent(config.label)}</Text><Text style={styles.progressLabel}>{copyContent(Math.round(okTaps / config.count * 100))}%</Text></View>
           <ProgressTrack value={okTaps / config.count} color={accent} />
           <Panel style={styles.arena}>
             <View style={[styles.ballGrid, { width: boardWidth, gap }]}>
@@ -161,11 +164,11 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
                 <Animated.View key={number} entering={ZoomIn.duration(180)} exiting={FadeOut.duration(180)}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Число ${number}`}
+                    accessibilityLabel={formatCopy("Число {0}", [number])}
                     onPress={() => tapNumber(number)}
                     style={({ pressed }) => [styles.ball, { width: ballSize, height: ballSize, borderRadius: ballSize / 2, backgroundColor: phase === "look" && number === config.count ? accent : palette[number % palette.length] }, pressed && styles.ballPressed]}
                   >
-                    <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.ballText, { fontSize: Math.max(10, ballSize * 0.36), color: numberInk(phase === "look" && number === config.count ? accent : palette[number % palette.length]!) }]}>{number}</Text>
+                    <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.ballText, { fontSize: Math.max(10, ballSize * 0.36), color: numberInk(phase === "look" && number === config.count ? accent : palette[number % palette.length]!) }]}>{copyContent(number)}</Text>
                   </Pressable>
                 </Animated.View>
               ) : <View key={number} style={{ width: ballSize, height: ballSize }} />)}
@@ -173,7 +176,7 @@ export function VoltNumbersGame({ onExit, onFinish, initialCoins = 0, paused = f
           </Panel>
           {challengeMode ? <View style={styles.mistakeRow}>
             {Array.from({ length: 3 }, (_, index) => <View key={index} style={[styles.mistakeDot, index < mistakes && styles.mistakeUsed]} />)}
-            <Text style={styles.mistakeText}>ОШИБОК {mistakes}/3</Text>
+            <Text style={styles.mistakeText}>{copyText("ОШИБОК ")}{copyContent(mistakes)}/3</Text>
           </View> : null}
         </View>
       ) : null}

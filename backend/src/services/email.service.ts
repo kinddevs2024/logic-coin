@@ -1,3 +1,4 @@
+import type { CopyLanguage } from "../lib/localize-built-in.js";
 import nodemailer, { type Transporter } from "nodemailer";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
@@ -23,18 +24,23 @@ function emailTransporter(): Transporter {
   return transporter;
 }
 
-export async function sendVerificationCode(email: string, code: string): Promise<"sent" | "disabled"> {
+export async function sendVerificationCode(email: string, code: string, language: CopyLanguage = "ru"): Promise<"sent" | "disabled"> {
   if (!env.EMAIL_ENABLED) {
     return "disabled";
   }
 
+  const copy = {
+    ru: { subject: "Logic Coin — код подтверждения", label: "Ваш код подтверждения Logic Coin:", expires: `Срок действия: ${env.OTP_TTL_MINUTES} мин.` },
+    en: { subject: "Logic Coin — email verification code", label: "Your Logic Coin verification code:", expires: `It expires in ${env.OTP_TTL_MINUTES} minutes.` },
+    uz: { subject: "Logic Coin — tasdiqlash kodi", label: "Logic Coin tasdiqlash kodingiz:", expires: `Kod ${env.OTP_TTL_MINUTES} daqiqa amal qiladi.` },
+  }[language];
   try {
     await emailTransporter().sendMail({
       from: env.EMAIL_FROM,
       to: email,
-      subject: "Logic Coin — email verification code",
-      text: `Your Logic Coin verification code is ${code}. It expires in ${env.OTP_TTL_MINUTES} minutes.`,
-      html: `<p>Your Logic Coin verification code:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>It expires in ${env.OTP_TTL_MINUTES} minutes.</p>`
+      subject: copy.subject,
+      text: `${copy.label} ${code}. ${copy.expires}`,
+      html: `<p>${copy.label}</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>${copy.expires}</p>`
     });
     return "sent";
   } catch (error) {

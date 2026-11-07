@@ -15,6 +15,7 @@ import type {
 import type { ThemePreference } from "@/constants/theme";
 
 export type RememberedWithdrawalCard = {
+  withdrawalId?: string;
   brand: "visa" | "mastercard" | "other";
   last4: string;
   holderName: string;
@@ -180,8 +181,8 @@ export const useAppStore = create<AppState>()(
             payload.todayChallenges?.coins.balance ??
             payload.user.coins?.balance ??
             0,
-          todayChallengesCompleted: payload.todayChallenges?.completedCount ?? 0,
-          todayChallengesTotal: payload.todayChallenges?.totalCount ?? 0,
+          todayChallengesCompleted: payload.todayChallenges?.completedCount ?? state.todayChallengesCompleted,
+          todayChallengesTotal: payload.todayChallenges?.totalCount ?? state.todayChallengesTotal,
           goalUnits: Math.max(
             100,
             Math.ceil(

@@ -6,7 +6,8 @@ import { applyReferralCode, getReferralOverview } from "../services/referral.ser
 const router = Router();
 
 router.get("/", async (request, response) => {
-  response.json({ data: { referral: await getReferralOverview(request.auth!.userId) } });
+  const page = z.object({ offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(50).default(6) }).parse(request.query);
+  response.json({ data: { referral: await getReferralOverview(request.auth!.userId, undefined, page) } });
 });
 
 router.post(
@@ -21,7 +22,8 @@ router.post(
   async (request, response) => {
     const { code } = request.body as { code: string };
     await applyReferralCode(request.auth!.userId, code);
-    response.json({ data: { referral: await getReferralOverview(request.auth!.userId) } });
+    const page = z.object({ offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(50).default(6) }).parse(request.query);
+  response.json({ data: { referral: await getReferralOverview(request.auth!.userId, undefined, page) } });
   }
 );
 

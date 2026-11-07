@@ -1,3 +1,5 @@
+import { localizeBuiltIn } from "../lib/localize-built-in.js";
+import { renderNotificationTemplate } from "../lib/notification-template.js";
 import { type PipelineStage, Types } from "mongoose";
 import { NotificationEvent } from "../models/NotificationEvent.js";
 import { NotificationRead } from "../models/NotificationRead.js";
@@ -9,16 +11,16 @@ export type InboxItem = { id: string; title: string; body: string; createdAt: st
 
 async function pipeline(userId: Types.ObjectId): Promise<PipelineStage[]> {
   const [user, days] = await Promise.all([
-    User.findById(userId).select("createdAt").lean(),
+    User.findById(userId).select("createdAt inboxReadThrough").lean(),
     DailyContestResult.distinct("dayKey", { userId })
   ]);
   return [
-    { $match: { type: { $ne: "gift_received" }, $or: [
+    { $match: { type: { $ne: "gift_received" }, "payload.transient": { $ne: true }, $or: [
       { audience: "all_users", createdAt: { $gte: user?.createdAt ?? new Date() } },
       { audience: "specific_users", "payload.userIds": userId.toString() },
       { audience: "contest_participants", "payload.dayKey": { $in: days } }
     ] } },
-    { $project: { _id: 0, id: { $concat: ["event:", { $toString: "$_id" }] }, kind: "$type", title: { $ifNull: ["$payload.title", "Уведомление"] }, body: { $ifNull: ["$payload.body", ""] }, createdAt: 1 } },
+    { $project: { _id: 0, id: { $concat: ["event:", { $toString: "$_id" }] }, localized: "$payload.localized", conversationId: "$payload.conversationId", kind: "$type", title: { $ifNull: ["$payload.title", "Уведомление"] }, body: { $ifNull: ["$payload.body", ""] }, createdAt: 1 } },
     { $unionWith: { coll: GiftItem.collection.name, pipeline: [
       { $match: { userId } },
       { $project: { _id: 0, id: { $concat: ["gift:", { $toString: "$_id" }] }, kind: { $literal: "gift" }, title: { $literal: "Вы получили подарок" }, body: "$description", createdAt: 1 } }
@@ -30,7 +32,10 @@ async function pipeline(userId: Types.ObjectId): Promise<PipelineStage[]> {
     { $lookup: { from: NotificationRead.collection.name, let: { notificationId: "$id" }, pipeline: [
       { $match: { userId, $expr: { $eq: ["$notificationId", "$$notificationId"] } } }
     ], as: "receipts" } },
-    { $set: { read: { $gt: [{ $size: "$receipts" }, 0] } } },
+    { $set: { read: { $or: [
+      { $gt: [{ $size: "$receipts" }, 0] },
+      ...(user?.inboxReadThrough ? [{ $lte: ["$createdAt", user.inboxReadThrough] }] : [])
+    ] } } },
     { $unset: "receipts" }
   ];
 }
@@ -44,6 +49,13 @@ export async function listInbox(userId: Types.ObjectId, all: boolean, before?: {
   ] } });
   stages.push({ $sort: { createdAt: -1, id: -1 } }, { $limit: 11 });
   const rows = await NotificationEvent.aggregate(stages);
+  const profile = await User.findById(userId).select("name countryCode preferences.language").lean();
+  for (const row of rows) if (row.kind === "admin_broadcast") { row.title = renderNotificationTemplate(row.title, profile); row.body = renderNotificationTemplate(row.body, profile); }
+  for (const row of rows) if (row.kind !== "admin_broadcast" && row.kind !== "chat_message") { row.title = localizeBuiltIn(row.title, profile?.preferences.language ?? "ru"); row.body = localizeBuiltIn(row.body ?? "", profile?.preferences.language ?? "ru"); }
+  for (const row of rows) {
+    if (row.kind === "raffle" && row.localized) { const c = row.localized[profile?.preferences.language ?? "uz"] ?? row.localized.uz; if (c) { row.title = c.title; row.body = c.body; } }
+    delete row.localized;
+  }
   const items = rows.slice(0, 10).map(row => ({ ...row, createdAt: new Date(row.createdAt).toISOString() })) as InboxItem[];
   const last = items.at(-1);
   return { items, next: rows.length > 10 && last ? { date: last.createdAt, id: last.id } : null };
@@ -66,4 +78,13 @@ export async function markInboxRead(userId: Types.ObjectId, ids: string[]) {
     update: { $setOnInsert: { userId, notificationId: row.id, readAt: new Date() } }, upsert: true
   } })), { ordered: false });
   return { marked: owned.length };
+}
+
+/** Marks the complete inbox, not just the first page. Later arrivals stay unread. */
+export async function markAllInboxRead(userId: Types.ObjectId) {
+  const user = await User.findByIdAndUpdate(userId,
+    { $max: { inboxReadThrough: new Date() } },
+    { new: true }
+  ).select("inboxReadThrough").lean();
+  return { readThrough: user!.inboxReadThrough!.toISOString() };
 }

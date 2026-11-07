@@ -27,6 +27,8 @@ coinLedgerEntrySchema.index({ userId: 1, createdAt: -1, _id: -1 });
 coinLedgerEntrySchema.index({ userId: 1, type: 1, sourceId: 1 }, { unique: true });
 coinLedgerEntrySchema.index({ "metadata.dayKey": 1, type: 1, createdAt: -1 });
 
+coinLedgerEntrySchema.index({ createdAt: -1, userId: 1 });
+
 export type CoinLedgerEntryDocument = InferSchemaType<typeof coinLedgerEntrySchema>;
 export const CoinLedgerEntry =
   (models.CoinLedgerEntry as Model<CoinLedgerEntryDocument> | undefined) ??

@@ -13,6 +13,7 @@ const ledgerEntrySchema = new Schema(
         "referral_bonus",
         "game_reward",
         "contest_cash_prize",
+        "raffle_cash_prize",
         "withdrawal"
       ],
       required: true
@@ -28,6 +29,9 @@ const ledgerEntrySchema = new Schema(
 
 ledgerEntrySchema.index({ userId: 1, createdAt: -1, _id: -1 });
 ledgerEntrySchema.index({ userId: 1, type: 1, sourceId: 1 }, { unique: true });
+
+ledgerEntrySchema.index({ createdAt: -1, userId: 1 });
+ledgerEntrySchema.index({ type: 1, "metadata.dayKey": 1 });
 
 export type LedgerEntryDocument = InferSchemaType<typeof ledgerEntrySchema>;
 export const LedgerEntry =

@@ -25,6 +25,7 @@ export type CoinWallet = {
 export type UserPreferences = {
   language: Language;
   theme: ThemePreference;
+  customTheme?: {wallpaperUrl: string; accent: string; dark: boolean};
   savingsGoalCents: number;
   notificationsEnabled: boolean;
   dailyReminderEnabled: boolean;
@@ -39,6 +40,7 @@ export type User = {
   avatarUrl?: string | null;
   countryCode?: string | null;
   referralCode?: string;
+  username?: string | null;
   emailVerified?: boolean;
   preferences?: UserPreferences;
   wallet?: Partial<Wallet>;
@@ -89,6 +91,7 @@ export type BonusOverview = {
 };
 
 export type ReferralOverview = {
+  nextOffset?: number | null;
   code: string;
   link: string;
   invitedCount: number;
@@ -101,6 +104,10 @@ export type ReferralOverview = {
     id: string;
     name: string;
     avatarUrl: string | null;
+    invitedCount?: number;
+    earnedCents?: number;
+    directEarnedCents?: number;
+    indirectEarnedCents?: number;
     verified: boolean;
     joinedAt: string;
   }[];
@@ -119,6 +126,7 @@ export type ReferralOverview = {
 
 export type Withdrawal = {
   id: string;
+  hasCardDetails?: boolean;
   amountCents: number;
   amountUnits: number;
   method: "sandbox" | "bank_card";
@@ -154,6 +162,8 @@ export type GameCatalogItem = {
   difficulty: GameDifficulty;
   title: string;
   description: string;
+  titleI18n?: Partial<Record<Language, string>>;
+  descriptionI18n?: Partial<Record<Language, string>>;
   challengeEnabled: boolean;
   practiceEnabled: boolean;
 };
@@ -207,7 +217,7 @@ export type TodayChallenges = {
 
 export type GiftItem = {
   id: string;
-  kind: "time_extension" | "extra_time" | "replay" | "coin";
+  kind: "time_extension" | "extra_time" | "replay" | "coin" | "hint";
   amountSeconds: number | null;
   replayCount: number | null;
   coinAmount: number | null;
@@ -223,7 +233,8 @@ export type GiftItem = {
 export type GiftUseEffect =
   | { kind: "time_extension"; additionalTimeSeconds: number }
   | { kind: "replay"; replayCount: number; gameKey: string }
-  | { kind: "coin"; coinsCredited: number };
+  | { kind: "coin"; coinsCredited: number }
+  | { kind: "hint"; gameKey: string; lettersRevealed: 1 };
 
 export type ContestRewardType = "cash" | "box" | "random" | "coins" | "legacy_case";
 
@@ -239,7 +250,7 @@ export type ContestRewardResult = {
   coinAmount: number;
   replayCount: number;
   extraTimeSeconds: number;
-  giftKind: "extra_time" | "replay" | "coin" | null;
+  giftKind: "extra_time" | "replay" | "coin" | "hint" | null;
   claimStatus: "pending" | "claiming" | "claimed";
   claimedAt: string | null;
   settledAt: string;
@@ -256,7 +267,7 @@ export type PendingContestReward = {
   standings: ContestStanding[];
 };
 
-export type LeaderboardMetric = "wealth" | "wallet" | "coins";
+export type LeaderboardMetric = "today" | "yesterday" | "allTime";
 
 export type LeaderboardEntry = {
   rank: number;
@@ -278,14 +289,14 @@ export type LeaderboardPayload = {
 
 export type BootstrapPayload = {
   user: User & { preferences: UserPreferences; wallet: Wallet };
-  tasks: unknown[];
+  tasks?: unknown[];
   todayChallenges?: TodayChallenges;
-  bonuses: BonusOverview;
+  bonuses?: BonusOverview;
   activity: {
     totalActiveDays: number;
     streak: GraceStreak;
   };
-  referral: ReferralOverview;
+  referral?: ReferralOverview;
   economy: {
     currency: string;
     unitValueCents: number;

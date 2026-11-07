@@ -1,25 +1,34 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "@/components/auth-icon";
 
+import { useAuthError } from "@/components/auth-error-dialog";
+import { isConnectionError } from "@/lib/auth-error";
 import { AuthScaffold } from "@/components/auth-scaffold";
 import { AppText } from "@/components/app-text";
 import { AppButton } from "@/components/buttons";
+import { LoginEmailEntry } from "@/components/login-email-entry";
 import { StyledInput } from "@/components/styled-input";
 import { SocialButtons } from "@/components/social-buttons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { ApiError, authApi, type AuthResult } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import { authEntryCopy } from "@/constants/auth-entry-copy";
 
 type TelegramWindow = Window & {
   Telegram?: { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } };
 };
 
 export default function LoginScreen() {
-  const { t } = useTranslation();
+  const { copyText, copyContent } = useUiCopy();
+  const showError = useAuthError();
+  const { t, language } = useTranslation();
+  const c = authEntryCopy[language];
   const theme = useAppTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ telegram_token?: string; next?: string; email?: string; ref?: string }>();
@@ -76,6 +85,7 @@ export default function LoginScreen() {
 
   const emailFlow = useMutation({
     mutationFn: () => authApi.startEmail(email.trim()),
+    onError: (error) => { if (isConnectionError(error)) showError(error, () => emailFlow.mutate()); },
     onSuccess: (result) => {
       if (result.mode === "password") {
         setStep("password");
@@ -96,6 +106,7 @@ export default function LoginScreen() {
 
   const passwordFlow = useMutation({
     mutationFn: () => authApi.login({ email: email.trim(), password }),
+    onError: (error) => { if (isConnectionError(error)) showError(error, () => passwordFlow.mutate()); },
     onSuccess: complete,
   });
 
@@ -144,12 +155,13 @@ export default function LoginScreen() {
 
   return (
     <AuthScaffold
+      compact
       title={step === "password" ? t("auth.passwordTitle") : undefined}
       subtitle={step === "password" ? email.trim() : undefined}
       headerAction={step === "password" ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("common.back")}
+          accessibilityLabel={copyText(t("common.back"))}
           onPress={() => { setStep("email"); setPassword(""); passwordFlow.reset(); }}
           style={styles.backButton}
         >
@@ -157,28 +169,20 @@ export default function LoginScreen() {
         </Pressable>
       ) : undefined}
     >
+      {step === "email" ? <>
+        <SocialButtons onAuthenticated={complete} autoPrompt={!params.telegram_token && !telegramFlow.isPending && !(Platform.OS === "web" && typeof window !== "undefined" && (window as TelegramWindow).Telegram?.WebApp?.initData)} />
+        <View style={styles.divider}><View style={[styles.dividerLine, { backgroundColor: theme.border }]} /><AppText variant="caption" muted>{c.emailOption}</AppText><View style={[styles.dividerLine, { backgroundColor: theme.border }]} /></View>
+      </> : null}
       <View style={styles.form}>
         {step === "email" ? (
           <>
-            <StyledInput
-              label={t("auth.email")}
-              icon="mail-outline"
+            <LoginEmailEntry
               value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              placeholder="name@example.com"
-              required
+              onChange={(value) => { setEmail(value); emailFlow.reset(); }}
+              onSubmit={() => emailFlow.mutate()}
+              valid={valid}
+              busy={emailFlow.isPending || telegramFlow.isPending}
             />
-            <AppButton
-              onPress={() => emailFlow.mutate()}
-              loading={emailFlow.isPending || telegramFlow.isPending}
-              disabled={!valid}
-              icon="arrow-forward"
-            >
-              {t("common.next")}
-            </AppButton>
           </>
         ) : (
           <>
@@ -197,19 +201,18 @@ export default function LoginScreen() {
               disabled={password.length < 8}
               icon="log-in-outline"
             >
-              {t("auth.login")}
+              {copyContent(t("auth.login"))}
             </AppButton>
           </>
         )}
       </View>
-      {step === "email" ? <SocialButtons onAuthenticated={complete} /> : null}
-      {error ? (
+      {error && !isConnectionError(error) ? (
         <AppText
           variant="caption"
           color={String(theme.danger)}
           style={styles.error}
         >
-          {errorMessage}
+          {copyContent(errorMessage)}
         </AppText>
       ) : null}
     </AuthScaffold>
@@ -217,6 +220,8 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 7 },
+  dividerLine: { flex: 1, height: 1 },
   loadingScreen: { flex: 1, alignItems: "center", justifyContent: "center" },
   form: { gap: 10 },
   backButton: { padding: 8, marginLeft: -8 },

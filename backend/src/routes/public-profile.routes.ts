@@ -4,6 +4,7 @@ import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { User } from "../models/User.js";
 import { GameProgress } from "../models/GameProgress.js";
 import { ApiError } from "../lib/api-error.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
 
 const router = Router();
 const codeSchema = z.string().trim().regex(/^[A-Z0-9-]{4,32}$/i);
@@ -11,7 +12,7 @@ const codeSchema = z.string().trim().regex(/^[A-Z0-9-]{4,32}$/i);
 router.get("/:referralCode", async (request, response) => {
   const parsed = codeSchema.safeParse(request.params.referralCode);
   if (!parsed.success) throw new ApiError(400, "invalid_profile_code", "Profile code is invalid");
-  const user = await User.findOne({ referralCode: parsed.data.toUpperCase() }).select("name avatarUrl countryCode wallet coins referralCode").lean();
+  const user = await User.findOne({ referralCode: parsed.data.toUpperCase() }).select("name username avatarUrl countryCode wallet coins referralCode").lean();
   if (!user) throw new ApiError(404, "profile_not_found", "Profile not found");
   const completedChallenges = await ChallengeAttempt.countDocuments({ userId: user._id, mode: "challenge", status: "completed" });
   const progress = await GameProgress.findOne({ userId: user._id }).select("games").lean();
@@ -28,8 +29,10 @@ router.get("/:referralCode", async (request, response) => {
   response.json({
     data: {
       profile: {
+        id: String(user._id),
+        username: user.username ?? null,
         name: user.name,
-        avatarUrl: user.avatarUrl ?? null,
+        avatarUrl: listAvatarUrl(user._id, user.avatarUrl),
         countryCode: user.countryCode ?? null,
         referralCode: user.referralCode,
         balanceUnits: user.wallet?.availableUnits ?? 0,

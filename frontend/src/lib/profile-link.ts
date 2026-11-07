@@ -1,6 +1,7 @@
 import { shareLink } from "./share-link";
+import { MIGRATED_APP_ORIGIN } from "./server-migration";
 
-const PRODUCTION_ORIGIN = "https://www.logic-coin.online";
+const PRODUCTION_ORIGIN = MIGRATED_APP_ORIGIN;
 
 export function publicProfileUrl(referralCode: string) {
   return `${PRODUCTION_ORIGIN}/profile/${encodeURIComponent(referralCode.trim().toUpperCase())}`;

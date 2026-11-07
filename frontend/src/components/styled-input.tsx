@@ -1,5 +1,7 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import React, { type ComponentProps } from "react";
-import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
+import { StyleSheet, View, type TextInputProps } from "react-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { AppText } from "@/components/app-text";
@@ -7,6 +9,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 
 export interface StyledInputProps {
   label?: string;
+  accessibilityLabel?: string;
   placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -23,6 +26,7 @@ export interface StyledInputProps {
 
 export function StyledInput({
   label,
+  accessibilityLabel,
   placeholder,
   value,
   onChangeText,
@@ -36,6 +40,7 @@ export function StyledInput({
   disabled = false,
   required = false,
 }: StyledInputProps) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const [isFocused, setIsFocused] = React.useState(false);
 
@@ -44,7 +49,7 @@ export function StyledInput({
       {label && (
         <View style={styles.labelRow}>
           <AppText variant="label" style={styles.label}>
-            {label}
+            {copyContent(label)}
           </AppText>
           {required && (
             <AppText style={{ color: String(theme.danger) }}>*</AppText>
@@ -73,11 +78,12 @@ export function StyledInput({
           />
         )}
         <TextInput
+          accessibilityLabel={copyText(accessibilityLabel ?? label)}
           style={[
             styles.input,
             { color: String(theme.text) },
           ]}
-          placeholder={placeholder}
+          placeholder={copyText(placeholder)}
           placeholderTextColor={String(theme.textMuted)}
           value={value}
           onChangeText={onChangeText}
@@ -92,12 +98,12 @@ export function StyledInput({
       </View>
       {error && (
         <AppText variant="caption" color={String(theme.danger)} style={styles.error}>
-          {error}
+          {copyContent(error)}
         </AppText>
       )}
       {hint && !error && (
         <AppText variant="caption" muted style={styles.hint}>
-          {hint}
+          {copyContent(hint)}
         </AppText>
       )}
     </View>

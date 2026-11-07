@@ -1,10 +1,13 @@
+import {appearanceTheme} from "../lib/appearance-theme";
+import { brandPreviewTheme } from "../lib/brand-preview-theme";
 import type { ColorValue } from "react-native";
 
-export type ThemeMode = "light" | "sky" | "dark";
-export type ThemePreference = ThemeMode | "auto";
+export type ThemeMode = "light" | "sky" | "dark" | "green" | "blue" | "pink" | "graphite";
+export type ThemePreference = ThemeMode | "auto" | "custom";
 
 export type ThemeTokens = {
   mode: ThemeMode;
+  wallpaperUrl?: string;
   background: ColorValue;
   backgroundStart: ColorValue;
   backgroundMiddle: ColorValue;
@@ -34,7 +37,7 @@ export type ThemeTokens = {
   glassShadow: ColorValue;
 };
 
-export const themes: Record<ThemeMode, ThemeTokens> = {
+const baseThemes: Record<"light" | "sky" | "dark", ThemeTokens> = {
   light: {
     mode: "light",
     background: "#F5F7FA",
@@ -143,3 +146,5 @@ export const spacing = {
   xl: 24,
   xxl: 32,
 } as const;
+
+export const themes: Record<ThemeMode, ThemeTokens> = { light: brandPreviewTheme(baseThemes.light), sky: brandPreviewTheme(baseThemes.sky), dark: brandPreviewTheme(baseThemes.dark), ...Object.fromEntries(["green","blue","pink","graphite"].map(p=>[p,appearanceTheme(baseThemes.light,p)])) } as Record<ThemeMode,ThemeTokens>;

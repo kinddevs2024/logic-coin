@@ -1,7 +1,10 @@
+import { chatApi } from "@/lib/chat-api";
+import { useUiCopy } from "@/components/localized-native";
+
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable inside gesture worklets. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Redirect, Tabs, useRouter } from "expo-router";
+import { Link, Redirect, Tabs, useRouter, useGlobalSearchParams } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -12,6 +15,7 @@ import {
 } from "react";
 import {
   Platform,
+  Keyboard,
   ActivityIndicator,
   Pressable,
   Image,
@@ -57,7 +61,7 @@ const tabMeta: Record<
       | "tabs.home"
       | "tabs.challenges"
       | "tabs.games"
-      | "tabs.profile";
+      | "tabs.messages";
     icon: ComponentProps<typeof Ionicons>["name"];
     activeIcon: ComponentProps<typeof Ionicons>["name"];
   }
@@ -77,19 +81,27 @@ const tabMeta: Record<
     icon: "game-controller-outline",
     activeIcon: "game-controller",
   },
-  profile: {
-    label: "tabs.profile",
-    icon: "person-outline",
-    activeIcon: "person",
+  messages: {
+    label: "tabs.messages",
+    icon: "chatbubbles-outline",
+    activeIcon: "chatbubbles",
   },
 };
 
 function LogicTabBar({ state, navigation }: LogicTabBarProps) {
+  const params = useGlobalSearchParams<{chat?: string}>();
+  const chatOpen = state.routes[state.index]?.name === "messages" && Boolean(params.chat);
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { isDesktop, isWeb } = useResponsiveLayout();
   const reduceMotion = useReducedMotion();
+  const chatToken = useAppStore(s => s.accessToken);
+  const chatQuery = useQuery({ queryKey: ["chat-list", chatToken], enabled: Boolean(chatToken), queryFn: () => chatApi.list(chatToken!), staleTime: 60_000, refetchInterval: 60_000 });
+  const chatUnread = chatQuery.data?.chats.reduce((sum, room) => sum + room.unread, 0) ?? 0;
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => { const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true)), hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false)); return () => { show.remove(); hide.remove(); }; }, []);
   const visibleRoutes = useMemo(
     () => state.routes.filter((route) => Boolean(tabMeta[route.name])),
     [state.routes],
@@ -226,6 +238,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
     };
   }, [isDesktop, lensWidth, lensHeight, mobileSlotWidth]);
 
+  if (keyboardOpen || chatOpen) return null;
   return (
     <View
       pointerEvents="box-none"
@@ -252,6 +265,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
             isDesktop && styles.tabBarDesktop,
             {
               shadowColor: theme.shadow,
+              ...(Platform.OS === "web" ? {boxShadow: `0 8px 32px ${String(theme.shadow)}24, 0 2px 6px ${String(theme.shadow)}0d`} : {}),
             },
           ]}
         >
@@ -263,6 +277,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
               styles.liquidLens,
               isDesktop && styles.liquidLensDesktop,
               lensStyle,
+              { shadowColor: theme.primary, ...(Platform.OS === "web" ? {boxShadow: `0 2px 10px ${String(theme.primary)}22`} : {}) },
             ]}
           >
             <NavigationGlass variant="lens" width={lensWidth} height={lensHeight} />
@@ -275,7 +290,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
             <Pressable
               key={route.key}
               accessibilityRole="tab"
-              accessibilityLabel={t(meta.label)}
+              accessibilityLabel={copyText(t(meta.label))}
               accessibilityState={{ selected: focused }}
               aria-selected={focused}
               {...(isWeb ? {
@@ -315,13 +330,14 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
                   size={22}
                   color={String(focused ? theme.primary : theme.textMuted)}
                 />
+                {route.name === "messages" && chatUnread > 0 ? <View style={{ position: "absolute", top: -3, right: 3, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", backgroundColor: theme.primary }}><AppText style={{ fontSize: 9, lineHeight: 12, color: theme.onPrimary }}>{chatUnread > 99 ? "99+" : chatUnread}</AppText></View> : null}
                 <AppText
                   variant="caption"
                   color={String(focused ? theme.primary : theme.textMuted)}
                   numberOfLines={1}
-                  style={[styles.tabLabel, focused && styles.activeLabel]}
+                  style={[styles.tabLabel, focused && styles.activeLabel, focused && {textShadowColor: `${String(theme.primary)}33`}]}
                 >
-                  {t(meta.label)}
+                  {copyContent(t(meta.label))}
                 </AppText>
               </Animated.View>
             </Pressable>
@@ -333,8 +349,8 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         <Link href={PLAY_STORE_URL} target="_blank" asChild>
           <Pressable
             accessibilityRole="link"
-            accessibilityLabel="Скачать Logic Coin в Google Play"
-            accessibilityHint="Откроет страницу приложения в новой вкладке"
+            accessibilityLabel={copyText("Скачать Logic Coin в Google Play")}
+            accessibilityHint={copyText("Откроет страницу приложения в новой вкладке")}
             style={({ pressed }) => [
               styles.playStoreLink,
               pressed && styles.playStoreLinkPressed,
@@ -416,7 +432,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="challenges" />
       <Tabs.Screen name="games" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen name="messages" />
+      <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="tasks" options={{ href: null }} />
       <Tabs.Screen name="bonuses" options={{ href: null }} />
     </Tabs>
@@ -454,7 +471,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
     overflow: "visible",
-    ...(Platform.OS === "web" ? ({ boxShadow: "0 8px 32px rgba(23,62,104,0.14), 0 2px 6px rgba(23,62,104,0.05)", touchAction: "none" } as unknown as ViewStyle) : null),
+    ...(Platform.OS === "web" ? ({ touchAction: "none" } as unknown as ViewStyle) : null),
   },
   tabBarDesktop: {
     width: 110,
@@ -471,13 +488,12 @@ const styles = StyleSheet.create({
     top: 6,
     zIndex: 0,
     borderRadius: radii.pill,
-    shadowColor: "#5185AE",
     shadowOpacity: 0.14,
     shadowRadius: 9,
     shadowOffset: { width: 0, height: 2 },
     ...(Platform.OS === "web"
       ? ({
-          boxShadow: "0 2px 10px rgba(40,92,140,0.13)",
+
         } as ViewStyle)
       : null),
   },
@@ -516,7 +532,6 @@ const styles = StyleSheet.create({
   tabContentActive: { transform: [{ scale: 1.04 }] },
   tabLabel: { fontSize: 11, lineHeight: 15, fontWeight: "600" },
   activeLabel: {
-    textShadowColor: "rgba(77,151,255,0.2)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 5,
   },
@@ -552,13 +567,13 @@ const styles = StyleSheet.create({
     width: 118,
     height: 46,
   },
-  adOfferBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(4,12,26,0.52)" },
+  adOfferBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(16,37,27,0.52)" },
   adOfferCard: { width: "100%", maxWidth: 360, alignItems: "center", borderRadius: 32, padding: 24, overflow: "hidden" },
-  adOfferIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#147DFF" },
-  adOfferTitle: { marginTop: 16, color: "#0D1B35", fontSize: 23, fontWeight: "900" },
-  adOfferText: { marginTop: 8, color: "#5D6C83", fontSize: 14, lineHeight: 20, fontWeight: "600", textAlign: "center" },
-  adOfferPrimary: { marginTop: 20, width: "100%", minHeight: 54, borderRadius: 18, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#147DFF" },
+  adOfferIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#007A57" },
+  adOfferTitle: { marginTop: 16, color: "#153B2B", fontSize: 23, fontWeight: "900" },
+  adOfferText: { marginTop: 8, color: "#526C5C", fontSize: 14, lineHeight: 20, fontWeight: "600", textAlign: "center" },
+  adOfferPrimary: { marginTop: 20, width: "100%", minHeight: 54, borderRadius: 18, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#007A57" },
   adOfferPrimaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "900" },
   adOfferSkip: { paddingHorizontal: 18, paddingVertical: 13 },
-  adOfferSkipText: { color: "#65758B", fontSize: 13, fontWeight: "800" },
+  adOfferSkipText: { color: "#526C5C", fontSize: 13, fontWeight: "800" },
 });

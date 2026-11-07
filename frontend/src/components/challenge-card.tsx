@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import type { ComponentProps } from "react";
@@ -9,7 +11,6 @@ import { GlassSurface } from "@/components/glass-surface";
 import { gameCoverFor } from "@/constants/game-covers";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { accentForeground } from "@/lib/theme-colors";
 import { androidImageProps } from "@/lib/android-image";
 import type { ChallengeGameState, GameCatalogItem } from "@/types";
 
@@ -32,16 +33,17 @@ export function ChallengeCard({
   compact?: boolean;
   index?: number;
 }) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const completed = state?.status === "completed";
   const cover = gameCoverFor(game.key);
-  const actionForeground = accentForeground(game.color, theme.mode);
+  const actionForeground = String(theme.onPrimary);
 
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(420)}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${completed ? "Пройдено" : "Играть"}: ${game.title}`}
+        accessibilityLabel={formatCopy("{0}: {1}", [copyText(completed ? "ÐŸÑ€Ð¾Ð¹Ð´ÐµÐ½Ð¾" : "Ð˜Ð³Ñ€Ð°Ñ‚ÑŒ"), game.title])}
         disabled={loading || completed}
         onPress={() => {
           void Haptics.selectionAsync().catch(() => {});
@@ -55,28 +57,28 @@ export function ChallengeCard({
           style={[
             styles.card,
             compact && styles.cardCompact,
-            { borderColor: completed ? `${String(theme.success)}55` : theme.border },
+            { borderColor: completed ? `${String(theme.primary)}55` : theme.border },
           ]}
         >
-          <View style={[styles.icon, compact && styles.iconCompact, { backgroundColor: `${game.color}18`, borderColor: `${game.color}32` }]}>
-            {cover ? <Image {...androidImageProps} source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={iconName(game.icon)} size={compact ? 21 : 25} color={game.color} />}
+          <View style={[styles.icon, compact && styles.iconCompact, { backgroundColor: theme.primarySoft, borderColor: theme.border }]}>
+            {cover ? <Image {...androidImageProps} source={cover} resizeMode="cover" style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={iconName(game.icon)} size={compact ? 21 : 25} color={theme.primary} />}
           </View>
           <View style={styles.copy}>
             <View style={styles.titleRow}>
-              <AppText variant="label" style={styles.title}>{game.title}</AppText>
+              <AppText variant="label" style={styles.title}>{copyContent(game.title)}</AppText>
             </View>
           </View>
           {completed ? (
             <View style={styles.reward}>
               <Ionicons name="diamond" size={14} color="#F5B800" />
-              <AppText style={[styles.rewardText, { color: String(theme.text) }]}>+{state?.coinsAwarded ?? 0}</AppText>
+              <AppText style={[styles.rewardText, { color: String(theme.text) }]}>+{copyContent(state?.coinsAwarded ?? 0)}</AppText>
             </View>
           ) : null}
-          <View style={[styles.action, { backgroundColor: completed ? `${String(theme.success)}18` : game.color }]}>
+          <View style={[styles.action, { backgroundColor: completed ? theme.primarySoft : theme.primary }]}>
             {loading ? (
-              <ActivityIndicator color={completed ? String(theme.success) : actionForeground} size="small" />
+              <ActivityIndicator color={completed ? String(theme.primary) : actionForeground} size="small" />
             ) : (
-              <Ionicons name={completed ? "checkmark" : "arrow-forward"} color={completed ? String(theme.success) : actionForeground} size={18} />
+              <Ionicons name={completed ? "checkmark" : "arrow-forward"} color={completed ? String(theme.primary) : actionForeground} size={18} />
             )}
           </View>
         </GlassSurface>

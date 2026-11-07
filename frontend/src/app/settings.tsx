@@ -1,12 +1,13 @@
+import { chatPhotoData } from "@/lib/chat-photo-data";
+import { AccountPanel, AccountActions } from "@/components/account-panel";
+import { useUiCopy , Alert } from "@/components/localized-native";
+import { useQueryClient } from "@tanstack/react-query";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -18,12 +19,13 @@ import { radii, themes, type ThemePreference } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
+import { pickChatPhoto } from "@/lib/chat-media";
 import { meApi } from "@/lib/api";
 import { configureDailyReminder, syncPushNotifications } from "@/lib/notifications";
 import { useAppStore } from "@/store/app-store";
 import type { Language } from "@/types";
 
-const themeModes: ThemePreference[] = ["auto", "light", "sky", "dark"];
+const themeModes: Exclude<ThemePreference,"custom">[] = ["auto", "sky", "dark", "green", "blue", "pink", "graphite"];
 const languages: Language[] = ["ru", "uz", "en"];
 
 const legalCopy = {
@@ -45,15 +47,20 @@ const legalCopy = {
 } as const;
 
 export default function SettingsScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
   const { isDesktop } = useResponsiveLayout();
   const { t, language } = useTranslation();
+  const queryClient = useQueryClient();
   const notificationsEnabled = useAppStore(
     (state) => state.notificationsEnabled,
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
   const setNotifications = useAppStore((state) => state.setNotifications);
+  const user = useAppStore(state=>state.user);
+  const updateUser = useAppStore(state=>state.updateUser);
+  const [photoBusy,setPhotoBusy] = useState(false);
   const mode = useAppStore((state) => state.theme);
   const setTheme = useAppStore((state) => state.setTheme);
   const setLanguage = useAppStore((state) => state.setLanguage);
@@ -106,9 +113,24 @@ export default function SettingsScreen() {
     patchPreferences({ theme: nextTheme });
   };
 
-  const changeLanguage = (nextLanguage: Language) => {
+  const choosePhoto = async () => {
+    if(!accessToken){Alert.alert(copyText("Войдите в аккаунт"));return;}
+    try {
+      const photo=await pickChatPhoto(); if(!photo)return;
+      setPhotoBusy(true);
+      const preferences=await meApi.themePhoto(await chatPhotoData(photo),accessToken);
+      updateUser({preferences}); setTheme("custom");
+    } catch {Alert.alert(copyText("Не удалось загрузить фото. Попробуйте ещё раз."));}
+    finally {setPhotoBusy(false);}
+  };
+
+  const changeLanguage = async (nextLanguage: Language) => {
     setLanguage(nextLanguage);
-    patchPreferences({ language: nextLanguage });
+    if (authenticated && accessToken) {
+      try { await meApi.updatePreferences({ language: nextLanguage }, accessToken); }
+      catch { Alert.alert(t("settings.language"), copyText("Не удалось сохранить язык. Попробуйте ещё раз.")); }
+    }
+    await Promise.all(["games", "tasks", "challenges", "bootstrap", "inbox"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
   };
 
   const changeGoal = (amount: number) => {
@@ -120,9 +142,10 @@ export default function SettingsScreen() {
     <AppFrame wide>
       <ScreenHeader
         title={t("settings.title")}
-        onBack={() => router.back()}
+        onBack={() => router.canGoBack() ? router.back() : router.replace("/messages")}
       />
 
+      <AccountPanel />
       <View
         style={[styles.settingsGrid, isDesktop && styles.settingsGridDesktop]}
       >
@@ -146,10 +169,10 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <AppText variant="label">{t("settings.notifications")}</AppText>
+            <AppText variant="label">{copyContent(t("settings.notifications"))}</AppText>
           </View>
           <GlassSwitch
-            accessibilityLabel={t("settings.notifications")}
+            accessibilityLabel={copyText(t("settings.notifications"))}
             value={notificationsEnabled}
             disabled={busy}
             onValueChange={(value) => void toggleNotifications(value)}
@@ -165,17 +188,17 @@ export default function SettingsScreen() {
             isDesktop && styles.settingsCardDesktop,
           ]}
         >
-        <AppText variant="heading">{t("settings.theme")}</AppText>
+        <AppText variant="heading">{copyContent(t("settings.theme"))}</AppText>
         <View style={styles.themeGrid}>
           {themeModes.map((themeMode) => {
-            const palette = themeMode === "auto" ? theme : themes[themeMode];
+            const palette = themeMode === "auto" ? themes.sky : themes[themeMode];
             const selected = mode === themeMode;
             return (
               <Pressable
                 key={themeMode}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selected }}
-                accessibilityLabel={t(`settings.theme.${themeMode}`)}
+                accessibilityLabel={copyText(t(`settings.theme.${themeMode}`))}
                 onPress={() => changeTheme(themeMode)}
                 style={({ pressed }) => [
                   styles.themeCard,
@@ -220,7 +243,7 @@ export default function SettingsScreen() {
                     minimumFontScale={0.75}
                     style={styles.themeLabelText}
                   >
-                    {t(`settings.theme.${themeMode}`)}
+                    {copyContent(t(`settings.theme.${themeMode}`))}
                   </AppText>
                   {selected ? (
                     <Ionicons
@@ -234,7 +257,17 @@ export default function SettingsScreen() {
               </Pressable>
             );
           })}
+          <Pressable accessibilityRole="button" accessibilityLabel={copyText("Тема с фото")} disabled={photoBusy}
+            onPress={()=> user.preferences?.customTheme ? changeTheme("custom") : void choosePhoto()}
+            style={[styles.themeCard,{borderColor:mode === "custom" ? theme.primary : theme.border,backgroundColor:theme.surfaceRaised}]}>
+            <View style={[styles.themePreview,{backgroundColor:theme.primarySoft,overflow:"hidden",alignItems:"center",justifyContent:"center"}]}>
+              {user.preferences?.customTheme?.wallpaperUrl ? <Image source={{uri:user.preferences.customTheme.wallpaperUrl}} resizeMode="cover" style={StyleSheet.absoluteFill}/> : <Ionicons name="image-outline" size={28} color={String(theme.primary)}/>}
+              {mode === "custom" ? <Ionicons name="checkmark-circle" size={20} color={String(theme.primary)} style={{position:"absolute",right:4,top:4}}/> : null}
+            </View>
+            <AppText variant="caption" style={{textAlign:"center",paddingTop:8}}>{copyText(photoBusy ? "Загрузка…" : "Тема с фото")}</AppText>
+          </Pressable>
         </View>
+        {user.preferences?.customTheme ? <Pressable accessibilityRole="button" disabled={photoBusy} onPress={()=>void choosePhoto()} style={{paddingVertical:10,flexDirection:"row",gap:8,alignItems:"center"}}><Ionicons name="image-outline" size={20} color={String(theme.primary)}/><AppText>{copyText("Изменить фото")}</AppText></Pressable> : null}
         </GlassSurface>
 
         <GlassSurface
@@ -252,7 +285,7 @@ export default function SettingsScreen() {
             size={20}
             color={String(theme.primary)}
           />
-          <AppText variant="heading">{t("settings.language")}</AppText>
+          <AppText variant="heading">{copyContent(t("settings.language"))}</AppText>
         </View>
         <View style={styles.chips}>
           {languages.map((item) => (
@@ -281,7 +314,7 @@ export default function SettingsScreen() {
             size={20}
             color={String(theme.primary)}
           />
-          <AppText variant="heading">{t("home.goal")}</AppText>
+          <AppText variant="heading">{copyContent(t("home.goal"))}</AppText>
         </View>
         <View style={styles.chips}>
           {[1000, 2500, 5000].map((amount) => (
@@ -295,61 +328,11 @@ export default function SettingsScreen() {
         </View>
         </GlassSurface>
 
-        <GlassSurface
-          intensity={56}
-          variant="strong"
-          style={[
-            styles.section,
-            isDesktop && styles.settingsCardDesktop,
-            { borderColor: theme.glassBorder },
-          ]}
-        >
-          <View style={styles.sectionTitle}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={20}
-              color={String(theme.primary)}
-            />
-            <AppText variant="heading">{legal.title}</AppText>
-          </View>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => router.push("/privacy" as never)}
-            style={({ pressed }) => [
-              styles.legalRow,
-              { borderColor: theme.border, opacity: pressed ? 0.72 : 1 },
-            ]}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={20}
-              color={String(theme.primary)}
-            />
-            <AppText style={styles.legalText}>{legal.privacy}</AppText>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={String(theme.textMuted)}
-            />
-          </Pressable>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => router.push("/account-deletion" as never)}
-            style={({ pressed }) => [
-              styles.legalRow,
-              { borderColor: theme.border, opacity: pressed ? 0.72 : 1 },
-            ]}
-          >
-            <Ionicons name="trash-outline" size={20} color="#E5484D" />
-            <AppText style={styles.legalText}>{legal.deleteAccount}</AppText>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={String(theme.textMuted)}
-            />
-          </Pressable>
-        </GlassSurface>
       </View>
+      <Pressable accessibilityRole="link" onPress={() => router.push("/privacy" as never)} style={[styles.legalRow,{marginTop:20,borderColor:theme.border}]}>
+        <Ionicons name="document-text-outline" size={20} color={String(theme.primary)}/><AppText style={styles.legalText}>{legal.privacy}</AppText><Ionicons name="chevron-forward" size={18} color={String(theme.textMuted)}/>
+      </Pressable>
+      <AccountActions />
     </AppFrame>
   );
 }
@@ -405,14 +388,16 @@ const styles = StyleSheet.create({
   },
   themeGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 9,
   },
   themeCard: {
-    flex: 1,
+    flexBasis: "46%",
+    flexGrow: 1,
     borderWidth: 2,
     borderRadius: radii.lg,
     padding: 8,
-    minWidth: 0,
+    minWidth: 90,
   },
   themePreview: {
     height: 72,

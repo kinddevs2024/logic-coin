@@ -2,6 +2,10 @@ import { Schema, model, models, type InferSchemaType, type Model } from "mongoos
 const schema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
   telegramRewardedAt: Date,
+  telegramSkippedAt: Date,
+  instagramRewardedAt: Date,
+  instagramVisitId: String,
+  instagramOpenedAt: Date,
   availableAt: { type: Date, required: true },
   rewardDayKey: String,
   dailyClaimCount: { type: Number, default: 0 },

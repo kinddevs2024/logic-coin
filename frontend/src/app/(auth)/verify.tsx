@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -14,6 +16,7 @@ import { authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export default function VerifyScreen() {
+  const { copyContent } = useUiCopy();
   const params = useLocalSearchParams<{ email?: string; next?: string; cooldown?: string; sends?: string }>();
   const email = params.email ?? "";
   const { t } = useTranslation();
@@ -92,7 +95,7 @@ export default function VerifyScreen() {
           color={String(theme.danger)}
           style={{ textAlign: "center" }}
         >
-          {verify.error.message || t("auth.invalid")}
+          {copyContent(verify.error.message || t("auth.invalid"))}
         </AppText>
       ) : null}
       <AppButton
@@ -102,7 +105,7 @@ export default function VerifyScreen() {
         icon="checkmark-circle-outline"
         glow
       >
-        {t("auth.verify")}
+        {copyContent(t("auth.verify"))}
       </AppButton>
       <Pressable
         onPress={() => resend.mutate()}
@@ -110,16 +113,16 @@ export default function VerifyScreen() {
         style={[styles.resend, (cooldown > 0 || sendsRemaining <= 0) && styles.resendDisabled]}
       >
         <AppText variant="label" color={String(theme.primary)}>
-          {sendsRemaining <= 0
+          {copyContent(sendsRemaining <= 0
             ? "Лимит писем исчерпан"
             : cooldown > 0
               ? `Отправить через 00:${String(cooldown).padStart(2, "0")} · осталось ${sendsRemaining}`
-              : `${t("auth.resend")} · осталось ${sendsRemaining}`}
+              : `${t("auth.resend")} · осталось ${sendsRemaining}`)}
         </AppText>
       </Pressable>
       {resend.error ? (
         <AppText variant="caption" color={String(theme.danger)} style={{ textAlign: "center" }}>
-          {resend.error.message}
+          {copyContent(resend.error.message)}
         </AppText>
       ) : null}
     </AuthScaffold>

@@ -1,5 +1,8 @@
+import type { TextInput as NativeTextInput } from "react-native";
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import { useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
 
 import { useAppTheme } from "@/hooks/use-app-theme";
 
@@ -12,8 +15,9 @@ export function PinInput({
   onChangeValue: (value: string) => void;
   length?: number;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
-  const input = useRef<TextInput>(null);
+  const input = useRef<NativeTextInput>(null);
   const [focused, setFocused] = useState(false);
   const activeIndex = Math.min(value.length, length - 1);
 
@@ -24,7 +28,7 @@ export function PinInput({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Код подтверждения"
+      accessibilityLabel={copyText("Код подтверждения")}
       onPress={() => input.current?.focus()}
       style={styles.container}
     >
@@ -65,7 +69,7 @@ export function PinInput({
             ]}
           >
             <Text style={[styles.digit, { color: String(theme.text) }]}>
-              {value[index] ?? ""}
+              {copyContent(value[index] ?? "")}
             </Text>
           </View>
           {index === Math.floor(length / 2) - 1 && length > 3 ? (

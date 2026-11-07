@@ -1,7 +1,8 @@
 import type { ImageSourcePropType } from "react-native";
 
 const covers: Record<string, ImageSourcePropType> = {
-  "bottle-flip": require("../../assets/bottle-logo.png"),
+  hangman: require("../../assets/games/covers/hangman.webp"),
+  "bottle-flip": require("../../assets/bottle-logo.webp"),
   "one-second": require("../../assets/games/covers/one-second.webp"),
   tsvet: require("../../assets/games/covers/tsvet.webp"),
   udar: require("../../assets/games/covers/udar.webp"),

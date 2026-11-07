@@ -1,3 +1,6 @@
+import { withNetworkDeadline, NetworkTimeoutError } from "./network-deadline";
+import { localizeBuiltIn } from "./localize-built-in";
+import { telegramChallengeInitData } from "./telegram-context";
 import type {
   ActivityOverview,
   BonusKind,
@@ -28,6 +31,7 @@ import type { GameId, GamesProgress } from "@/games/progress-store";
 import { useAppStore } from "@/store/app-store";
 import { Platform } from "react-native";
 import { getDeviceId } from "@/lib/device-id";
+import { MIGRATED_APP_ORIGIN, migratedResponseUrls } from "./server-migration";
 
 const defaultApiUrl =
   Platform.OS === "web"
@@ -35,7 +39,7 @@ const defaultApiUrl =
       ? "http://localhost:4000/api/v1"
       : "/api/v1"
     : process.env.NODE_ENV === "production"
-      ? "https://logic-coin.online/api/v1"
+      ? `${MIGRATED_APP_ORIGIN}/api/v1`
       : Platform.OS === "android"
         ? "http://10.0.2.2:4000/api/v1"
         : "http://localhost:4000/api/v1";
@@ -75,13 +79,17 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   options: RequestInit & { token?: string; skipAuthRefresh?: boolean } = {},
 ): Promise<T> {
   const { token, skipAuthRefresh, ...fetchOptions } = options;
   const headers = new Headers(fetchOptions.headers);
   headers.set("Accept", "application/json");
+  headers.set("X-Appearance-Version", "2");
+  headers.set("Accept-Language", useAppStore.getState().language ?? "uz");
+  const telegramInitData = Platform.OS === "web" && /\/challenges\/[^/]+\/start$/.test(path) ? telegramChallengeInitData() : undefined;
+  if (telegramInitData) headers.set("X-Telegram-Init-Data", telegramInitData);
   if (fetchOptions.body) {
     headers.set("Content-Type", "application/json");
   }
@@ -89,10 +97,21 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...fetchOptions,
-    headers,
-  });
+  let response: Response;
+  let payload: {data?:T}|ApiErrorBody;
+  try {
+    const result=await withNetworkDeadline(async signal=>{
+      const response=await fetch(`${API_URL}${path}`,{...fetchOptions,headers,signal});
+      const payload=await response.json().catch(()=>{if(response.ok&&response.status!==204)throw new ApiError("Invalid server response",502,"invalid_response");return {};});
+      return {response,payload};
+    },fetchOptions.signal);
+    response=result.response;payload=result.payload;
+  } catch(error) {
+    if(error instanceof ApiError)throw error;
+    if(error instanceof NetworkTimeoutError)throw new ApiError(localizeBuiltIn("Сервер не ответил. Проверьте соединение и результат операции.",useAppStore.getState().language??"uz"),0,"request_timeout");
+    if(error instanceof Error&&error.name==="AbortError")throw error;
+    throw new ApiError(localizeBuiltIn("Проверьте подключение к интернету.",useAppStore.getState().language??"uz"),0,"network_unavailable");
+  }
 
   if (response.status === 401 && token && !skipAuthRefresh) {
     const refreshedToken = await refreshAccessToken(token);
@@ -103,21 +122,17 @@ async function request<T>(
     });
   }
 
-  const payload = (await response.json().catch(() => ({}))) as
-    | { data?: T }
-    | ApiErrorBody;
-
   if (!response.ok) {
     const body = payload as ApiErrorBody;
     throw new ApiError(
-      body.error?.message || body.message || "Request failed",
+      localizeBuiltIn(body.error?.message || body.message || "Request failed", useAppStore.getState().language ?? "uz"),
       response.status,
       body.error?.code,
       body.error?.details,
     );
   }
 
-  return ("data" in payload ? payload.data : payload) as T;
+  return migratedResponseUrls(("data" in payload ? payload.data : payload) as T, Platform.OS === "web");
 }
 
 export type AuthTokens = {
@@ -146,7 +161,9 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
 
   if (!refreshPromise) {
     refreshPromise = (async () => {
+      const {response,payload}=await withNetworkDeadline(async signal=>{
       const response = await fetch(`${API_URL}/auth/refresh`, {
+        signal,
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -154,9 +171,9 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
         },
         body: JSON.stringify({ refreshToken: state.refreshToken, deviceId: await getDeviceId() }),
       });
-      const payload = (await response.json().catch(() => ({}))) as
-        | { data?: AuthResult }
-        | ApiErrorBody;
+      const payload = (await response.json().catch(() => ({}))) as {data?:AuthResult}|ApiErrorBody;
+      return {response,payload};
+      });
       if (!response.ok) {
         const body = payload as ApiErrorBody;
         throw new ApiError(
@@ -165,7 +182,8 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
           body.error?.code,
         );
       }
-      const result = ("data" in payload ? payload.data : payload) as AuthResult;
+      const result = migratedResponseUrls(("data" in payload ? payload.data : payload) as AuthResult, Platform.OS === "web");
+      if(!result?.user||!result?.tokens?.accessToken)throw new ApiError("Invalid server response",502,"invalid_response");
       useAppStore.getState().authenticate({
         user: result.user,
         accessToken: result.tokens.accessToken,
@@ -364,7 +382,7 @@ export const tasksApi = {
 
 export const bootstrapApi = {
   get(token: string) {
-    return request<BootstrapPayload>("/bootstrap", { token });
+    return request<BootstrapPayload>("/bootstrap?scope=core", { token });
   },
 };
 
@@ -411,9 +429,9 @@ export const challengesApi = {
     return request<{
       today: string; dayKey: string; days: string[]; status: "final" | "live" | "pending" | "missing";
       dayStatuses?: Record<string, "final" | "live" | "pending" | "missing">;
-      self?: { userId: string; rank: number; totalCoins: number; completedGamesCount: number } | null;
+      self?: { userId: string; rank: number; totalCoins: number; cashUnits?: number; completedGamesCount: number } | null;
       total: number; nextOffset: number | null;
-      rows: { userId: string; rank: number; totalCoins: number; completedGamesCount: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
+      rows: { userId: string; rank: number; totalCoins: number; cashUnits?: number; completedGamesCount: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
     }>(`/challenges/history?offset=${offset}${day ? `&day=${encodeURIComponent(day)}` : ""}`, { token });
   },
   progress(token: string, cursor?: { snapshot: string; offset: number; end?: number }) {
@@ -421,8 +439,8 @@ export const challengesApi = {
       dayKey: string; participantCount: number; projectedCashUnits: number;
       previous: { snapshot: string; offset: number; end?: number } | null;
       next: { snapshot: string; offset: number; end?: number } | null;
-      self: { rank: number; totalCoins: number; completedGamesCount: number } | null;
-      neighbors: { userId: string; rank: number; totalCoins: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
+      self: { rank: number; totalCoins: number; completedGamesCount: number; cashUnits: number } | null;
+      neighbors: { userId: string; rank: number; totalCoins: number; cashUnits: number; name: string; avatarUrl: string | null; isSelf: boolean }[];
     }>(`/challenges/progress${cursor ? `?snapshot=${encodeURIComponent(cursor.snapshot)}&offset=${cursor.offset}${cursor.end !== undefined ? `&end=${cursor.end}` : ""}` : ""}`, { token });
   },
 
@@ -476,7 +494,7 @@ export const challengesApi = {
 
 export type RewardedAdSessionDto = {
   sessionId: string;
-  provider: "yandex" | "appodeal";
+  provider: "yandex" | "appodeal" | "monetag";
   placement: string;
   status: "started" | "completed" | "claimed" | "expired";
   rewardCoins: number;
@@ -485,16 +503,19 @@ export type RewardedAdSessionDto = {
 };
 
 export const adsApi = {
-  challengeOffer(token: string) {
-    return request<{ eligible: boolean; available: boolean; challengeSetId: string | null; dayKey: string | null; rewardDayKey?: string; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
+  declineChallengeOffer(token: string, rewardDayKey: string, claimedCount: number) {
+    return request("/ads/rewarded/offer/decline", { token, method: "POST", body: JSON.stringify({ rewardDayKey, claimedCount }) });
   },
-  async startRewarded(placement: string, token: string, gameAttemptId?: string) {
+  challengeOffer(token: string) {
+    return request<{ eligible: boolean; available: boolean; claimedCount: number; resetsAt: string; challengeSetId: string | null; dayKey: string | null; rewardDayKey?: string; rewardCoins: number; cooldownSeconds: number; availableAt: string; serverNow: string }>("/ads/rewarded/offer", { token });
+  },
+  async startRewarded(placement: string, token: string, gameAttemptId?: string, provider: "yandex" | "appodeal" | "monetag" = "yandex") {
     const payload = await request<{ session: RewardedAdSessionDto }>(
       "/ads/rewarded/start",
       {
         method: "POST",
         token,
-        body: JSON.stringify({ placement, provider: "yandex", ...(gameAttemptId ? { gameAttemptId } : {}) }),
+        body: JSON.stringify({ placement, provider, ...(gameAttemptId ? { gameAttemptId } : {}) }),
       },
     );
     return payload.session;
@@ -544,6 +565,7 @@ export type CoinRewardOffer = {
 };
 export type CoinPeriodReward = { kind: "week" | "month"; from: string; to: string; coins: number; activeDays: number; totalDays: number; status: "claimed" | "available" | "locked" };
 export const giftsApi = {
+  starterHints(token: string) { return request<{ granted: number }>("/gifts/hints/starter", { token, method: "POST", body: "{}" }); },
   coinRewards(token: string) { return request<CoinRewardOffer>("/gifts/coin-rewards", { token }); },
   claimCoinReward(kind: "daily" | "week" | "month", token: string) { return request<{ credited: number; coins: CoinWallet }>("/gifts/coin-rewards/claim", { method: "POST", token, body: JSON.stringify({ kind }) }); },
   async list(token: string) {
@@ -592,14 +614,14 @@ export const leaderboardApi = {
         } | null;
       }>;
     }>(
-      `/leaderboard?metric=all&limit=${limit}&offset=${offset}`,
+      `/leaderboard?metric=periods&limit=${limit}&offset=${offset}`,
       { token, signal },
     );
     const leaderboards = Object.fromEntries(
       (Object.keys(payload.leaderboards) as LeaderboardMetric[]).map((metric) => {
         const source = payload.leaderboards[metric];
         const valueOf = (entry: { walletBalanceUnits: number; coinBalance: number }) =>
-          metric === "coins" ? entry.coinBalance : entry.walletBalanceUnits;
+          entry.walletBalanceUnits;
         const mapEntry = (entry: (typeof source.entries)[number]) => ({
           rank: entry.rank,
           userId: entry.userId,
@@ -763,6 +785,7 @@ export type AdminPrizePlan = {
 
 export type AdminWithdrawal = {
   id: string; user: { id: string; name: string; email: string | null; referralCode: string | null };
+  cardNumber?: string | null;
   amountCents: number; status: string; method: string; accountLabel: string | null; cardHolder: string | null;
   requestedAt: string; processedAt: string | null; reviewVersion: number; reviewNote: string | null;
   paymentReference: string | null; reviewedAt: string | null;
@@ -771,6 +794,7 @@ export type AdminWithdrawal = {
 export type AdminWithdrawalPage = { withdrawals: AdminWithdrawal[]; nextCursor: string | null; summary: { status: string; count: number; amountCents: number }[] };
 
 export const adminApi = {
+ telegramContact(id:string,token:string){return request<{contact:{telegramId:string;chatId:string;firstName?:string;lastName?:string;username?:string;phoneNumber?:string;phoneVerifiedAt?:string;subscriptionCheckedAt?:string}|null}>(`/admin/users/${encodeURIComponent(id)}/telegram-contact`,{token});},
  users(q:string,page:number,token:string){return request<{users:any[];total:number}>(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`,{token});},
  editUser(id:string,input:any,token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}`,{method:"PATCH",token,body:JSON.stringify(input)});},
  resetBalances(input:{kind:"money"|"coins";confirmation:string;reason:string;operationId:string},token:string){return request<{count:number}>("/admin/users/reset-balances",{method:"POST",token,body:JSON.stringify(input)});},
@@ -891,11 +915,14 @@ export const adminApi = {
   },
 };
 
-export type InboxNotification = { id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
-export type HomeGiftOffer = { kind: "telegram" | "ads"; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
+export type InboxNotification = { conversationId?: string; id: string; title: string; body: string; createdAt: string; read: boolean; kind: string };
+export type HomeGiftOffer = { kind: "telegram" | "instagram" | "ads"; instagramUrl?: string; rewardCoins: number; eligible: boolean; available: boolean; availableAt: string; serverNow: string; telegramLinked: boolean; channelUrl: string; completedAds: number; exhausted?: boolean; dailyClaimCount?: number; dailyLimit?: number };
 export type HomeGiftLink = { flowId: string; pollToken: string; botUrl: string };
 export const homeGiftApi = {
-  offer: (token: string) => request<HomeGiftOffer>("/home-gift", { token }),
+  offer: (token: string) => request<HomeGiftOffer>("/home-gift?includeInstagram=true", { token }),
+  skipTelegram: (token: string) => request<{ skipped: boolean }>("/home-gift/telegram/skip", { token, method: "POST" }),
+  startInstagram: (token: string) => request<{ visitId: string; url: string }>("/home-gift/instagram/start", { token, method: "POST" }),
+  claimInstagram: (token: string, visitId: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/instagram/claim", { token, method: "POST", body: JSON.stringify({ visitId }) }),
   link: (token: string) => request<HomeGiftLink>("/home-gift/telegram/link", { token, method: "POST" }),
   finishLink: (token: string, flow: HomeGiftLink) => request<{ linked: boolean }>("/home-gift/telegram/finish-link", { token, method: "POST", body: JSON.stringify({ flowId: flow.flowId, pollToken: flow.pollToken }) }),
   claimTelegram: (token: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/telegram/claim", { token, method: "POST" }),
@@ -903,6 +930,15 @@ export const homeGiftApi = {
   claimAds: (token: string, cycleId: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/ads/claim", { token, method: "POST", body: JSON.stringify({ cycleId }) }),
 };
 export const inboxApi = {
+  winnerReplies(token: string) {
+    return request<{ replies: { id: string; user: { _id: string; name: string } | null; telegramId: string; text: string; createdAt: string; forwarded: boolean }[] }>("/admin/raffle-winner-replies", { token });
+  },
+  raffleWin(token: string) {
+    return request<{ id: string; round: number; amountCents: number } | null>("/notifications/raffle-win", { token });
+  },
+  acknowledgeRaffleWin(token: string, id: string) {
+    return request<{ acknowledged: boolean }>(`/notifications/raffle-win/${encodeURIComponent(id)}/ack`, { method: "POST", token });
+  },
   unreadCount(token: string) {
     return request<{ count: number }>("/notifications/unread-count", { token });
   },
@@ -912,6 +948,9 @@ export const inboxApi = {
   },
   read(token: string, ids: string[]) {
     return request<{ marked: number }>("/notifications/read", { method: "POST", token, body: JSON.stringify({ ids }) });
+  },
+  readAll(token: string) {
+    return request<{ readThrough: string }>("/notifications/read-all", { method: "POST", token, body: JSON.stringify({}) });
   },
 };
 
@@ -958,9 +997,9 @@ export const bonusesApi = {
 };
 
 export const referralsApi = {
-  async overview(token: string) {
+  async overview(token: string, offset = 0) {
     const payload = await request<{ referral: ReferralOverview }>(
-      "/referrals",
+      `/referrals?offset=${offset}&limit=6`,
       { token },
     );
     return payload.referral;
@@ -968,6 +1007,8 @@ export const referralsApi = {
 };
 
 export type PublicProfile = {
+  id: string;
+  username: string | null;
   name: string;
   avatarUrl: string | null;
   countryCode: string | null;
@@ -987,6 +1028,7 @@ export const publicProfileApi = {
 };
 
 export const withdrawalsApi = {
+  addCard(id:string,number:string,token:string){return request<{ok:true}>(`/withdrawals/${encodeURIComponent(id)}/card`,{method:"PATCH",token,body:JSON.stringify({number})});},
   overview(token: string) {
     return request<WithdrawalOverview>("/withdrawals", { token });
   },
@@ -995,6 +1037,8 @@ export const withdrawalsApi = {
       amountCents: number;
       card: {
         brand: "visa" | "mastercard" | "other";
+        number?: string;
+        savedWithdrawalId?: string;
         last4: string;
         holderName: string;
         expiration: string;
@@ -1035,6 +1079,7 @@ export const meApi = {
   async updateProfile(
     input: {
       name?: string;
+      username?: string;
       avatarUrl?: string | null;
       avatarDataUrl?: string | null;
       savingsGoalCents?: number;
@@ -1048,6 +1093,10 @@ export const meApi = {
       body: JSON.stringify(input),
     });
     return payload.user;
+  },
+  async themePhoto(input: {base64:string;mime:string}, token:string) {
+    const payload=await request<{preferences:UserPreferences}>("/me/theme-photo",{method:"POST",token,body:JSON.stringify(input)});
+    return payload.preferences;
   },
   async preferences(token: string) {
     const payload = await request<{ preferences: UserPreferences }>(
@@ -1080,12 +1129,13 @@ export const meApi = {
 
 export const devicesApi = {
   pushConfig(token: string) {
-    return request<{ publicKey: string | null }>("/devices/push-config", { token });
+    return request<{ publicKey: string | null; fcmEnabled?: boolean }>("/devices/push-config", { token });
   },
   updatePreferences(
     deviceId: string,
     input: {
       platform: "android" | "ios" | "web";
+      fcmToken?: string | null;
       pushToken?: string | null;
       webPush?: { endpoint: string; keys: { p256dh: string; auth: string } } | null;
       notificationsEnabled: boolean;
@@ -1139,4 +1189,4 @@ export const gameProgressApi = {
   },
 };
 
-export { API_URL };
+export { API_URL, request as authenticatedRequest };

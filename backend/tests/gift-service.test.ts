@@ -5,10 +5,13 @@ const giftMocks = vi.hoisted(() => ({
   find: vi.fn(),
   findOne: vi.fn(),
   findOneAndUpdate: vi.fn(),
-  updateOne: vi.fn()
+  updateOne: vi.fn(),
+  create: vi.fn(),
+  countDocuments: vi.fn()
 }));
 const attemptMocks = vi.hoisted(() => ({
   findOne: vi.fn(),
+  exists: vi.fn(),
   updateOne: vi.fn()
 }));
 const gameMocks = vi.hoisted(() => ({
@@ -22,8 +25,9 @@ vi.mock("../src/models/GiftItem.js", () => ({ GiftItem: giftMocks }));
 vi.mock("../src/models/ChallengeAttempt.js", () => ({ ChallengeAttempt: attemptMocks }));
 vi.mock("../src/services/game.service.js", () => gameMocks);
 vi.mock("../src/services/coin.service.js", () => coinMocks);
+vi.mock("../src/models/NotificationEvent.js", () => ({ NotificationEvent: { create: vi.fn().mockResolvedValue([]) } }));
 
-import { activateNextChallengeCoinGifts, useGift } from "../src/services/gift.service.js";
+import { activateNextChallengeCoinGifts, grantStarterHints, useGift } from "../src/services/gift.service.js";
 
 const userId = new Types.ObjectId();
 const gameId = new Types.ObjectId();
@@ -69,6 +73,41 @@ describe("gift use transaction", () => {
       endSession: vi.fn().mockResolvedValue(undefined)
     } as unknown as ClientSession;
     vi.spyOn(mongoose, "startSession").mockResolvedValue(session);
+  });
+
+  it("uses one gifted hint without charging coins or requiring a challenge timer", async () => {
+    giftMocks.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ ...gift, kind: "hint", status: "available" }) });
+    giftMocks.findOneAndUpdate.mockResolvedValue({ ...gift, kind: "hint", usedOnGameKey: "hangman" });
+    const result = await useGift({ userId, giftId, gameKey: "hangman" });
+    expect(result.effect).toEqual({ kind: "hint", gameKey: "hangman", lettersRevealed: 1 });
+    expect(coinMocks.creditCoins).not.toHaveBeenCalled();
+    expect(attemptMocks.updateOne).not.toHaveBeenCalled();
+    expect(giftMocks.findOneAndUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "available", kind: "hint" }), expect.objectContaining({ $set: expect.objectContaining({ status: "used", usedOnGameKey: "hangman" }) }), expect.objectContaining({ session: expect.anything() }));
+  });
+
+  it("grants exactly three starter gifts once per account, including after they are used", async () => {
+    attemptMocks.exists.mockResolvedValue({ _id: attemptId });
+    const existing = new Map<string, unknown>();
+    giftMocks.findOne.mockImplementation(({ sourceId }: { sourceId: string }) => ({ session: vi.fn().mockResolvedValue(existing.get(sourceId) ?? null) }));
+    giftMocks.create.mockImplementation(async ([input]: [{ sourceId: string }]) => { const item = { ...gift, ...input }; existing.set(input.sourceId, item); return [item]; });
+    expect(await grantStarterHints(userId)).toEqual({ granted: 3 });
+    expect(await grantStarterHints(userId)).toEqual({ granted: 0 });
+    expect(existing.size).toBe(3);
+    expect(giftMocks.create).toHaveBeenCalledTimes(3);
+    expect(coinMocks.creditCoins).not.toHaveBeenCalled();
+  });
+
+  it("does not grant starter hints before a Hangman challenge is started", async () => {
+    attemptMocks.exists.mockResolvedValue(null);
+    await expect(grantStarterHints(userId)).rejects.toMatchObject({ code: "active_attempt_required" });
+  });
+
+  it("rejects unsupported hint games and already consumed gifts", async () => {
+    giftMocks.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ ...gift, kind: "hint", status: "available" }) });
+    await expect(useGift({ userId, giftId, gameKey: "tetris" })).rejects.toMatchObject({ code: "hint_not_supported" });
+    giftMocks.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+    await expect(useGift({ userId, giftId, gameKey: "hangman" })).rejects.toMatchObject({ code: "gift_unavailable" });
+    expect(coinMocks.creditCoins).not.toHaveBeenCalled();
   });
 
   it("does not consume a gift when no started attempt exists", async () => {

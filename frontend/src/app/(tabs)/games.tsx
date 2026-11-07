@@ -1,7 +1,11 @@
+import { FeedAd } from "@/components/feed-ad";
+import { useUiCopy } from "@/components/localized-native";
+
+import { isGameVisible } from "@/constants/game-availability";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { memo, useCallback, useMemo, useState } from "react";
+import { Fragment, memo, useCallback, useMemo, useState } from "react";
 import { FlatList, Image, Platform, Pressable, StyleSheet, View, type ListRenderItemInfo, type StyleProp, type ViewStyle } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
@@ -20,7 +24,6 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
 import { gamesApi } from "@/lib/api";
 import { androidImageProps } from "@/lib/android-image";
-import { accentForeground, readableAccent } from "@/lib/theme-colors";
 import { useAppStore } from "@/store/app-store";
 import type { GameCatalogItem } from "@/types";
 
@@ -68,20 +71,22 @@ function mapServerGame(entry: GameCatalogItem): LocalizedGame | null {
 }
 
 function GamesHeader() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
+  const router = useRouter();
   const { language } = useTranslation();
   const coinBalance = useAppStore((state) => state.coinBalance);
 
   return (
-    <ScreenHeader
+    <View><ScreenHeader
       title={copy[language].title}
       action={
         <GlassSurface intensity={64} variant="strong" style={styles.count}>
           <Ionicons name="diamond" size={18} color={String(theme.primary)} />
-          <AppText style={[styles.countText, { color: theme.primary }]}>{coinBalance} coin</AppText>
+          <AppText style={[styles.countText, { color: theme.primary }]}>{copyContent(coinBalance)} {copyText(" coin")}</AppText>
         </GlassSurface>
       }
-    />
+    />{process.env.EXPO_PUBLIC_LOCAL_GAMES_PREVIEW === '1' && <Pressable accessibilityRole="button" onPress={() => router.push('/preview-games' as never)} style={{ padding: 18, backgroundColor: '#007A57', borderRadius: 18, marginBottom: 14 }}><AppText style={{ color: '#fff', textAlign: 'center', fontWeight: '800' }}>{copyContent(language === 'ru' ? 'Виселица — тест' : language === 'uz' ? 'So‘zni top — sinov' : 'Hangman — preview')}</AppText></Pressable>}</View>
   );
 }
 
@@ -91,6 +96,7 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
   wide: boolean;
   onOpenSkins: (gameId: GameId) => void;
 }) {
+  const { copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const router = useRouter();
   const { language } = useTranslation();
@@ -98,32 +104,32 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
   const progressKey = PROGRESS_KEY_BY_SERVER_KEY[game.key] ?? (game.key as GameId);
   const coins = useGameProgressStore((state) => ready ? state.games[progressKey]?.coins ?? EMPTY_GAME_PROGRESS.coins : EMPTY_GAME_PROGRESS.coins);
   const cover = gameCoverFor(game.key);
-  const accent = readableAccent(game.color, theme.mode);
-  const playForeground = accentForeground(game.color, theme.mode);
+  const accent = String(theme.primary);
+  const playForeground = String(theme.onPrimary);
   const play = () => router.push(game.key === "bottle-flip" ? "/practice/bottle-flip" as never : { pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "practice" } } as never);
 
   return (
     <View collapsable={false} style={[styles.cell, wide && styles.cellWide]}>
       <GlassSurface intensity={68} variant="strong" style={styles.card}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={play} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("{0}: {1}", [c.play, game.title])} onPress={play} style={({ pressed }) => [styles.playArea, pressed && styles.pressed]}>
           <View style={[styles.icon, { backgroundColor: `${accent}18`, borderColor: `${accent}38` }]}>
             {cover ? <Image source={cover} resizeMode="cover" {...androidImageProps} style={styles.cover} accessibilityIgnoresInvertColors /> : <Ionicons name={game.icon as React.ComponentProps<typeof Ionicons>["name"]} color={accent} size={28} />}
           </View>
           <View style={styles.copy}>
-            <AppText style={[styles.title, { color: theme.text }]} numberOfLines={2}>{game.title}</AppText>
+            <AppText style={[styles.title, { color: theme.text }]} numberOfLines={2}>{copyContent(game.title)}</AppText>
             <View style={styles.bestRow}>
               <Ionicons name="diamond-outline" size={13} color={accent} />
-              <AppText style={[styles.best, { color: accent }]}>{c.best} {coins}</AppText>
+              <AppText style={[styles.best, { color: accent }]}>{copyContent(c.best)} {copyContent(coins)}</AppText>
             </View>
           </View>
         </Pressable>
         <View style={styles.cardActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Скины: ${game.title}`} onPress={() => onOpenSkins(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("Скины: {0}", [game.title])} onPress={() => onOpenSkins(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
             <Ionicons name="shirt-outline" color={accent} size={17} />
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${c.play}: ${game.title}`} onPress={play} style={({ pressed }) => [styles.playButton, { backgroundColor: game.color }, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("{0}: {1}", [c.play, game.title])} onPress={play} style={({ pressed }) => [styles.playButton, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
             <Ionicons name="play" color={playForeground} size={15} />
-            <AppText style={[styles.playText, { color: playForeground }]}>{c.play}</AppText>
+            <AppText style={[styles.playText, { color: playForeground }]}>{copyContent(c.play)}</AppText>
           </Pressable>
         </View>
       </GlassSurface>
@@ -165,7 +171,7 @@ export default function GamesScreen() {
           .filter((entry): entry is LocalizedGame => entry !== null)
       : GAME_CATALOG;
     const complete = catalog.some((entry) => entry.key === "bottle-flip") ? catalog : [...catalog, GAME_BY_KEY["bottle-flip"]!];
-    return complete.filter((entry) => entry.key !== "fact").map((entry) => localizeGame(entry, language));
+    return complete.filter((entry) => entry.key !== "fact" && isGameVisible(entry.key)).map((entry) => localizeGame(entry, language));
   }, [authenticated, language, query.data, query.isSuccess]);
   const rows = useMemo(() => {
     const result: GameCatalogItem[][] = [];
@@ -175,10 +181,10 @@ export default function GamesScreen() {
     }
     return result;
   }, [games, wide]);
-  const renderRow = useCallback(({ item }: ListRenderItemInfo<GameCatalogItem[]>) => (
-    <View style={wide ? styles.listRowWide : undefined}>
+  const renderRow = useCallback(({ item, index }: ListRenderItemInfo<GameCatalogItem[]>) => (
+    <View><View style={wide ? styles.listRowWide : undefined}>
       {item.map((game) => <GameCard key={game.key} game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId} />)}
-    </View>
+    </View>{index === (wide ? 2 : 5) ? <FeedAd placement="games-catalog"/> : null}</View>
   ), [ready, wide]);
   const renderNativeCatalog = (contentContainerStyle: StyleProp<ViewStyle>) => (
     <>
@@ -211,7 +217,7 @@ export default function GamesScreen() {
           <>
             <GamesHeader />
             <View style={[styles.grid, wide && styles.gridWide]}>
-              {games.map((game) => <GameCard key={game.key} game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId} />)}
+              {games.map((game,index) => <Fragment key={game.key}><GameCard game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId}/>{index===5?<FeedAd placement="games-catalog"/>:null}</Fragment>)}
             </View>
             {economyGameId === "bottle-flip" ? <BottleThemes visible onClose={() => setEconomyGameId(null)} /> : economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
           </>

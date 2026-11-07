@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
@@ -24,6 +26,7 @@ export function ActivityHeatmap({
   days?: ActivityDay[];
   toDayKey?: string;
 }) {
+  const { copyText } = useUiCopy();
   const theme = useAppTheme();
   const { isDesktop } = useResponsiveLayout();
   const cellSize = compact ? 8 : isDesktop ? 18 : 12;
@@ -76,8 +79,7 @@ export function ActivityHeatmap({
       {!compact ? (
         <View style={styles.legend}>
           <AppText variant="caption" muted>
-            Меньше
-          </AppText>
+            {copyText(" Меньше ")}</AppText>
           {colors.map((color) => (
             <View
               key={color}
@@ -90,8 +92,7 @@ export function ActivityHeatmap({
             />
           ))}
           <AppText variant="caption" muted>
-            Больше
-          </AppText>
+            {copyText(" Больше ")}</AppText>
         </View>
       ) : null}
     </View>

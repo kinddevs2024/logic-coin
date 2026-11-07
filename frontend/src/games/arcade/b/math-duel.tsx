@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -69,6 +71,7 @@ function makeInitialState(): DuelState {
 }
 
 export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeconds = 0, paused = false, skin }: ArcadeGameProps) {
+  const { copyText, copyContent } = useUiCopy();
   const sessionTime = GAME_TIME + Math.max(0, extraTimeSeconds);
   const accent = arcadeSkinAccent(skin, B_COLORS.violet);
   const secondaryAccent = skin && skin.id !== "classic" ? skin.secondary : "#FF8B3D";
@@ -168,10 +171,10 @@ export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
           <View style={styles.centerBar}>
             <Metric label="ВРЕМЯ" value={timeLeft} color={timeLeft <= 10 ? B_COLORS.red : B_COLORS.gold} />
             <View style={styles.centralScore}>
-              <Text style={[styles.score, { color: accent }]}>{rewardCoins(game.score, true, "math-duel")} coin</Text>
+              <Text style={[styles.score, { color: accent }]}>{copyContent(rewardCoins(game.score, true, "math-duel"))} {copyText(" coin")}</Text>
               <View style={styles.comboRow}>
                 {game.combo >= 2 ? <ArcadeIcon name="fire" size={10} color="#FF9D45" /> : null}
-                <Text style={styles.combo}>{game.combo >= 2 ? `x${game.combo}` : "FOCUS"}</Text>
+                <Text style={styles.combo}>{copyContent(game.combo >= 2 ? `x${game.combo}` : "FOCUS")}</Text>
               </View>
             </View>
             <Metric label="TOTAL" value={correct} color={B_COLORS.green} />
@@ -187,21 +190,22 @@ export function MathDuelGame({ onExit, onFinish, initialCoins = 0, extraTimeSeco
 }
 
 function DuelField({ side, label, field, accent, onAnswer }: { side: "top" | "bottom"; label: string; field: Field; accent: string; onAnswer: (value: boolean) => void }) {
+  const { copyContent, formatCopy } = useUiCopy();
   const disabled = field.lives <= 0;
   return (
     <LinearGradient colors={side === "top" ? ["#14082C", "#0B1025"] : ["#271006", "#14101A"]} style={[styles.field, disabled && styles.fieldDisabled]}>
       <View style={styles.fieldHeader}>
         <View style={styles.lives}>{Array.from({ length: MAX_LIVES }, (_, index) => <ArcadeIcon key={index} name={index < field.lives ? "heart" : "heart-outline"} size={15} color={index < field.lives ? B_COLORS.red : "rgba(255,255,255,.12)"} />)}</View>
-        <Text style={styles.fieldLabel}>{label}</Text>
+        <Text style={styles.fieldLabel}>{copyContent(label)}</Text>
       </View>
       <ProgressTrack value={field.lives / MAX_LIVES} color={field.lives <= 1 ? B_COLORS.red : accent} />
       <Animated.View key={`${side}-${field.correct}-${field.wrong}`} entering={FadeInDown.duration(220)} style={styles.equation}>
-        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.expression}>{field.question.expression}</Text>
-        <Text style={styles.shownAnswer}>{field.question.shownAnswer}<Text style={{ color: accent }}>?</Text></Text>
+        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.expression}>{copyContent(field.question.expression)}</Text>
+        <Text style={styles.shownAnswer}>{copyContent(field.question.shownAnswer)}<Text style={{ color: accent }}>?</Text></Text>
       </Animated.View>
       <View style={styles.answerRow}>
-        <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={`${label}: ответ верный`} onPress={() => onAnswer(true)} style={({ pressed }) => [styles.duelButton, styles.trueButton, pressed && styles.pressed]}><ArcadeIcon name="check-bold" size={25} color="#FFFFFF" /></Pressable>
-        <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={`${label}: ответ неверный`} onPress={() => onAnswer(false)} style={({ pressed }) => [styles.duelButton, styles.falseButton, pressed && styles.pressed]}><ArcadeIcon name="close-thick" size={25} color="#FFFFFF" /></Pressable>
+        <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={formatCopy("{0}: ответ верный", [label])} onPress={() => onAnswer(true)} style={({ pressed }) => [styles.duelButton, styles.trueButton, pressed && styles.pressed]}><ArcadeIcon name="check-bold" size={25} color="#FFFFFF" /></Pressable>
+        <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={formatCopy("{0}: ответ неверный", [label])} onPress={() => onAnswer(false)} style={({ pressed }) => [styles.duelButton, styles.falseButton, pressed && styles.pressed]}><ArcadeIcon name="close-thick" size={25} color="#FFFFFF" /></Pressable>
       </View>
     </LinearGradient>
   );

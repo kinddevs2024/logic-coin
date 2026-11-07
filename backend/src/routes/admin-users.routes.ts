@@ -1,7 +1,9 @@
+import {TelegramContact} from "../models/TelegramContact.js";
 import { Router } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
+import { THEMES, SUPPORTED_LANGUAGES } from "../config/constants.js";
 import { User } from "../models/User.js";
 import { ApiError } from "../lib/api-error.js";
 import { validateBody } from "../middleware/validate.js";
@@ -13,10 +15,16 @@ const integer = z.number().int().min(0).max(1_000_000_000);
 export const editableUserProfile = z.object({
   name: z.string().trim().min(1).max(80), email: z.string().email().max(254).transform(v=>v.toLowerCase()),
   countryCode: z.string().regex(/^[A-Z]{2}$/).optional(), avatarUrl: z.string().max(14000000).optional(),
-  preferences: z.object({ language: z.enum(["ru","uz","en"]), theme: z.enum(["light","dark","auto"]), savingsGoalCents: integer, notificationsEnabled: z.boolean(), dailyReminderEnabled: z.boolean(), timezone: z.string().max(80).refine(v=>{try{new Intl.DateTimeFormat("en",{timeZone:v});return true;}catch{return false;}}) }).strict(),
+  preferences: z.object({ language: z.enum(SUPPORTED_LANGUAGES), theme: z.enum(THEMES), customTheme: z.object({ wallpaperUrl: z.string().min(1).max(2048), accent: z.string().regex(/^#[0-9a-f]{6}$/i), dark: z.boolean() }).strict().optional(), savingsGoalCents: integer, notificationsEnabled: z.boolean(), dailyReminderEnabled: z.boolean(), timezone: z.string().max(80).refine(v=>{try{new Intl.DateTimeFormat("en",{timeZone:v});return true;}catch{return false;}}) }).strict(),
   wallet: z.object({ availableUnits: integer }).strict(), coins: z.object({ balance: integer }).strict(),
 }).strict();
 function id(value: string) {if(!/^[a-f0-9]{24}$/i.test(value))throw new ApiError(400,"invalid_user","Некорректный пользователь.");return new mongoose.Types.ObjectId(value);}
+router.get("/:id/telegram-contact",async(req,res)=>{
+ const user=await User.findById(id(String(req.params.id))).select("providers.telegramSub").lean();
+ if(!user)throw new ApiError(404,"not_found","Пользователь не найден.");
+ const contact=user.providers?.telegramSub?await TelegramContact.findOne({telegramId:user.providers.telegramSub}).select("+phoneNumber -__v").lean():null;
+ res.json({data:{contact}});
+});
 router.get("/",async(req,res)=>{
  const q=String(req.query.q??"").trim().slice(0,100),page=Math.max(0,Math.min(100000,Number(req.query.page)||0));
  const escaped=q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
@@ -29,7 +37,7 @@ router.patch("/:id",validateBody(z.object({expectedUpdatedAt:z.string().datetime
  try{await session.withTransaction(async()=>{
   const old=await User.findById(userId).select(projection).session(session).lean();if(!old)throw new ApiError(404,"not_found","Пользователь не найден.");
   if(new Date(old.updatedAt).toISOString()!==req.body.expectedUpdatedAt)throw new ApiError(409,"changed","Данные изменились. Обновите список.");
-  const p=req.body.profile;const fields={name:p.name,email:p.email,...(p.countryCode?{countryCode:p.countryCode}:{}),...(p.avatarUrl!==undefined?{avatarUrl:p.avatarUrl}:{}),preferences:p.preferences,"wallet.availableUnits":p.wallet.availableUnits,"coins.balance":p.coins.balance};
+  const p=req.body.profile;const fields={name:p.name,email:p.email,...(p.countryCode?{countryCode:p.countryCode}:{}),...(p.avatarUrl!==undefined?{avatarUrl:p.avatarUrl}:{}),...Object.fromEntries(Object.entries(p.preferences).map(([key,value])=>[`preferences.${key}`,value])),"wallet.availableUnits":p.wallet.availableUnits,"coins.balance":p.coins.balance};
   result=await User.findOneAndUpdate({_id:userId,updatedAt:old.updatedAt},{$set:fields},{new:true,runValidators:true,session}).select(projection).lean();if(!result)throw new ApiError(409,"changed","Обновите список.");
   await mongoose.connection.db!.collection("adminuseraudits").insertOne({operationId:randomUUID(),adminId:req.auth!.userId,action:"edit_user",reason:req.body.reason,before:old,after:result,createdAt:new Date()},{session});
  });}finally{await session.endSession();}res.json({data:{user:result}});

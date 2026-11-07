@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -11,6 +13,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { adminApi } from "@/lib/api";
 
 export default function BlockedDevicesScreen() {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const queryClient = useQueryClient();
   const { adminToken } = useAdminSession();
@@ -43,38 +46,38 @@ export default function BlockedDevicesScreen() {
               <Ionicons name="phone-portrait-outline" size={22} color={String(theme.danger)} />
             </View>
             <View style={styles.body}>
-              <AppText variant="label" numberOfLines={1}>{device.deviceId}</AppText>
-              <AppText variant="caption" muted>{device.registrationCount} регистраций · {device.accountCount} аккаунтов</AppText>
-              <AppText variant="caption" muted>{device.users.map((user) => user.email).join(", ") || "Аккаунты не найдены"}</AppText>
-              <AppText variant="caption" color={String(theme.danger)}>{device.reason === "registration_limit" ? "Достигнут лимит — новые аккаунты запрещены" : "Заблокировано администратором"}</AppText>
+              <AppText variant="label" numberOfLines={1}>{copyContent(device.deviceId)}</AppText>
+              <AppText variant="caption" muted>{copyContent(device.registrationCount)} {copyText(" регистраций · ")}{copyContent(device.accountCount)} {copyText(" аккаунтов")}</AppText>
+              <AppText variant="caption" muted>{copyContent(device.users.map((user) => user.email).join(", ") || "Аккаунты не найдены")}</AppText>
+              <AppText variant="caption" color={String(theme.danger)}>{copyContent(device.reason === "registration_limit" ? "Достигнут лимит — новые аккаунты запрещены" : "Заблокировано администратором")}</AppText>
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Разблокировать и разрешить ещё один аккаунт"
+              accessibilityLabel={copyText("Разблокировать и разрешить ещё один аккаунт")}
               disabled={unban.isPending || reset.isPending}
               onPress={() => unban.mutate(device.deviceId)}
               style={({ pressed }) => [styles.button, { backgroundColor: theme.primarySoft }, pressed && styles.pressed]}
             >
               <Ionicons name="lock-open-outline" size={17} color={String(theme.primary)} />
-              <AppText variant="caption" color={String(theme.primary)}>Разрешить +1</AppText>
+              <AppText variant="caption" color={String(theme.primary)}>{copyText("Разрешить +1")}</AppText>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Удалить устройство из списка и сбросить лимит"
+            <Pressable accessibilityRole="button" accessibilityLabel={copyText("Удалить устройство из списка и сбросить лимит")}
               disabled={unban.isPending || reset.isPending}
               onPress={() => { reset.reset(); setResetTarget(device.deviceId); }}
               style={[styles.button, { backgroundColor: `${String(theme.danger)}16` }]}>
               <Ionicons name="trash-outline" size={17} color={String(theme.danger)} />
-              <AppText variant="caption" color={String(theme.danger)}>Удалить</AppText>
+              <AppText variant="caption" color={String(theme.danger)}>{copyText("Удалить")}</AppText>
             </Pressable>
             {resetTarget === device.deviceId ? (
               <View style={styles.confirmation}>
-                <AppText variant="label">Сбросить устройство?</AppText>
-                <AppText muted>История привязок будет очищена. Снова станут доступны любые 3 аккаунта. Сами аккаунты и балансы не удаляются.</AppText>
+                <AppText variant="label">{copyText("Сбросить устройство?")}</AppText>
+                <AppText muted>{copyText("История привязок будет очищена. Снова станут доступны любые 3 аккаунта. Сами аккаунты и балансы не удаляются.")}</AppText>
                 <View style={styles.actions}>
                   <Pressable accessibilityRole="button" disabled={reset.isPending} onPress={() => setResetTarget(null)} style={[styles.button, { backgroundColor: theme.primarySoft }]}>
-                    <AppText>Отмена</AppText>
+                    <AppText>{copyText("Отмена")}</AppText>
                   </Pressable>
                   <Pressable accessibilityRole="button" disabled={reset.isPending || unban.isPending} onPress={() => reset.mutate(device.deviceId)} style={styles.button}>
-                    <AppText color={String(theme.danger)}>{reset.isPending ? "Сбрасываем…" : "Удалить и сбросить"}</AppText>
+                    <AppText color={String(theme.danger)}>{copyContent(reset.isPending ? "Сбрасываем…" : "Удалить и сбросить")}</AppText>
                   </Pressable>
                 </View>
               </View>
@@ -82,8 +85,8 @@ export default function BlockedDevicesScreen() {
           </GlassSurface>
         ))}
       </View>
-      {unban.error ? <AppText color={String(theme.danger)}>{unban.error.message}</AppText> : null}
-      {reset.error ? <AppText color={String(theme.danger)}>{reset.error.message}</AppText> : null}
+      {unban.error ? <AppText color={String(theme.danger)}>{copyContent(unban.error.message)}</AppText> : null}
+      {reset.error ? <AppText color={String(theme.danger)}>{copyContent(reset.error.message)}</AppText> : null}
     </View>
   );
 }

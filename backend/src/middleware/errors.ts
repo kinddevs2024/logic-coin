@@ -1,3 +1,4 @@
+import { localizeBuiltIn } from "../lib/localize-built-in.js";
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { ApiError } from "../lib/api-error.js";
@@ -44,7 +45,7 @@ export const errorHandler: ErrorRequestHandler = (error, request, response, _nex
   response.status(apiError.statusCode).json({
     error: {
       code: apiError.code,
-      message: apiError.message,
+      message: localizeBuiltIn(apiError.message, request.header("accept-language")?.startsWith("uz") ? "uz" : request.header("accept-language")?.startsWith("en") ? "en" : "ru"),
       ...(apiError.details !== undefined ? { details: apiError.details } : {}),
       requestId: request.requestId
     }

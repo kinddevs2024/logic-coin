@@ -1,8 +1,8 @@
 import { Router } from "express";
+import { requireChallengeRequest } from "../services/challenge-client.service.js";
 import { z } from "zod";
 import { MAX_CHALLENGE_DURATION_MS, MAX_CHALLENGE_SCORE } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
-import { isNativeAppClient, requireNativeChallengeClient } from "../lib/native-client.js";
 import { rewardLimiter } from "../middleware/rate-limits.js";
 import { validateBody } from "../middleware/validate.js";
 import {
@@ -18,9 +18,9 @@ import {
 } from "../services/contest.service.js";
 import { getTodayChallengeOverview } from "../services/daily-challenge.service.js";
 import { getContestProgress } from "../services/contest-progress.service.js";
+
 import { getContestHistory } from "../services/contest-history.service.js";
 import { getDailyContestRules } from "../services/contest-rules.service.js";
-
 const router = Router();
 const gameKeySchema = z.string().trim().regex(/^[a-z0-9-]{1,80}$/);
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -61,7 +61,7 @@ router.post("/rewards/:resultId/claim", rewardLimiter, async (request, response)
 });
 
 router.post("/:gameKey/start", async (request, response) => {
-  requireNativeChallengeClient(isNativeAppClient(request.headers));
+  requireChallengeRequest(request.headers);
   const gameKey = gameKeySchema.safeParse(request.params.gameKey);
   if (!gameKey.success) throw new ApiError(400, "invalid_game_key", "Game key is invalid");
   const attempt = await startChallengeAttempt({
@@ -80,7 +80,6 @@ const completeSchema = z
 
 router.post(
   "/:gameKey/complete",
-  (request, _response, next) => { requireNativeChallengeClient(isNativeAppClient(request.headers)); next(); },
   rewardLimiter,
   validateBody(completeSchema),
   async (request, response) => {
@@ -99,7 +98,6 @@ router.post(
 
 router.post(
   "/double",
-  (request, _response, next) => { requireNativeChallengeClient(isNativeAppClient(request.headers)); next(); },
   rewardLimiter,
   validateBody(
     z

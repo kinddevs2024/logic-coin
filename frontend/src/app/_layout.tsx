@@ -1,9 +1,11 @@
+import { ChatRuntime } from "@/components/chat/chat-runtime";
+import { localizeBuiltIn } from "@/lib/localize-built-in";
 import "react-native-reanimated";
 import "../global.css";
 import "@/lib/referral-attribution";
 
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -13,14 +15,21 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppearanceTransition } from "@/components/appearance-transition";
+import { RaffleProvider } from "@/components/raffle-provider";
+import { AuthErrorProvider } from "@/components/auth-error-dialog";
+import { AppliedUpdateNotice } from "@/components/applied-update-notice";
 import { AdRuntime } from "@/components/ad-runtime";
 import { RewardBurst } from "@/components/reward-burst";
 import { ContestRewardModal } from "@/components/contest-reward-modal";
+import { RaffleWinNotice } from "@/components/raffle-win-notice";
+import { WithdrawalApprovedModal } from "@/components/withdrawal-approved-modal";
 import { ChallengeAdOffer } from "@/components/challenge-ad-offer";
 import { WebAnalytics } from "@/components/web-analytics";
 import { useGameProgressStore } from "@/games/progress-store";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { configureDailyReminder, syncPushNotifications, installNotificationHandlers } from "@/lib/notifications";
+import { configureDailyReminder, syncPushNotifications, installNotificationHandlers, dismissInboxNotifications, startInboxNotificationSync } from "@/lib/notifications";
+import { inboxApi } from "@/lib/api";
+import { inboxNotificationIds } from "@/lib/inbox-notification-tray";
 import { setPushStatus } from "@/lib/push-status";
 import { NotificationInbox } from "@/components/notification-inbox";
 import { useAppStore } from "@/store/app-store";
@@ -41,32 +50,68 @@ export default function RootLayout() {
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
+  const accountId = useAppStore((state) => state.user.id);
   const notificationsEnabled = useAppStore(
     (state) => state.notificationsEnabled,
   );
   const notificationTime = useAppStore((state) => state.notificationTime);
-  const language = useAppStore((state) => state.language) ?? "ru";
+  const language = useAppStore((state) => state.language) ?? "uz";
   const [pushInbox, setPushInbox] = useState(false);
 
   useEffect(() => {
-    if (!hydrated || authMode !== "authenticated") return;
+    if (!hydrated) return;
+    if (authMode !== "authenticated") {
+      void dismissInboxNotifications().catch(() => {});
+      return;
+    }
     let disposed = false;
     if (Platform.OS === "web" && new URLSearchParams(window.location.search).get("notifications") === "1") {
       queueMicrotask(() => {
         if (disposed) return;
         setPushInbox(true);
-        const url = new URL(window.location.href);
-        url.searchParams.delete("notifications");
-        window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+        void (async () => {
+          const url = new URL(window.location.href);
+          const ids = inboxNotificationIds({ inboxId: url.searchParams.get("notificationId") });
+          const state = useAppStore.getState();
+          if (state.accessToken && ids.length) {
+            await inboxApi.read(state.accessToken, ids);
+            await dismissInboxNotifications(ids);
+            await queryClient.invalidateQueries({ queryKey: ["unread-count", state.accessToken] });
+          }
+          url.searchParams.delete("notifications");
+          url.searchParams.delete("notificationId");
+          window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+        })().catch(() => {});
       });
     }
     let cleanup: (() => void) | undefined;
-    void installNotificationHandlers(() => setPushInbox(true), () => {
+    void installNotificationHandlers(async (ids, conversationId) => {
+      const state = useAppStore.getState();
+      if (conversationId) router.push({ pathname: "/messages", params: { chat: conversationId } } as never);
+      else setPushInbox(true);
+      if (state.accessToken && ids.length) {
+        await inboxApi.read(state.accessToken, ids);
+        await dismissInboxNotifications(ids);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["inbox", state.accessToken] }),
+          queryClient.invalidateQueries({ queryKey: ["unread-count", state.accessToken] }),
+        ]);
+      }
+    }, () => {
       const state = useAppStore.getState();
       if (state.accessToken) void syncPushNotifications({ accessToken: state.accessToken, enabled: state.notificationsEnabled, reminderTime: state.notificationTime }).catch(() => setPushStatus("error"));
     }).then(stop => { if (disposed) stop(); else cleanup = stop; }).catch(() => setPushStatus("error"));
     return () => { disposed = true; cleanup?.(); };
   }, [hydrated, authMode]);
+
+  useEffect(() => {
+    if (!hydrated || authMode !== "authenticated" || !accessToken || !accountId || !notificationsEnabled) return;
+    let disposed = false, cleanup: (() => void) | undefined;
+    void startInboxNotificationSync(accessToken, accountId).then(stop => {
+      if (disposed) stop(); else cleanup = stop;
+    }).catch(() => {});
+    return () => { disposed = true; cleanup?.(); };
+  }, [hydrated, authMode, accessToken, accountId, notificationsEnabled]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -89,14 +134,14 @@ export default function RootLayout() {
       document.documentElement.dataset.theme = theme.mode;
       document.documentElement.style.colorScheme = theme.mode === "dark" ? "dark" : "light";
       document.body.style.backgroundColor = String(theme.background);
-      // Browser chrome keeps the brand blue, independently of the page theme.
+      // Browser chrome keeps the brand green, independently of the page theme.
       let browserTheme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
       if (!browserTheme) {
         browserTheme = document.createElement("meta");
         browserTheme.name = "theme-color";
         document.head.appendChild(browserTheme);
       }
-      browserTheme.content = "#0866FF";
+      browserTheme.content = "#007A57";
     } else {
       void SystemUI.setBackgroundColorAsync(theme.background).catch(() => {});
     }
@@ -151,6 +196,23 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === "web") {
       document.documentElement.lang = language;
+      const original = document.documentElement.dataset.sourceTitle ?? document.title;
+      document.documentElement.dataset.sourceTitle = original;
+      document.title = localizeBuiltIn(original, language);
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:image"], meta[property="og:image:secure_url"], meta[name="twitter:image"]')) {
+        try {
+          const image = new URL(meta.dataset.sourceImage ?? meta.content, window.location.origin);
+          meta.dataset.sourceImage ??= meta.content;
+          if (image.pathname.includes("/api/v1/share/profile/")) image.searchParams.set("lang", language);
+          else if (image.pathname.includes("/share/logic-coin-guide-") || image.pathname.includes("/api/v1/share/platform/")) image.pathname = `/api/v1/share/platform/${language}.jpg`;
+          meta.content = image.toString();
+        } catch { /* Preserve metadata from an unknown host or malformed URL. */ }
+      }
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:title"], meta[property="og:description"], meta[name="twitter:title"], meta[name="twitter:description"]')) {
+        const source = meta.dataset.sourceCopy ?? meta.content;
+        meta.dataset.sourceCopy = source;
+        meta.content = localizeBuiltIn(source, language);
+      }
     }
   }, [language]);
 
@@ -181,20 +243,23 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!hydrated || !authMode) return;
-    void (async () => {
-      await configureDailyReminder(
-        notificationsEnabled,
-        notificationTime,
-        language,
-      );
+    const sync = async (requestPermission = false) => {
       if (authMode === "authenticated" && accessToken) {
         await syncPushNotifications({
           accessToken,
           enabled: notificationsEnabled,
           reminderTime: notificationTime,
+          requestPermission,
+          permissionOnEntry: requestPermission,
         });
       }
-    })().catch(() => setPushStatus("error"));
+      await configureDailyReminder(notificationsEnabled, notificationTime, language);
+    };
+    void sync(Platform.OS !== "web").catch(() => setPushStatus("error"));
+    const active = AppState.addEventListener("change", state => {
+      if (state === "active") void sync().catch(() => setPushStatus("error"));
+    });
+    return () => active.remove();
   }, [
     accessToken,
     authMode,
@@ -208,6 +273,8 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
+          <AuthErrorProvider>
+          <RaffleProvider>
           <StatusBar style={theme.mode === "dark" ? "light" : "dark"} />
           <Stack
             screenOptions={{
@@ -219,11 +286,17 @@ export default function RootLayout() {
           />
           <AppearanceTransition />
           <AdRuntime />
+          <AppliedUpdateNotice />
+          <ChatRuntime />
           <RewardBurst />
           <ContestRewardModal />
+          <WithdrawalApprovedModal />
+          <RaffleWinNotice />
           <ChallengeAdOffer />
           {pushInbox && authMode === "authenticated" ? <NotificationInbox onClose={() => setPushInbox(false)} /> : null}
           <WebAnalytics />
+          </RaffleProvider>
+          </AuthErrorProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

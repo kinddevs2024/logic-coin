@@ -1,9 +1,11 @@
+import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Modal, Platform, Pressable, StyleSheet, View } from "react-native";
+
 import Animated, { FadeIn, FadeInUp, FadeOut } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
@@ -28,6 +30,7 @@ export function EditProfileModal({ visible, onClose }: { visible: boolean; onClo
 }
 
 function EditProfileModalContent({ onClose }: { onClose: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const { t, language } = useTranslation();
   const user = useAppStore((state) => state.user);
@@ -35,6 +38,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const [name, setName] = useState(user.name);
+  const [username, setUsername] = useState(user.username ?? "");
   // Undefined means that the picture was not touched. Previously every name
   // edit re-uploaded the whole base64 image, which made profile saves slow.
   const [avatarDraft, setAvatarDraft] = useState<string | null | undefined>(undefined);
@@ -58,7 +62,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
   const avatarUrl = avatarDraft === undefined ? user.avatarUrl ?? null : avatarDraft;
   const avatarChanged = avatarDraft !== undefined;
   const maxAvatarDataUrlChars = 2_100_000;
-  const canSave = name.trim().length > 0 && (name.trim() !== user.name || countryCode !== user.countryCode || avatarChanged);
+  const canSave = name.trim().length > 0 && (name.trim() !== user.name || countryCode !== user.countryCode || avatarChanged || username.trim().replace(/^@/, "").toLowerCase() !== (user.username ?? ""));
 
   const pickAvatar = async () => {
     setMessage("");
@@ -109,6 +113,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       if (!cleanName) throw new Error("name_required");
       if (authMode === "authenticated" && accessToken) {
         return meApi.updateProfile({
+          ...(username !== (user.username ?? "") ? { username } : {}),
           ...(cleanName !== user.name ? { name: cleanName } : {}),
           ...(countryCode !== user.countryCode ? { countryCode } : {}),
           ...(avatarChanged ? { avatarDataUrl: avatarDraft } : {})
@@ -121,7 +126,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
       void queryClient.invalidateQueries({ queryKey: ["bootstrap"] });
       onClose();
     },
-    onError: () => setMessage(t("auth.invalid")),
+    onError: (error) => setMessage(error instanceof Error ? error.message : t("auth.invalid")),
   });
 
   return (
@@ -132,14 +137,14 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
         <Animated.View entering={Platform.OS === "android" ? undefined : FadeInUp.springify().damping(20)} style={styles.wrap}>
           <GlassSurface intensity={88} variant="strong" style={styles.card}>
             <View style={styles.top}>
-              <AppText style={[styles.title, { color: theme.text }]}>{t("profile.edit")}</AppText>
-              <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} style={[styles.close, { backgroundColor: theme.primarySoft }]}><Ionicons name="close" size={19} color={String(theme.text)} /></Pressable>
+              <AppText style={[styles.title, { color: theme.text }]}>{copyContent(t("profile.edit"))}</AppText>
+              <Pressable accessibilityRole="button" accessibilityLabel={copyText(t("common.close"))} onPress={onClose} style={[styles.close, { backgroundColor: theme.primarySoft }]}><Ionicons name="close" size={19} color={String(theme.text)} /></Pressable>
             </View>
             <View style={styles.preview}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Изменить фото профиля"
-                accessibilityHint="Выберите фотографию и обрежьте её перед сохранением"
+                accessibilityLabel={copyText("Изменить фото профиля")}
+                accessibilityHint={copyText("Выберите фотографию и обрежьте её перед сохранением")}
                 accessibilityState={{ busy: picking, disabled: picking || saveMutation.isPending }}
                 disabled={picking || saveMutation.isPending}
                 onPress={() => void pickAvatar()}
@@ -152,11 +157,16 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
               </Pressable>
             </View>
             <View style={styles.field}>
-              <AppText variant="caption" muted>{t("profile.name")}</AppText>
-              <TextInput value={name} onChangeText={setName} maxLength={80} autoCapitalize="words" placeholder={t("profile.name")} placeholderTextColor={String(theme.textMuted)} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} />
+              <AppText variant="caption" muted>{copyContent(t("profile.name"))}</AppText>
+              <TextInput value={name} onChangeText={setName} maxLength={80} autoCapitalize="words" placeholder={copyText(t("profile.name"))} placeholderTextColor={String(theme.textMuted)} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} />
             </View>
             <View style={styles.field}>
-              <AppText variant="caption" muted>Страна</AppText>
+              <AppText variant="caption" muted>{language === "uz" ? "Nikneym" : language === "en" ? "Username" : "Никнейм"}</AppText>
+              <TextInput accessibilityLabel="@username" value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={25} placeholder="@username" placeholderTextColor={String(theme.textMuted)} style={[styles.input, {color:theme.text,borderColor:theme.border,backgroundColor:theme.surfaceRaised}]} />
+              <AppText variant="caption" muted>{language === "uz" ? "Ixtiyoriy · 4–24 lotin harfi, raqam va _" : language === "en" ? "Optional · 4–24 Latin letters, digits and _" : "Необязательно · 4–24 латинских символа, цифры и _"}</AppText>
+            </View>
+            <View style={styles.field}>
+              <AppText variant="caption" muted>{copyText("Страна")}</AppText>
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: countryOpen }}
@@ -164,7 +174,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                 style={[styles.countryPicker, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
               >
                 <CountryFlagBadge countryCode={countryCode} size={22} />
-                <AppText style={styles.countryPickerText} numberOfLines={1}>{countryName(countryCode, language)}</AppText>
+                <AppText style={styles.countryPickerText} numberOfLines={1}>{copyContent(countryName(countryCode, language))}</AppText>
                 <Ionicons name={countryOpen ? "chevron-up" : "chevron-down"} size={18} color={String(theme.textMuted)} />
               </Pressable>
               {countryOpen ? (
@@ -176,7 +186,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                       countryListRef.current?.scrollToOffset({ offset: 0, animated: false });
                     }}
                     autoFocus
-                    placeholder="Поиск страны"
+                    placeholder={copyText("Поиск страны")}
                     placeholderTextColor={String(theme.textMuted)}
                     style={[styles.countrySearch, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}
                   />
@@ -198,17 +208,17 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                     renderItem={({ item: { code } }) => (
                       <Pressable accessibilityRole="radio" accessibilityState={{ checked: countryCode === code }} onPress={() => { setCountryCode(code); setCountryOpen(false); setCountryQuery(""); }} style={[styles.countryOption, { borderColor: countryCode === code ? theme.primary : theme.border, backgroundColor: countryCode === code ? theme.primarySoft : theme.surfaceRaised }]}>
                         <CountryFlagBadge countryCode={code} size={22} />
-                        <AppText variant="caption" numberOfLines={1}>{countryName(code, language)}</AppText>
+                        <AppText variant="caption" numberOfLines={1}>{copyContent(countryName(code, language))}</AppText>
                       </Pressable>
                     )}
                   />
                 </>
               ) : null}
             </View>
-            {message ? <AppText style={[styles.error, theme.mode === "dark" && { color: theme.danger }]}>{message}</AppText> : null}
+            {message ? <AppText style={[styles.error, theme.mode === "dark" && { color: theme.danger }]}>{copyContent(message)}</AppText> : null}
             <Pressable disabled={saveMutation.isPending || !canSave} onPress={() => saveMutation.mutate()} style={[styles.save, { backgroundColor: theme.primary }, (saveMutation.isPending || !canSave) && { opacity: 0.55 }]}>
               {saveMutation.isPending ? <ActivityIndicator color={String(theme.onPrimary)} /> : <Ionicons name="checkmark" size={19} color={String(theme.onPrimary)} />}
-              <AppText color={String(theme.onPrimary)} variant="label">{t("common.save")}</AppText>
+              <AppText color={String(theme.onPrimary)} variant="label">{copyContent(t("common.save"))}</AppText>
             </Pressable>
           </GlassSurface>
         </Animated.View>
@@ -232,7 +242,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(4,16,38,0.38)", alignItems: "center", justifyContent: "center", padding: 18 },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.38)", alignItems: "center", justifyContent: "center", padding: 18 },
   wrap: { width: "100%", maxWidth: 480 },
   card: { borderRadius: 34, padding: 18, gap: 14 },
   top: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -240,7 +250,7 @@ const styles = StyleSheet.create({
   close: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   preview: { alignItems: "center", paddingVertical: 4, gap: 8 },
   avatarButton: { width: 92, height: 92, borderRadius: 46, overflow: "hidden" },
-  avatarOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(4,16,38,0.08)", alignItems: "center", justifyContent: "center", borderRadius: 46 },
+  avatarOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.08)", alignItems: "center", justifyContent: "center", borderRadius: 46 },
   field: { gap: 6 },
   countrySearch: { minHeight: 44, borderRadius: 15, borderWidth: 1, paddingHorizontal: 13, fontSize: 14, fontWeight: "600" },
   countryScroll: { maxHeight: 260 },

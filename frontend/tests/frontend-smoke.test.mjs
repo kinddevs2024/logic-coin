@@ -10,13 +10,24 @@ test("Android game results do not leave a stacked native modal after navigation"
   assert.match(resultComponent, /if \(!value\) return null/);
   assert.match(resultComponent, /Platform\.OS === "android"\s*\? <View accessibilityViewIsModal style=\{styles\.androidResultLayer\}/);
   assert.doesNotMatch(resultComponent, /<Modal visible=\{Boolean\(value\)\}/);
-  assert.match(resultComponent, /value\.saving \? <ActivityIndicator accessibilityLabel="Сохраняем награду"/);
+  assert.match(resultComponent, /value\.saving \? <ActivityIndicator accessibilityLabel=\{copyText\("Сохраняем награду"\)\}/);
   assert.match(resultComponent, /value=\{value\.saving \? "…"/);
 });
 
 async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
+test("Android release explicitly declares advertising ID permission", async () => {
+  const app = await json("app.json");
+  assert.ok(app.expo.android.permissions.includes("com.google.android.gms.permission.AD_ID"));
+  assert.ok(!app.expo.android.blockedPermissions?.includes("com.google.android.gms.permission.AD_ID"));
+  assert.ok(app.expo.android.versionCode >= 8);
+});
+test("bottle feedback stays on one line without resizing the scene", async () => {
+  const source = await readFile(new URL("src/games/bottle-flip/screen.tsx", root), "utf8");
+  assert.match(source, /<AppText numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.7\} ellipsizeMode="tail" style=\{\[styles\.hint/);
+  assert.match(source, /hint: \{[^\n]*lineHeight: 24[^\n]*height: 24, flexShrink: 0/);
+});
 test("home gift uses matching generated closed and open transparent assets", async () => {
   const source = await readFile(new URL("src/components/floating-home-gift.tsx", root), "utf8");
   assert.match(source, /source=\{remaining > 0 \? GIFT_CLOSED : GIFT_OPEN\}/);
@@ -36,7 +47,7 @@ test("opening a gift cannot leave a stale press pause after an ad or app return"
   assert.match(source, /AppState\.addEventListener\("change", state => \{\s*setHoldingGift\(false\);/);
   assert.match(source, /finally \{ setHoldingGift\(false\); setBusy\(false\); \}/);
   assert.match(source, /ru: "Открыть", en: "Open", uz: "Ochish"/);
-  assert.match(source, /<AppText style=\{styles\.timerText\}>\{OPEN_GIFT_LABEL\[language\]\}/);
+  assert.match(source, /<AppText style=\{styles\.timerText\}>\{copyContent\(OPEN_GIFT_LABEL\[language\]\)\}/);
 });
 test("native app icons retain the original logo", async () => {
   const app = await json("app.json");
@@ -96,7 +107,9 @@ test("Expo and web deployment config target Logic Coin", async () => {
   assert.equal(app.expo.android.package, "com.kinddevs.logiccoin");
   assert.equal(app.expo.web.output, "single");
   assert.equal(vercel.outputDirectory, "dist");
-  assert.equal(pkg.scripts["build:web"], "expo export --platform web");
+  assert.match(pkg.scripts["build:web"], /expo export --platform web/);
+  assert.match(pkg.scripts["build:web"], /verify-client-config/);
+  assert.match(pkg.scripts["build:web"], /finalize-web/);
   assert.equal(pkg.scripts.typecheck, "tsc --noEmit");
   assert.match(eas.build.preview.android.gradleCommand, /arm64-v8a/);
   assert.match(eas.build.production.android.gradleCommand, /armeabi-v7a,arm64-v8a/);

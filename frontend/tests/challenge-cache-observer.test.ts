@@ -34,3 +34,4 @@ describe("challenge offer cache subscription", () => {
     expect(source).toContain('event.type === "updated"');
   });
 });
+import { URL } from "node:url";

@@ -1,8 +1,10 @@
 import { API_URL, refreshAccessToken } from "@/lib/api";
+import { telegramChallengeInitData } from "./telegram-context";
 import type { TodayChallenges, PendingContestReward } from "@/types";
-export type LiveState = { today?: TodayChallenges; reward?: PendingContestReward | null };
+export type LiveState = { chatSync?: boolean; chatTyping?: { conversationId: string; expiresAt: number }; chat?: { conversationId: string }; raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
 
 type Connection = {
+  watchChatId?: string | null;
   socket: WebSocket | null;
   listeners: Set<(state: LiveState) => void>;
   pending: Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout>; message: string; sent: boolean }>;
@@ -54,7 +56,7 @@ function connect(token: string, connection: Connection): void {
   }
   connection.socket = socket;
   connection.authenticated = false;
-  socket.onopen = () => socket.send(JSON.stringify({ type: "authenticate", token }));
+  socket.onopen = () => socket.send(JSON.stringify({ type: "authenticate", token, telegramInitData: telegramChallengeInitData() }));
   socket.onmessage = (event) => {
     let message: { type?: string; id?: string; data?: unknown; error?: { message: string; status?: number }; state?: LiveState } & LiveState;
     try {
@@ -67,10 +69,12 @@ function connect(token: string, connection: Connection): void {
       connection.hasConnected = true;
       connection.authenticated = true;
       connection.retryAttempt = 0;
+      notify(connection, { chatSync: true });
       for (const pending of connection.pending.values()) {
         if (!pending.sent) { pending.sent = true; socket.send(pending.message); }
       }
       if (reconnected) {
+        if (connection.watchChatId) void liveCommand(token, "chatWatch", { conversationId: connection.watchChatId }).catch(() => {});
         void liveCommand<TodayChallenges>(token, "today").then(today => notify(connection, { today })).catch(() => {});
         void liveCommand<PendingContestReward | null>(token, "pendingReward").then(reward => notify(connection, { reward })).catch(() => {});
       }
@@ -97,7 +101,7 @@ function connect(token: string, connection: Connection): void {
       connection.pending.delete(id);
     }
     if (event.code !== 4401) scheduleReconnect(token, connection);
-    else if (connection.listeners.size) void refreshAccessToken(token).catch(() => {});
+    else if (connection.listeners.size) void refreshAccessToken(token).catch(() => scheduleReconnect(token,connection));
   };
 }
 
@@ -141,7 +145,8 @@ export function liveCommand<T>(token: string, method: string, input: unknown = {
     const timer = setTimeout(() => {
       connection.pending.delete(id);
       reject(new Error("Сервер не ответил. Проверьте соединение и результат операции."));
-    }, 30_000);
+      connection.socket?.close(4000,"Request timed out");
+    }, ["today","pendingReward","raffleState","rafflePresence"].includes(method)?10000:30000);
     const message = JSON.stringify({ id, method, input });
     connection.pending.set(id, { resolve: value => resolve(value as T), reject, timer, message, sent: connection.authenticated });
     if (connection.authenticated) connection.socket!.send(message);
@@ -151,3 +156,14 @@ export function liveCommand<T>(token: string, method: string, input: unknown = {
     throw error;
   });
 }
+
+export function watchChatConversation(token: string, conversationId: string) {
+  const connection = connections.get(token);
+  if (connection) connection.watchChatId = conversationId;
+  void liveCommand(token, "chatWatch", { conversationId }).catch(() => {});
+  return () => {
+    const current = connections.get(token);
+    if (current?.watchChatId === conversationId) { current.watchChatId = null; if (current.authenticated) void liveCommand(token, "chatWatch", { conversationId: null }).catch(() => {}); }
+  };
+}
+export function sendChatTyping(token: string, conversationId: string) { return liveCommand(token, "chatTyping", { conversationId }); }

@@ -20,11 +20,26 @@ router.get("/", async (request, response) => {
   }
   const today = localDayKey(new Date(), user.preferences.timezone);
   await recordCoinRewardLogin(user._id);
+  // New clients load only account/activity essentials at startup. The full
+  // response remains the default for already installed legacy clients.
+  if (request.query.scope === "core") {
+    const [recentDays, totalActiveDays] = await Promise.all([
+      ActivityDay.find({ userId: user._id, dayKey: { $gte: addDays(today, -400), $lte: today } }).select("dayKey").lean(),
+      ActivityDay.countDocuments({ userId: user._id }),
+    ]);
+    response.json({ data: {
+      user: serializeUser(user), coins: user.coins,
+      activity: { totalActiveDays, streak: calculateGraceStreak(recentDays.map(day => day.dayKey), today) },
+      economy: { currency: "USD", unitValueCents: env.UNIT_VALUE_CENTS, minimumWithdrawalCents: env.MIN_WITHDRAWAL_CENTS, withdrawalsAreSandbox: true, taskProvider: "demo" },
+      supported: { languages: ["en", "ru", "uz"] },
+    } });
+    return;
+  }
   const [tasks, todayChallenges, bonuses, referral, recentDays, totalActiveDays] = await Promise.all([
-    listTasksForUser(user._id),
-    getTodayChallengeOverview(user._id),
-    getBonusOverview(user._id),
-    getReferralOverview(user._id),
+    listTasksForUser(user._id, user),
+    getTodayChallengeOverview(user._id, user),
+    getBonusOverview(user._id, user),
+    getReferralOverview(user._id, user),
     ActivityDay.find({
       userId: user._id,
       dayKey: { $gte: addDays(today, -400), $lte: today }

@@ -1,3 +1,4 @@
+import { invalidateReadCache } from "../src/lib/read-cache.js";
 import { Types } from "mongoose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -79,6 +80,7 @@ function makeGames() {
 
 describe("daily challenge auto-creation", () => {
   beforeEach(() => {
+    invalidateReadCache();
     vi.clearAllMocks();
     modelMocks.userFindById.mockReturnValue({
       select: vi.fn().mockResolvedValue({
@@ -96,7 +98,7 @@ describe("daily challenge auto-creation", () => {
     });
   });
 
-  it("auto-creates and publishes today's missing set with six random games", async () => {
+  it("the worker publishes six games and the page reads the published set", async () => {
     const games = makeGames();
     modelMocks.gameFind.mockImplementation(() => ({
       sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(games) }),
@@ -110,6 +112,8 @@ describe("daily challenge auto-creation", () => {
       publishedAt
     }));
 
+    const published = await ensureDailyChallengeSet();
+    modelMocks.challengeFindOne.mockResolvedValue(published);
     const result = await getTodayChallengeOverview(new Types.ObjectId());
 
     expect(modelMocks.challengeFindOneAndUpdate).toHaveBeenCalledTimes(1);

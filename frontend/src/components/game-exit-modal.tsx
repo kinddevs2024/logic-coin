@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect } from "react";
 import { BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
@@ -10,6 +12,7 @@ export function GameExitModal({ visible, title, onStay, onExit }: {
   onStay: () => void;
   onExit: () => void;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   useEffect(() => {
     if (!visible) return;
@@ -22,22 +25,21 @@ export function GameExitModal({ visible, title, onStay, onExit }: {
   const content = (
       <View style={styles.backdrop}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View testID="game-exit-dialog" accessibilityViewIsModal accessibilityLabel="Выйти из игры?"
+        <View testID="game-exit-dialog" accessibilityViewIsModal accessibilityLabel={copyText("Выйти из игры?")}
           style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={[styles.icon, { backgroundColor: theme.primarySoft }]}>
             <Ionicons name="pause-outline" size={28} color={String(theme.primary)} />
           </View>
-          <Text style={[styles.title, { color: theme.text }]}>Выйти из игры?</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{copyText("Выйти из игры?")}</Text>
           <Text style={[styles.message, { color: theme.textMuted }]}>
-            Незавершённый прогресс в игре «{title}» будет потерян. При следующем входе вы начнёте заново. Результаты других игр сохранятся.
-          </Text>
-          <Pressable testID="game-exit-stay" accessibilityRole="button" accessibilityLabel="Остаться" onPress={onStay}
+            {copyText(" Незавершённый прогресс в игре «")}{copyContent(title)}{copyText("» будет потерян. При следующем входе вы начнёте заново. Результаты других игр сохранятся. ")}</Text>
+          <Pressable testID="game-exit-stay" accessibilityRole="button" accessibilityLabel={copyText("Остаться")} onPress={onStay}
             style={({ pressed }) => [styles.button, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
-            <Text style={[styles.buttonText, { color: theme.onPrimary }]}>Остаться</Text>
+            <Text style={[styles.buttonText, { color: theme.onPrimary }]}>{copyText("Остаться")}</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Выйти" onPress={onExit}
+          <Pressable accessibilityRole="button" accessibilityLabel={copyText("Выйти")} onPress={onExit}
             style={({ pressed }) => [styles.button, styles.exit, pressed && styles.pressed]}>
-            <Text style={[styles.buttonText, { color: theme.textMuted }]}>Выйти</Text>
+            <Text style={[styles.buttonText, { color: theme.textMuted }]}>{copyText("Выйти")}</Text>
           </Pressable>
         </View>
         </ScrollView>
@@ -53,7 +55,7 @@ export function GameExitModal({ visible, title, onStay, onExit }: {
 const styles = StyleSheet.create({
   androidLayer: { ...StyleSheet.absoluteFill, zIndex: 3000, elevation: 50 },
   backdrop: {
-    flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(1,3,10,0.72)",
+    flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(16,37,27,0.72)",
     ...(Platform.OS === "web" ? ({ position: "fixed", inset: 0, width: "100vw", height: "100dvh" } as unknown as ViewStyle) : {}),
   },
   scroll: { width: "100%", flex: 1 },

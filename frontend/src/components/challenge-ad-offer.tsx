@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { notifyManager, useQueryClient } from "@tanstack/react-query";
@@ -13,12 +15,13 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const COPY = {
-  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг челленджа.\nДо десяти наград в день. Ожидание растёт после получения; сброс в полночь по Ташкенту.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
-  en: { title: "+45 coins for a video", body: "Watch the full ad to earn 45 coins.\nThey count toward the challenge ranking.\nUp to ten rewards daily. Waiting increases after each claim; reset at midnight in Tashkent.", watch: "Watch ad · +45 coins", skip: "Not now", error: "No reward received. Please try again later." },
-  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar sinov reytingiga qo‘shiladi.\nKuniga o‘ntagacha mukofot. Har mukofotdan keyin kutish uzayadi; Toshkent vaqti bilan yarim tunda yangilanadi.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
+  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг челленджа.\nИнтервал растёт после просмотра или отказа. Новый день — новая последовательность; сброс в полночь по Ташкенту.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
+  en: { title: "+45 coins for a video", body: "Watch the full ad to earn 45 coins.\nThey count toward the challenge ranking.\nWaiting increases after watching or declining. The schedule resets at midnight in Tashkent.", watch: "Watch ad · +45 coins", skip: "Not now", error: "No reward received. Please try again later." },
+  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar sinov reytingiga qo‘shiladi.\nKo‘rish yoki rad etishdan keyin kutish uzayadi. Jadval Toshkent vaqti bilan yarim tunda yangilanadi.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
 };
 
 export function ChallengeAdOffer() {
+  const { copyContent } = useUiCopy();
   const token = useAppStore(state => state.accessToken);
   const userId = useAppStore(state => state.user.id);
   const authenticated = useAppStore(state => state.authMode === "authenticated");
@@ -49,6 +52,7 @@ export function ChallengeAdOffer() {
   const [active, setActive] = useState(AppState.currentState === "active");
   const keyRef = useRef("");
   const quietRef = useRef(0);
+  const currentOffer = useRef<Awaited<ReturnType<typeof adsApi.challengeOffer>> | null>(null);
   const allowedRoute = ["/", "/challenges", "/games", "/profile"].includes(pathname) || (pathname.startsWith("/play/") && resultReady);
   const enabled = Platform.OS === "android" && authenticated && Boolean(token) && allowedRoute;
 
@@ -69,7 +73,13 @@ export function ChallengeAdOffer() {
       try {
         const offer = await adsApi.challengeOffer(token!);
         if (disposed || busyRef.current) return;
-        if (!offer.eligible || !offer.challengeSetId) { setVisible(false); return; }
+        currentOffer.current = offer;
+        if (!offer.eligible || !offer.challengeSetId) {
+          setVisible(false);
+          const resetDelay = Date.parse(offer.resetsAt) - Date.parse(offer.serverNow);
+          timer = setTimeout(() => setWake(value => value + 1), Math.max(1000, resetDelay));
+          return;
+        }
         const key = `logic-coin:challenge-ad-offer:v2:${userId}:${offer.rewardDayKey ?? offer.dayKey}:${offer.challengeSetId}`;
         const stored = Number(await AsyncStorage.getItem(key)) || 0;
         if (disposed || busyRef.current) return;
@@ -86,7 +96,15 @@ export function ChallengeAdOffer() {
     return () => { disposed = true; if (timer) clearTimeout(timer); };
   }, [enabled, active, token, userId, today?.dayKey, today?.revision, today?.completedCount, today?.totalCount, wake]);
 
-  const defer = () => {
+  const defer = (claimed = false) => {
+    const offer = currentOffer.current;
+    if (!claimed && token && offer?.rewardDayKey) {
+      busyRef.current = true; setBusy(true);
+      void adsApi.declineChallengeOffer(token, offer.rewardDayKey, offer.claimedCount).then(() => {
+        setVisible(false); setWake(value => value + 1);
+      }).catch(() => setError(copy.error)).finally(() => { busyRef.current = false; setBusy(false); });
+      return;
+    }
     quietRef.current = Date.now() + OFFER_COOLDOWN_MS;
     if (keyRef.current) void AsyncStorage.setItem(keyRef.current, String(quietRef.current)).catch(() => undefined);
     setVisible(false);
@@ -98,7 +116,7 @@ export function ChallengeAdOffer() {
     try {
       const reward = await showVerifiedRewardedAd({ placement: "navigation-frequency", accessToken: token, claimCoins: true });
       if (!reward.receipt.completed || !reward.verified || reward.credited !== 45) throw new Error("not_rewarded");
-      defer();
+      defer(true);
       void client.invalidateQueries({ queryKey: ["challenges", "today", token] });
     } catch { setError(copy.error); }
     finally { busyRef.current = false; setBusy(false); }
@@ -106,19 +124,19 @@ export function ChallengeAdOffer() {
   return <Modal visible={visible && enabled} transparent animationType="fade" statusBarTranslucent onRequestClose={() => { if (!busyRef.current) defer(); }}>
     <View style={styles.backdrop}><View style={[styles.card, { backgroundColor: theme.surfaceRaised }]}>
       <Ionicons name="play-circle" size={48} color={String(theme.primary)} />
-      <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>{copy.title}</Text>
-      <Text style={[styles.body, { color: theme.textMuted }]}>{copy.body}</Text>
-      {error ? <Text accessibilityRole="alert" style={[styles.body, { color: theme.text }]}>{error}</Text> : null}
+      <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>{copyContent(copy.title)}</Text>
+      <Text style={[styles.body, { color: theme.textMuted }]}>{copyContent(copy.body)}</Text>
+      {error ? <Text accessibilityRole="alert" style={[styles.body, { color: theme.text }]}>{copyContent(error)}</Text> : null}
       <Pressable accessibilityRole="button" disabled={busy} onPress={() => void watch()} style={[styles.watch, { backgroundColor: theme.primary }]}>
-        {busy ? <ActivityIndicator color={String(theme.onPrimary)} /> : <Text style={[styles.label, { color: theme.onPrimary }]}>{copy.watch}</Text>}
+        {busy ? <ActivityIndicator color={String(theme.onPrimary)} /> : <Text style={[styles.label, { color: theme.onPrimary }]}>{copyContent(copy.watch)}</Text>}
       </Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={defer} style={styles.skip}><Text style={{ color: theme.textMuted }}>{copy.skip}</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => defer()} style={styles.skip}><Text style={{ color: theme.textMuted }}>{copyContent(copy.skip)}</Text></Pressable>
     </View></View>
   </Modal>;
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(4,12,26,0.65)" },
+  backdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(16,37,27,0.65)" },
   card: { width: "100%", maxWidth: 390, padding: 22, borderRadius: 28, alignItems: "center" },
   title: { fontSize: 22, fontWeight: "800", textAlign: "center", marginTop: 12 },
   body: { fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 10 },

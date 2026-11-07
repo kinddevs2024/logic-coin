@@ -1,11 +1,14 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { isExpoGo } from "@/lib/native-runtime";
-const AppodealBanner = isExpoGo ? null : require("react-native-appodeal").AppodealBanner;
 import { StyleSheet, View } from "react-native";
+const AppodealBanner = isExpoGo ? null : require("react-native-appodeal").AppodealBanner;
 
 export function AppodealBannerSlot({ placement }: { placement: string }) {
+  const { copyText } = useUiCopy();
   if (!AppodealBanner) return null;
   return (
-    <View accessibilityLabel="Реклама" style={styles.slot}>
+    <View accessibilityLabel={copyText("Реклама")} style={styles.slot}>
       <AppodealBanner adSize="phone" placement={placement} style={styles.banner} />
     </View>
   );

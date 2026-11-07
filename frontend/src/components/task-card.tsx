@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import {
@@ -13,7 +15,6 @@ import { radii } from "@/constants/theme";
 import type { TranslationKey } from "@/constants/translations";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { formatMoney } from "@/lib/format";
-import { readableAccent } from "@/lib/theme-colors";
 import { useTranslation } from "@/hooks/use-translation";
 import type { LogicTask } from "@/types";
 
@@ -48,9 +49,10 @@ export function TaskCard({
   count?: number;
   compact?: boolean;
 }) {
+  const { copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const { t } = useTranslation();
-  const accent = readableAccent(task.color, theme.mode);
+  const accent = String(theme.primary);
 
   const handlePress = () => {
     void Haptics.selectionAsync().catch(() => {});
@@ -74,7 +76,7 @@ export function TaskCard({
         style={[
           styles.icon,
           compact && styles.iconCompact,
-          { backgroundColor: `${task.color}18` },
+          { backgroundColor: theme.primarySoft },
         ]}
       >
         <Ionicons
@@ -86,32 +88,32 @@ export function TaskCard({
       <View style={styles.copy}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <AppText variant="label" numberOfLines={1} style={{ flexShrink: 1 }}>
-            {localize(task.titleKey, t)}
+            {copyContent(localize(task.titleKey, t))}
           </AppText>
           {count > 0 ? (
             <View
               style={[styles.count, { backgroundColor: theme.primarySoft }]}
             >
               <AppText variant="caption" color={String(theme.primary)}>
-                ×{count}
+                ×{copyContent(count)}
               </AppText>
             </View>
           ) : null}
         </View>
         {compact ? null : (
           <AppText variant="caption" muted numberOfLines={1}>
-            {localize(task.descriptionKey, t)}
+            {copyContent(localize(task.descriptionKey, t))}
           </AppText>
         )}
       </View>
       <View style={styles.reward}>
         <AppText variant="label" color={accent}>
-          +{formatMoney(task.rewardUnits)}
+          +{copyContent(formatMoney(task.rewardUnits))}
         </AppText>
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${t("task.perform")}: ${localize(task.titleKey, t)}`}
+        accessibilityLabel={formatCopy("{0}: {1}", [t("task.perform"), localize(task.titleKey, t)])}
         disabled={loading || task.available === false}
         onPress={handlePress}
         style={({ pressed }) => [

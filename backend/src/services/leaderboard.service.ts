@@ -1,6 +1,8 @@
 import type { FilterQuery, Types } from "mongoose";
 import { ApiError } from "../lib/api-error.js";
 import { User, type UserDocument } from "../models/User.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
+import { cachedRead } from "../lib/read-cache.js";
 
 export type LeaderboardMetric = "wealth" | "wallet" | "coins" | "lifetime";
 
@@ -76,7 +78,7 @@ function serializeEntry(user: LeanUser, rank: number) {
     rank,
     userId: user._id.toString(),
     name: user.name,
-    avatarUrl: user.avatarUrl ?? null,
+    avatarUrl: listAvatarUrl(user._id, user.avatarUrl),
     countryCode: user.countryCode ?? null,
     walletBalanceUnits: user.wallet.availableUnits ?? 0,
     coinBalance: user.coins?.balance ?? 0,
@@ -126,19 +128,19 @@ export async function getLeaderboards(input: {
     User.findById(input.userId)
       .select("name avatarUrl countryCode wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
       .lean<LeanUser | null>(),
-    User.countDocuments(),
+    cachedRead("leaderboard-total", 3_000, async () => User.countDocuments()),
   ]);
   if (!self) {
     throw new ApiError(404, "user_not_found", "User not found");
   }
   const results = await Promise.all(metrics.map(async (metric) => {
     const [users, selfRank] = await Promise.all([
-      User.find()
+      cachedRead(`leaderboard-top:${metric}:${input.offset}:${input.limit}`, 1_000, async () => User.find()
         .select("name avatarUrl countryCode wallet.availableUnits wallet.lifetimeEarnedUnits coins.balance")
         .sort(sortFor(metric))
         .skip(input.offset)
         .limit(input.limit)
-        .lean<LeanUser[]>(),
+        .lean<LeanUser[]>()),
       User.countDocuments(aheadFilter(self, metric)),
     ]);
     return {

@@ -26,6 +26,10 @@ describe("legacy APK theme compatibility", () => {
     const result = await request(app).get("/").set("User-Agent", "okhttp/4.12.0").set("Origin", "null");
     expect(result.body.data.user.preferences.theme).toBe("sky");
   });
+  it("preserves automatic appearance for modern native clients", async () => {
+    const result=await request(app).get("/").set("User-Agent","okhttp/4.12.0").set("X-Appearance-Version","2");
+    expect(result.body).toEqual(payload);
+  });
   it("defaults unidentified clients to the safe representation", async () => {
     expect((await request(app).get("/")).body.data.user.preferences.theme).toBe("sky");
   });

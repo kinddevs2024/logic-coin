@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useMemo, useState } from "react";
@@ -21,20 +23,21 @@ export function GameEconomyHud({
   tone?: "dark" | "light";
   onOpen: () => void;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const saved = useGameProgressStore((state) => gameProgressFor(state.games, gameId));
   const ready = useClientReady();
   const progress = ready ? saved : gameProgressFor({}, gameId);
   const cosmetic = cosmeticFor(gameId, progress.selectedCosmetic);
   const color = tone === "dark" ? "#272A39" : "#FFFFFF";
-  const surface = tone === "dark" ? "rgba(255,255,255,0.76)" : "rgba(24,24,32,0.66)";
+  const surface = tone === "dark" ? "rgba(255,255,255,0.76)" : "rgba(16,37,27,0.66)";
 
   return (
     <View style={styles.hudGroup}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Монеты и скины" onPress={onOpen} style={({ pressed }) => [styles.coinPill, { backgroundColor: surface }, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText("Монеты и скины")} onPress={onOpen} style={({ pressed }) => [styles.coinPill, { backgroundColor: surface }, pressed && styles.pressed]}>
         <MaterialCommunityIcons name="hexagon-multiple" size={18} color="#F5B800" />
-        <AppText style={[styles.coinValue, { color }]}>{progress.coins}</AppText>
+        <AppText style={[styles.coinValue, { color }]}>{copyContent(progress.coins)}</AppText>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Открыть скины" onPress={onOpen} style={({ pressed }) => [styles.hudIcon, { backgroundColor: surface }, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText("Открыть скины")} onPress={onOpen} style={({ pressed }) => [styles.hudIcon, { backgroundColor: surface }, pressed && styles.pressed]}>
         <MaterialCommunityIcons name={cosmetic.icon} size={20} color={tone === "dark" ? cosmetic.primary : "#FFFFFF"} />
       </Pressable>
     </View>
@@ -50,6 +53,7 @@ export function GameEconomyModal({
   visible: boolean;
   onClose: () => void;
 }) {
+  const { copyText, copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const dark = theme.mode === "dark";
   const textStyle = dark ? { color: theme.text } : undefined;
@@ -94,14 +98,14 @@ export function GameEconomyModal({
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={close}>
       <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.backdrop}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={StyleSheet.absoluteFill} />
+        <Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={close} style={StyleSheet.absoluteFill} />
         <View style={[styles.sheet, dark && { backgroundColor: theme.surface, borderColor: theme.glassBorder, borderWidth: 1 }, { paddingBottom: Math.max(18, insets.bottom + 10) }]}>
           <View style={styles.sheetTop}>
             <View style={styles.walletTitle}>
               <MaterialCommunityIcons name="hexagon-multiple" size={23} color="#F5B800" />
-              <AppText style={[styles.sheetTitle, textStyle]}>{progress.coins} coin</AppText>
+              <AppText style={[styles.sheetTitle, textStyle]}>{copyContent(progress.coins)} {copyText(" coin")}</AppText>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} style={[styles.closeButton, insetStyle]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={close} style={[styles.closeButton, insetStyle]}>
               <Ionicons name="close" size={22} color={dark ? String(theme.text) : "#282936"} />
             </Pressable>
           </View>
@@ -112,14 +116,14 @@ export function GameEconomyModal({
               const selected = progress.selectedCosmetic === skin.id;
               const accent = readableAccent(skin.primary, theme.mode);
               return (
-                <Pressable key={skin.id} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={`${skin.name}${unlocked ? "" : `, ${skin.price} coin`}`} onPress={() => chooseSkin(skin.id, skin.price)} style={({ pressed }) => [styles.skinCard, panelStyle, selected && { borderColor: accent, borderWidth: 3 }, pressed && styles.pressed]}>
+                <Pressable key={skin.id} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={formatCopy("{0}{1}", [copyText(skin.name), unlocked ? "" : `, ${skin.price} coin`])} onPress={() => chooseSkin(skin.id, skin.price)} style={({ pressed }) => [styles.skinCard, panelStyle, selected && { borderColor: accent, borderWidth: 3 }, pressed && styles.pressed]}>
                   <View style={[styles.skinPreview, { backgroundColor: dark ? `${accent}18` : skin.secondary }]}>
                     <MaterialCommunityIcons name={skin.icon} size={34} color={accent} />
                   </View>
-                  <AppText numberOfLines={1} style={[styles.skinName, textStyle]}>{skin.name}</AppText>
+                  <AppText numberOfLines={1} style={[styles.skinName, textStyle]}>{copyContent(skin.name)}</AppText>
                   <View style={[styles.skinPrice, insetStyle]}>
                     {unlocked ? <Ionicons name={selected ? "checkmark-circle" : "checkmark"} size={14} color={dark ? String(theme.success) : "#16A34A"} /> : <MaterialCommunityIcons name="hexagon-multiple" size={13} color={dark ? String(theme.warning) : "#E5A900"} />}
-                    <AppText style={[styles.skinPriceText, mutedStyle]}>{unlocked ? (selected ? "Выбран" : "Открыт") : skin.price}</AppText>
+                    <AppText style={[styles.skinPriceText, mutedStyle]}>{copyContent(unlocked ? (selected ? "Выбран" : "Открыт") : skin.price)}</AppText>
                   </View>
                 </Pressable>
               );
@@ -132,29 +136,29 @@ export function GameEconomyModal({
                 <MaterialCommunityIcons name={pendingSkin.icon} size={32} color={readableAccent(pendingSkin.primary, theme.mode)} />
               </View>
               <View style={styles.confirmCopy}>
-                <AppText style={[styles.confirmTitle, textStyle]}>Купить «{pendingSkin.name}»?</AppText>
-                <AppText style={[styles.confirmMeta, mutedStyle]}>{pendingSkin.price} coin · останется {Math.max(0, progress.coins - pendingSkin.price)}</AppText>
+                <AppText style={[styles.confirmTitle, textStyle]}>{copyText("Купить «")}{copyContent(pendingSkin.name)}»?</AppText>
+                <AppText style={[styles.confirmMeta, mutedStyle]}>{copyContent(pendingSkin.price)} {copyText(" coin · останется ")}{copyContent(Math.max(0, progress.coins - pendingSkin.price))}</AppText>
               </View>
               <View style={styles.confirmActions}>
-                <Pressable accessibilityRole="button" accessibilityLabel="Отменить покупку" onPress={() => setPendingSkinId(null)} style={({ pressed }) => [styles.cancelButton, insetStyle, pressed && styles.pressed]}>
-                  <AppText style={[styles.cancelText, textStyle]}>Отмена</AppText>
+                <Pressable accessibilityRole="button" accessibilityLabel={copyText("Отменить покупку")} onPress={() => setPendingSkinId(null)} style={({ pressed }) => [styles.cancelButton, insetStyle, pressed && styles.pressed]}>
+                  <AppText style={[styles.cancelText, textStyle]}>{copyText("Отмена")}</AppText>
                 </Pressable>
-                <Pressable accessibilityRole="button" accessibilityLabel={`Купить ${pendingSkin.name} за ${pendingSkin.price} coin`} disabled={progress.coins < pendingSkin.price} onPress={confirmPurchase} style={({ pressed }) => [styles.buyButton, { backgroundColor: pendingSkin.primary }, progress.coins < pendingSkin.price && styles.disabled, pressed && styles.pressed]}>
+                <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("Купить {0} за {1} coin", [copyText(pendingSkin.name), pendingSkin.price])} disabled={progress.coins < pendingSkin.price} onPress={confirmPurchase} style={({ pressed }) => [styles.buyButton, { backgroundColor: pendingSkin.primary }, progress.coins < pendingSkin.price && styles.disabled, pressed && styles.pressed]}>
                   <Ionicons name="bag-check-outline" size={17} color={accentForeground(pendingSkin.primary, theme.mode)} />
-                  <AppText style={[styles.buyText, { color: accentForeground(pendingSkin.primary, theme.mode) }]}>Купить</AppText>
+                  <AppText style={[styles.buyText, { color: accentForeground(pendingSkin.primary, theme.mode) }]}>{copyText("Купить")}</AppText>
                 </Pressable>
               </View>
             </Animated.View>
           ) : null}
 
           <View style={[styles.cosmeticNote, dark && { backgroundColor: theme.primarySoft }]}>
-            <MaterialCommunityIcons name="shield-check-outline" size={20} color={dark ? String(theme.primary) : "#705CF6"} />
+            <MaterialCommunityIcons name="shield-check-outline" size={20} color={dark ? String(theme.primary) : "#007A57"} />
             <View style={styles.cosmeticNoteCopy}>
-              <AppText style={[styles.cosmeticNoteTitle, textStyle]}>Игровые coin</AppText>
-              <AppText style={[styles.cosmeticNoteText, mutedStyle]}>Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.</AppText>
+              <AppText style={[styles.cosmeticNoteTitle, textStyle]}>{copyText("Игровые coin")}</AppText>
+              <AppText style={[styles.cosmeticNoteText, mutedStyle]}>{copyText("Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.")}</AppText>
             </View>
           </View>
-          {notice ? <AppText style={[styles.notice, dark && { color: theme.text }]}>{notice}</AppText> : null}
+          {notice ? <AppText style={[styles.notice, dark && { color: theme.text }]}>{copyContent(notice)}</AppText> : null}
         </View>
       </Animated.View>
     </Modal>
@@ -166,17 +170,17 @@ const styles = StyleSheet.create({
   coinPill: { minHeight: 40, borderRadius: 13, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: "rgba(255,255,255,0.46)" },
   coinValue: { fontSize: 13, lineHeight: 16, fontWeight: "900" },
   hudIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.46)" },
-  backdrop: { flex: 1, backgroundColor: "rgba(11,13,20,0.46)", justifyContent: "flex-end" },
+  backdrop: { flex: 1, backgroundColor: "rgba(16,37,27,0.46)", justifyContent: "flex-end" },
   sheet: { width: "100%", maxWidth: 720, alignSelf: "center", borderTopLeftRadius: 30, borderTopRightRadius: 30, backgroundColor: "#F7F7FA", paddingTop: 14, paddingHorizontal: 16, shadowColor: "#000000", shadowOpacity: 0.24, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
   sheetTop: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   walletTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
   sheetTitle: { color: "#20222E", fontSize: 21, lineHeight: 26, fontWeight: "900" },
-  closeButton: { width: 38, height: 38, borderRadius: 14, backgroundColor: "#E9EAF0", alignItems: "center", justifyContent: "center" },
+  closeButton: { width: 38, height: 38, borderRadius: 14, backgroundColor: "#E1EFE3", alignItems: "center", justifyContent: "center" },
   skinRow: { gap: 10, paddingBottom: 14 },
   skinCard: { width: 116, minHeight: 142, borderRadius: 21, borderWidth: 1, borderColor: "#E0E1E8", backgroundColor: "#FFFFFF", padding: 9, alignItems: "center", gap: 6 },
   skinPreview: { width: 74, height: 66, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   skinName: { color: "#262833", fontSize: 12, lineHeight: 15, fontWeight: "900", maxWidth: "100%" },
-  skinPrice: { minHeight: 21, borderRadius: 999, paddingHorizontal: 8, backgroundColor: "#F0F1F5", flexDirection: "row", alignItems: "center", gap: 4 },
+  skinPrice: { minHeight: 21, borderRadius: 999, paddingHorizontal: 8, backgroundColor: "#E1EFE3", flexDirection: "row", alignItems: "center", gap: 4 },
   skinPriceText: { color: "#555866", fontSize: 9, lineHeight: 12, fontWeight: "900" },
   confirmCard: { marginBottom: 12, borderRadius: 20, borderWidth: 1, borderColor: "#D9DBE5", backgroundColor: "#FFFFFF", padding: 11, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
   confirmPreview: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center" },
@@ -184,14 +188,14 @@ const styles = StyleSheet.create({
   confirmTitle: { color: "#20222E", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   confirmMeta: { color: "#737685", fontSize: 10, lineHeight: 14, fontWeight: "700" },
   confirmActions: { width: "100%", flexDirection: "row", justifyContent: "flex-end", gap: 8 },
-  cancelButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#ECEEF4" },
+  cancelButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#E1EFE3" },
   cancelText: { color: "#454855", fontSize: 12, lineHeight: 16, fontWeight: "900" },
   buyButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   buyText: { color: "#FFFFFF", fontSize: 12, lineHeight: 16, fontWeight: "900" },
-  cosmeticNote: { minHeight: 64, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: "#EEEAFE", flexDirection: "row", alignItems: "center", gap: 10 },
+  cosmeticNote: { minHeight: 64, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: "#D8F2E3", flexDirection: "row", alignItems: "center", gap: 10 },
   cosmeticNoteCopy: { flex: 1, gap: 2 },
-  cosmeticNoteTitle: { color: "#3B2E73", fontSize: 12, lineHeight: 15, fontWeight: "900" },
-  cosmeticNoteText: { color: "#6F6888", fontSize: 10, lineHeight: 14, fontWeight: "700" },
+  cosmeticNoteTitle: { color: "#153B2B", fontSize: 12, lineHeight: 15, fontWeight: "900" },
+  cosmeticNoteText: { color: "#526C5C", fontSize: 10, lineHeight: 14, fontWeight: "700" },
   notice: { color: "#236A42", fontSize: 11, lineHeight: 14, fontWeight: "900", textAlign: "center", marginTop: 4 },
   disabled: { opacity: 0.38 },
   pressed: { transform: [{ scale: 0.97 }] },

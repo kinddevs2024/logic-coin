@@ -33,12 +33,12 @@ describe("transactional challenge base allowance", () => {
     expect(result.attempt.coinsAwarded).toBe(2129);
     expect(mocks.credit.mock.calls[0]?.[0]).toMatchObject({ amount: 2129 });
   });
-  it("records an authorized replay separately from base earnings", async () => {
+  it("records an authorized replay with its own ledger source id", async () => {
     mocks.findOne.mockReturnValue({ session: async () => ({ metadata: { replayCount: 1 } }) });
     mocks.update.mockImplementation(async (_query, update) => ({ _id: new Types.ObjectId(), gameKey: "math", metadata: { replayCount: 1 }, ...update.$set }));
     const result = await completeChallengeAttempt({ userId: new Types.ObjectId(), gameKey: "math", score: 50000 });
     expect(result.attempt.coinsAwarded).toBe(2129);
-    expect(mocks.credit.mock.calls[0]?.[0]).toMatchObject({ amount: 2129, metadata: { kind: "replay-bonus" } });
+    expect(mocks.credit.mock.calls[0]?.[0]).toMatchObject({ amount: 2129, metadata: { kind: "base" }, sourceId: expect.stringMatching(/:replay:1$/) });
     expect(mocks.aggregate).not.toHaveBeenCalled();
   });
 });

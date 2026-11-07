@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, Animated, AppState, Easing, Platform, StyleSheet, View } from "react-native";
 import { useIsFocused } from "expo-router";
@@ -6,7 +8,7 @@ import { AppText } from "./app-text";
 
 type Friend = { id: string; name: string; avatarUrl?: string | null };
 const decorations = ["👩🏻", "🧑🏽", "👨🏼", "👩🏾", "🧑🏻"];
-const colors = ["#CDE9FF", "#DFD5FF", "#C3F2EC", "#FFE4BB", "#FBD5E5"];
+const colors = ["#D8F2E3", "#E1EFE3", "#C3F2EC", "#FFE4BB", "#FBD5E5"];
 const slots = [
   { x: [0.02, 0.15, 0.08, 0.02], y: [32, 8, 47, 32], size: 48 },
   { x: [0.23, 0.34, 0.20, 0.23], y: [4, 39, 23, 4], size: 44 },
@@ -16,6 +18,7 @@ const slots = [
 ];
 
 function Bubble({ friend, index, width, moving }: { friend?: Friend; index: number; width: number; moving: boolean }) {
+  const { copyContent } = useUiCopy();
   const [phase] = useState(() => new Animated.Value(0));
   const slot = slots[index]!;
   useEffect(() => {
@@ -37,7 +40,7 @@ function Bubble({ friend, index, width, moving }: { friend?: Friend; index: numb
       ],
     }]}>
       {friend ? <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={slot.size - 4} /> :
-        <AppText style={{ fontSize: slot.size * 0.58, lineHeight: slot.size - 4 }}>{decorations[index]}</AppText>}
+        <AppText style={{ fontSize: slot.size * 0.58, lineHeight: slot.size - 4 }}>{copyContent(decorations[index])}</AppText>}
     </Animated.View>
   );
 }

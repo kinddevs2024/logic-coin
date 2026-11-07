@@ -15,13 +15,13 @@ export default function RootHtml({ children }: { children: ReactNode }) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover"
+          content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
         />
         <meta
           name="description"
           content="Logic Coin — ежедневные игровые челленджи, coins, рейтинг и умная копилка."
         />
-        <meta name="theme-color" content="#0860F0" />
+        <meta name="theme-color" content="#007A57" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Logic Coin" />
         <meta property="og:url" content="https://www.logic-coin.online/" />

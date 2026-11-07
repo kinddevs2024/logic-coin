@@ -11,7 +11,8 @@ type LedgerType =
   | "monthly_bonus"
   | "referral_bonus"
   | "game_reward"
-  | "contest_cash_prize";
+  | "contest_cash_prize"
+  | "raffle_cash_prize";
 
 interface CreditRewardInput {
   userId: Types.ObjectId;

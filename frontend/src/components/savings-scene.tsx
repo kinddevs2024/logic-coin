@@ -1,3 +1,5 @@
+import { useUiCopy } from "@/components/localized-native";
+
 import { useIsFocused } from "expo-router";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
@@ -226,6 +228,7 @@ export function SavingsScene({
   goal: number;
   children?: ReactNode;
 }) {
+  const { copyContent, formatCopy } = useUiCopy();
   const theme = useAppTheme();
   const isFocused = useIsFocused();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -285,7 +288,7 @@ export function SavingsScene({
       style={[styles.scene, { height: layout.height }]}
       onLayout={(event) => setSceneWidth(event.nativeEvent.layout.width)}
       accessibilityRole="summary"
-      accessibilityLabel={`${formatMoney(balance)}, ${Math.round(progress * 100)}%`}
+      accessibilityLabel={formatCopy("{0}, {1}%", [formatMoney(balance), Math.round(progress * 100)])}
     >
       <View
         style={[
@@ -322,13 +325,13 @@ export function SavingsScene({
             {...androidImageProps}
             source={jarStateSources[stateIndex]}
             resizeMode="contain"
-            accessibilityLabel={`${Math.round(progress * 100)}%`}
+            accessibilityLabel={formatCopy("{0}%", [Math.round(progress * 100)])}
             accessibilityIgnoresInvertColors
             style={styles.jarShell}
           />
           <View style={styles.jarLabel} pointerEvents="none">
             <AppText style={styles.jarLabelText} numberOfLines={1}>
-              {formatMoney(balance)}
+              {copyContent(formatMoney(balance))}
             </AppText>
           </View>
         </Animated.View>

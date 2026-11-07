@@ -4,7 +4,7 @@ export function formatNotificationTime(value: string, options: {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "";
   const now = options.now ?? new Date();
-  const language = options.language ?? "ru";
+  const language = options.language ?? "uz";
   const uses24 = options.uses24hourClock ?? !new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hour12;
   const hours = date.getHours();
   const time = `${uses24 ? String(hours).padStart(2, "0") : hours % 12 || 12}:${String(date.getMinutes()).padStart(2, "0")}${uses24 ? "" : hours < 12 ? " AM" : " PM"}`;

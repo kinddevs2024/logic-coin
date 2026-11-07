@@ -1,10 +1,12 @@
-import { useState, useSyncExternalStore } from "react";
-import { Pressable, View } from "react-native";
+import { useUiCopy } from "@/components/localized-native";
+
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { AppState, Platform, Pressable, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { meApi } from "@/lib/api";
-import { configureDailyReminder, syncPushNotifications } from "@/lib/notifications";
+import { configureDailyReminder, deviceNotificationsPermitted, openNotificationSettings, syncPushNotifications } from "@/lib/notifications";
 import { getPushStatus, subscribePushStatus, type PushStatus } from "@/lib/push-status";
 import { useAppStore } from "@/store/app-store";
 
@@ -15,18 +17,38 @@ const labels = {
 };
 
 export function PushNotificationsControl() {
+  const { copyContent } = useUiCopy();
   const token = useAppStore(s => s.accessToken);
   const time = useAppStore(s => s.notificationTime);
+  const enabled = useAppStore(s => s.notificationsEnabled);
   const { language } = useTranslation();
   const theme = useAppTheme();
-  const status: PushStatus = useSyncExternalStore(subscribePushStatus, getPushStatus, () => "idle");
+  const pushStatus: PushStatus = useSyncExternalStore(subscribePushStatus, getPushStatus, () => "idle");
+  const status: PushStatus = enabled ? pushStatus : "disabled";
   const [busy, setBusy] = useState(false);
-  if (!token) return null;
+  const [permitted, setPermitted] = useState<boolean | null>(null);
+  useEffect(() => {
+    let active = true;
+    const refresh = () => { void deviceNotificationsPermitted().then(value => { if (active) setPermitted(value); }); };
+    refresh();
+    const subscription = AppState.addEventListener("change", refresh);
+    if (Platform.OS === "web") window.addEventListener("focus", refresh);
+    return () => { active = false; subscription.remove(); if (Platform.OS === "web") window.removeEventListener("focus", refresh); };
+  }, [pushStatus, busy]);
+  if (!token || permitted !== false || !enabled || status === "ready" || status === "local_only") return null;
   const c = labels[language];
   const enable = async () => {
     if (busy) return;
     setBusy(true);
     try {
+      if (pushStatus === "denied" && Platform.OS !== "web") {
+        useAppStore.getState().setNotifications(true);
+        await Promise.all([
+          openNotificationSettings(),
+          meApi.updatePreferences({ notificationsEnabled: true, dailyReminderEnabled: true }, token),
+        ]);
+        return;
+      }
       const ready = await syncPushNotifications({ accessToken: token, enabled: true, reminderTime: time, requestPermission: true });
       if (ready) {
         useAppStore.getState().setNotifications(true);
@@ -37,11 +59,11 @@ export function PushNotificationsControl() {
       }
     } finally { setBusy(false); }
   };
-  return <View style={{ padding: 12, gap: 8 }}>
-    <AppText variant="caption" muted accessibilityLiveRegion="polite">{c[status]}</AppText>
-    {status !== "ready" && status !== "unsupported" && status !== "denied" && status !== "setup_required" ?
+  return <View style={{ padding: 12, gap: 8, borderRadius: 14, backgroundColor: theme.surfaceRaised }}>
+    <AppText variant="caption" muted accessibilityLiveRegion="polite">{copyContent(c[status])}</AppText>
+    {status !== "unsupported" && status !== "setup_required" && !(status === "denied" && Platform.OS === "web") ?
       <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void enable().catch(() => {}); }} style={{ padding: 12, borderRadius: 14, backgroundColor: theme.primary }}>
-        <AppText color="#FFFFFF" variant="label">{busy ? c.busy : c.enable}</AppText>
+        <AppText color={String(theme.onPrimary)} variant="label">{copyContent(busy ? c.busy : c.enable)}</AppText>
       </Pressable> : null}
   </View>;
 }

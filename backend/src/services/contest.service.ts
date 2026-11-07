@@ -1,9 +1,11 @@
 import mongoose, { Types } from "mongoose";
 import {
   CONTEST_CONSOLATION_COINS,
+  DAILY_CHALLENGE_GAME_COUNT,
   CONTEST_STANDARD_CASE_KIND,
 } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
+import { listAvatarUrl } from "../lib/list-avatar.js";
 import {
   buildContestGiftBundle,
   buildContestRandomReward,
@@ -77,7 +79,10 @@ export async function collectContestStandings(dayKey: string): Promise<ContestSt
   return [...byUser.entries()].map(([userId, value]) => ({
     userId,
     totalCoins: (totalsByUser.get(userId) ?? 0) + (bonusTotals.get(userId) ?? 0),
-    completedGamesCount: value.gameIds.size,
+    // Administrators can replace games during a day; historical attempts
+    // may then contain more distinct IDs than the six published slots.
+    // Keep all earned coins, but never persist an impossible game count.
+    completedGamesCount: Math.min(value.gameIds.size, DAILY_CHALLENGE_GAME_COUNT),
     finishedAt: value.finishedAt?.toISOString() ?? null
   }));
 }
@@ -305,7 +310,7 @@ type ContestResultLean = {
   coinAmount?: number | null;
   replayCount?: number | null;
   extraTimeSeconds?: number | null;
-  giftKind?: "extra_time" | "replay" | "coin" | null;
+  giftKind?: "extra_time" | "replay" | "coin" | "hint" | null;
   claimStatus?: "pending" | "claiming" | "claimed" | null;
   claimedAt?: Date | null;
   settledAt: Date;
@@ -344,7 +349,7 @@ async function contestStandings(dayKey: string) {
     return {
       ...serializeContestResult(entry),
       name: user?.name ?? "Игрок",
-      avatarUrl: user?.avatarUrl ?? null,
+      avatarUrl: user ? listAvatarUrl(user._id, user.avatarUrl) : null,
       countryCode: user?.countryCode ?? null
     };
   });
@@ -452,6 +457,7 @@ export async function claimContestReward(resultId: string, userId: Types.ObjectI
         await grantReplay(result.replayCount ?? 0, "box-replay");
         await grantTime(result.extraTimeSeconds ?? 0, "box-time");
       } else if (result.rewardType === "random") {
+        if (result.giftKind === "hint") await grantGift({ userId, kind: "hint", sourceId: `${sourceId}:random-hint`, sourceDayKey: result.dayKey, description: "Подсказка для игры: открыть одну букву" }, session);
         if (result.giftKind === "coin") await grantNextChallengeCoins(result.coinAmount ?? 0, "random-coins");
         if (result.giftKind === "replay") await grantReplay(result.replayCount ?? 0, "random-replay");
         if (result.giftKind === "extra_time") {

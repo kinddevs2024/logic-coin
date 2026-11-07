@@ -1,16 +1,21 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { useUiCopy } from "@/components/localized-native";
+import { useAuthError } from "@/components/auth-error-dialog";
+import Ionicons from "@/components/auth-icon";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
+
 
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
+import { TelegramBrandIcon } from "@/components/telegram-brand-icon";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { authApi, type AuthResult } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import { authEntryCopy } from "@/constants/auth-entry-copy";
 
 function ProviderButton({
   label,
@@ -25,11 +30,12 @@ function ProviderButton({
   busy?: boolean;
   disabled?: boolean;
 }) {
+  const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={copyText(label)}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
@@ -40,7 +46,7 @@ function ProviderButton({
     >
       <GlassSurface intensity={48} variant="soft" style={styles.button}>
         <View style={styles.providerIcon}>{icon}</View>
-        <AppText variant="label" style={styles.label}>{label}</AppText>
+        <AppText variant="label" style={styles.label}>{copyContent(label)}</AppText>
         {busy ? (
           <ActivityIndicator size="small" color={String(theme.textMuted)} />
         ) : (
@@ -53,15 +59,17 @@ function ProviderButton({
 
 export function SocialButtons({
   onAuthenticated,
+  autoPrompt = false,
 }: {
   onAuthenticated?: (result: AuthResult) => void;
+  autoPrompt?: boolean;
 }) {
-  const { t } = useTranslation();
+  const showError = useAuthError();
+  const { language } = useTranslation();
   const router = useRouter();
   const authenticate = useAppStore((state) => state.authenticate);
   const postAuthLanguageUserId = useAppStore((state) => state.postAuthLanguageUserId);
   const [busy, setBusy] = useState<"google" | "telegram" | null>(null);
-  const [googleError, setGoogleError] = useState<string | null>(null);
   const googleInFlightRef = useRef(false);
   const [telegramFlow, setTelegramFlow] = useState<{
     flowId: string;
@@ -102,7 +110,7 @@ export function SocialButtons({
         active = false;
         setTelegramFlow(null);
         setBusy(null);
-        Alert.alert("Telegram", error instanceof Error ? error.message : t("auth.invalid"));
+        showError(error);
       } finally {
         inFlight = false;
       }
@@ -113,18 +121,16 @@ export function SocialButtons({
       active = false;
       clearInterval(interval);
     };
-  }, [completeAuth, telegramFlow, t]);
+  }, [completeAuth, telegramFlow, showError]);
 
   const google = async (credential: string) => {
     if (googleInFlightRef.current) return;
     googleInFlightRef.current = true;
-    setGoogleError(null);
     setBusy("google");
     try {
       completeAuth(await authApi.google(credential));
     } catch (error) {
-      setGoogleError(error instanceof Error ? error.message : t("auth.invalid"));
-      Alert.alert("Google", error instanceof Error ? error.message : t("auth.invalid"));
+      showError(error, () => void google(credential));
     } finally {
       setBusy(null);
       googleInFlightRef.current = false;
@@ -140,24 +146,20 @@ export function SocialButtons({
       else await Linking.openURL(flow.botUrl);
     } catch (error) {
       setBusy(null);
-      Alert.alert("Telegram", error instanceof Error ? error.message : t("auth.invalid"));
+      showError(error, () => void telegram());
     }
   };
 
   return (
     <View style={styles.list}>
       <GoogleSignInButton
+        autoPrompt={autoPrompt}
         onCredential={(credential: string) => void google(credential)}
         disabled={busy !== null}
       />
-      {googleError ? (
-        <AppText variant="caption" color="#C0392B" style={styles.error}>
-          {googleError}
-        </AppText>
-      ) : null}
       <ProviderButton
-        label="Telegram"
-        icon={<Ionicons name="paper-plane" size={21} color="#229ED9" />}
+        label={authEntryCopy[language].telegram}
+        icon={<TelegramBrandIcon />}
         onPress={() => void telegram()}
         busy={busy === "telegram"}
         disabled={busy !== null && busy !== "telegram"}
