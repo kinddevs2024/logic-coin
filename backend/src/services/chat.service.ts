@@ -1,5 +1,6 @@
+import { chatVideoMime } from "../lib/chat-video.js";
 import { randomBytes, createHmac, timingSafeEqual } from "node:crypto";
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, open } from "node:fs/promises";
 import path from "node:path";
 import { Types, type Model } from "mongoose";
 import sharp from "sharp";
@@ -1232,10 +1233,16 @@ export async function readChatAttachment(
     )
       return fail(403, "media_denied", "File access denied");
   }
+  let mediaMime = a.mime;
+  if (a.kind === "file" && /\.(mp4|m4v|mov|webm)$/i.test(a.name)) {
+    const handle = await open(path.join(root, a.storageKey), "r");
+    try { const prefix = Buffer.alloc(8);await handle.read(prefix,0,8,0);mediaMime = chatVideoMime(a.name,prefix) ?? a.mime; }
+    finally { await handle.close(); }
+  }
   return {
     bytes: a.kind === "file" ? Buffer.alloc(0) : await readFile(path.join(root, a.storageKey)),
     filePath: a.kind === "file" ? path.join(root, a.storageKey) : null,
-    mime: a.mime,
+    mime: mediaMime,
     name: a.name,
   };
 }

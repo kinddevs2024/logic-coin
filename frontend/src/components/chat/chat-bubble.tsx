@@ -1,3 +1,5 @@
+import { VideoPlayer } from "./video-player";
+import { isChatVideo } from "@/lib/chat-video";
 import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
 
 import { memo } from "react";
@@ -127,6 +129,8 @@ export const ChatBubble = memo(function ChatBubble({
                 </Pressable>
               ) : file.kind === "voice" ? (
                 <VoicePlayer key={file.id} url={chatMediaUrl(file.url)} unread={!item.own && !item.voiceListened} onListened={() => onListened?.(item)} />
+              ) : isChatVideo(file) ? (
+                <VideoPlayer key={file.id} url={chatMediaUrl(file.url)} name={file.name} />
               ) : (
                 <View key={file.id} style={styles.file}>
                   <Ionicons

@@ -1,3 +1,4 @@
+import { chatVideoMime } from "../lib/chat-video.js";
 import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdir, readFile, unlink } from "node:fs/promises";
@@ -37,7 +38,7 @@ export async function uploadChatStream(userId: Types.ObjectId, input: { name: st
     } }), createWriteStream(file, { flags: "wx", mode: 0o600 }));
     if (size !== declaredSize) throw new ApiError(400, "invalid_attachment", "Incomplete file upload");
     if (input.kind !== "file") return await uploadChatAttachmentBuffer(userId, input, await readFile(file));
-    const mime = ["application/pdf", "text/plain"].includes(input.mime) ? input.mime : "application/octet-stream";
+    const mime = chatVideoMime(input.name, prefix) ?? (["application/pdf", "text/plain"].includes(input.mime) ? input.mime : "application/octet-stream");
     if ((mime === "application/pdf" && prefix.subarray(0,5).toString() !== "%PDF-") || (mime === "text/plain" && binaryText))
       throw new ApiError(400, "invalid_attachment", "Invalid file content");
     const name = input.name.replace(/[\\/\r\n\x00-\x1f]/g, "_").slice(0,180);

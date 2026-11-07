@@ -7,6 +7,7 @@ import { User } from "../models/User.js";
 import { ChatBlock } from "../models/Chat.js";
 import * as chat from "../services/chat.service.js";
 import { uploadChatStream } from "../services/chat-upload.service.js";
+import { chatVideoPoster } from "../services/chat-video-preview.service.js";
 const id = z.string().regex(/^[a-f\d]{24}$/i);
 const parseId = (value: unknown) => {
   const parsed = id.safeParse(value);
@@ -31,9 +32,15 @@ chatMediaRoutes.get("/media/:id", async (req, res, next) => {
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'; media-src 'self'; sandbox allow-same-origin",
     "Referrer-Policy": "no-referrer",
-    "Content-Disposition": `${value.mime.startsWith("image/") || value.mime.startsWith("audio/") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(value.name)}`,
+    "Content-Disposition": `${value.mime.startsWith("image/") || value.mime.startsWith("audio/") || value.mime.startsWith("video/") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(value.name)}`,
   });
   res.type(value.mime);
+  if (req.query.poster === "1" && value.filePath && value.mime.startsWith("video/")) {
+    const poster = await chatVideoPoster(value.filePath);
+    res.type("image/jpeg").set("Content-Disposition", "inline");
+    res.sendFile(poster, { cacheControl: false, lastModified: false }, error => { if (error) next(error); });
+    return;
+  }
   if (value.filePath) {
     res.sendFile(value.filePath, { cacheControl: false, lastModified: false }, error => { if (error) next(error); });
     return;
