@@ -83,6 +83,8 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
       if (initialized) {
         promise.resolve(true);
         loadRewardedInternal();
+        loadInterstitialInternal();
+        loadAppOpenInternal();
         return;
       }
       try {
@@ -146,6 +148,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
         @Override
         public void onAdFailedToShow(@NonNull AdError adError) {
           promise.resolve(false);
+          loadInterstitialInternal();
         }
 
         @Override
@@ -172,7 +175,14 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void showAppOpen(Promise promise) {
     mainHandler.post(() -> {
-      if (appOpenAd == null || System.currentTimeMillis() - lastAppOpenShownAt < 120_000L) {
+      // A failed preload must not leave this format unavailable for the rest
+      // of the session. Prepare again at the next eligible foreground boundary.
+      if (appOpenAd == null) {
+        loadAppOpenInternal();
+        promise.resolve(false);
+        return;
+      }
+      if (System.currentTimeMillis() - lastAppOpenShownAt < 120_000L) {
         promise.resolve(false);
         return;
       }
@@ -193,6 +203,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
         @Override
         public void onAdFailedToShow(@NonNull AdError adError) {
           promise.resolve(false);
+          loadAppOpenInternal();
         }
 
         @Override
