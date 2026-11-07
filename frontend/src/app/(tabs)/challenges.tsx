@@ -18,7 +18,6 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useChallenges } from "@/hooks/use-challenges";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTranslation } from "@/hooks/use-translation";
-import { useAppStore } from "@/store/app-store";
 
 const copy = {
   ru: { title: "Челленджи", daily: "Сегодня", complete: "пройдено", earned: "Заработано", empty: "Готовим игры дня", refresh: "Обновить", pool: "Призовой фонд" },
@@ -38,7 +37,6 @@ function AvailableChallengesScreen() {
   const router = useRouter();
   const [giftsOpen, setGiftsOpen] = useState(false);
   const { isTablet, isDesktop } = useResponsiveLayout();
-  const coinBalance = useAppStore((state) => state.coinBalance);
   const { today, isLoading, refresh, pendingGameKey } = useChallenges();
   const c = copy[language];
   const wide = isTablet || isDesktop;
@@ -50,10 +48,6 @@ function AvailableChallengesScreen() {
           <View style={styles.headerActions}>
           <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={copyText(language === "ru" ? "История челленджей" : language === "uz" ? "Sinovlar tarixi" : "Challenge history")} onPress={() => router.push("/challenge-history" as never)}><GlassSurface variant="strong" style={styles.headerIcon}><Ionicons name="time-outline" size={18} color={String(theme.text)} /></GlassSurface></Pressable>
           <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={copyText(language === "ru" ? "Мои подарки" : language === "uz" ? "Sovg‘alarim" : "My gifts")} onPress={() => setGiftsOpen(true)}><GlassSurface variant="strong" style={styles.headerIcon}><Ionicons name="gift-outline" size={18} color={String(theme.text)} /></GlassSurface></Pressable>
-          <GlassSurface variant="strong" intensity={68} style={styles.coinPill}>
-            <Ionicons name="diamond" size={13} color="#F5B800" />
-            <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.coinValue, { color: theme.text }]}>{copyContent(today?.coins.balance ?? coinBalance)}</AppText>
-          </GlassSurface>
           </View>
       </View>
 
@@ -99,8 +93,6 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, minWidth: 0 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  coinPill: { minHeight: 40, maxWidth: 96, borderRadius: 18, paddingHorizontal: 9, flexDirection: "row", alignItems: "center", gap: 4 },
-  coinValue: { fontSize: 14, lineHeight: 18, fontWeight: "900", flexShrink: 1 },
   hero: { borderRadius: 30, padding: 18, gap: 15, overflow: "hidden" },
   heroTop: { flexDirection: "row", alignItems: "center", gap: 16 },
   eyebrow: { fontSize: 10, lineHeight: 13, fontWeight: "900", letterSpacing: 1.4 },
