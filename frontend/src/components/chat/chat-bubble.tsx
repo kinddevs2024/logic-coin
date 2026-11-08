@@ -56,7 +56,7 @@ export const ChatBubble = memo(function ChatBubble({
           }}
           style={{ alignSelf: "flex-end" }}
         >
-          <Avatar userId={item.sender.id}
+          <Avatar
             name={item.sender.name}
             avatarUrl={item.sender.avatarUrl}
             size={30}
@@ -176,7 +176,7 @@ export const ChatBubble = memo(function ChatBubble({
                 <AppText style={{fontSize: 16, lineHeight: 21}}>{emoji}</AppText>
                 {people.length ? <View style={{flexDirection: "row", paddingLeft: 3}}>
                   {people.map((reaction, index) => <View key={reaction.userId} style={{marginLeft: index ? -5 : 0, borderRadius: 12, borderWidth: 1, borderColor: theme.background}}>
-                    <Avatar userId={reaction.userId} name={reaction.user!.name} avatarUrl={reaction.user!.avatarUrl} size={20} />
+                    <Avatar name={reaction.user!.name} avatarUrl={reaction.user!.avatarUrl} size={20} />
                   </View>)}
                 </View> : null}
                 {reactions.length > people.length ? <AppText variant="caption">{people.length ? `+${reactions.length - people.length}` : reactions.length}</AppText> : null}

@@ -98,7 +98,7 @@ export function ChatRoomInfo({
         onClose={onClose}
       >
         <View style={{ alignItems: "center", gap: 8, paddingBottom: 12 }}>
-          <Avatar userId={selected.id}
+          <Avatar
             name={selected.name}
             avatarUrl={selected.avatarUrl}
             size={70}
@@ -174,7 +174,7 @@ export function ChatRoomInfo({
       <View style={{ alignItems: "center", gap: 8, paddingBottom: 14 }}>
         {room.username ? <AppText muted>@{room.username}</AppText> : null}
         {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && !room.isOwner)) ? <LogoMark size={86} /> : (
-        <Avatar userId={room.peer?.id ?? room.id}
+        <Avatar
           name={room.title}
           avatarUrl={room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null}
           size={86}
@@ -330,7 +330,7 @@ export function ChatRoomInfo({
               gap: 10,
             }}
           >
-            <Avatar userId={person.id} name={person.name} avatarUrl={person.avatarUrl} size={42} />
+            <Avatar name={person.name} avatarUrl={person.avatarUrl} size={42} />
             <View style={{ flex: 1 }}>
               <AppText variant="label">{person.name}</AppText>
               <AppText variant="caption" muted>
@@ -426,7 +426,7 @@ export function ChatRoomInfo({
                         gap: 9,
                       }}
                     >
-                      <Avatar userId={person.id}
+                      <Avatar
                         name={person.name}
                         avatarUrl={person.avatarUrl}
                         size={36}

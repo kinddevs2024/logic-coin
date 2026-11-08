@@ -64,7 +64,7 @@ export default function FriendsScreen() {
             onPress={() => router.push(`/player/${f.id}` as never)}
             style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
           >
-            <Avatar userId={f.id} name={f.name} avatarUrl={f.avatarUrl} size={48} />
+            <Avatar name={f.name} avatarUrl={f.avatarUrl} size={48} />
             <AppText variant="heading" style={{ flex: 1 }}>
               {f.name}
             </AppText>

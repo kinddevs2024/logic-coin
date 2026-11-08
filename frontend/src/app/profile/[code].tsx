@@ -51,7 +51,7 @@ export default function PublicProfileScreen() {
       {query.error ? <AppText color={String(theme.danger)}>{copyText("Профиль не найден")}</AppText> : null}
       {profile ? <>
         <GlassSurface variant="strong" intensity={82} style={styles.hero}>
-          <Avatar userId={profile.id} name={profile.name} avatarUrl={profile.avatarUrl} size={92} />
+          <Avatar name={profile.name} avatarUrl={profile.avatarUrl} size={92} />
           <AppText variant="title">{profile.name}</AppText>
           <AppButton icon="chatbubble-outline" onPress={() => router.push(`/player/${profile.id}` as never)}>{copyText("Написать")}</AppButton>
           <View style={styles.countryLine}><CountryFlagBadge countryCode={profile.countryCode} size={19} /><AppText muted>{copyContent(countryName(profile.countryCode))}</AppText></View>

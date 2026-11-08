@@ -394,7 +394,7 @@ export function MessagesScreen() {
                 onPress={() => setDrawerOpen(true)}
                 style={styles.avatar}
               >
-                <Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={43} />
+                <Avatar name={user.name} avatarUrl={user.avatarUrl} size={43} />
               </Pressable>
               <View style={{ flex: 1 }}>
                 <AppText variant="title">{c.title}</AppText>
@@ -560,7 +560,7 @@ export function MessagesScreen() {
               {error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{error}</AppText> : null}
               {requestsQuery.data?.requests.length === 0 ? <AppText muted style={{padding:24,textAlign:"center"}}>{c.noRequests}</AppText> : null}
               <FlatList showsVerticalScrollIndicator={false} data={requestsQuery.data?.requests ?? []} keyExtractor={person=>person.id} renderItem={({item:person})=><MotionEntrance style={{paddingVertical:12,gap:10}}>
-                <Pressable onPress={()=>profile(person.id)} style={{flexDirection:"row",alignItems:"center",gap:12}}><Avatar userId={person.id} name={person.name} avatarUrl={person.avatarUrl} size={46}/><View style={{flex:1}}><AppText variant="label">{person.name}</AppText>{person.username ? <AppText muted>@{person.username}</AppText>:null}</View></Pressable>
+                <Pressable onPress={()=>profile(person.id)} style={{flexDirection:"row",alignItems:"center",gap:12}}><Avatar name={person.name} avatarUrl={person.avatarUrl} size={46}/><View style={{flex:1}}><AppText variant="label">{person.name}</AppText>{person.username ? <AppText muted>@{person.username}</AppText>:null}</View></Pressable>
                 <View style={{flexDirection:"row",gap:12}}><ChatAction title={c.acceptFriend} icon="checkmark" disabled={Boolean(requestBusy)} onPress={()=>void answerRequest(person.id,true)}/><ChatAction title={c.declineFriend} icon="close" disabled={Boolean(requestBusy)} onPress={()=>void answerRequest(person.id,false)}/></View>
               </MotionEntrance>} />
             </View> : null}
@@ -612,7 +612,7 @@ export function MessagesScreen() {
                         room.peer ? profile(room.peer.id) : open(room.id)
                       }
                     >
-                      <Avatar userId={room.peer?.id ?? room.id}
+                      <Avatar
                         name={room.peer?.username || room.peer?.name || room.title}
                         avatarUrl={
                           room.peer?.avatarUrl ??
@@ -748,7 +748,7 @@ export function MessagesScreen() {
                           accessibilityRole="button"
                           onPress={() => profile(person.id)}
                         >
-                          <Avatar userId={person.id}
+                          <Avatar
                             name={person.name}
                             avatarUrl={person.avatarUrl}
                             size={40}

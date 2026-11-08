@@ -8,15 +8,12 @@ import { initials } from "@/lib/format";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { androidImageProps } from "@/lib/android-image";
 import { migratedAppUrl } from "@/lib/server-migration";
-import { avatarColor } from "@/lib/avatar-color";
 
 export function Avatar({
-  userId,
   name,
   avatarUrl,
   size = 44,
 }: {
-  userId?: string;
   name?: string;
   avatarUrl?: string | null;
   size?: number;
@@ -32,14 +29,14 @@ export function Avatar({
         backgroundColor: theme.mode === "dark" ? theme.surfaceMuted : "#E1EFE3",
       }}
     >
-      <AvatarContent key={avatarUrl || "initials"} userId={userId} name={name} avatarUrl={avatarUrl} size={size} />
+      <AvatarContent key={avatarUrl || "initials"} name={name} avatarUrl={avatarUrl} size={size} />
     </View>
   );
 }
 
-function AvatarContent({ userId, name, avatarUrl, size }: { userId?: string; name?: string; avatarUrl?: string | null; size: number }) {
+function AvatarContent({ name, avatarUrl, size }: { name?: string; avatarUrl?: string | null; size: number }) {
   const { copyText } = useUiCopy();
-  const color = avatarColor(userId || "guest");
+  const theme = useAppTheme();
   const [failed, setFailed] = useState(false);
   if (avatarUrl && !failed) {
     return (
@@ -58,12 +55,12 @@ function AvatarContent({ userId, name, avatarUrl, size }: { userId?: string; nam
       style={{
         flex: 1,
         borderRadius: size / 2,
-        backgroundColor: color.background,
+        backgroundColor: theme.mode === "dark" ? theme.primarySoft : "#E1EFE3",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <AppText variant={size > 64 ? "heading" : "label"} color={color.foreground} style={{ fontSize: size * 0.32 }}>
+      <AppText variant={size > 64 ? "heading" : "label"} color={theme.mode === "dark" ? String(theme.primary) : "#153B2B"} style={{ fontSize: size * 0.32 }}>
         {initials(name)}
       </AppText>
     </View>

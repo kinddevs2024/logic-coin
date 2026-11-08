@@ -69,7 +69,7 @@ export default function PlayerProfileScreen() {
             gap: 14,
           }}
         >
-          <Avatar userId={p.id} name={p.name} avatarUrl={p.avatarUrl} size={100} />
+          <Avatar name={p.name} avatarUrl={p.avatarUrl} size={100} />
           <AppText variant="title">{p.name}</AppText>
           {p.username ? (
             <AppText color={String(theme.primary)}>@{p.username}</AppText>

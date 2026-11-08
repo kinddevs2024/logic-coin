@@ -33,7 +33,7 @@ export function InviteFriendsSheet({token,onClose}:{token:string;onClose:()=>voi
   {users.map(person=>{
    const checked=selected.has(person.id),disabled=busy||person.friendship!=="none"||(!checked&&selected.size>=30);
    return <Pressable key={person.id} accessibilityRole="checkbox" accessibilityLabel={person.name} accessibilityState={{checked,disabled}} disabled={disabled} onPress={()=>setSelected(current=>{const next=new Set(current);if(next.has(person.id))next.delete(person.id);else next.add(person.id);return next;})} style={({pressed})=>({flexDirection:"row",alignItems:"center",gap:12,padding:10,borderRadius:16,backgroundColor:checked||pressed?theme.primarySoft:"transparent",opacity:disabled?0.6:1})}>
-    <Avatar userId={person.id} name={person.username||person.name} avatarUrl={person.avatarUrl} size={42}/>
+    <Avatar name={person.username||person.name} avatarUrl={person.avatarUrl} size={42}/>
     <View style={{flex:1}}><AppText variant="label" numberOfLines={1}>{person.name}</AppText>{person.username?<AppText muted variant="caption">@{person.username}</AppText>:null}{person.friendship!=="none"?<AppText muted variant="caption">{person.friendship==="friends"?c.alreadyFriends:person.friendship==="incoming"?c.incomingFriendRequest:c.friendRequestPending}</AppText>:null}</View>
     <Ionicons name={checked?"checkmark-circle":"ellipse-outline"} size={24} color={String(checked?theme.primary:theme.textMuted)}/>
    </Pressable>;

@@ -116,7 +116,7 @@ export default function InviteScreen() {
         <GlassSurface intensity={58} variant="soft" style={styles.friendList}>
           {friends.map((friend) => (
             <View key={friend.id} style={styles.friendRow}>
-              <Avatar userId={friend.id} name={friend.name} avatarUrl={friend.avatarUrl} size={40} />
+              <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={40} />
               <Pressable accessibilityRole="button" onPress={()=>router.push(`/player/${friend.id}` as never)} style={{flex:1,gap:4}}><AppText variant="label">{friend.name}</AppText><AppText variant="caption" muted>{language==="uz"?"Daromad":language==="en"?"Revenue":"Доход"}: ${((friend.earnedCents??0)/100).toFixed(2)} · {language==="uz"?"Taklif qilgan":language==="en"?"Invited":"Пригласил"}: {friend.invitedCount??0}</AppText></Pressable>
               {friend.verified ? <Ionicons name="checkmark-circle" size={18} color={String(theme.primary)} /> : null}
             </View>

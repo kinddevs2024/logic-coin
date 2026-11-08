@@ -104,7 +104,7 @@ export default function HomeScreen() {
     } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={tourActive || drawerOpen || leaderboardOpen || inboxOpen}>
       <View style={styles.header}>
         <View style={styles.headerSide}>
-          <Pressable accessibilityRole="button" accessibilityLabel={copyText(t("tabs.profile"))} onPress={() => setDrawerOpen(true)}><Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={copyText(t("tabs.profile"))} onPress={() => setDrawerOpen(true)}><Avatar name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
         <View ref={rankingTarget} collapsable={false}><RankingPreview metric="yesterday" onPress={() => setLeaderboardOpen(true)} /></View>
         <View style={[styles.headerSide, styles.headerSideEnd]}>
