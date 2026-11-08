@@ -10,9 +10,9 @@ it("does not load in-page ads and loads the retained result-page zone once", () 
     createElement: () => ({ dataset: {}, src: "", addEventListener: vi.fn() }),
     body: { appendChild: (tag: typeof tags[number]) => tags.push(tag) },
   });
-  loadWebsiteAds(true);
   loadWebsiteAds();
   expect(tags).toHaveLength(0);
+  loadWebsiteAds(true);
   loadWebsiteAds(true);
   expect(tags.map(tag => [tag.dataset.zone, tag.src])).toEqual([
     ["12151182", "https://n6wxm.com/vignette.min.js"],
