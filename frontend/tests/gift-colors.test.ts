@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decode } from "fast-png";
 import { toByteArray } from "base64-js";
+import { unzlibSync } from "fflate";
 import { giftPalette, recolorGiftPixels, rgbToHsv } from "../src/lib/gift-colors";
 import { themedGiftSource } from "../src/lib/themed-gift-image";
 import source from "../src/lib/home-gift-pixels.json";
@@ -22,11 +23,11 @@ describe("theme-aware gift artwork", () => {
     expect(giftPalette("#e58ab5")).not.toEqual(giftPalette("#2484ce"));
   });
   it.each(["open", "closed"] as const)("produces a valid %s PNG with every alpha pixel retained", state => {
-    const original = decode(toByteArray(source[state]));
+    const original = { ...source[state], data: unzlibSync(toByteArray(source[state].rgba)) };
     const result = themedGiftSource(state, giftPalette("#e58ab5"));
     const image = decode(toByteArray(result.uri.split(",")[1]));
     expect([image.width, image.height]).toEqual([original.width, original.height]);
-    for (let i = 3; i < original.data.length; i += 4) expect(image.data[i]).toBe(original.data[i]);
+    expect(image.data.filter((_, i) => i % 4 === 3)).toEqual(original.data.filter((_, i) => i % 4 === 3));
     expect(themedGiftSource(state, giftPalette("#e58ab5"))).toEqual(result);
   });
 });
