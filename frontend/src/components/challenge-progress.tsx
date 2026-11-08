@@ -59,7 +59,7 @@ const challengeRules = {
   },
 };
 const ROW = 46;
-const HEIGHT = ROW * 3.5;
+const HEIGHT = ROW * 3.5 + 16;
 
 export function ChallengeProgress({ today }: { today?: TodayChallenges }) {
   if (today && !today.available) return <ChallengeEmptyState nextAt={today.nextChallengeAt} />;
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   readyPoolText: { minWidth: 0, flexShrink: 1, alignItems: "center" },
   detailsAmounts: { alignItems: "flex-end", flexShrink: 0, gap: 2 },
   detailsAmountRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  card: { borderRadius: 30, paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", overflow: "hidden" },
+  card: { borderRadius: 30, paddingHorizontal: 16, paddingVertical: 0, flexDirection: "row", alignItems: "center", overflow: "hidden" },
   metrics: { width: "47%", paddingRight: 8, minWidth: 0, height: HEIGHT, paddingVertical: 10, justifyContent: "space-between" },
   score: { flexDirection: "row", alignItems: "center", gap: 5 },
   number: { fontSize: 46, lineHeight: 56, fontWeight: "900", flexShrink: 1, minWidth: 0, letterSpacing: -1.5 },
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   poolCaption: { flexShrink: 1 },
   infoButton: { flexShrink: 0, width: 22, minWidth: 22, minHeight: 24, alignItems: "center", justifyContent: "center" },
   ranking: { width: "53%", borderLeftWidth: 1, paddingLeft: 8, minWidth: 0, minHeight: HEIGHT, justifyContent: "center" },
-  viewport: { height: HEIGHT, flexGrow: 0, borderRadius: 14 },
+  viewport: { height: HEIGHT, flexGrow: 0 },
   row: { height: ROW, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 5, borderRadius: 14, borderWidth: 1, borderColor: "transparent" },
   person: { flex: 1, minWidth: 0 },
   loading: { position: "absolute", bottom: 2, right: 4 },
