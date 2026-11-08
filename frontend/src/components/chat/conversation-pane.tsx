@@ -155,8 +155,8 @@ function ConversationPaneContent({
     [action, setAction] = useState<ChatItem | null>(null);
   useEffect(() => {
     if (!reply) return;
-    const frame = requestAnimationFrame(() => composerRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
+    const timer = setTimeout(() => composerRef.current?.focus(), Platform.OS === "web" ? 0 : 250);
+    return () => clearTimeout(timer);
   }, [reply]);
   const [forward, setForward] = useState<{
       message: ChatItem;
