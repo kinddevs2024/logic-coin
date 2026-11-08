@@ -83,6 +83,7 @@ router.post(
   rewardLimiter,
   validateBody(completeSchema),
   async (request, response) => {
+    requireChallengeRequest(request.headers);
     const gameKey = gameKeySchema.safeParse(request.params.gameKey);
     if (!gameKey.success) throw new ApiError(400, "invalid_game_key", "Game key is invalid");
     const body = request.body as z.infer<typeof completeSchema>;
@@ -118,6 +119,7 @@ router.post(
       scope: "game" | "day";
       ad?: { provider?: "demo" | "yandex" | "appodeal"; receiptId?: string };
     };
+    requireChallengeRequest(request.headers);
     const result = await doubleChallengeCoins({
       userId: request.auth!.userId,
       scope: body.scope,

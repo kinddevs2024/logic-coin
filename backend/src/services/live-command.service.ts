@@ -12,7 +12,7 @@ import { invalidateReadCache } from "../lib/read-cache.js";
 const game = z.string().regex(/^[a-z0-9-]{1,80}$/);
 const completion = z.object({ gameKey: game, score: z.number().int().min(0).max(MAX_CHALLENGE_SCORE), durationMs: z.number().int().min(0).max(MAX_CHALLENGE_DURATION_MS).optional() }).strict();
 export async function executeLiveCommand(userId: Types.ObjectId, method: string, input: unknown, challengeClient = false, sessionId = "legacy") {
-  if (method === "start") requireChallengeClient(challengeClient);
+  if (["start", "complete", "double"].includes(method)) requireChallengeClient(challengeClient);
   if (!["today", "pendingReward", "raffleState", "rafflePresence"].includes(method)) invalidateReadCache();
   switch (method) {
     case "raffleState": return raffleState(userId);

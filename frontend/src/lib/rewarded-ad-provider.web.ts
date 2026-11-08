@@ -65,7 +65,8 @@ export class WebRewardedAdProvider implements RewardedAdProvider {
     finally { busy = false; }
   }
   async showInterstitial(placement: InterstitialAdPlacement): Promise<boolean> {
-    if (busy || !(await this.initialize()) || busy || !reserveInterstitial(Date.now())) return false;
+    if (busy || !(await this.initialize()) || busy) return false;
+    if (placement === "game-complete" && !reserveInterstitial(Date.now())) return false;
     busy = true;
     try {
       await (window as AdWindow).show_12150927!({ type: "end", ymid: `interstitial-${globalThis.crypto.randomUUID()}`, requestVar: placement, timeout: 15 });

@@ -20,7 +20,6 @@ import { HangmanResult } from "@/games/hangman/result";
 import { HangmanGame } from "@/games/hangman/game";
 import { AppFrame } from "@/components/app-frame";
 import { ChallengeAppRequired } from "@/components/challenge-app-required";
-import { isTelegramMiniApp } from "@/lib/telegram-context";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
 import { GameExitModal } from "@/components/game-exit-modal";
 import { AppodealBannerSlot } from "@/components/appodeal-banner";
@@ -38,6 +37,7 @@ import { adsApi, challengesApi } from "@/lib/api";
 import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
 import { useChallengeAdGate } from "@/lib/challenge-ad-offer";
 import { rewardedAds } from "@/lib/rewarded-ad";
+import { prepareChallengeAdEntry } from "@/lib/challenge-transition-ad";
 import { useAppStore } from "@/store/app-store";
 import type { GiftItem, GiftUseEffect } from "@/types";
 
@@ -114,7 +114,7 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 
 export default function DynamicGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
-  if (Platform.OS === "web" && firstParam(params.mode) === "challenge" && !isTelegramMiniApp()) return <AppFrame><ChallengeAppRequired /></AppFrame>;
+  if (Platform.OS === "web" && firstParam(params.mode) === "challenge") return <AppFrame><ChallengeAppRequired /></AppFrame>;
   if (!isGameVisible(firstParam(params.gameKey) ?? "") && firstParam(params.mode) !== "challenge") return <Redirect href="/games" />;
   // A replacement of the same dynamic route must get a fresh host, not only
   // a fresh child game with the previous host's completed/discarded session.
@@ -161,6 +161,7 @@ function PlayableGameRoute() {
   const [fortunePrize, setFortunePrize] = useState<string | null>(null);
   const fortuneSpinDone = useRef<(() => void) | null>(null);
   const completionGuard = useRef(false);
+  const transitionAdGuard = useRef(false);
   const challengeStartGuard = useRef("");
   const sessionStartedAt = useRef(0);
   const classicBaseline = useRef<{ key: string; progress: Readonly<GameProgress> } | null>(null);
@@ -243,7 +244,7 @@ function PlayableGameRoute() {
       if (exitSession.isDiscarded()) return;
       setAdBusy(true);
       try {
-        await rewardedAds.showInterstitial("game-complete").catch(() => false);
+        if (mode === "practice") await rewardedAds.showInterstitial("game-complete").catch(() => false);
         if (authenticated && accessToken && !exitSession.isDiscarded()) {
           setFortunePrize(null);
           setFortuneVisible(true);
@@ -347,20 +348,32 @@ function PlayableGameRoute() {
 
   const continueChallenge = async () => {
     if (adBusy || fortuneBusy || fortuneSpinning) return;
-    useChallengeAdGate.setState({ resultReady: false });
-    exitSession.discard();
-    setFortuneVisible(false);
-    setFortuneSpinning(false);
-    setGiftOpen(false);
-    setExitOpen(false);
-    setGiftNotice("");
-    // Keep the completed screen until navigation commits. Clearing it here
-    // exposes the finished game's empty render during native replacement.
-    if (nextChallengeGame) {
-      router.replace({ pathname: "/play/[gameKey]", params: { gameKey: nextChallengeGame.key, mode: "challenge" } } as never);
-      return;
+    if (transitionAdGuard.current) return;
+    transitionAdGuard.current = true;
+    try {
+      if (mode === "challenge" && nextChallengeGame && authenticated && !rafflePaused) {
+        setAdBusy(true);
+        if (challenges.today?.dayKey) prepareChallengeAdEntry(challenges.today.dayKey, nextChallengeGame.key);
+        await rewardedAds.showInterstitial("challenge-transition").catch(() => false);
+      }
+      if (exitSession.isDiscarded()) return;
+      useChallengeAdGate.setState({ resultReady: false });
+      exitSession.discard();
+      setFortuneVisible(false);
+      setFortuneSpinning(false);
+      setGiftOpen(false);
+      setExitOpen(false);
+      setGiftNotice("");
+      // Keep the completed screen until navigation commits, avoiding an empty frame.
+      if (nextChallengeGame) {
+        router.replace({ pathname: "/play/[gameKey]", params: { gameKey: nextChallengeGame.key, mode: "challenge" } } as never);
+        return;
+      }
+      router.replace("/challenges" as never);
+    } finally {
+      transitionAdGuard.current = false;
+      setAdBusy(false);
     }
-    router.replace("/challenges" as never);
   };
 
   const applyGift = (gift: GiftItem, effect: GiftUseEffect) => {

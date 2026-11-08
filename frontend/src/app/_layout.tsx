@@ -199,7 +199,7 @@ export default function RootLayout() {
       const original = document.documentElement.dataset.sourceTitle ?? document.title;
       document.documentElement.dataset.sourceTitle = original;
       document.title = localizeBuiltIn(original, language);
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:image"], meta[property="og:image:secure_url"], meta[name="twitter:image"]')) {
+      for (const meta of Array.from(document.querySelectorAll<HTMLMetaElement>('meta[property="og:image"], meta[property="og:image:secure_url"], meta[name="twitter:image"]'))) {
         try {
           const image = new URL(meta.dataset.sourceImage ?? meta.content, window.location.origin);
           meta.dataset.sourceImage ??= meta.content;
@@ -208,7 +208,7 @@ export default function RootLayout() {
           meta.content = image.toString();
         } catch { /* Preserve metadata from an unknown host or malformed URL. */ }
       }
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:title"], meta[property="og:description"], meta[name="twitter:title"], meta[name="twitter:description"]')) {
+      for (const meta of Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:title"], meta[property="og:description"], meta[name="twitter:title"], meta[name="twitter:description"]'))) {
         const source = meta.dataset.sourceCopy ?? meta.content;
         meta.dataset.sourceCopy = source;
         meta.content = localizeBuiltIn(source, language);

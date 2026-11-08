@@ -1,4 +1,4 @@
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 
 // Node's smoke/linking tests are run by node --test in the package script.

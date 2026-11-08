@@ -133,6 +133,7 @@ const googleSchema = z
 function sessionContext(request: Request, deviceId?: string): SessionContext {
   const userAgent = request.header("user-agent");
   return {
+    supportsPasswordSetup: request.header("x-auth-flow-version") === "2",
     ...(deviceId ? { deviceId } : {}),
     ...(userAgent ? { userAgent } : {}),
     ...(request.ip ? { ip: request.ip } : {})

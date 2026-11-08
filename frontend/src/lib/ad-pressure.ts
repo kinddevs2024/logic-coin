@@ -8,9 +8,9 @@ export function createAdPressure(now: () => number = Date.now) {
   let busy = false;
   let rewardsInFlight = 0;
   return {
-    async forced(show: () => Promise<boolean>, startup = false): Promise<boolean> {
+    async forced(show: () => Promise<boolean>, startup = false, options: { atBoundary?: boolean } = {}): Promise<boolean> {
       const startupAllowed = startup && startupAvailable;
-      if (busy || rewardsInFlight || (!startupAllowed && now() - lastActivityAt < FORCED_AD_INTERVAL_MS)) return false;
+      if (busy || rewardsInFlight || (!startupAllowed && !options.atBoundary && now() - lastActivityAt < FORCED_AD_INTERVAL_MS)) return false;
       startupAvailable = false;
       busy = true;
       lastActivityAt = now();

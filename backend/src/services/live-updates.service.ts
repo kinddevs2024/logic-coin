@@ -4,7 +4,6 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { API_PREFIX } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
 import { isNativeAppClient } from "../lib/native-client.js";
-import { isTelegramChallengeClient } from "./challenge-client.service.js";
 import { isAccessSessionActive, verifyAccessToken } from "./token.service.js";
 
 const AUTH_TIMEOUT_MS = 10_000;
@@ -142,7 +141,7 @@ export function attachLiveUpdates(server: Server): () => void {
             return;
           }
           if (websocket.readyState !== WebSocket.OPEN) return;
-          challengeClient = nativeClient || isTelegramChallengeClient(message.telegramInitData);
+          challengeClient = nativeClient && !message.telegramInitData;
           authenticated = true;
           clearTimeout(authTimeout);
           clients.add(websocket);
