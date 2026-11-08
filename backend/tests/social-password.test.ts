@@ -42,11 +42,25 @@ it.each([
   ["/telegram/complete", { resumeToken: "r".repeat(40) }],
   ["/telegram/mini-app", { initData: "i".repeat(40) }]
 ])("%s requires setup after verified provider proof and issues no session", async (path, body) => {
-  const result = await request(app).post(path).send({ ...body, deviceId: "device-a" }).expect(200);
+  const result = await request(app).post(path).set("X-Auth-Flow-Version", "2").send({ ...body, deviceId: "device-a" }).expect(200);
   expect(result.body.data).toMatchObject({ status: "password_setup_required", accountLabel: "@player" });
   expect(result.body.data.setupToken.length).toBeGreaterThanOrEqual(32);
   expect(result.body.data.tokens).toBeUndefined(); expect(f.tokens).not.toHaveBeenCalled();
   expect(f.create).toHaveBeenCalledWith(expect.objectContaining({ userId, tokenHash: hashOpaqueToken(result.body.data.setupToken), deviceId: "device-a" }));
+});
+
+it.each([
+  ["/google", { idToken: "g".repeat(120) }],
+  ["/telegram/status", { flowId: "f".repeat(24), pollToken: "p".repeat(40) }],
+  ["/telegram/complete", { resumeToken: "r".repeat(40) }],
+  ["/telegram/mini-app", { initData: "i".repeat(40) }]
+])("%s preserves verified sign-in for installed clients without password-setup support", async (path, body) => {
+  const result = await request(app).post(path).send({ ...body, deviceId: "device-a" }).expect(200);
+  expect(result.body.data).toMatchObject({ user: { id: String(userId) }, tokens: { accessToken: "access", refreshToken: "refresh" } });
+  expect(result.body.data.setupToken).toBeUndefined();
+  expect(f.create).not.toHaveBeenCalled();
+  expect(f.device).toHaveBeenCalledWith(userId, "device-a");
+  if (path === "/telegram/status") expect(result.body.data.status).toBe("complete");
 });
 
 it("reads the hidden password field and retains ordinary sign-in for existing passwords", async () => {

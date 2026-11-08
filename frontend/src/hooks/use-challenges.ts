@@ -11,6 +11,9 @@ import { liveCommand, subscribeToChallengeUpdates } from "@/lib/challenge-live-u
 import { localDayKey } from "@/lib/date";
 import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
 import { useAppStore } from "@/store/app-store";
+import { rewardedAds } from "@/lib/rewarded-ad";
+import { consumeChallengeAdEntry } from "@/lib/challenge-transition-ad";
+import { useRafflePause } from "@/components/raffle-provider";
 import type { TodayChallenges } from "@/types";
 
 function buildGuestToday(
@@ -56,6 +59,7 @@ function buildGuestToday(
 }
 
 export function useChallenges() {
+  const rafflePaused = useRafflePause();
   const focused = useIsFocused();
   const { language } = useTranslation();
   const hydrated = useAppStore((state) => state.hydrated);
@@ -139,7 +143,15 @@ export function useChallenges() {
 
   const startMutation = useMutation({
     mutationFn: async (gameKey: string) => {
-      if (authenticated && accessToken) return challengesApi.start(gameKey, accessToken);
+      if (authenticated && accessToken) {
+        const attempt = await challengesApi.start(gameKey, accessToken);
+        const alreadyAttempted = consumeChallengeAdEntry(attempt.dayKey, gameKey);
+        const entry = today?.games.find(game => game.key === gameKey);
+        if (!alreadyAttempted && !attempt.resumed && !rafflePaused && (today?.completedCount ?? 0) > 0 && entry?.state.status !== "completed") {
+          await rewardedAds.showInterstitial("challenge-transition").catch(() => false);
+        }
+        return attempt;
+      }
       return {
         attemptId: `guest-${localDayKey()}-${gameKey}`,
         dayKey: localDayKey(),

@@ -18,6 +18,8 @@ export const rewardedAds: RewardedAdProvider = {
   initialize: userId => provider.initialize(userId),
   diagnostics: () => provider.diagnostics(),
   show: (placement, context) => pressure.rewarded(() => provider.show(placement, context)),
-  showInterstitial: placement => pressure.forced(() => provider.showInterstitial(placement)),
+  showInterstitial: placement => pressure.forced(() => provider.showInterstitial(placement), false, {
+    atBoundary: placement === "challenge-transition" || placement === "navigation-frequency",
+  }),
   showAppOpen: () => pressure.forced(() => provider.showAppOpen(), true),
 };

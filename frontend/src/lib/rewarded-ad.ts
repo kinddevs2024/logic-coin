@@ -9,6 +9,7 @@ export type RewardedAdPlacement =
   | "home-gift";
 
 export type InterstitialAdPlacement =
+  | "challenge-transition"
   | "challenge-checkpoint"
   | "navigation-frequency"
   | "game-complete";

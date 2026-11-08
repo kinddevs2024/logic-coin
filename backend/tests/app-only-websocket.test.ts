@@ -27,23 +27,23 @@ describe("shared browser and APK commands over real WebSocket transport", () => 
       client.send(JSON.stringify({ id: "test", method, input })); return await reply;
     } finally { client.terminate(); }
   }
-  it.each(["complete", "double"])("allows authenticated browser %s", async method => {
+  it.each(["start", "complete", "double"])("blocks Telegram Mini App %s over WebSocket", async method => {
     vi.clearAllMocks();
     const input = method === "double" ? { scope: "game" } : method === "start" ? { gameKey: "tetris" } : { gameKey: "tetris", score: 10 };
-    const result = await command("Mozilla/5.0", method, input);
-    expect(result.error).toBeUndefined();
+    const result = await command("Mozilla/5.0", method, input, "valid-telegram-fixture");
+    expect(result.error.status).toBe(403);
     const service = method === "start" ? mocks.start : method === "complete" ? mocks.complete : mocks.double;
-    expect(service).toHaveBeenCalledOnce();
+    expect(service).not.toHaveBeenCalled();
   });
   it("blocks ordinary browsers and forged Telegram launch data", async () => {
     vi.clearAllMocks();
     for (const data of [undefined, "forged"]) expect((await command("Mozilla/5.0", "start", { gameKey: "tetris" }, data)).error.status).toBe(403);
     expect(mocks.start).not.toHaveBeenCalled();
   });
-  it("allows a verified Telegram Mini App over browser WebSocket transport", async () => {
+  it("rejects verified Telegram Mini App challenge starts over browser transport", async () => {
     vi.clearAllMocks();
-    expect((await command("Mozilla/5.0", "start", { gameKey: "tetris" }, "valid-telegram-fixture")).data).toEqual({ accepted: true });
-    expect(mocks.start).toHaveBeenCalledOnce();
+    expect((await command("Mozilla/5.0", "start", { gameKey: "tetris" }, "valid-telegram-fixture")).error.status).toBe(403);
+    expect(mocks.start).not.toHaveBeenCalled();
   });
   it("keeps browser reads and practice working", async () => {
     expect((await command("Mozilla/5.0", "today", {})).data).toEqual({ games: [] });

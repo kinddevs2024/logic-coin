@@ -30,6 +30,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { formatMoney } from "@/lib/format";
 import { sharePublicProfile } from "@/lib/profile-link";
 import { useAppStore } from "@/store/app-store";
+import { reportProfileAdNavigation } from "@/lib/ad-navigation";
 
 export function ProfileDrawer({
   visible,
@@ -74,6 +75,10 @@ export function ProfileDrawer({
   const [backdrop] = useState(() => new Animated.Value(0));
   const [editing, setEditing] = useState(false);
   const closing = useRef(false);
+
+  useEffect(() => {
+    if (visible) reportProfileAdNavigation();
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;

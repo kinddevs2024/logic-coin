@@ -51,3 +51,23 @@ it("does not bypass an active reward with a startup ad", async () => {
   await pressure.rewarded(async () => true);
   expect(await pressure.forced(async () => true, true)).toBe(false);
 });
+
+it("allows each requested boundary after a reward without the time cooldown", async () => {
+  const pressure = createAdPressure(() => 0);
+  await pressure.rewarded(async () => true);
+  expect(await pressure.forced(async () => true, false, { atBoundary: true })).toBe(true);
+  expect(await pressure.forced(async () => true, false, { atBoundary: true })).toBe(true);
+  expect(await pressure.forced(async () => true)).toBe(false);
+});
+it("never overlaps a boundary ad with a reward or another fullscreen ad", async () => {
+  const pressure = createAdPressure(() => 0);
+  let finish!: () => void;
+  const pending = new Promise<void>(resolve => { finish = resolve; });
+  const reward = pressure.rewarded(async () => { await pending; });
+  expect(await pressure.forced(async () => true, false, { atBoundary: true })).toBe(false);
+  finish(); await reward;
+  let close!: () => void;
+  const ad = pressure.forced(() => new Promise<boolean>(resolve => { close = () => resolve(true); }), false, { atBoundary: true });
+  expect(await pressure.forced(async () => true, false, { atBoundary: true })).toBe(false);
+  close(); await ad;
+});

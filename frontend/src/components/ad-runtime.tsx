@@ -1,9 +1,9 @@
 import { useRafflePause } from "./raffle-provider";
-import { useEffect, useRef } from "react";
-import { usePathname } from "expo-router";
+import { useCallback, useEffect, useRef } from "react";
+import { useGlobalSearchParams, usePathname } from "expo-router";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 
-import { isAdNavigationScreen, shouldShowNavigationAd } from "@/lib/ad-navigation";
+import { adNavigationKey, createNavigationAdCounter, isAdNavigationScreen, shouldShowNavigationAd, subscribeProfileAdNavigation } from "@/lib/ad-navigation";
 import { APP_OPEN_BACKGROUND_MS } from "@/lib/ad-pressure";
 
 import { rewardedAds } from "@/lib/rewarded-ad";
@@ -12,13 +12,30 @@ import { useAppStore } from "@/store/app-store";
 export function AdRuntime() {
   const rafflePaused = useRafflePause();
   const pathname = usePathname();
+  const { chat } = useGlobalSearchParams<{ chat?: string | string[] }>();
+  const navigationKey = adNavigationKey(pathname, chat);
   const currentPath = useRef(pathname);
   useEffect(() => { currentPath.current = pathname; }, [pathname]);
   const previousPath = useRef<string | null>(null);
+  const navigationCounter = useRef(createNavigationAdCounter());
+  const navigationShowing = useRef(false);
   const startupAttempted = useRef(false);
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const userId = useAppStore((state) => state.user.id);
+  const requestNavigationAd = useCallback(async () => {
+    if (navigationShowing.current || AppState.currentState !== "active") return;
+    navigationShowing.current = true;
+    try {
+      if (await rewardedAds.showInterstitial("navigation-frequency")) navigationCounter.current.shown();
+    } catch { /* An unavailable ad never blocks navigation. Retry at a later boundary. */ }
+    finally { navigationShowing.current = false; }
+  }, []);
+
+  useEffect(() => {
+    previousPath.current = null;
+    navigationCounter.current.reset();
+  }, [userId, authMode]);
 
   useEffect(() => {
     if (!hydrated || !authMode) return;
@@ -42,15 +59,17 @@ export function AdRuntime() {
   }, [authMode, hydrated, pathname, rafflePaused, userId]);
 
   useEffect(() => {
-    if (!hydrated || authMode !== "authenticated") { previousPath.current = null; return; }
+    if (!hydrated || authMode !== "authenticated") { previousPath.current = null; navigationCounter.current.reset(); return; }
     const previous = previousPath.current;
-    previousPath.current = pathname;
-    if (rafflePaused || !shouldShowNavigationAd(previous, pathname)) return;
-    const timer = setTimeout(() => {
-      if (AppState.currentState === "active") void rewardedAds.showInterstitial("navigation-frequency").catch(() => false);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [authMode, hydrated, pathname, rafflePaused]);
+    previousPath.current = navigationKey;
+    if (rafflePaused || !shouldShowNavigationAd(previous, navigationKey)) return;
+    if (navigationCounter.current.advance()) void requestNavigationAd();
+  }, [authMode, hydrated, navigationKey, rafflePaused, requestNavigationAd]);
+
+  useEffect(() => subscribeProfileAdNavigation(() => {
+    if (!hydrated || authMode !== "authenticated" || rafflePaused) return;
+    if (navigationCounter.current.advance()) void requestNavigationAd();
+  }), [authMode, hydrated, rafflePaused, requestNavigationAd]);
 
   useEffect(() => {
     if (!hydrated || !authMode || authMode === "guest") return;

@@ -4,7 +4,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
-import { isTelegramMiniApp } from "@/lib/telegram-context";
 import { ChallengeAppRequired } from "@/components/challenge-app-required";
 import Animated, { FadeIn } from "react-native-reanimated";
 
@@ -26,7 +25,7 @@ const copy = {
 } as const;
 
 export default function ChallengesScreen() {
-  if (Platform.OS === "web" && !isTelegramMiniApp()) return <AppFrame><ChallengeAppRequired /></AppFrame>;
+  if (Platform.OS === "web") return <AppFrame><ChallengeAppRequired /></AppFrame>;
   return <AvailableChallengesScreen />;
 }
 

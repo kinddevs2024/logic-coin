@@ -87,6 +87,7 @@ export async function request<T>(
   const headers = new Headers(fetchOptions.headers);
   headers.set("Accept", "application/json");
   headers.set("X-Appearance-Version", "2");
+  headers.set("X-Auth-Flow-Version", "2");
   headers.set("Accept-Language", useAppStore.getState().language ?? "uz");
   const telegramInitData = Platform.OS === "web" && /\/challenges\/[^/]+\/start$/.test(path) ? telegramChallengeInitData() : undefined;
   if (telegramInitData) headers.set("X-Telegram-Init-Data", telegramInitData);

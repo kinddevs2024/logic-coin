@@ -13,7 +13,10 @@ export async function completeSocialSignIn(userId: Types.ObjectId, context: Sess
   const user = await User.findById(userId).select("+passwordHash");
   if (!user?.emailVerifiedAt) throw new ApiError(401, "account_unavailable", "Account is unavailable");
   await assertDeviceAccess(userId, context.deviceId);
-  if (user.passwordHash) {
+  // Installed clients before the password-setup update require user/tokens.
+  // Negotiate the new response only after successful provider verification;
+  // a capability header is not an authentication proof or a device exemption.
+  if (user.passwordHash || !context.supportsPasswordSetup) {
     return { user: serializeUser(user), tokens: await issueTokenPair(userId, context) };
   }
   const setupToken = generateRegistrationToken();

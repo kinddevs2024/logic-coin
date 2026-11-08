@@ -12,6 +12,7 @@ export interface SessionContext {
   deviceId?: string;
   userAgent?: string;
   ip?: string;
+  supportsPasswordSetup?: boolean;
 }
 
 interface AccessPayload extends JwtPayload {
