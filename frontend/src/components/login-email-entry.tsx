@@ -35,7 +35,7 @@ export function LoginEmailEntry({ value, onChange, onSubmit, valid, busy }: {
       returnKeyType="go"
       onSubmitEditing={submit}
       editable={!busy}
-      placeholder={copyText("name@example.com / @nickname")}
+      placeholder={copyText(({ ru: "Почта / @никнейм", uz: "Email / @nikneym", en: "Email / @username" })[language])}
       placeholderTextColor={String(theme.textMuted)}
       style={[styles.input, { color: theme.text, paddingLeft: 48 }]}
     />
