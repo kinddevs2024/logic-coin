@@ -1,10 +1,10 @@
-import { GIFT_CLOSED, GIFT_OPEN } from "./home-gift-assets";
+import { ThemedHomeGift } from "./themed-home-gift";
 import { useUiCopy , Alert } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Animated, AppState, Easing, Image, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, AppState, Easing, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -163,7 +163,7 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
       <Pressable accessibilityRole="button" accessibilityLabel={copyText(remaining > 0 ? c.gift : `${OPEN_GIFT_LABEL[language]} · ${c.gift}`)} accessibilityState={{ disabled: remaining > 0 }} disabled={remaining > 0} onPress={() => { setHoldingGift(false); setOpen(true); }}
         hitSlop={12} onPressIn={() => setHoldingGift(true)} onPressOut={() => setHoldingGift(false)}
         style={({ pressed }) => [styles.gift, pressed && styles.pressed]}>
-        <Image source={remaining > 0 ? GIFT_CLOSED : GIFT_OPEN} resizeMode="contain" style={styles.giftImage} accessible={false} />
+        <ThemedHomeGift state={remaining > 0 ? "closed" : "open"} resizeMode="contain" style={styles.giftImage} accessible={false} />
       </Pressable>
       </Animated.View>
       {remaining > 0 ? <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{copyContent(Math.floor(remaining / 60))}:{copyContent(String(remaining % 60).padStart(2, "0"))}</AppText></View> : <View pointerEvents="none" style={[styles.timer, { backgroundColor: theme.surfaceRaised }]}><AppText style={styles.timerText}>{copyContent(OPEN_GIFT_LABEL[language])}</AppText></View>}
@@ -172,7 +172,7 @@ export function FloatingHomeGift({ active = true, bounds }: { active?: boolean; 
       <View style={styles.backdrop}>
         <Pressable accessibilityLabel={copyText(c.close)} accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
         <View style={[styles.card, { backgroundColor: theme.surfaceRaised }]}>
-          <Image source={GIFT_OPEN} resizeMode="contain" style={styles.giftImage} accessible={false} />
+          <ThemedHomeGift state="open" resizeMode="contain" style={styles.giftImage} accessible={false} />
           <AppText variant="heading">{copyContent(c.gift)}</AppText>
           <AppText style={styles.pending}>{copyContent(!token ? c.login : offer.isError ? c.failed : !offer.data ? c.wait : !offer.data.eligible ? c.inactive : offer.data.kind === "telegram" ? c.telegram : offer.data.kind === "instagram" ? "Instagram · +100" : c.ads)}</AppText>
           {offer.data?.eligible ? <AppText style={styles.pending}>{copyContent(offer.data.kind === "telegram"
