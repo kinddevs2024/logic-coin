@@ -15,6 +15,13 @@ describe("percentile cash fund for six-game finishers", () => {
     expect(p.distributedUnits).toBe(825);
     expect(p.unallocatedUnits).toBe(0);
   });
+  it("scales spending down for smaller cohorts without reallocating unused funds", () => {
+    expect(percentContestPlan(rows(300)).distributedUnits).toBe(517.5);
+    expect(percentContestPlan(rows(359)).distributedUnits).toBe(544.5);
+    expect(percentContestPlan(rows(100)).distributedUnits).toBe(430.5);
+    expect(percentContestPlan(rows(10)).distributedUnits).toBe(400.7);
+    expect(contestPrizePlan(rows(300),{payoutPolicy:"all-six-percent-v1",prizePoolUnits:825,cashPrizeMinUnits:0,cashPrizeMaxUnits:250}).distributedUnits).toBe(825);
+  });
   it("excludes partial finishers even when they have the most coins", () => {
     const p = contestPrizePlan([{...rows(1)[0]!, totalCoins: 1e9, completedGamesCount: 5}, ...rows(10).map(r => ({...r,userId:'x'+r.userId}))], {
       payoutPolicy: PERCENT_CONTEST_POLICY, prizePoolUnits: 825, cashPrizeMinUnits: 0, cashPrizeMaxUnits: 0,
@@ -32,7 +39,7 @@ describe("percentile cash fund for six-game finishers", () => {
       expect(p.distributedUnits).toBeLessThanOrEqual(825);
       expect(p.ranked.reduce((s,r)=>s+r.cashMicros,0)).toBe(Math.round(p.distributedUnits*10000));
       expect(p.ladder.every((value, i) => i === 0 || value <= p.ladder[i - 1]!)).toBe(true);
-      if(n>=12) expect(p.distributedUnits).toBe(825);
+      if(n>=1000) expect(p.distributedUnits).toBe(825);
     }
   });
   it("does not change legacy plans or require a new policy on settled history", () => {

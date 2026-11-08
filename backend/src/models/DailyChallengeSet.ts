@@ -10,7 +10,7 @@ const dailyChallengeSetSchema = new Schema(
     dayKey: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
     timezone: { type: String, required: true },
     // No default: frozen/legacy days retain their original payout semantics.
-    payoutPolicy: { type: String, enum: ["all-six-percent-v1"] },
+    payoutPolicy: { type: String, enum: ["all-six-percent-v1", "all-six-percent-v2"] },
     status: {
       type: String,
       enum: ["draft", "published", "settled"],

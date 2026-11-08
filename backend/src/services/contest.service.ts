@@ -32,7 +32,7 @@ export async function collectContestStandings(dayKey: string, policySet?: { payo
     dayKey,
     mode: "challenge",
     status: "completed"
-    ,...(policySet?.payoutPolicy === "all-six-percent-v1" ? { gameId: { $in: policySet.gameIds } } : {})
+    ,...(policySet?.payoutPolicy?.startsWith("all-six-percent-v") ? { gameId: { $in: policySet.gameIds } } : {})
   })
     .select("userId gameId completedAt")
     .lean();
@@ -168,7 +168,7 @@ export async function settleDailyContest(dayKey: string) {
               rank: standing.rank,
               rewardType: standing.rewardType,
               ...(standing.rewardType === "cash" ? { cashUnits } : {}),
-              ...(payoutSet.payoutPolicy === "all-six-percent-v1" ? { cashMicros: Math.round(cashUnits * 10_000) } : {}),
+              ...(payoutSet.payoutPolicy?.startsWith("all-six-percent-v") ? { cashMicros: Math.round(cashUnits * 10_000) } : {}),
               coinAmount: payoutSet.coinPrizeAmounts?.[standing.rank - 1] ?? 0,
               ...(standing.rewardType === "box"
                 ? {

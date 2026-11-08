@@ -134,7 +134,7 @@ describe("daily challenge auto-creation", () => {
     expect(update.$setOnInsert.cashPrizeMinUnits).toBe(0);
     expect(update.$setOnInsert.cashPrizeMaxUnits).toBe(250);
     expect(update.$setOnInsert.prizePoolUnits).toBe(825);
-    expect(update.$setOnInsert.payoutPolicy).toBe("all-six-percent-v1");
+    expect(update.$setOnInsert.payoutPolicy).toBe("all-six-percent-v2");
 
     expect(result).toMatchObject({
       status: "published",
