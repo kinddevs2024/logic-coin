@@ -347,7 +347,8 @@ function PlayableGameRoute() {
   }), [exitGame, gamePaused, giftsAvailable, markGameStarted, mode, progressId, progress?.coins, copyText]);
 
   const continueChallenge = async () => {
-    if (adBusy || fortuneBusy || fortuneSpinning || transitionAdGuard.current) return;
+    if (adBusy || fortuneBusy || fortuneSpinning) return;
+    if (transitionAdGuard.current) return;
     transitionAdGuard.current = true;
     try {
       if (mode === "challenge" && nextChallengeGame && authenticated && !rafflePaused) {
