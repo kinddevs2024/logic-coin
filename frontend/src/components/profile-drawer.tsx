@@ -1,4 +1,6 @@
 import { useUiCopy } from "@/components/localized-native";
+import { useQuery } from "@tanstack/react-query";
+import { meApi } from "@/lib/api";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { BlurView } from "expo-blur";
@@ -47,7 +49,15 @@ export function ProfileDrawer({
   const reduceMotion = useReducedMotion();
   const user = useAppStore((state) => state.user);
   const balance = useAppStore((state) => state.balanceUnits);
-  const coinBalance = useAppStore((state) => state.coinBalance);
+  const accessToken = useAppStore((state) => state.accessToken);
+  const authMode = useAppStore((state) => state.authMode);
+  const coinsToday = useQuery({
+    queryKey: ["coins-earned-today", user.id],
+    queryFn: ({ signal }) => meApi.coinsToday(accessToken!, signal),
+    enabled: visible && authMode === "authenticated" && Boolean(accessToken),
+    refetchOnMount: "always",
+    refetchInterval: visible ? 30_000 : false,
+  });
   const streak = useAppStore((state) => state.streak);
   const [translateX] = useState(() => new Animated.Value(-440));
   const [backdrop] = useState(() => new Animated.Value(0));
@@ -212,10 +222,10 @@ export function ProfileDrawer({
               <View style={styles.stats}>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>
-                    {copyContent(coinBalance)}
+                    {authMode === "authenticated" ? (coinsToday.data && Date.parse(coinsToday.data.resetsAt) > Date.now() ? copyContent(coinsToday.data.earned) : coinsToday.isError ? "—" : "…") : "—"}
                   </AppText>
                   <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                    {copyText(" coin ")}</AppText>
+                    {copyContent(language === "ru" ? "Коины за сегодня" : language === "uz" ? "Bugungi koinlar" : "Coins earned today")}</AppText>
                 </GlassSurface>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>

@@ -1072,6 +1072,9 @@ export const withdrawalsApi = {
 };
 
 export const meApi = {
+  coinsToday(token: string, signal?: AbortSignal) {
+    return request<{ dayKey: string; earned: number; resetsAt: string }>("/me/coins/today", { token, signal });
+  },
   async get(token: string) {
     const payload = await request<{ user: User }>("/me", { token });
     return payload.user;
