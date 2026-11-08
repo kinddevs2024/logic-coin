@@ -1,9 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { Types } from "mongoose";
-vi.mock("../src/config/env.js", async importOriginal => {
-  const actual = await importOriginal<typeof import("../src/config/env.js")>();
-  return { ...actual, env: { ...actual.env, DEFAULT_TIMEZONE: "Asia/Tashkent" } };
-});
 import { CoinLedgerEntry } from "../src/models/CoinLedgerEntry.js";
 import { getCoinsEarnedToday } from "../src/services/coin.service.js";
 
