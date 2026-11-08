@@ -74,9 +74,6 @@ export default function PlayerProfileScreen() {
           {p.username ? (
             <AppText color={String(theme.primary)}>@{p.username}</AppText>
           ) : null}
-          <AppText selectable variant="caption" muted>
-            ID: {p.id}
-          </AppText>
           <View style={{ flexDirection: "row", gap: 28, paddingVertical: 15 }}>
             <View style={{ alignItems: "center", gap: 5 }}>
               <Ionicons name="diamond" size={22} color="#D5AA33" />
