@@ -2,7 +2,7 @@ import { useUiCopy } from "@/components/localized-native";
 
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@/components/auth-icon";
 
@@ -16,8 +16,9 @@ import { StyledInput } from "@/components/styled-input";
 import { SocialButtons } from "@/components/social-buttons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
-import { ApiError, authApi, type AuthResult } from "@/lib/api";
+import { ApiError, authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
+import { useSignInCompletion } from "@/hooks/use-sign-in-completion";
 import { authEntryCopy } from "@/constants/auth-entry-copy";
 
 type TelegramWindow = Window & {
@@ -32,7 +33,6 @@ export default function LoginScreen() {
   const theme = useAppTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ telegram_token?: string; next?: string; email?: string; ref?: string }>();
-  const authenticate = useAppStore((state) => state.authenticate);
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
@@ -67,21 +67,7 @@ export default function LoginScreen() {
     router.replace(destination as never);
   }, [accessToken, authMode, hydrated, params.next, params.telegram_token, postAuthLanguageUserId, router, user]);
 
-  const complete = useCallback((result: AuthResult) => {
-    authenticate({
-      user: result.user,
-      accessToken: result.tokens.accessToken,
-      refreshToken: result.tokens.refreshToken,
-      balanceUnits: result.user.wallet?.availableUnits,
-    });
-    const setupUserId = useAppStore.getState().postAuthLanguageUserId;
-    const destination = result.user.role === "admin"
-      ? "/admin"
-      : !result.user.countryCode
-        ? setupUserId === result.user.id ? "/country" : "/language"
-        : "/(tabs)";
-    router.replace(destination as never);
-  }, [authenticate, router]);
+  const complete = useSignInCompletion();
 
   const emailFlow = useMutation({
     mutationFn: () => authApi.startEmail(email.trim()),

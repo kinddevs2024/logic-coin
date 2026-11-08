@@ -147,6 +147,13 @@ export type AuthResult = {
   tokens: AuthTokens;
 };
 
+export type PasswordSetupRequired = {
+  status: "password_setup_required";
+  setupToken: string;
+  accountLabel: string;
+};
+export type SocialAuthResult = AuthResult | PasswordSetupRequired;
+
 let refreshPromise: Promise<AuthResult> | null = null;
 
 export async function refreshAccessToken(expiredToken: string): Promise<string> {
@@ -241,6 +248,12 @@ export const authApi = {
       body: JSON.stringify({ ...input, deviceId }),
     });
   },
+  async setSocialPassword(input: { password: string; setupToken: string }) {
+    return request<AuthResult>("/auth/social/set-password", {
+      method: "POST",
+      body: JSON.stringify({ ...input, deviceId: await getDeviceId() }),
+    });
+  },
   async register(input: { name: string; email: string; password: string }) {
     const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
@@ -289,7 +302,7 @@ export const authApi = {
   async google(idToken: string) {
     const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
-    return request<AuthResult>("/auth/google", {
+    return request<SocialAuthResult>("/auth/google", {
       method: "POST",
       body: JSON.stringify({ idToken, deviceId, ...(referralCode ? { referralCode } : {}) }),
     });
@@ -308,6 +321,7 @@ export const authApi = {
     const deviceId = await getDeviceId();
     return request<
       | { status: "pending" }
+      | PasswordSetupRequired
       | ({ status: "complete" } & AuthResult)
     >("/auth/telegram/status", {
       method: "POST",
@@ -316,7 +330,7 @@ export const authApi = {
   },
   async telegramComplete(resumeToken: string) {
     const deviceId = await getDeviceId();
-    return request<AuthResult>("/auth/telegram/complete", {
+    return request<SocialAuthResult>("/auth/telegram/complete", {
       method: "POST",
       body: JSON.stringify({ resumeToken, deviceId }),
     });
@@ -324,7 +338,7 @@ export const authApi = {
   async telegramMiniApp(initData: string) {
     const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
-    return request<AuthResult>("/auth/telegram/mini-app", {
+    return request<SocialAuthResult>("/auth/telegram/mini-app", {
       method: "POST",
       body: JSON.stringify({ initData, deviceId, ...(referralCode ? { referralCode } : {}) }),
     });

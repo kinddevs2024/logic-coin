@@ -17,18 +17,20 @@ import { useAppStore } from "@/store/app-store";
 
 export default function SetPasswordScreen() {
   const { copyText, copyContent } = useUiCopy();
-  const params = useLocalSearchParams<{ email?: string; next?: string }>();
+  const params = useLocalSearchParams<{ email?: string; next?: string; source?: string; accountLabel?: string }>();
   const email = params.email ?? "";
   const router = useRouter();
   const theme = useAppTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const authenticate = useAppStore((state) => state.authenticate);
   const setupToken = useAppStore((state) => state.pendingPasswordSetupToken);
   const [password, setPassword] = useState("");
 
   const save = useMutation({
     mutationFn: () => {
-      if (!email || !setupToken) throw new Error(t("auth.invalid"));
+      if (!setupToken) throw new Error(t("auth.invalid"));
+      if (params.source === "social") return authApi.setSocialPassword({ password, setupToken });
+      if (!email) throw new Error(t("auth.invalid"));
       return authApi.setPassword({ email, password, setupToken });
     },
     onSuccess: (result) => {
@@ -51,7 +53,7 @@ export default function SetPasswordScreen() {
   return (
     <AuthScaffold
       title={t("auth.createPasswordTitle")}
-      subtitle={email}
+      subtitle={params.source === "social" ? params.accountLabel : email}
       headerAction={(
         <Pressable
           accessibilityRole="button"
@@ -63,6 +65,11 @@ export default function SetPasswordScreen() {
         </Pressable>
       )}
     >
+      {params.source === "social" ? (
+        <AppText variant="caption" muted style={styles.error}>
+          {({ ru: "Аккаунт подтверждён. Создайте пароль для входа по почте или @нику.", uz: "Hisob tasdiqlandi. Email yoki @nikneym orqali kirish uchun parol yarating.", en: "Account verified. Create a password to sign in with your email or @username." })[language]}
+        </AppText>
+      ) : null}
       <StyledInput
         label={t("auth.password")}
         icon="lock-closed-outline"

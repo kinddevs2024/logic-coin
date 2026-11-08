@@ -2,8 +2,7 @@ import { useUiCopy } from "@/components/localized-native";
 import { useAuthError } from "@/components/auth-error-dialog";
 import Ionicons from "@/components/auth-icon";
 import * as Linking from "expo-linking";
-import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
 
 
@@ -13,8 +12,8 @@ import { TelegramBrandIcon } from "@/components/telegram-brand-icon";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
-import { authApi, type AuthResult } from "@/lib/api";
-import { useAppStore } from "@/store/app-store";
+import { authApi, type SocialAuthResult } from "@/lib/api";
+import { useSignInCompletion } from "@/hooks/use-sign-in-completion";
 import { authEntryCopy } from "@/constants/auth-entry-copy";
 
 function ProviderButton({
@@ -61,35 +60,18 @@ export function SocialButtons({
   onAuthenticated,
   autoPrompt = false,
 }: {
-  onAuthenticated?: (result: AuthResult) => void;
+  onAuthenticated?: (result: SocialAuthResult) => void;
   autoPrompt?: boolean;
 }) {
   const showError = useAuthError();
   const { language } = useTranslation();
-  const router = useRouter();
-  const authenticate = useAppStore((state) => state.authenticate);
-  const postAuthLanguageUserId = useAppStore((state) => state.postAuthLanguageUserId);
   const [busy, setBusy] = useState<"google" | "telegram" | null>(null);
   const googleInFlightRef = useRef(false);
   const [telegramFlow, setTelegramFlow] = useState<{
     flowId: string;
     pollToken: string;
   } | null>(null);
-  const completeAuth = useCallback((result: AuthResult) => {
-    if (onAuthenticated) return onAuthenticated(result);
-    authenticate({
-      user: result.user,
-      accessToken: result.tokens.accessToken,
-      refreshToken: result.tokens.refreshToken,
-      balanceUnits: result.user.wallet?.availableUnits,
-    });
-    const destination = result.user.role === "admin"
-      ? "/admin"
-      : !result.user.countryCode
-        ? postAuthLanguageUserId === result.user.id ? "/country" : "/language"
-        : "/(tabs)";
-    router.replace(destination as never);
-  }, [authenticate, onAuthenticated, postAuthLanguageUserId, router]);
+  const completeAuth = useSignInCompletion(onAuthenticated);
 
   useEffect(() => {
     if (!telegramFlow) return;
@@ -100,7 +82,7 @@ export function SocialButtons({
       inFlight = true;
       try {
         const result = await authApi.telegramStatus(telegramFlow);
-        if (result.status === "complete") {
+        if (result.status !== "pending") {
           active = false;
           setTelegramFlow(null);
           setBusy(null);

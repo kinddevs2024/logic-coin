@@ -29,6 +29,7 @@ import {
 import { createUser, processReferralSignupReward } from "../services/user.service.js";
 import { serializeUser } from "../services/serialization.service.js";
 import { authenticateGoogle } from "../services/social-auth.service.js";
+import { completeSocialSignIn, setSocialPassword } from "../services/social-password.service.js";
 import {
   assertTelegramWebhookSecret,
   authenticateTelegram,
@@ -150,12 +151,12 @@ router.post(
     const existing = await User.findOne(loginIdentityFilter(identifier)).select("+passwordHash");
     if (identifier.startsWith("@") && !existing) throw new ApiError(401, "invalid_credentials", "Account not found");
     const email = existing?.email ?? identifier;
-    if (/^telegram-\d+@telegram\.logiccoin\.local$/.test(email)) {
-      throw new ApiError(400, "telegram_login_required", "Confirm this account using Continue with Telegram");
-    }
     if (existing?.emailVerifiedAt && existing.passwordHash) {
       response.json({ data: { email: identifier, mode: "password" as const } });
       return;
+    }
+    if (/^telegram-\d+@telegram\.logiccoin\.local$/.test(email)) {
+      throw new ApiError(400, "telegram_login_required", "Confirm this account using Continue with Telegram");
     }
 
     const flowToken = generateRegistrationToken();
@@ -326,6 +327,13 @@ router.post("/email/complete", (_request, _response) => {
 
 router.get("/app/open", serveAppReturnPage);
 
+router.post("/social/set-password", authLimiter, validateBody(z.object({
+  password: passwordSchema, setupToken: registrationTokenSchema, deviceId: deviceIdSchema
+}).strict()), async (request, response) => {
+  const { password, setupToken, deviceId } = request.body;
+  response.json({ data: await setSocialPassword(password, setupToken, sessionContext(request, deviceId)) });
+});
+
 router.post("/telegram/start", authLimiter, async (request, response) => {
   const parsed = z.object({ deviceId: deviceIdSchema, referralCode: z.string().trim().regex(/^[A-Za-z0-9-]{4,32}$/).optional() }).strict().safeParse(request.body ?? {});
   if (!parsed.success) throw new ApiError(400, "validation_error", "Telegram login data is invalid");
@@ -350,11 +358,8 @@ router.post("/telegram/status", authLimiter, async (request, response) => {
     response.status(202).json({ data: { status: "pending" } });
     return;
   }
-  const tokens = await issueTokenPair(
-    user._id,
-    sessionContext(request, parsed.data.deviceId)
-  );
-  response.json({ data: { status: "complete", user: serializeUser(user), tokens } });
+  const result = await completeSocialSignIn(user._id, sessionContext(request, parsed.data.deviceId));
+  response.json({ data: "tokens" in result ? { ...result, status: "complete" } : result });
 });
 
 router.post("/telegram/complete", authLimiter, async (request, response) => {
@@ -369,11 +374,7 @@ router.post("/telegram/complete", authLimiter, async (request, response) => {
     throw new ApiError(400, "validation_error", "Telegram login data is invalid");
   }
   const user = await completeTelegramResume(parsed.data.resumeToken);
-  const tokens = await issueTokenPair(
-    user._id,
-    sessionContext(request, parsed.data.deviceId)
-  );
-  response.json({ data: { user: serializeUser(user), tokens } });
+  response.json({ data: await completeSocialSignIn(user._id, sessionContext(request, parsed.data.deviceId)) });
 });
 
 router.post("/telegram/mini-app", authLimiter, async (request, response) => {
@@ -387,11 +388,7 @@ router.post("/telegram/mini-app", authLimiter, async (request, response) => {
   const user = await authenticateTelegram(
     verifyTelegramMiniApp(parsed.data.initData), parsed.data.referralCode
   , requestLanguage(request));
-  const tokens = await issueTokenPair(
-    user._id,
-    sessionContext(request, parsed.data.deviceId)
-  );
-  response.json({ data: { user: serializeUser(user), tokens } });
+  response.json({ data: await completeSocialSignIn(user._id, sessionContext(request, parsed.data.deviceId)) });
 });
 
 router.post("/telegram/webhook", async (request, response) => {
@@ -600,8 +597,7 @@ router.post("/google", authLimiter, validateBody(googleSchema), async (request, 
     await user.save();
   }
   if (created) await registerDeviceAccount(user._id, deviceId);
-  const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
-  response.json({ data: { user: serializeUser(user), tokens } });
+  response.json({ data: await completeSocialSignIn(user._id, sessionContext(request, deviceId)) });
 });
 
 export default router;

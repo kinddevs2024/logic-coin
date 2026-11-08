@@ -42,6 +42,7 @@ it("sends verification only to the account's stored email", async () => {
 });
 it("never sends email to a synthetic Telegram address", async () => {
   fixture.user.email = "telegram-123456@telegram.logiccoin.local";
+  fixture.user.passwordHash = undefined;
   await request(app).post("/email/start").send({email:"@Some_user"}).expect(400);
   expect(fixture.otp).not.toHaveBeenCalled();
 });
@@ -54,5 +55,12 @@ it("resends a code to the account email without exposing it", async () => {
 it("does not create a new account for an unknown nickname", async () => {
   fixture.user = null;
   await request(app).post("/email/start").send({email:"@Missing_user"}).expect(401);
+  expect(fixture.otp).not.toHaveBeenCalled();
+});
+
+it("offers nickname/password login for a verified Telegram account after password setup", async () => {
+  fixture.user.email = "telegram-123456@telegram.logiccoin.local";
+  const result = await request(app).post("/email/start").send({email:"@Some_user"}).expect(200);
+  expect(result.body.data).toEqual({email:"@some_user",mode:"password"});
   expect(fixture.otp).not.toHaveBeenCalled();
 });
