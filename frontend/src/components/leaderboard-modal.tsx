@@ -520,8 +520,9 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   filterText: { fontSize: 12, lineHeight: 15, fontWeight: "800" },
-  content: { flex: 1, minHeight: 0 },
-  fadeTop: { position: "absolute", top: -3, left: 0, right: 0, height: 52 },
+  // Keep scroll fades and the dock inside the list, below the rounded filters.
+  content: { flex: 1, minHeight: 0, overflow: "hidden" },
+  fadeTop: { position: "absolute", top: 0, left: 0, right: 0, height: 52 },
   fadeBottom: { position: "absolute", bottom: 0, left: 0, right: 0, height: 110 },
   list: { flex: 1, minHeight: 0 },
   listContent: { gap: 5, paddingTop: 10, paddingBottom: 6 },
