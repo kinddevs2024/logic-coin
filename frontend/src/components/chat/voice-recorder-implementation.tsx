@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import Animated, {
+  FadeInRight, FadeOutRight, LinearTransition, ZoomIn, ZoomOut,
+  useAnimatedStyle, useReducedMotion, useSharedValue, withTiming,
+} from "react-native-reanimated";
 import {
   RecordingPresets,
   useAudioRecorder,
@@ -24,6 +28,12 @@ export function VoiceRecorder({
 }) {
   const c = useChatCopy(),
     theme = useAppTheme();
+  const reducedMotion = useReducedMotion();
+  const sending = useSharedValue(0);
+  const sendingStyle = useAnimatedStyle(() => ({
+    opacity: 1 - sending.value,
+    transform: [{ translateY: -18 * sending.value }, { scale: 1 - 0.04 * sending.value }],
+  }));
   const busyRef = useRef(false),
     finishRef = useRef<() => Promise<void>>(async () => {});
   const recorder = useAudioRecorder(
@@ -85,8 +95,12 @@ export function VoiceRecorder({
       setBusy(true);
       try {
         await onFile(retryClip);
+        // Animate only after upload/enqueue succeeds. Failed sends retain the clip.
+        sending.value = withTiming(1, { duration: reducedMotion ? 0 : 180 });
+        if (!reducedMotion) await new Promise(resolve => setTimeout(resolve, 180));
         setRetryClip(null);
         onActiveChange(false);
+        sending.value = 0;
       } catch (error) {
         onError(error);
       } finally {
@@ -120,20 +134,26 @@ export function VoiceRecorder({
     }
   };
   return (
-    <View
+    <Animated.View
+      layout={reducedMotion ? undefined : LinearTransition.duration(220)}
       onLayout={(event) => setWaveWidth(event.nativeEvent.layout.width)}
-      style={{
+      style={[{
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
         justifyContent: "flex-end",
         minHeight: 44,
         borderRadius: 24,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        overflow: "hidden",
         flex: status.isRecording || retryClip ? 1 : undefined,
         paddingLeft: status.isRecording || retryClip ? 14 : 0,
         backgroundColor:
           status.isRecording || retryClip ? theme.primarySoft : "transparent",
-      }}
+      }, sendingStyle]}
     >
       {retryClip ? (
         <Pressable
@@ -150,7 +170,9 @@ export function VoiceRecorder({
         </Pressable>
       ) : null}
       {status.isRecording || retryClip ? (
-        <View
+        <Animated.View
+          entering={reducedMotion ? undefined : FadeInRight.duration(220)}
+          exiting={reducedMotion ? undefined : FadeOutRight.duration(160)}
           accessibilityLabel={c.voice}
           pointerEvents="none"
           style={{
@@ -192,7 +214,7 @@ export function VoiceRecorder({
                 />
               );
             })}
-        </View>
+        </Animated.View>
       ) : null}
       <Pressable
         accessibilityRole="button"
@@ -213,6 +235,11 @@ export function VoiceRecorder({
           backgroundColor: "transparent",
         }}
       >
+        <Animated.View
+          key={busy ? "busy" : retryClip ? "send" : status.isRecording ? "stop" : "mic"}
+          entering={reducedMotion ? undefined : ZoomIn.duration(160)}
+          exiting={reducedMotion ? undefined : ZoomOut.duration(120)}
+        >
         {busy ? (
           <ActivityIndicator color={String(theme.primary)} />
         ) : (
@@ -228,7 +255,8 @@ export function VoiceRecorder({
             color={status.isRecording ? theme.danger : theme.primary}
           />
         )}
+        </Animated.View>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }

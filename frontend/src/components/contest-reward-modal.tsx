@@ -316,7 +316,7 @@ export function ContestRewardModal() {
               {reward.standings.map((entry) => (
                 <View key={entry.id} style={[styles.standingRow, entry.userId === result.userId && { backgroundColor: theme.primarySoft }]}>
                   <AppText style={[styles.rank, { color: entry.rank <= 3 ? "#F3B61F" : theme.textMuted }]}>{copyContent(entry.rank)}</AppText>
-                  <Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={34} />
+                  <Avatar userId={entry.userId} name={entry.name} avatarUrl={entry.avatarUrl} size={34} />
                   <View style={styles.person}>
                     <AppText style={styles.personName} numberOfLines={1}>{entry.name}</AppText>
                     {entry.countryCode ? <CountryFlagBadge countryCode={entry.countryCode} size={13} /> : null}

@@ -59,7 +59,7 @@ export function RaffleStage({ event, now, eligibleDays }: { event: RaffleEvent; 
       <View style={styles.winOverlay}>
         <View style={[styles.winCard, { backgroundColor: theme.surface, borderColor: "#FFD95E" }]}>
           <Text style={[styles.heading, { color: "#FFD95E" }]}>{won ? c.youWon : c.winner}</Text>
-          {winner ? <Avatar name={winner.name} avatarUrl={winner.avatarUrl} size={90} /> : null}
+          {winner ? <Avatar userId={winner.id} name={winner.name} avatarUrl={winner.avatarUrl} size={90} /> : null}
           <Text style={[styles.heading, { color: theme.text }]}>{winner?.name}</Text>
           <Text style={[styles.prizeText, { color: theme.primary }]}>{round?.label}</Text>
           {round?.kind === "cash" ? <Text style={[styles.heading, { color: "#FFD95E" }]}>{formatMoney(round.cashUnits)}</Text> : null}
@@ -83,9 +83,9 @@ function PlayerReel({ players, winner, spinning }: { players: RafflePlayer[]; wi
   }, [count, spinning, travel]);
   return <View onLayout={event => setWidth(event.nativeEvent.layout.width)} style={[styles.reel, { borderColor: theme.primary, backgroundColor: theme.surface, overflow: "hidden" }]}>
     <Text style={styles.pointer}>▼</Text>
-    {winner ? <View style={{ alignItems: "center" }}><Avatar name={winner.name} avatarUrl={winner.avatarUrl} size={76}/><Text style={{color:theme.text,fontWeight:"700",marginTop:8}}>{winner.name}</Text></View> :
+    {winner ? <View style={{ alignItems: "center" }}><Avatar userId={winner.id} name={winner.name} avatarUrl={winner.avatarUrl} size={76}/><Text style={{color:theme.text,fontWeight:"700",marginTop:8}}>{winner.name}</Text></View> :
     <Animated.View style={{position:"absolute",left:(width-88)/2,flexDirection:"row",transform:[{translateX:travel}]}}>
-      {[...players,...players].map((player,i)=><View key={`${player.id}:${i}`} style={{width:88,alignItems:"center",paddingHorizontal:4}}><Avatar name={player.name} avatarUrl={player.avatarUrl} size={64}/><Text numberOfLines={1} style={{color:theme.text,fontSize:11,marginTop:8}}>{player.name}</Text></View>)}
+      {[...players,...players].map((player,i)=><View key={`${player.id}:${i}`} style={{width:88,alignItems:"center",paddingHorizontal:4}}><Avatar userId={player.id} name={player.name} avatarUrl={player.avatarUrl} size={64}/><Text numberOfLines={1} style={{color:theme.text,fontSize:11,marginTop:8}}>{player.name}</Text></View>)}
     </Animated.View>}
     {spinning ? <View style={[styles.reelLine, { backgroundColor: theme.primary }]} /> : null}
   </View>;

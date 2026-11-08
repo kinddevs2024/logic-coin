@@ -101,7 +101,7 @@ export function AccountPanel() {
             alignItems: "center",
           }}
         >
-          <Avatar name={user.name} avatarUrl={user.avatarUrl} size={74} />
+          <Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={74} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <AppText variant="heading">{user.name}</AppText>
             {user.username ? (

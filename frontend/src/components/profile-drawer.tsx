@@ -193,7 +193,7 @@ export function ProfileDrawer({
                   style={StyleSheet.absoluteFill}
                 />
                 <View style={styles.profileTop}>
-                  <Avatar name={user.name} avatarUrl={user.avatarUrl} size={72} />
+                  <Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={72} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="heading" color={String(theme.text)}>
                       {user.name}
