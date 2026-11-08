@@ -58,6 +58,17 @@ export function ProfileDrawer({
     refetchOnMount: "always",
     refetchInterval: visible ? 30_000 : false,
   });
+  const [coinClock, setCoinClock] = useState(() => Date.now());
+  const coinsResetAt = coinsToday.data?.resetsAt;
+  const refreshCoinsToday = coinsToday.refetch;
+  useEffect(() => {
+    if (!visible || !coinsResetAt) return;
+    const timer = setTimeout(() => {
+      setCoinClock(Date.now());
+      void refreshCoinsToday({ cancelRefetch: false });
+    }, Math.max(0, Date.parse(coinsResetAt) - Date.now() + 20));
+    return () => clearTimeout(timer);
+  }, [visible, coinsResetAt, refreshCoinsToday]);
   const streak = useAppStore((state) => state.streak);
   const [translateX] = useState(() => new Animated.Value(-440));
   const [backdrop] = useState(() => new Animated.Value(0));
@@ -222,7 +233,7 @@ export function ProfileDrawer({
               <View style={styles.stats}>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>
-                    {authMode === "authenticated" ? (coinsToday.data && Date.parse(coinsToday.data.resetsAt) > Date.now() ? copyContent(coinsToday.data.earned) : coinsToday.isError ? "—" : "…") : "—"}
+                    {authMode === "authenticated" ? (coinsToday.data && Date.parse(coinsToday.data.resetsAt) > coinClock ? copyContent(coinsToday.data.earned) : coinsToday.isError ? "—" : "…") : "—"}
                   </AppText>
                   <AppText variant="caption" muted style={{ textAlign: "center" }}>
                     {copyContent(language === "ru" ? "Коины за сегодня" : language === "uz" ? "Bugungi koinlar" : "Coins earned today")}</AppText>
