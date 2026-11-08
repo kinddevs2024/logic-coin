@@ -86,6 +86,7 @@ function ConversationPaneContent({
   onProfile: (id: string) => void;
   onInfo: () => void;
 }) {
+  const composerRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   useEffect(() => {
@@ -152,6 +153,11 @@ function ConversationPaneContent({
   const [reply, setReply] = useState<ChatItem | null>(null),
     [editing, setEditing] = useState<ChatItem | null>(null),
     [action, setAction] = useState<ChatItem | null>(null);
+  useEffect(() => {
+    if (!reply) return;
+    const frame = requestAnimationFrame(() => composerRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [reply]);
   const [forward, setForward] = useState<{
       message: ChatItem;
       clientId: string;
@@ -728,6 +734,7 @@ function ConversationPaneContent({
                 )}
               </Pressable>
               <TextInput
+                ref={composerRef}
                 accessibilityLabel={c.write}
                 multiline
                 submitBehavior="newline"
@@ -888,6 +895,7 @@ function ConversationPaneContent({
                   setReply(action);
                   setEditing(null);
                   setAction(null);
+                  composerRef.current?.focus();
                 }}
               />
             ) : null}

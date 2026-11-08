@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   tasksPanel: {
     borderRadius: 34,
     padding: 14,
-    marginTop: 16,
+    marginTop: 10,
     gap: 10,
   },
   tasksPanelDesktop: {

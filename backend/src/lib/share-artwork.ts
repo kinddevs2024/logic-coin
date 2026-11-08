@@ -2,7 +2,7 @@ import type { CopyLanguage } from "./localize-built-in.js";
 import { escapeMarkup } from "./share-preview.js";
 
 // Include the artwork version in dynamic image URLs: social crawlers cache images.
-export const SHARE_ARTWORK_VERSION = "minimal-3-current-logo-20261024";
+export const SHARE_ARTWORK_VERSION = "profile-avatar-brain-logo-20261108";
 const ink = "#153B2B";
 const muted = "#526C5C";
 
