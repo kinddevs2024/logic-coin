@@ -1,4 +1,5 @@
 import { ApiError } from "./api-error.js";
+import { percentContestPlan, PERCENT_CONTEST_POLICY } from "./percent-contest-plan.js";
 import { contestCashPlan } from "./contest-cash-plan.js";
 import { rankContestStandings, type ContestStandingInput } from "./contest.js";
 
@@ -22,11 +23,13 @@ export function validateManualCashPrizes(prizes: readonly ManualCashPrize[], bud
 }
 
 export function contestPrizePlan(standings: readonly ContestStandingInput[], settings: {
+  payoutPolicy?: string | null;
   prizePoolUnits: number; cashPrizeMinUnits: number; cashPrizeMaxUnits: number;
   cashPrizeLimitUnits?: number | null;
   descendingCashPrizes?: boolean | null;
   manualCashPrizes?: readonly ManualCashPrize[] | null;
 }) {
+  if (settings.payoutPolicy === PERCENT_CONTEST_POLICY) return percentContestPlan(standings);
   const automatic = contestCashPlan(standings.length, settings.cashPrizeMinUnits, settings.cashPrizeMaxUnits, settings.prizePoolUnits, settings.cashPrizeLimitUnits, settings.descendingCashPrizes === true);
   const ranked = rankContestStandings(standings, automatic.bands);
   if (settings.manualCashPrizes == null) return {

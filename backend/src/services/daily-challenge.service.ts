@@ -80,6 +80,7 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         cashPrizeMinUnits: DEFAULT_DAILY_PRIZE_MIN_UNITS,
         cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
+        payoutPolicy: "all-six-percent-v1",
         cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS,
         descendingCashPrizes: true,
         coinPrizeAmounts: [100, 100, 100, 100, 100, 100],

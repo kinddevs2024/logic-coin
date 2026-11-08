@@ -32,6 +32,10 @@ export function ChallengeRulePrizes({ dayKey }: { dayKey?: string }) {
     {data ? <>
       <AppText variant="caption" muted>{copyContent(data.dayKey)} · {copyContent(data.source === "saved" ? c.final : data.source === "manual" ? c.manual : c.automatic)}</AppText>
       <View style={styles.row}><AppText>{copyContent(c.pool)}</AppText><AppText variant="label">{copyContent(formatMoney(data.poolUnits))}</AppText></View>
+      {data.payoutPolicy === "all-six-percent-v1" ? <AppText variant="caption" muted>{copyContent(language === "ru"
+        ? "Денежный приз получает каждый, кто завершил все 6 игр дня. После первых трёх мест фонд делится по процентным группам рейтинга."
+        : language === "uz" ? "Kunning barcha 6 o‘yinini tugatgan har bir ishtirokchi pul sovrini oladi. Birinchi uch o‘rindan keyin jamg‘arma reytingning foizli guruhlari bo‘yicha taqsimlanadi."
+        : "Everyone who completes all 6 daily games earns a cash prize. After the top three, the pool is shared by percentile groups.")}</AppText> : null}
       {data.cashPrizeLimitUnits != null ? <View style={styles.row}><AppText>{copyContent(language === "ru" ? "Максимум одному участнику" : language === "uz" ? "Bir ishtirokchiga eng ko‘pi" : "Maximum per participant")}</AppText><AppText variant="label">{copyContent(formatMoney(data.cashPrizeLimitUnits))}</AppText></View> : null}
       {(data.unallocatedUnits ?? 0) > 0 ? <View style={styles.row}><AppText>{copyContent(language === "ru" ? "Нераспределённый остаток" : language === "uz" ? "Taqsimlanmagan qoldiq" : "Unallocated balance")}</AppText><AppText variant="label">{copyContent(formatMoney(data.unallocatedUnits!))}</AppText></View> : null}
       {data.podium.map(row => <View key={row.rank} style={styles.row}><AppText>{copyContent(language === "ru" ? `${row.rank}-е место` : language === "uz" ? `${row.rank}-o‘rin` : `${row.rank}${row.rank === 1 ? "st" : row.rank === 2 ? "nd" : "rd"} place`)}</AppText><AppText variant="label">{copyContent(row.cashUnits === null ? c.unavailable : row.cashUnits === 0 ? c.none : formatMoney(row.cashUnits))}</AppText></View>)}

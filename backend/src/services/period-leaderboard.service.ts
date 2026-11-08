@@ -41,10 +41,8 @@ async function periodRows(period: RankingPeriod, dayKey: string): Promise<Ranked
     }));
   }
 
-  const [set, standings] = await Promise.all([
-    DailyChallengeSet.findOne({ dayKey, status: "published" }).lean(),
-    collectContestStandings(dayKey),
-  ]);
+  const set = await DailyChallengeSet.findOne({ dayKey, status: "published" }).lean();
+  const standings = await collectContestStandings(dayKey, set ?? undefined);
   if (!set) return [];
   // Reuse the actual challenge standings, tie breaks and prize allocation.
   // Practice, ordinary ad/attendance coins and wallet credits are not scores.

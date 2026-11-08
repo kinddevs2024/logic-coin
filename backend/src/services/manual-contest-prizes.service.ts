@@ -10,7 +10,7 @@ import { broadcastDailyChallengeUpdate } from "./live-updates.service.js";
 export async function getManualContestPrizes(dayKey: string) {
   const set = await DailyChallengeSet.findOne({ dayKey }).lean();
   if (!set) throw new ApiError(404, "daily_challenge_not_found", "Сначала сохраните челлендж.");
-  const standings = await collectContestStandings(dayKey);
+  const standings = await collectContestStandings(dayKey, set ?? undefined);
   const plan = contestPrizePlan(standings, set);
   const finalResults = set.status === "settled" ? await DailyContestResult.find({ dayKey }).lean() : [];
   const rows = set.status === "settled" ? finalResults.map(row => ({ userId: String(row.userId), rank: row.rank, totalCoins: row.totalCoins, cashUnits: row.cashUnits ?? 0 })) : plan.ranked;
@@ -31,10 +31,11 @@ export async function saveManualContestPrizes(input: {
 }) {
   const set = await DailyChallengeSet.findOne({ dayKey: input.dayKey }).lean();
   if (!set) throw new ApiError(404, "daily_challenge_not_found", "Челлендж не найден.");
+  if (set.payoutPolicy === "all-six-percent-v1") throw new ApiError(409, "automatic_percent_prizes", "Для этого дня действует фиксированное процентное распределение фонда $8.25.");
   if (set.status === "settled" || set.prizesLocked) throw new ApiError(409, "prizes_locked", "Итоги уже рассчитываются или рассчитаны. Изменение призов запрещено.");
   if ((set.manualPrizeRevision ?? 0) !== input.revision) throw new ApiError(409, "prizes_changed", "Призы уже изменены другим администратором. Обновите список.");
   if (input.mode === "automatic" && input.prizes.length) throw new ApiError(400, "invalid_manual_prizes", "Для автоматического режима список должен быть пустым.");
-  const standings = await collectContestStandings(input.dayKey);
+  const standings = await collectContestStandings(input.dayKey, set);
   const participants = new Set(standings.map(row => row.userId));
   validateManualCashPrizes(input.prizes, set.prizePoolUnits, participants, set.cashPrizeLimitUnits);
   if (input.mode === "manual") contestPrizePlan(standings, { ...set, manualCashPrizes: input.prizes });

@@ -3,6 +3,7 @@ import { ApiError } from "../lib/api-error.js";
 import { ActivityDay } from "../models/ActivityDay.js";
 import { LedgerEntry } from "../models/LedgerEntry.js";
 import { User } from "../models/User.js";
+import { MICROS_PER_CENT } from "../lib/percent-contest-plan.js";
 
 type LedgerType =
   | "task_reward"
@@ -26,7 +27,10 @@ interface CreditRewardInput {
 }
 
 export async function creditReward(input: CreditRewardInput, session: ClientSession) {
-  if (!Number.isSafeInteger(input.amountUnits) || input.amountUnits <= 0) {
+  const amountMicros = Math.round(input.amountUnits * MICROS_PER_CENT);
+  const fractionalContest = input.type === "contest_cash_prize" && amountMicros > 0 && Number.isSafeInteger(amountMicros)
+    && Math.abs(amountMicros / MICROS_PER_CENT - input.amountUnits) < 1e-10;
+  if ((!Number.isSafeInteger(input.amountUnits) && !fractionalContest) || !Number.isFinite(input.amountUnits) || input.amountUnits <= 0) {
     throw new ApiError(500, "invalid_reward", "Reward must be a positive integer");
   }
 
@@ -40,7 +44,11 @@ export async function creditReward(input: CreditRewardInput, session: ClientSess
 
   const user = await User.findOneAndUpdate(
     { _id: input.userId },
-    { $inc: increments },
+    fractionalContest && !Number.isInteger(input.amountUnits)
+      ? [{ $set: Object.fromEntries(Object.entries(increments).map(([key, amount]) => [key,
+          { $round: [{ $add: [{ $ifNull: [`$${key}`, 0] }, amount] }, 4] },
+        ])) }]
+      : { $inc: increments },
     { new: true, session }
   ).select("wallet");
 
@@ -55,6 +63,7 @@ export async function creditReward(input: CreditRewardInput, session: ClientSess
         userId: input.userId,
         type: input.type,
         amountUnits: input.amountUnits,
+        ...(input.type === "contest_cash_prize" ? { amountMicros } : {}),
         balanceAfterUnits,
         sourceId: input.sourceId,
         description: input.description,

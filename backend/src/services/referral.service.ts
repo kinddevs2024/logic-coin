@@ -193,7 +193,8 @@ export function calculateReferralPrizeShare(
   amount: number,
   percent = REFERRAL_DIRECT_PRIZE_SHARE_PERCENT,
 ): number {
-  if (!Number.isSafeInteger(amount) || amount < 0) {
+  if (!Number.isFinite(amount) || amount < 0 || !Number.isSafeInteger(Math.round(amount * 10_000))
+      || Math.abs(Math.round(amount * 10_000) / 10_000 - amount) > 1e-10) {
     throw new ApiError(
       500,
       "invalid_referral_prize",

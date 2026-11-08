@@ -19,6 +19,7 @@ const ledgerEntrySchema = new Schema(
       required: true
     },
     amountUnits: { type: Number, required: true },
+    amountMicros: { type: Number, min: 0, validate: Number.isSafeInteger },
     balanceAfterUnits: { type: Number, required: true, min: 0 },
     sourceId: { type: String, required: true },
     description: { type: String, required: true, maxlength: 240 },

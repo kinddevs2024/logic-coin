@@ -27,11 +27,12 @@ import {
 import { creditReward } from "./wallet.service.js";
 import { dispatchNotificationEvent } from "./notification.service.js";
 
-export async function collectContestStandings(dayKey: string): Promise<ContestStandingInput[]> {
+export async function collectContestStandings(dayKey: string, policySet?: { payoutPolicy?: string | null; gameIds: Types.ObjectId[] }): Promise<ContestStandingInput[]> {
   const attempts = await ChallengeAttempt.find({
     dayKey,
     mode: "challenge",
     status: "completed"
+    ,...(policySet?.payoutPolicy === "all-six-percent-v1" ? { gameId: { $in: policySet.gameIds } } : {})
   })
     .select("userId gameId completedAt")
     .lean();
@@ -142,7 +143,7 @@ export async function settleDailyContest(dayKey: string) {
     ).lean();
     if (!payoutSet) throw new ApiError(409, "prizes_locked", "План призов недоступен для расчёта.");
     ownsPrizeLock = true;
-    const standings = await collectContestStandings(dayKey);
+    const standings = await collectContestStandings(dayKey, payoutSet);
     const { bands, ranked, distributedUnits: cashDistributedUnits } = contestPrizePlan(standings, payoutSet);
     participantCount = bands.participantCount;
     await session.withTransaction(async () => {
@@ -167,6 +168,7 @@ export async function settleDailyContest(dayKey: string) {
               rank: standing.rank,
               rewardType: standing.rewardType,
               ...(standing.rewardType === "cash" ? { cashUnits } : {}),
+              ...(payoutSet.payoutPolicy === "all-six-percent-v1" ? { cashMicros: Math.round(cashUnits * 10_000) } : {}),
               coinAmount: payoutSet.coinPrizeAmounts?.[standing.rank - 1] ?? 0,
               ...(standing.rewardType === "box"
                 ? {

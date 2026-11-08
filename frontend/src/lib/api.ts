@@ -433,7 +433,7 @@ export type ChallengeStartResult = {
 export const challengesApi = {
   rules(token: string, day?: string) {
     return request<{
-      dayKey: string; source: "automatic" | "manual" | "saved"; final: boolean;
+      dayKey: string; payoutPolicy?: string | null; source: "automatic" | "manual" | "saved"; final: boolean;
       poolUnits: number; participantCount: number; cashWinnerCount: number; otherMaxCashUnits: number;
       cashPrizeLimitUnits?: number | null; unallocatedUnits?: number;
       podium: { rank: number; cashUnits: number | null }[];

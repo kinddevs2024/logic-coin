@@ -131,9 +131,10 @@ describe("daily challenge auto-creation", () => {
     expect(update.$setOnInsert.status).toBe("published");
     expect(update.$setOnInsert.selectionMode).toBe("random");
     expect((update.$setOnInsert.gameIds as unknown[]).length).toBe(6);
-    expect(update.$setOnInsert.cashPrizeMinUnits).toBe(500);
-    expect(update.$setOnInsert.cashPrizeMaxUnits).toBe(1_000);
-    expect(update.$setOnInsert.prizePoolUnits).toBe(1_000);
+    expect(update.$setOnInsert.cashPrizeMinUnits).toBe(0);
+    expect(update.$setOnInsert.cashPrizeMaxUnits).toBe(250);
+    expect(update.$setOnInsert.prizePoolUnits).toBe(825);
+    expect(update.$setOnInsert.payoutPolicy).toBe("all-six-percent-v1");
 
     expect(result).toMatchObject({
       status: "published",
@@ -145,9 +146,9 @@ describe("daily challenge auto-creation", () => {
     });
     expect(result.games.length).toBe(6);
     expect(result.prizes).toMatchObject({
-      cashMinUnits: 500,
-      cashMaxUnits: 1_000,
-      poolUnits: 1_000
+      cashMinUnits: 0,
+      cashMaxUnits: 250,
+      poolUnits: 825
     });
   });
 

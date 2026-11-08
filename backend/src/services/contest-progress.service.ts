@@ -20,10 +20,8 @@ export function invalidateContestProgress(dayKey: string) {
 }
 
 async function buildSnapshot(dayKey: string) {
-  const [set, standings] = await Promise.all([
-    DailyChallengeSet.findOne({ dayKey, status: "published" }).lean(),
-    collectContestStandings(dayKey),
-  ]);
+  const set = await DailyChallengeSet.findOne({ dayKey, status: "published" }).lean();
+  const standings = await collectContestStandings(dayKey, set ?? undefined);
   const ranked = set ? contestPrizePlan(standings, set).ranked
     : rankContestStandings(standings, computeContestBands(standings.length)).map(row => ({ ...row, cashUnits: 0 }));
   return { id: randomUUID(), createdAt: Date.now(), dayKey, set, standings, ranked };
