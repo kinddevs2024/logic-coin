@@ -26,7 +26,7 @@ export function RankingPreview({ metric, onPress }: { metric: LeaderboardMetric;
   const leaders = (query.data?.pages[0]?.leaderboards[metric].entries ?? []).slice(0, 3);
   return <Pressable accessibilityRole="button" accessibilityLabel={copyText("Рейтинг")} onPress={onPress}>
     <GlassSurface intensity={66} variant="strong" style={{ minHeight: 48, borderRadius: 24, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4 }}>
-      {leaders.length ? <View style={{ flexDirection: "row" }}>{leaders.map((entry, index) => <View key={entry.userId} style={{ marginLeft: index ? -8 : 0, zIndex: 3 - index }} accessible accessibilityLabel={formatCopy("{0} место: {1}", [entry.rank, entry.name])}><Avatar name={entry.name} avatarUrl={entry.avatarUrl} size={24} /></View>)}</View> : null}
+      {leaders.length ? <View style={{ flexDirection: "row" }}>{leaders.map((entry, index) => <View key={entry.userId} style={{ marginLeft: index ? -8 : 0, zIndex: 3 - index }} accessible accessibilityLabel={formatCopy("{0} место: {1}", [entry.rank, entry.name])}><Avatar userId={entry.userId} name={entry.name} avatarUrl={entry.avatarUrl} size={24} /></View>)}</View> : null}
       <Ionicons name={"trophy"} size={17} color={"#F5B800"} />
     </GlassSurface>
   </Pressable>;

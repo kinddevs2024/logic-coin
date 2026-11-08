@@ -99,7 +99,7 @@ export default function ChallengeHistory() {
     {data && rows.length ? <FeedAd placement="challenge-history"/> : null}
     <View onLayout={event => setRankingTop(event.nativeEvent.layout.y)}>
     {rows.map(row => <GlassSurface key={row.userId} style={[styles.row, { height: 64 }, row.isSelf && data?.self && { opacity: 0 }]}>
-      <AppText style={styles.rank}>{copyContent(row.rank)}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={38} />
+      <AppText style={styles.rank}>{copyContent(row.rank)}</AppText><Avatar userId={row.userId} name={row.name} avatarUrl={row.avatarUrl} size={38} />
       <AppText numberOfLines={1} style={styles.name}>{row.name}</AppText><View style={{ alignItems: "flex-end" }}><AppText variant="label" color={String(theme.primary)}>{formatMoney(row.cashUnits ?? 0)}</AppText><AppText variant="caption">{copyContent(row.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText></View>
     </GlassSurface>)}
     </View>
@@ -126,7 +126,7 @@ export default function ChallengeHistory() {
       if (eventWithScroll.nativeEvent.contentSize.height - eventWithScroll.nativeEvent.contentOffset.y - eventWithScroll.nativeEvent.layoutMeasurement.height < 240) loadMore();
     } })}>{page}</Animated.ScrollView>
     {data?.self ? <Animated.View pointerEvents="none" style={{ position: "absolute", left: pageInset, right: pageInset, top: 0, transform: [{ translateY: dockY }] }}>
-      <GlassSurface variant="strong" style={[styles.row, { height: 64, borderColor: theme.primary, borderWidth: 1 }]}><AppText style={styles.rank}>{copyContent(data.self.rank)}</AppText><Avatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} size={38} /><AppText numberOfLines={1} style={styles.name}>{currentUser.name}</AppText><View style={{ alignItems: "flex-end" }}><AppText variant="label" color={String(theme.primary)}>{formatMoney(data.self.cashUnits ?? 0)}</AppText><AppText variant="caption">{copyContent(data.self.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText></View></GlassSurface>
+      <GlassSurface variant="strong" style={[styles.row, { height: 64, borderColor: theme.primary, borderWidth: 1 }]}><AppText style={styles.rank}>{copyContent(data.self.rank)}</AppText><Avatar userId={currentUser.id} name={currentUser.name} avatarUrl={currentUser.avatarUrl} size={38} /><AppText numberOfLines={1} style={styles.name}>{currentUser.name}</AppText><View style={{ alignItems: "flex-end" }}><AppText variant="label" color={String(theme.primary)}>{formatMoney(data.self.cashUnits ?? 0)}</AppText><AppText variant="caption">{copyContent(data.self.totalCoins.toLocaleString(locale))} {copyText(" coin")}</AppText></View></GlassSurface>
     </Animated.View> : null}
   </View>} />;
 }

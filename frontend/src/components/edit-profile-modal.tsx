@@ -150,7 +150,7 @@ function EditProfileModalContent({ onClose }: { onClose: () => void }) {
                 onPress={() => void pickAvatar()}
                 style={({ pressed }) => [styles.avatarButton, pressed && { opacity: 0.8 }]}
               >
-                <Avatar name={name || user.name} avatarUrl={avatarUrl} size={92} />
+                <Avatar userId={user.id} name={name || user.name} avatarUrl={avatarUrl} size={92} />
                 <View pointerEvents="none" style={styles.avatarOverlay}>
                   {picking ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="camera-outline" size={27} color="rgba(255,255,255,0.45)" />}
                 </View>

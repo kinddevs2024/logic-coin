@@ -436,7 +436,7 @@ function ConversationPaneContent({
             {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && room.isOwner !== true)) ? (
               <LogoMark size={43} />
             ) : (
-              <Avatar
+              <Avatar userId={room.peer?.id ?? room.id}
                 name={room.title}
                 avatarUrl={
                   room.peer?.avatarUrl ??
