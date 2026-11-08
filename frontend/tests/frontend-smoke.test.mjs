@@ -30,12 +30,12 @@ test("bottle feedback stays on one line without resizing the scene", async () =>
 });
 test("home gift uses matching generated closed and open transparent assets", async () => {
   const source = await readFile(new URL("src/components/floating-home-gift.tsx", root), "utf8");
-  assert.match(source, /source=\{remaining > 0 \? GIFT_CLOSED : GIFT_OPEN\}/);
+  assert.match(source, /<ThemedHomeGift state=\{remaining > 0 \? "closed" : "open"\}/);
   assert.doesNotMatch(source, /MaterialCommunityIcons|BlurView|styles\.glass|styles\.sparkle/);
   assert.match(source, /disabled=\{remaining > 0\}/);
   assert.match(source, /remaining > 0 \? <View pointerEvents="none" style=\{\[styles\.timer/);
-  for (const name of ["closed", "open"]) {
-    const bytes = await readFile(new URL(`assets/rewards/home-gift-${name}-3d.png`, root));
+  for (const file of ["home-gift-closed-3d.png", "home-gift-open-themed-source.png"]) {
+    const bytes = await readFile(new URL(`assets/rewards/${file}`, root));
     assert.equal(bytes.subarray(1, 4).toString(), "PNG");
     // PNG IHDR colour type 6 = RGBA, not a flattened screenshot.
     assert.equal(bytes[25], 6);
