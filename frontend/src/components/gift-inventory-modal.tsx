@@ -5,11 +5,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAppTheme } from "@/hooks/use-app-theme";
+import type { ThemeTokens } from "@/constants/theme";
 import { giftsApi } from "@/lib/api";
 import { ChallengeRewardOverview } from "@/components/challenge-reward-overview";
 import { useAppStore } from "@/store/app-store";
@@ -85,6 +87,8 @@ function giftActionLabel(gift: GiftItem, usable: boolean, context: GiftContext) 
 
 export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = false, completed = false, supportsTimeExtension = false, gameKey, onClose, onUse }: GiftInventoryModalProps) {
   const { copyText, copyContent } = useUiCopy();
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
@@ -132,24 +136,24 @@ export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = f
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={close} statusBarTranslucent>
       <View style={styles.backdrop}>
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(16,37,27,0.55)", opacity: motion.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: "clamp" }) }]} />
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.45)", opacity: motion.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: "clamp" }) }]} />
         <Pressable accessibilityLabel={copyText("Закрыть подарки")} style={StyleSheet.absoluteFill} onPress={close} />
         <Animated.View style={{ maxHeight: "82%", transform: [{ translateY: motion.interpolate({ inputRange: [0, 1], outputRange: [0, height] }) }] }}>
-        <BlurView intensity={68} tint="dark" style={[styles.sheet, { maxHeight: "100%", flexShrink: 1, paddingBottom: Math.max(18, insets.bottom + 8) }]}>
-          <LinearGradient pointerEvents="none" colors={["rgba(0,122,87,0.22)", "rgba(255,255,255,0.02)"]} style={StyleSheet.absoluteFill} />
+        <BlurView intensity={68} tint={theme.mode === "dark" ? "dark" : "light"} style={[styles.sheet, { maxHeight: "100%", flexShrink: 1, paddingBottom: Math.max(18, insets.bottom + 8) }]}>
+          <LinearGradient pointerEvents="none" colors={[String(theme.glassTint), String(theme.surface)]} style={StyleSheet.absoluteFill} />
           <View style={styles.handle} />
           <View style={styles.header}>
-            <View style={styles.titleGroup}><View style={styles.giftIcon}><Ionicons name="gift" color="#FFFFFF" size={23} /></View><View><Text style={styles.title}>{copyText("Подарки")}</Text></View></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={close} style={styles.close}><Ionicons name="close" color="rgba(255,255,255,0.78)" size={22} /></Pressable>
+            <View style={styles.titleGroup}><View style={styles.giftIcon}><Ionicons name="gift" color={String(theme.onPrimary)} size={23} /></View><View><Text style={styles.title}>{copyText("Подарки")}</Text></View></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={copyText("Закрыть")} onPress={close} style={styles.close}><Ionicons name="close" color={String(theme.textMuted)} size={22} /></Pressable>
           </View>
 
-{!authenticated ? <View style={styles.empty}><Ionicons name="lock-closed-outline" size={34} color="#9FE6C5" /><Text style={styles.emptyTitle}>{copyText("Подарки хранятся в аккаунте")}</Text><Text style={styles.emptyText}>{copyText("Войдите, чтобы получать и использовать бонусы.")}</Text></View> : gifts.isLoading && !viewOnly ? <View style={styles.loading}><ActivityIndicator color="#9FE6C5" /><Text style={styles.emptyText}>{copyText("Загружаем подарки")}</Text></View> : gifts.isError && !viewOnly ? <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={34} color="#FF8B9A" /><Text style={styles.emptyTitle}>{copyText("Не удалось загрузить")}</Text><Pressable onPress={() => void gifts.refetch()} style={styles.retry}><Text style={styles.retryText}>{copyText("Повторить")}</Text></Pressable></View> : (
+{!authenticated ? <View style={styles.empty}><Ionicons name="lock-closed-outline" size={34} color={String(theme.primary)} /><Text style={styles.emptyTitle}>{copyText("Подарки хранятся в аккаунте")}</Text><Text style={styles.emptyText}>{copyText("Войдите, чтобы получать и использовать бонусы.")}</Text></View> : gifts.isLoading && !viewOnly ? <View style={styles.loading}><ActivityIndicator color={String(theme.primary)} /><Text style={styles.emptyText}>{copyText("Загружаем подарки")}</Text></View> : gifts.isError && !viewOnly ? <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={34} color={String(theme.danger)} /><Text style={styles.emptyTitle}>{copyText("Не удалось загрузить")}</Text><Pressable onPress={() => void gifts.refetch()} style={styles.retry}><Text style={styles.retryText}>{copyText("Повторить")}</Text></Pressable></View> : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
               {viewOnly && visible ? <ChallengeRewardOverview token={accessToken!} /> : null}
               {available.length ? <Text style={styles.sectionLabel}>{copyText("ДОСТУПНО · ")}{copyContent(available.length)}</Text> : null}
               
               {available.map((gift) => <GiftCard key={gift.id} gift={gift} viewOnly={viewOnly} usable={canUseGift(gift, context)} context={context} busy={useGift.isPending && useGift.variables?.id === gift.id} onUse={() => useGift.mutate(gift)} />)}
-              {!available.length && !viewOnly ? <View style={styles.empty}><Ionicons name="gift-outline" size={36} color="rgba(255,255,255,0.34)" /><Text style={styles.emptyTitle}>{copyText("Пока пусто")}</Text></View> : null}
+              {!available.length && !viewOnly ? <View style={styles.empty}><Ionicons name="gift-outline" size={36} color={String(theme.textMuted)} /><Text style={styles.emptyTitle}>{copyText("Пока пусто")}</Text></View> : null}
               {used.length ? <Text style={[styles.sectionLabel, styles.usedLabel]}>{copyText("ИСПОЛЬЗОВАНО · ")}{copyContent(used.length)}</Text> : null}
               {used.map((gift) => <GiftCard key={gift.id} gift={gift} viewOnly={viewOnly} disabled />)}
             </ScrollView>
@@ -164,50 +168,52 @@ export function GiftInventoryModal({ visible, viewOnly = false, sessionReady = f
 
 function GiftCard({ gift, viewOnly = false, busy = false, disabled = false, usable = true, context, onUse }: { gift: GiftItem; viewOnly?: boolean; busy?: boolean; disabled?: boolean; usable?: boolean; context?: GiftContext; onUse?: () => void }) {
   const { copyText, copyContent } = useUiCopy();
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const unavailable = disabled || gift.status !== "available";
   const presentation = giftPresentation(gift);
   const actionEnabled = !unavailable && usable && !busy;
   return (
     <View style={[styles.card, unavailable && styles.cardUsed]}>
-      <LinearGradient colors={unavailable ? ["rgba(255,255,255,0.05)", "rgba(255,255,255,0.025)"] : ["rgba(0,122,87,0.28)", "rgba(0,122,87,0.10)"]} style={styles.cardIcon}><Ionicons name={presentation.icon} color={unavailable ? "rgba(255,255,255,0.34)" : "#9FE6C5"} size={28} /></LinearGradient>
+      <LinearGradient colors={[String(theme.primarySoft), String(theme.surfaceMuted)]} style={styles.cardIcon}><Ionicons name={presentation.icon} color={String(unavailable ? theme.textMuted : theme.primary)} size={28} /></LinearGradient>
       <View style={styles.cardInfo}><Text style={[styles.cardTitle, unavailable && styles.dimmed]}>{copyContent(presentation.title)}</Text><Text numberOfLines={2} style={styles.cardDescription}>{copyContent(gift.description || presentation.fallback)}</Text></View>
-      {!viewOnly ? <Pressable accessibilityRole="button" accessibilityLabel={copyText(presentation.accessibility)} accessibilityState={{ disabled: !actionEnabled, busy }} disabled={!actionEnabled} onPress={onUse} style={({ pressed }) => [styles.useButton, (!usable || unavailable) && styles.useButtonUsed, pressed && styles.pressed]}>{busy ? <ActivityIndicator size="small" color="#082219" /> : <Text style={[styles.useText, (!usable || unavailable) && styles.useTextUsed]}>{copyContent(giftActionLabel(gift, usable, context ?? { sessionReady: false, completed: false, hasGame: false, supportsTimeExtension: false }))}</Text>}</Pressable> : null}
+      {!viewOnly ? <Pressable accessibilityRole="button" accessibilityLabel={copyText(presentation.accessibility)} accessibilityState={{ disabled: !actionEnabled, busy }} disabled={!actionEnabled} onPress={onUse} style={({ pressed }) => [styles.useButton, (!usable || unavailable) && styles.useButtonUsed, pressed && styles.pressed]}>{busy ? <ActivityIndicator size="small" color={String(theme.onPrimary)} /> : <Text style={[styles.useText, (!usable || unavailable) && styles.useTextUsed]}>{copyContent(giftActionLabel(gift, usable, context ?? { sessionReady: false, completed: false, hasGame: false, supportsTimeExtension: false }))}</Text>}</Pressable> : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ThemeTokens) => StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "flex-end" },
-  sheet: { maxHeight: "82%", overflow: "hidden", borderTopLeftRadius: 32, borderTopRightRadius: 32, borderWidth: 1, borderBottomWidth: 0, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(16,37,27,0.92)", paddingHorizontal: 18, paddingTop: 10 },
-  handle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.24)", marginBottom: 16 },
+  sheet: { maxHeight: "82%", overflow: "hidden", borderTopLeftRadius: 32, borderTopRightRadius: 32, borderWidth: 1, borderBottomWidth: 0, borderColor: theme.border, backgroundColor: theme.surface, paddingHorizontal: 18, paddingTop: 10 },
+  handle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, backgroundColor: theme.border, marginBottom: 16 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
   titleGroup: { flexDirection: "row", alignItems: "center", gap: 12 },
-  giftIcon: { width: 48, height: 48, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#007A57", shadowColor: "#007A57", shadowOpacity: 0.36, shadowRadius: 16 },
-  title: { color: "#FFFFFF", fontSize: 24, fontWeight: "900", letterSpacing: -0.5 },
-  subtitle: { color: "rgba(255,255,255,0.44)", fontSize: 11, fontWeight: "700", marginTop: 2 },
-  close: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)" },
+  giftIcon: { width: 48, height: 48, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: theme.primary, shadowColor: theme.primary, shadowOpacity: 0.36, shadowRadius: 16 },
+  title: { color: theme.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.5 },
+  subtitle: { color: theme.textMuted, fontSize: 11, fontWeight: "700", marginTop: 2 },
+  close: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: theme.surfaceMuted, borderWidth: 1, borderColor: theme.border },
   list: { gap: 10, paddingBottom: 12 },
-  sectionLabel: { color: "#9FE6C5", fontSize: 9, fontWeight: "900", letterSpacing: 2, marginTop: 2, marginBottom: 2 },
-  usedLabel: { color: "rgba(255,255,255,0.30)", marginTop: 12 },
-  card: { minHeight: 86, flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(0,122,87,0.24)" },
-  cardUsed: { opacity: 0.62, borderColor: "rgba(255,255,255,0.08)" },
+  sectionLabel: { color: theme.primary, fontSize: 9, fontWeight: "900", letterSpacing: 2, marginTop: 2, marginBottom: 2 },
+  usedLabel: { color: theme.textMuted, marginTop: 12 },
+  card: { minHeight: 86, flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 22, backgroundColor: theme.surfaceRaised, borderWidth: 1, borderColor: theme.border },
+  cardUsed: { opacity: 0.62, borderColor: theme.surfaceMuted },
   cardIcon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   cardInfo: { flex: 1, minWidth: 0 },
-  cardTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
-  dimmed: { color: "rgba(255,255,255,0.48)" },
-  cardDescription: { color: "rgba(255,255,255,0.44)", fontSize: 11, lineHeight: 15, marginTop: 3 },
-  useButton: { minWidth: 68, minHeight: 40, paddingHorizontal: 13, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#9FE6C5" },
-  useButtonUsed: { backgroundColor: "rgba(255,255,255,0.07)" },
-  useText: { color: "#082219", fontSize: 11, fontWeight: "900" },
-  useTextUsed: { color: "rgba(255,255,255,0.34)" },
+  cardTitle: { color: theme.text, fontSize: 16, fontWeight: "900" },
+  dimmed: { color: theme.textMuted },
+  cardDescription: { color: theme.textMuted, fontSize: 11, lineHeight: 15, marginTop: 3 },
+  useButton: { minWidth: 68, minHeight: 40, paddingHorizontal: 13, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: theme.primary },
+  useButtonUsed: { backgroundColor: theme.surfaceRaised },
+  useText: { color: theme.onPrimary, fontSize: 11, fontWeight: "900" },
+  useTextUsed: { color: theme.textMuted },
   pressed: { transform: [{ scale: 0.95 }] },
   empty: { minHeight: 190, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 26 },
   loading: { minHeight: 190, alignItems: "center", justifyContent: "center", gap: 12 },
-  emptyTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "900", textAlign: "center" },
-  emptyText: { color: "rgba(255,255,255,0.44)", fontSize: 12, lineHeight: 18, textAlign: "center" },
-  retry: { marginTop: 4, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.1)" },
-  retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
-  errorText: { color: "#FF9AA8", fontSize: 11, fontWeight: "700", textAlign: "center", marginTop: 8 },
+  emptyTitle: { color: theme.text, fontSize: 16, fontWeight: "900", textAlign: "center" },
+  emptyText: { color: theme.textMuted, fontSize: 12, lineHeight: 18, textAlign: "center" },
+  retry: { marginTop: 4, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 14, backgroundColor: theme.surfaceMuted },
+  retryText: { color: theme.text, fontSize: 12, fontWeight: "800" },
+  errorText: { color: theme.danger, fontSize: 11, fontWeight: "700", textAlign: "center", marginTop: 8 },
 });
 
 export default GiftInventoryModal;
