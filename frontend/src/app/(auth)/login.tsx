@@ -87,6 +87,7 @@ export default function LoginScreen() {
     mutationFn: () => authApi.startEmail(email.trim()),
     onError: (error) => { if (isConnectionError(error)) showError(error, () => emailFlow.mutate()); },
     onSuccess: (result) => {
+      setEmail(result.email);
       if (result.mode === "password") {
         setStep("password");
         return;
@@ -138,8 +139,10 @@ export default function LoginScreen() {
   }, [hydrated, params.telegram_token, telegramFlow]);
 
   const error = emailFlow.error ?? passwordFlow.error ?? telegramFlow.error;
-  const valid = /^\S+@\S+\.\S+$/.test(email.trim());
-  const errorMessage = error instanceof ApiError && error.code === "invalid_credentials"
+  const valid = /^\S+@\S+\.\S+$/.test(email.trim()) || /^@[A-Za-z][A-Za-z0-9_]{3,23}$/.test(email.trim());
+  const errorMessage = error instanceof ApiError && error.code === "telegram_login_required"
+    ? ({ru: "Подтвердите вход кнопкой «Продолжить с Telegram».", uz: "Kirishni «Telegram orqali davom etish» tugmasi bilan tasdiqlang.", en: "Confirm sign-in using Continue with Telegram."})[language]
+    : error instanceof ApiError && error.code === "invalid_credentials"
     ? t("auth.invalidCredentials")
     : error instanceof Error
       ? error.message

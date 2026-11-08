@@ -40,6 +40,8 @@ import {
 } from "../services/telegram-auth.service.js";
 import { assertDeviceNotBanned, registerDeviceAccount } from "../services/device-security.service.js";
 
+import { loginIdentifierSchema, loginIdentityFilter } from "../lib/login-identifier.js";
+
 const router = Router();
 
 const emailSchema = z.string().trim().email().max(254).transform(normalizeEmail);
@@ -51,7 +53,7 @@ const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60_000;
 
 const emailStartSchema = z
   .object({
-    email: emailSchema,
+    email: loginIdentifierSchema,
     referralCode: z.string().trim().min(4).max(32).optional(),
     deviceId: deviceIdSchema,
     countryCode: countryCodeSchema
@@ -60,7 +62,7 @@ const emailStartSchema = z
 
 const emailCompleteSchema = z
   .object({
-    email: emailSchema,
+    email: loginIdentifierSchema,
     code: z.string().regex(/^\d{6}$/),
     flowToken: registrationTokenSchema,
     deviceId: deviceIdSchema
@@ -98,7 +100,7 @@ const verifySchema = z
 
 const loginSchema = z
   .object({
-    email: emailSchema,
+    email: loginIdentifierSchema,
     password: passwordSchema,
     deviceId: deviceIdSchema
   })
@@ -141,13 +143,18 @@ router.post(
   otpLimiter,
   validateBody(emailStartSchema),
   async (request, response) => {
-    const { email, referralCode, deviceId, countryCode } = request.body as z.infer<
+    const { email: identifier, referralCode, deviceId, countryCode } = request.body as z.infer<
       typeof emailStartSchema
     >;
     await assertDeviceNotBanned(deviceId);
-    const existing = await User.findOne({ email }).select("+passwordHash");
+    const existing = await User.findOne(loginIdentityFilter(identifier)).select("+passwordHash");
+    if (identifier.startsWith("@") && !existing) throw new ApiError(401, "invalid_credentials", "Account not found");
+    const email = existing?.email ?? identifier;
+    if (/^telegram-\d+@telegram\.logiccoin\.local$/.test(email)) {
+      throw new ApiError(400, "telegram_login_required", "Confirm this account using Continue with Telegram");
+    }
     if (existing?.emailVerifiedAt && existing.passwordHash) {
-      response.json({ data: { email, mode: "password" as const } });
+      response.json({ data: { email: identifier, mode: "password" as const } });
       return;
     }
 
@@ -195,7 +202,7 @@ router.post(
     const verification = await createAndSendOtp(email, request.header("accept-language")?.startsWith("uz") ? "uz" : request.header("accept-language")?.startsWith("en") ? "en" : "ru");
     response.status(202).json({
       data: {
-        email,
+        email: identifier,
         mode: "verification" as const,
         flowToken,
         verification
@@ -209,10 +216,10 @@ router.post(
   otpLimiter,
   validateBody(emailCompleteSchema),
   async (request, response) => {
-    const { email, code, flowToken } = request.body as z.infer<
+    const { email: identifier, code, flowToken } = request.body as z.infer<
       typeof emailCompleteSchema
     >;
-    const existing = await User.findOne({ email }).select(
+    const existing = await User.findOne(loginIdentityFilter(identifier)).select(
       "+registrationTokenHash +registrationTokenExpiresAt"
     );
     if (
@@ -224,6 +231,7 @@ router.post(
       throw new ApiError(400, "invalid_email_flow", "Email login has expired");
     }
 
+    const email = existing.email;
     await consumeOtp(email, code);
     const wasVerified = Boolean(existing.emailVerifiedAt);
     const setupToken = generateRegistrationToken();
@@ -520,25 +528,25 @@ router.post(
 router.post(
   "/email/resend",
   otpLimiter,
-  validateBody(z.object({ email: emailSchema, deviceId: deviceIdSchema }).strict()),
+  validateBody(z.object({ email: loginIdentifierSchema, deviceId: deviceIdSchema }).strict()),
   async (request, response) => {
     const { email, deviceId } = request.body as { email: string; deviceId?: string };
     await assertDeviceNotBanned(deviceId);
-    const user = await User.findOne({ email }).select("+passwordHash");
+    const user = await User.findOne(loginIdentityFilter(email)).select("+passwordHash");
     if (!user) {
       throw new ApiError(404, "account_not_found", "Account not found");
     }
     if (user.emailVerifiedAt && user.passwordHash) {
       throw new ApiError(409, "email_already_verified", "Email is already verified");
     }
-    const verification = await createAndSendOtp(email, request.header("accept-language")?.startsWith("uz") ? "uz" : request.header("accept-language")?.startsWith("en") ? "en" : "ru");
+    const verification = await createAndSendOtp(user.email, request.header("accept-language")?.startsWith("uz") ? "uz" : request.header("accept-language")?.startsWith("en") ? "en" : "ru");
     response.status(202).json({ data: { email, verification } });
   }
 );
 
 router.post("/login", authLimiter, validateBody(loginSchema), async (request, response) => {
   const { email, password, deviceId } = request.body as z.infer<typeof loginSchema>;
-  const user = await User.findOne({ email }).select("+passwordHash");
+  const user = await User.findOne(loginIdentityFilter(email)).select("+passwordHash");
   if (user && !user.passwordHash) {
     throw new ApiError(403, "password_setup_required", "Create a password before signing in");
   }
@@ -550,7 +558,7 @@ router.post("/login", authLimiter, validateBody(loginSchema), async (request, re
   }
 
   user.lastLoginAt = new Date();
-  if (env.ADMIN_EMAILS.includes(email)) user.role = "admin";
+  if (env.ADMIN_EMAILS.includes(user.email)) user.role = "admin";
   await user.save();
   const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
   response.json({ data: { user: serializeUser(user), tokens } });

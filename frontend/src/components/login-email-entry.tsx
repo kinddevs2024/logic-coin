@@ -17,12 +17,11 @@ export function LoginEmailEntry({ value, onChange, onSubmit, valid, busy }: {
   const { language } = useTranslation();
   const { copyText } = useUiCopy();
   const [focused, setFocused] = useState(false);
-  const iconVisible = !value;
   const submit = () => { if (valid && !busy) onSubmit(); };
   return <View style={[styles.field, { borderColor: focused ? theme.primary : theme.border, backgroundColor: theme.surface }]}>
-    {iconVisible ? <View pointerEvents="none" style={styles.placeholderIcon}>
+    <View pointerEvents="none" style={styles.placeholderIcon}>
       <Ionicons name="mail-outline" size={21} color={String(theme.textMuted)} />
-    </View> : null}
+    </View>
     <TextInput
       accessibilityLabel={authEntryCopy[language].email}
       value={value}
@@ -31,14 +30,14 @@ export function LoginEmailEntry({ value, onChange, onSubmit, valid, busy }: {
       onBlur={() => setFocused(false)}
       autoCapitalize="none"
       autoCorrect={false}
-      autoComplete="email"
-      keyboardType="email-address"
+      autoComplete="username"
+      keyboardType="default"
       returnKeyType="go"
       onSubmitEditing={submit}
       editable={!busy}
-      placeholder={copyText("name@example.com")}
+      placeholder={copyText("name@example.com / @nickname")}
       placeholderTextColor={String(theme.textMuted)}
-      style={[styles.input, { color: theme.text, paddingLeft: iconVisible ? 48 : 18 }]}
+      style={[styles.input, { color: theme.text, paddingLeft: 48 }]}
     />
     <Pressable accessibilityRole="button" accessibilityLabel={authEntryCopy[language].emailNext}
       accessibilityState={{ disabled: !valid || busy, busy }}
@@ -52,7 +51,7 @@ export function LoginEmailEntry({ value, onChange, onSubmit, valid, busy }: {
 const styles = StyleSheet.create({
   field: { height: 54, width: "100%", borderRadius: 999, borderWidth: 1, flexDirection: "row", alignItems: "center", paddingRight: 5 },
   input: { flex: 1, minWidth: 0, height: "100%", fontSize: 16, paddingRight: 8, paddingVertical: 0 },
-  placeholderIcon: { position: "absolute", left: 18, opacity: 0.6 },
+  placeholderIcon: { position: "absolute", left: 18, opacity: 0.6, zIndex: 1 },
   submit: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   disabled: { opacity: 0.35 },
   pressed: { opacity: 0.8 },
