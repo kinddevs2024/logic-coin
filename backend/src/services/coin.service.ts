@@ -6,6 +6,18 @@ import {
 } from "../models/CoinLedgerEntry.js";
 import { User } from "../models/User.js";
 import { serializeCoins } from "./serialization.service.js";
+import { dayBoundsInTimeZone, localDayKey } from "../lib/date.js";
+import { BONUS_TIMEZONE } from "../lib/daily-bonus-schedule.js";
+
+export async function getCoinsEarnedToday(userId: Types.ObjectId, now = new Date()) {
+  const dayKey = localDayKey(now, BONUS_TIMEZONE);
+  const { from, to } = dayBoundsInTimeZone(dayKey, BONUS_TIMEZONE);
+  const rows = await CoinLedgerEntry.aggregate<{ total: number }>([
+    { $match: { userId, createdAt: { $gte: from, $lt: to } } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
+  return { dayKey, earned: rows[0]?.total ?? 0, resetsAt: to.toISOString() };
+}
 
 export type CoinLedgerType = (typeof COIN_LEDGER_TYPES)[number];
 

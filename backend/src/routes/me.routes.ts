@@ -13,8 +13,13 @@ import { validateBody } from "../middleware/validate.js";
 import { User } from "../models/User.js";
 import { serializeUser } from "../services/serialization.service.js";
 import { storeAvatar } from "../services/avatar.service.js";
+import { getCoinsEarnedToday } from "../services/coin.service.js";
 
 const router = Router();
+
+router.get("/coins/today", async (request, response) => {
+  response.json({ data: await getCoinsEarnedToday(request.auth!.userId) });
+});
 
 const themePhotoSchema = z.object({base64:z.string().min(1).max(12_000_000), mime:z.enum(["image/jpeg","image/png","image/webp"])});
 router.post("/theme-photo", validateBody(themePhotoSchema), async (request,response) => {

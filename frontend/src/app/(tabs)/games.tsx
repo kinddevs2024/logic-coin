@@ -71,21 +71,13 @@ function mapServerGame(entry: GameCatalogItem): LocalizedGame | null {
 }
 
 function GamesHeader() {
-  const { copyText, copyContent } = useUiCopy();
-  const theme = useAppTheme();
+  const { copyContent } = useUiCopy();
   const router = useRouter();
   const { language } = useTranslation();
-  const coinBalance = useAppStore((state) => state.coinBalance);
 
   return (
     <View><ScreenHeader
       title={copy[language].title}
-      action={
-        <GlassSurface intensity={64} variant="strong" style={styles.count}>
-          <Ionicons name="diamond" size={18} color={String(theme.primary)} />
-          <AppText style={[styles.countText, { color: theme.primary }]}>{copyContent(coinBalance)} {copyText(" coin")}</AppText>
-        </GlassSurface>
-      }
     />{process.env.EXPO_PUBLIC_LOCAL_GAMES_PREVIEW === '1' && <Pressable accessibilityRole="button" onPress={() => router.push('/preview-games' as never)} style={{ padding: 18, backgroundColor: '#007A57', borderRadius: 18, marginBottom: 14 }}><AppText style={{ color: '#fff', textAlign: 'center', fontWeight: '800' }}>{copyContent(language === 'ru' ? 'Виселица — тест' : language === 'uz' ? 'So‘zni top — sinov' : 'Hangman — preview')}</AppText></Pressable>}</View>
   );
 }
@@ -229,8 +221,6 @@ export default function GamesScreen() {
 
 const styles = StyleSheet.create({
   page: { maxWidth: 1180 },
-  count: { minHeight: 46, borderRadius: 18, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6 },
-  countText: { fontSize: 12, lineHeight: 15, fontWeight: "900" },
   grid: { gap: 11 },
   gridWide: { flexDirection: "row", flexWrap: "wrap" },
   list: { flex: 1 },
