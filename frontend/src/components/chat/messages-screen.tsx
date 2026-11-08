@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import {
   Animated,
+  BackHandler,
   Easing,
   ActivityIndicator,
   FlatList,
@@ -57,6 +58,32 @@ export function MessagesScreen() {
   const [nicknameDismissed, setNicknameDismissed] = useState(false);
   const insets = useSafeAreaInsets();
   const chatOpen = Boolean(params.chat);
+  const closeConversation = useCallback(() => {
+    Keyboard.dismiss();
+    router.setParams({ chat: "", messageSearch: "" });
+  }, [router]);
+  useEffect(() => {
+    if (!focused || !chatOpen) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      closeConversation(); return true;
+    });
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); closeConversation(); }
+    };
+    const popstate = () => router.replace("/messages");
+    if (Platform.OS === "web") {
+      window.addEventListener("keydown", keydown);
+      window.addEventListener("popstate", popstate);
+    }
+    return () => {
+      subscription.remove();
+      if (Platform.OS === "web") {
+        window.removeEventListener("keydown", keydown);
+        window.removeEventListener("popstate", popstate);
+      }
+    };
+  }, [chatOpen, focused, closeConversation, router]);
+
   const [invitingFriends,setInvitingFriends]=useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -193,7 +220,7 @@ export function MessagesScreen() {
     try {
       const result = await chatApi.answerFriend(token,id,accept);
       await Promise.all([requestsQuery.refetch(),query.refetch()]);
-      if (result.id) { router.setParams({chat:result.id}); setFilter("direct"); }
+      if (result.id) { router.push({ pathname: "/messages", params: { chat: result.id } }); setFilter("direct"); }
     } catch (err) {setError(err instanceof Error ? err.message : c.error);}
     finally {setRequestBusy(null);}
   };
@@ -245,7 +272,7 @@ export function MessagesScreen() {
   const open = useCallback(
     (id: string, messageSearch = "") => {
       if (Date.now() < pointerSwipe.current.suppressUntil) return;
-      router.setParams({ chat: id, invite: "", messageSearch });
+      router.push({ pathname: "/messages", params: { chat: id, invite: "", messageSearch } });
       setCreating(null);
       setSearch("");
       setDebounced("");
@@ -780,7 +807,7 @@ export function MessagesScreen() {
               initialSearch={params.messageSearch ?? ""}
               accountId={user.id ?? ""}
               chats={chats}
-              onBack={() => router.setParams({ chat: "" })}
+              onBack={closeConversation}
               onProfile={profile}
               onInfo={() => setInfo(true)}
             />

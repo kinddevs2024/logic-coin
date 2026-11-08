@@ -11,7 +11,7 @@ import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { requireDatabase } from "../middleware/database.js";
 import { ApiError } from "../lib/api-error.js";
 import { storedAvatarThumbnail } from "../services/avatar.service.js";
-import { injectPreview, SHARE_DESCRIPTION, SHARE_IMAGE, SHARE_ORIGIN, SHARE_TITLE } from "../lib/share-preview.js";
+import { injectPreview, SHARE_DESCRIPTION, SHARE_IMAGE, SHARE_ORIGIN, SHARE_TITLE, escapeMarkup } from "../lib/share-preview.js";
 
 import { profileArtwork, platformArtwork, SHARE_ARTWORK_VERSION } from "../lib/share-artwork.js";
 
@@ -108,7 +108,8 @@ export async function renderProfileImage(user: {
 }, completed: number, language: CopyLanguage = "ru") {
   const logo = await readFile(resolve(webRoot(), "share/logo.png"));
   const background = Buffer.from(profileArtwork(user, completed, `data:image/png;base64,${logo.toString("base64")}`, language));
-  let avatar: Buffer = logo;
+  const initial = escapeMarkup(Array.from(user.name?.trim() || "?")[0] || "?");
+  let avatar: Buffer = await sharp(Buffer.from(`<svg width="150" height="150"><rect width="150" height="150" fill="#D8F2E3"/><text x="75" y="102" text-anchor="middle" font-family="DejaVu Sans, sans-serif" font-size="76" fill="#153B2B">${initial}</text></svg>`)).png().toBuffer();
   const stored = await storedAvatarThumbnail(user.avatarUrl);
   // Never request arbitrary user-supplied URLs (SSRF). Validated uploads are data URLs.
   if (stored) {
