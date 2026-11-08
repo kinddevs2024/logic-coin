@@ -227,7 +227,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
             }
           }}>
           {rows.map(row => <View key={row.userId} style={[styles.row, row.isSelf && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}>
-            <Avatar name={row.name} avatarUrl={row.avatarUrl} size={26} />
+            <Avatar userId={row.userId} name={row.name} avatarUrl={row.avatarUrl} size={26} />
             <View style={styles.person}>
               <AppText variant="caption" numberOfLines={2}>{copyContent(row.rank)} · {row.name}</AppText>
             </View>
@@ -243,7 +243,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.close)} onPress={() => setDetails(false)} style={styles.detailsClose}><Ionicons name="close" size={28} color={String(theme.primary)} /></Pressable>
         <View style={{ flex: 1 }} onLayout={event => setDetailsHeight(event.nativeEvent.layout.height)}>
         <Animated.FlatList data={detailRows} keyExtractor={row => row.userId} contentContainerStyle={styles.detailsContent} onContentSizeChange={(_width, height) => setDetailsContentHeight(height)} scrollEventThrottle={16} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: detailsScrollY } } }], { useNativeDriver: Platform.OS !== "web" })} initialNumToRender={8} maxToRenderPerBatch={4} windowSize={5} onEndReachedThreshold={0.3} onEndReached={loadDetailPage}
-        renderItem={({ item: row }) => <GlassSurface variant="strong" style={[styles.detailsRank, row.isSelf && { opacity: 0 }]}><AppText variant="label" style={{ width: 24, textAlign: "center", color: row.rank <= 3 ? "#EFA215" : theme.textMuted }}>{copyContent(row.rank)}</AppText><Avatar name={row.name} avatarUrl={row.avatarUrl} size={44} /><AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{row.name}</AppText><ChallengeRankingAmounts cashUnits={row.cashUnits ?? 0} totalCoins={row.totalCoins} /></GlassSurface>}
+        renderItem={({ item: row }) => <GlassSurface variant="strong" style={[styles.detailsRank, row.isSelf && { opacity: 0 }]}><AppText variant="label" style={{ width: 24, textAlign: "center", color: row.rank <= 3 ? "#EFA215" : theme.textMuted }}>{copyContent(row.rank)}</AppText><Avatar userId={row.userId} name={row.name} avatarUrl={row.avatarUrl} size={44} /><AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{row.name}</AppText><ChallengeRankingAmounts cashUnits={row.cashUnits ?? 0} totalCoins={row.totalCoins} /></GlassSurface>}
         ListHeaderComponent={
         <View onLayout={event => setSummaryHeight(event.nativeEvent.layout.height)}><GlassSurface variant="strong" style={styles.detailsSummary}>
           <View style={styles.detailsMetrics}>
@@ -266,7 +266,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
         <LinearGradient pointerEvents="none" colors={[fadeClear, String(theme.background)]} style={styles.detailsFadeBottom} />
         {selfStats ? <Animated.View pointerEvents="none" style={[styles.detailsSelf, { transform: [{ translateY: dockY }] }]}><GlassSurface variant="strong" style={[styles.detailsRank, { borderColor: theme.primary, borderWidth: 1 }]}>
           <AppText variant="label" style={{ width: 24, textAlign: "center" }}>{copyContent(selfStats.rank)}</AppText>
-          <Avatar name={selfRow?.name ?? currentUser.name} avatarUrl={selfRow?.avatarUrl ?? currentUser.avatarUrl} size={44} />
+          <Avatar userId={currentUser.id} name={selfRow?.name ?? currentUser.name} avatarUrl={selfRow?.avatarUrl ?? currentUser.avatarUrl} size={44} />
           <AppText numberOfLines={1} style={{ flex: 1, minWidth: 0, fontWeight: "700" }}>{copyContent(c.you)}: {selfRow?.name ?? currentUser.name}</AppText>
           <ChallengeRankingAmounts cashUnits={selfStats.cashUnits ?? 0} totalCoins={selfStats.totalCoins} />
         </GlassSurface></Animated.View> : null}

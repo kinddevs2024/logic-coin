@@ -39,7 +39,7 @@ function Bubble({ friend, index, width, moving }: { friend?: Friend; index: numb
         { translateY: phase.interpolate({ inputRange: [0, 1 / 3, 2 / 3, 1], outputRange: slot.y }) },
       ],
     }]}>
-      {friend ? <Avatar name={friend.name} avatarUrl={friend.avatarUrl} size={slot.size - 4} /> :
+      {friend ? <Avatar userId={friend.id} name={friend.name} avatarUrl={friend.avatarUrl} size={slot.size - 4} /> :
         <AppText style={{ fontSize: slot.size * 0.58, lineHeight: slot.size - 4 }}>{copyContent(decorations[index])}</AppText>}
     </Animated.View>
   );

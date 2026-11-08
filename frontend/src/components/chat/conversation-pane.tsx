@@ -436,7 +436,7 @@ function ConversationPaneContent({
             {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && room.isOwner !== true)) ? (
               <LogoMark size={43} />
             ) : (
-              <Avatar
+              <Avatar userId={room.peer?.id ?? room.id}
                 name={room.title}
                 avatarUrl={
                   room.peer?.avatarUrl ??
@@ -735,6 +735,7 @@ function ConversationPaneContent({
               </Pressable>
               <TextInput
                 ref={composerRef}
+                underlineColorAndroid="transparent"
                 accessibilityLabel={c.write}
                 multiline
                 submitBehavior="newline"
@@ -1182,6 +1183,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderRadius: 22,
+    overflow: "hidden",
     paddingHorizontal: 15,
     paddingVertical: 11,
     fontSize: 15,
