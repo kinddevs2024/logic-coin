@@ -46,9 +46,10 @@ describe("calendar logic", () => {
 });
 
 describe("integer economy", () => {
-  it("converts only integer units and cents", () => {
+  it("supports precise fractional units while keeping withdrawal cents integral", () => {
     expect(unitsToCents(123)).toBe(123);
     expect(centsToUnits(1_000)).toBe(1_000);
-    expect(() => unitsToCents(1.2)).toThrow();
+    expect(unitsToCents(1.2)).toBe(1.2);
+    expect(() => centsToUnits(1.2)).toThrow();
   });
 });
