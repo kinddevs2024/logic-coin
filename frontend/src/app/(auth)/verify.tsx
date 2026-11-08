@@ -19,7 +19,7 @@ export default function VerifyScreen() {
   const { copyContent } = useUiCopy();
   const params = useLocalSearchParams<{ email?: string; next?: string; cooldown?: string; sends?: string }>();
   const email = params.email ?? "";
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const theme = useAppTheme();
   const router = useRouter();
   const registrationToken = useAppStore(
@@ -71,7 +71,7 @@ export default function VerifyScreen() {
   return (
     <AuthScaffold
       title={t("auth.verifyTitle")}
-      subtitle={`${t("auth.verifyBody")} ${email}`}
+      subtitle={email.startsWith("@") ? ({ru: "Код отправлен на почту, привязанную к этому аккаунту.", uz: "Kod ushbu hisobga bog‘langan emailga yuborildi.", en: "The code was sent to the email linked to this account."})[language] : `${t("auth.verifyBody")} ${email}`}
       headerAction={
         <Pressable
           onPress={() => router.back()}
