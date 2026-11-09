@@ -58,7 +58,7 @@ export async function getPeriodLeaderboards(input: { userId: Types.ObjectId; off
   const today = localDayKey(now, env.DEFAULT_TIMEZONE);
   // One shared snapshot per period, rather than calculating prizes per viewer.
   const snapshots = await Promise.all(rankingPeriods.map(period => cachedRead(
-    `period-ranking-v5:${today}:${period}`, 5_000, async () => {
+    `period-ranking-v6:${today}:${period}`, 5_000, async () => {
       const rows = await periodRows(period, period === "yesterday" ? addDays(today, -1) : today);
       return { rows, byId: new Map(rows.map(row => [String(row._id), row])) };
     },

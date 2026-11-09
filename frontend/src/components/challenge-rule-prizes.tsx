@@ -25,15 +25,21 @@ export function ChallengeRulePrizes({ dayKey }: { dayKey?: string }) {
   const c = copy[language];
   const query = useQuery({ queryKey: ["challenge-rule-prizes", token, dayKey], queryFn: () => challengesApi.rules(token!, dayKey), enabled: Boolean(token) && focused, staleTime: 0, refetchOnMount: "always", refetchInterval: focused ? 30_000 : false });
   const data = query.isError ? undefined : query.data;
+  const cappedPool = data?.payoutPolicy === "all-six-percent-v2" || data?.payoutPolicy === "all-six-percent-v3";
+  const variableTail = data?.payoutPolicy === "all-six-percent-v3";
   return <View style={styles.block}>
     <AppText variant="heading">{copyContent(c.title)}</AppText>
     {!token ? <AppText muted>{copyContent(c.login)}</AppText> : query.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
     {query.isError ? <Pressable accessibilityRole="button" onPress={() => void query.refetch()}><AppText color={String(theme.primary)}>{copyContent(c.retry)}</AppText></Pressable> : null}
     {data ? <>
       <AppText variant="caption" muted>{copyContent(data.dayKey)} · {copyContent(data.source === "saved" ? c.final : data.source === "manual" ? c.manual : c.automatic)}</AppText>
-      <View style={styles.row}><AppText>{copyContent(data.payoutPolicy === "all-six-percent-v2" ? language === "ru" ? "Максимальный фонд" : language === "uz" ? "Maksimal jamg‘arma" : "Maximum pool" : c.pool)}</AppText><AppText variant="label">{copyContent(formatMoney(data.poolUnits))}</AppText></View>
-      {data.payoutPolicy === "all-six-percent-v2" ? <View style={styles.row}><AppText>{copyContent(language === "ru" ? "Текущий фонд выплат" : language === "uz" ? "Joriy to‘lovlar jamg‘armasi" : "Current payouts")}</AppText><AppText variant="label">{copyContent(formatMoney(data.poolUnits - (data.unallocatedUnits ?? 0)))}</AppText></View> : null}
-      {data.payoutPolicy?.startsWith("all-six-percent-v") ? <AppText variant="caption" muted>{copyContent(language === "ru"
+      <View style={styles.row}><AppText>{copyContent(cappedPool ? language === "ru" ? "Максимальный фонд" : language === "uz" ? "Maksimal jamg‘arma" : "Maximum pool" : c.pool)}</AppText><AppText variant="label">{copyContent(formatMoney(data.poolUnits))}</AppText></View>
+      {cappedPool ? <View style={styles.row}><AppText>{copyContent(language === "ru" ? "Текущий фонд выплат" : language === "uz" ? "Joriy to‘lovlar jamg‘armasi" : "Current payouts")}</AppText><AppText variant="label">{copyContent(formatMoney(data.poolUnits - (data.unallocatedUnits ?? 0)))}</AppText></View> : null}
+      {variableTail ? <AppText variant="caption" muted>{copyContent(language === "ru"
+        ? "Денежный приз получает каждый, кто завершил все 6 игр дня. Первые 10 мест получают фиксированные призы; далее выплаты зависят от процентной группы. Последние 85% получают базовую сумму со случайной надбавкой. Фонд достигает $8.25 при 1500 участниках и не превышает этот лимит; при меньшем числе участников расход ниже. До закрытия дня состав участников и предварительные суммы могут меняться; после закрытия призы фиксируются."
+        : language === "uz" ? "Kunning barcha 6 o‘yinini tugatgan har bir ishtirokchi pul sovrini oladi. Birinchi 10 o‘rin uchun sovrinlar belgilangan; keyingi to‘lovlar foizli guruhga bog‘liq. Oxirgi 85% asosiy summaga tasodifiy qo‘shimcha oladi. Jamg‘arma 1500 ishtirokchida $8.25 ga yetadi va bu limitdan oshmaydi; ishtirokchilar kamroq bo‘lsa, xarajat ham kamroq. Kun tugaguncha ishtirokchilar tarkibi va dastlabki summalar o‘zgarishi mumkin; yakunda sovrinlar qat’iy belgilanadi."
+        : "Everyone who completes all 6 daily games earns a cash prize. The top 10 prizes are fixed; further payouts follow percentile groups. The last 85% receive a base amount plus a random bonus. Spending reaches $8.25 at 1500 participants and never exceeds that cap; fewer participants mean lower spending. Participation and provisional amounts may change until the day closes, when prizes become final.")}</AppText> : null}
+      {!variableTail && data.payoutPolicy?.startsWith("all-six-percent-v") ? <AppText variant="caption" muted>{copyContent(language === "ru"
         ? "Денежный приз получает каждый, кто завершил все 6 игр дня. После первых трёх мест процентные группы определяют выплату каждому; расход зависит от числа участников."
         : language === "uz" ? "Kunning barcha 6 o‘yinini tugatgan har bir ishtirokchi pul sovrini oladi. Foizli guruhlar har bir kishining sovrinini belgilaydi; umumiy xarajat ishtirokchilar soniga bog‘liq."
         : "Everyone who completes all 6 daily games earns a cash prize. After the top three, per-person prizes follow percentile groups; total spending depends on participation.")}</AppText> : null}

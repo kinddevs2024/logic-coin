@@ -7,6 +7,7 @@ import { addDays, dayBoundsInTimeZone } from "../lib/date.js";
 import { ApiError } from "../lib/api-error.js";
 import { canonicalGameKey } from "../lib/game-key.js";
 import { pickSeededSubset } from "../lib/seeded-random.js";
+import { TOP_TEN_CONTEST_POLICY, newContestPayoutSeed } from "../lib/top-ten-contest-plan.js";
 import { countActivePlayers } from "./admin-activity.service.js";
 import { BudgetEntry } from "../models/BudgetEntry.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
@@ -256,7 +257,7 @@ export async function configureDailyChallenge(input: {
     : existing?.publishedAt ?? new Date();
   const endsAt = !isFirstPublication && existing?.endsAt ? existing.endsAt : new Date(firstPublishedAt.getTime() + 24 * 60 * 60 * 1_000);
   const update = {
-    ...(!existing ? { $setOnInsert: { payoutPolicy: "all-six-percent-v2", cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS, descendingCashPrizes: true } } : {}),
+    ...(!existing ? { $setOnInsert: { payoutPolicy: TOP_TEN_CONTEST_POLICY, payoutSeed: newContestPayoutSeed(), cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS, descendingCashPrizes: true } } : {}),
     $set: {
       timezone: env.DEFAULT_TIMEZONE,
       status: publish ? ("published" as const) : ("draft" as const),

@@ -11,6 +11,7 @@ import { env } from "../config/env.js";
 import { currentMonthBounds, dayBoundsInTimeZone, localDayKey } from "../lib/date.js";
 import { ApiError } from "../lib/api-error.js";
 import { pickSeededSubset } from "../lib/seeded-random.js";
+import { TOP_TEN_CONTEST_POLICY, newContestPayoutSeed } from "../lib/top-ten-contest-plan.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
@@ -80,7 +81,8 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         cashPrizeMinUnits: DEFAULT_DAILY_PRIZE_MIN_UNITS,
         cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
-        payoutPolicy: "all-six-percent-v2",
+        payoutPolicy: TOP_TEN_CONTEST_POLICY,
+        payoutSeed: newContestPayoutSeed(),
         cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS,
         descendingCashPrizes: true,
         coinPrizeAmounts: [100, 100, 100, 100, 100, 100],
