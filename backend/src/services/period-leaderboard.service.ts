@@ -4,6 +4,7 @@ import { addDays, dayBoundsInTimeZone, localDayKey } from "../lib/date.js";
 import { listAvatarUrl } from "../lib/list-avatar.js";
 import { contestPrizePlan } from "../lib/manual-contest-prizes.js";
 import { cachedRead } from "../lib/read-cache.js";
+import { visibleContestRanking } from "../lib/visible-contest-ranking.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
 import { DailyContestResult } from "../models/DailyContestResult.js";
 import { User } from "../models/User.js";
@@ -47,7 +48,7 @@ async function periodRows(period: RankingPeriod, dayKey: string): Promise<Ranked
   // Reuse the actual challenge standings, tie breaks and prize allocation.
   // Practice, ordinary ad/attendance coins and wallet credits are not scores.
   // Before yesterday's settlement completes this is also the provisional result.
-  return contestPrizePlan(standings, set).ranked.map(row => ({
+  return visibleContestRanking(standings, contestPrizePlan(standings, set).ranked).map(row => ({
     _id: new Types.ObjectId(row.userId), rank: row.rank,
     coinBalance: row.totalCoins, walletBalanceUnits: row.cashUnits,
   }));
@@ -57,7 +58,7 @@ export async function getPeriodLeaderboards(input: { userId: Types.ObjectId; off
   const today = localDayKey(now, env.DEFAULT_TIMEZONE);
   // One shared snapshot per period, rather than calculating prizes per viewer.
   const snapshots = await Promise.all(rankingPeriods.map(period => cachedRead(
-    `period-ranking-v4:${today}:${period}`, 5_000, async () => {
+    `period-ranking-v5:${today}:${period}`, 5_000, async () => {
       const rows = await periodRows(period, period === "yesterday" ? addDays(today, -1) : today);
       return { rows, byId: new Map(rows.map(row => [String(row._id), row])) };
     },
@@ -74,7 +75,8 @@ export async function getPeriodLeaderboards(input: { userId: Types.ObjectId; off
   };
   const leaderboards = Object.fromEntries(rankingPeriods.map((period, index) => {
     const snapshot = snapshots[index]!;
-    const self = snapshot.byId.get(String(input.userId));
+    const self = snapshot.byId.get(String(input.userId)) ?? (period === "today"
+      ? { _id: input.userId, rank: 0, coinBalance: 0, walletBalanceUnits: 0 } : undefined);
     return [period, { metric: period, total: snapshot.rows.length,
       entries: snapshot.rows.slice(input.offset, input.offset + input.limit).map(entry), self: self ? entry(self) : null }];
   }));

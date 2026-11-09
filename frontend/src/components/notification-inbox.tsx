@@ -103,7 +103,8 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     if (!ready.current || closingRef.current || sectionRef.current !== "system" || (AppState.currentState && AppState.currentState !== "active") || (Platform.OS === "web" && document.visibilityState === "hidden")) return;
     read(viewableItems.filter(v => v.isViewable && !v.item.read && !seen.current.has(v.item.id)).map(v => v.item.id));
   }, [read]);
-  const items = query.data?.pages.flatMap(page => page.items) ?? [];
+  const items = (query.data?.pages.flatMap(page => page.items) ?? [])
+    .filter(item => item.kind !== "chat_message" && !item.conversationId);
   const checkVisible = useCallback(() => {
     if (!ready.current || closingRef.current || sectionRef.current !== "system" || (AppState.currentState && AppState.currentState !== "active") || (Platform.OS === "web" && document.visibilityState === "hidden")) return;
     viewport.current?.measureInWindow((_x, top, _w, height) => {

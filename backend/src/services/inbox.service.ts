@@ -15,7 +15,7 @@ async function pipeline(userId: Types.ObjectId): Promise<PipelineStage[]> {
     DailyContestResult.distinct("dayKey", { userId })
   ]);
   return [
-    { $match: { type: { $ne: "gift_received" }, "payload.transient": { $ne: true }, $or: [
+    { $match: { type: { $nin: ["gift_received", "chat_message"] }, "payload.conversationId": { $in: [null, ""] }, "payload.transient": { $ne: true }, $or: [
       { audience: "all_users", createdAt: { $gte: user?.createdAt ?? new Date() } },
       { audience: "specific_users", "payload.userIds": userId.toString() },
       { audience: "contest_participants", "payload.dayKey": { $in: days } }

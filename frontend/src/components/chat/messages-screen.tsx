@@ -108,6 +108,19 @@ export function MessagesScreen() {
       "menu" | "direct" | "group" | "channel" | null
     >(null);
   const [folderMotion] = useState(() => new Animated.Value(1));
+  const [folderBounds, setFolderBounds] = useState<Record<string, {x:number;y:number;width:number;height:number}>>({});
+  const [folderIndicator] = useState(() => ({x:new Animated.Value(0),y:new Animated.Value(0),width:new Animated.Value(0),height:new Animated.Value(0)}));
+  const indicatorReady = useRef(false);
+  useEffect(() => {
+    const bounds = folderBounds[filter];
+    if (!bounds) return;
+    const duration = reducedMotion || !indicatorReady.current ? 0 : 220;
+    indicatorReady.current = true;
+    const animation = Animated.parallel((Object.keys(folderIndicator) as (keyof typeof folderIndicator)[]).map(key =>
+      Animated.timing(folderIndicator[key], {toValue:bounds[key],duration,easing:Easing.out(Easing.cubic),useNativeDriver:false})));
+    animation.start();
+    return () => animation.stop();
+  }, [filter, folderBounds, folderIndicator, reducedMotion]);
   useEffect(() => {
     folderMotion.setValue(reducedMotion ? 1 : 0);
     const animation = Animated.timing(folderMotion, { toValue: 1, duration: reducedMotion ? 0 : 220, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== "web" });
@@ -445,6 +458,9 @@ export function MessagesScreen() {
                   },
                 ]}
               >
+                <Animated.View testID="messages-folder-indicator" pointerEvents="none" style={{position:"absolute",left:0,top:0,borderRadius:14,backgroundColor:theme.primarySoft,
+                  width:folderIndicator.width,height:folderIndicator.height,opacity:folderBounds[filter]?1:0,
+                  transform:[{translateX:folderIndicator.x},{translateY:folderIndicator.y}]}} />
                 {[
                   ["all", c.all],
                   ["direct", c.direct],
@@ -457,9 +473,13 @@ export function MessagesScreen() {
                     accessibilityRole="button"
                     accessibilityState={{ selected: filter === key }}
                     onPress={() => setFilter(key!)}
+                    onLayout={({nativeEvent:{layout}}) => setFolderBounds(current => {
+                      const old=current[key!];
+                      if(old && old.x===layout.x && old.y===layout.y && old.width===layout.width && old.height===layout.height)return current;
+                      return {...current,[key!]:{x:layout.x,y:layout.y,width:layout.width,height:layout.height}};
+                    })}
                     style={[
                       styles.filter,
-                      filter === key && { backgroundColor: theme.primarySoft },
                     ]}
                   >
                     <AppText

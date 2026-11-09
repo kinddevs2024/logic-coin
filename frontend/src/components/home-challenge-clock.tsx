@@ -35,7 +35,7 @@ export const HomeChallengeClock = memo(function HomeChallengeClock({ endsAt, onP
     uz: { until: "Sinov tugashigacha", ended: "Sinov tugadi", result: "Natijalar kutilmoqda" },
   }[language];
   const time = seconds === null ? null : [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, "0")).join(":");
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}>
+  return <Pressable testID="home-challenge-clock" accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}>
     <AppText numberOfLines={1} style={styles.label}>{copyContent(seconds === null ? t("home.today") : seconds === 0 ? label.ended : label.until)}</AppText>
     <View style={styles.right}>
       {seconds !== null && seconds > 0 ? <Ionicons name="time-outline" size={14} color={String(theme.primary)} /> : null}
@@ -45,8 +45,8 @@ export const HomeChallengeClock = memo(function HomeChallengeClock({ endsAt, onP
   </Pressable>;
 });
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, minHeight: 32, marginBottom: 13 },
-  label: { fontSize: 14, fontWeight: "600", flexShrink: 1 },
-  right: { flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, minHeight: 32 },
+  label: { fontSize: 14, fontWeight: "600", flexShrink: 1, paddingLeft: 9, paddingBottom: 9 },
+  right: { flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1, paddingRight: 9, paddingBottom: 9 },
   time: { fontSize: 13, fontWeight: "600", flexShrink: 1, fontVariant: ["tabular-nums"] },
 });
