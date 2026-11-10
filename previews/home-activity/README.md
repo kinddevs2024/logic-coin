@@ -2,10 +2,17 @@
 
 Standalone, read-only design preview at `/home-preview/`. It contains three
 separate cards: today's six games, weekly activity, and monthly activity.
-The daily card starts partially collapsed with a gradient and expansion button.
-Activity cards show period-end countdowns, completed days, a rotating sample
-participant pool, and the viewer's profile. The viewer leaves a pool when its
-miss limit is exceeded; the card and history remain visible with a next step.
+The daily card starts partially collapsed with an opacity mask and expansion
+button. The mask reaches full transparency before the clip boundary, avoiding
+a visible cutoff against the translucent card in either theme.
+Each heading has a single compact clock at the right. Activity cards contain
+a vertical sample participant reel with edge fades and a left center marker,
+followed by the viewer's profile. Progress is the percentage of completed days
+in the full period, shown as water filling the profile behind its text, with
+continuous small waves. There are no separate status badges, day bars or footer
+notes. A short exclusion state appears inside the profile only when needed;
+the viewer leaves the reel when the miss limit is exceeded. Rules remain under
+the information icon. Scenario controls are collapsed below the preview.
 
 Approved proposal: up to two missed days per calendar week, exclusion after the
 third; up to four per calendar month, exclusion after the fifth. Misses are
@@ -36,5 +43,6 @@ required for the pure calculations or static site.
 
 Source assets are the application's own game covers and icon. Participant avatars
 are sample initials using the existing light blue, green, yellow and red palette.
-Animation respects reduced motion and pauses when the page is hidden. This route
+The duplicated participant reel loops seamlessly. Reel and water animations
+respect reduced motion and pause when the page is hidden. This route
 is marked noindex and has a CSP prohibiting API connections.

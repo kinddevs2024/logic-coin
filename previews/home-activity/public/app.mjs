@@ -27,11 +27,37 @@ let savedTheme; try { savedTheme = localStorage.getItem('logic-home-preview-them
 theme(query.get('theme') === 'light' || !query.has('theme') && savedTheme === 'light' ? 'light' : 'dark');
 $('themeToggle').onclick = () => { theme(document.body.dataset.theme === 'dark' ? 'light' : 'dark'); updateUrl(); };
 
-function wheelMarkup(kind) {
-  const names = ['U', 'А', 'М', 'Р', 'К', 'S', 'Д', 'N'], colors = ['self', 'green', 'yellow', 'blue', 'red', 'green', 'yellow', 'red'];
-  return `<div class="wheel-wrap"><div class="activity-wheel" role="img" id="${kind}Wheel"><svg class="progress-ring" viewBox="0 0 180 180" aria-hidden="true"><circle class="track" cx="90" cy="90" r="70"/><circle id="${kind}Circle" class="progress" cx="90" cy="90" r="70"/></svg><div class="wheel-center"><small>ДНЕЙ ПРОЙДЕНО</small><strong id="${kind}Progress">0 / 7</strong><em id="${kind}WheelStatus">Вы в активе</em></div><div class="orbital-ring">${names.map((name, i) => `<div class="orbit-slot ${i === 0 ? 'orbit-self' : ''}" ${i === 0 ? `id="${kind}SelfOrbit" data-self` : ''} style="--angle:${i * 45}deg"><div class="orbit-counter"><span class="avatar orbit-face ${colors[i]}">${name}</span></div></div>`).join('')}</div></div><p class="wheel-caption">Демо-участники · <b id="${kind}Pool">128</b></p></div>`;
+// Sample participants use the vertical raffle layout shown in the reference.
+const participants = [
+  { name: 'Sabina 💕', initial: 'S', color: 'green', coins: '18 015', money: '0.01' },
+  { name: 'Martin O’brayn', initial: 'M', color: 'green', coins: '42 238', money: '1.16' },
+  { name: 'muxriddin 🙌', initial: 'm', color: 'yellow', coins: '40 151', money: '0.10' },
+  { name: 'Вы · Игрок', initial: 'U', color: 'self', coins: '1 951', money: '0.00', self: true },
+  { name: 'RAHMATILLA_$', initial: 'R', color: 'blue', coins: '36 470', money: '0.14' },
+  { name: 'Ayyubiy', initial: 'А', color: 'green', coins: '17 047', money: '0.00' },
+  { name: 'Diyor', initial: 'D', color: 'red', coins: '24 830', money: '0.05' },
+];
+function playerMarkup(player) {
+  return `<li class="raffle-player"${player.self ? ' data-self' : ''}><span class="avatar ${player.color}">${player.initial}</span><div class="raffle-copy"><strong>${player.name}</strong><div class="raffle-stats"><span class="raffle-coins">${icons('gem')}${player.coins}</span><span class="raffle-money">${icons('wallet')}$ ${player.money}</span></div></div></li>`;
 }
-$('periodCards').innerHTML = ['week', 'month'].map(kind => `<section id="${kind}Card" class="card period-card ${kind}-card" data-period="${kind}" data-eligible="true" aria-labelledby="${kind}Title"><div class="card-heading"><div class="period-title"><h2 id="${kind}Title">${kind === 'week' ? 'Недельный актив' : 'Месячный актив'}</h2><button class="info-button" data-rules="${kind}" aria-label="Правила ${kind === 'week' ? 'недельной' : 'месячной'} активности">${icons('info')}</button></div><span class="status-pill" id="${kind}Badge">Участвуете</span></div><div class="period-clock period-clock-card"><span>${icons('clock')} До конца ${kind === 'week' ? 'недели' : 'месяца'}</span><strong id="${kind}Countdown">—</strong></div><div class="period-center">${wheelMarkup(kind)}<div class="activity-facts"><div><div class="fact-value" id="${kind}Misses">0 <span>/ 2</span></div><div class="fact-label">дня пропущено</div></div><div><div class="fact-value" id="${kind}Left">2</div><div class="fact-label">${kind === 'week' ? 'дня' : 'дня'} ещё в запасе</div></div></div></div><div class="self-profile"><span class="avatar self">U</span><div class="self-copy">Вы · Демо-игрок<small id="${kind}SelfStatus">Участие сохранено</small></div><strong class="self-score" id="${kind}SelfScore">0 / 7</strong></div><div class="day-progress" id="${kind}Days" aria-label="Прогресс дней"></div><p class="card-note" id="${kind}Note"></p><button class="period-cta" id="${kind}Cta" hidden><span></span>${icons('arrow')}</button></section>`).join('');
+function renderReel(kind, eligible) {
+  const reel = $(kind + 'Reel');
+  if (reel.dataset.eligible === String(eligible)) return;
+  const rows = participants.filter(player => !player.self || eligible).map(playerMarkup).join('');
+  reel.dataset.eligible = String(eligible);
+  // Two identical groups make the translateY(-50%) loop continuous.
+  reel.innerHTML = `<ul class="raffle-group" aria-label="Пример участников">${rows}</ul><ul class="raffle-group" aria-hidden="true">${rows}</ul>`;
+  reel.style.setProperty('--reel-duration', `${(participants.length - Number(!eligible)) * 2.6}s`);
+}
+function waterMarkup() {
+  const wave = '<path d="M0 12 Q150 0 300 12 T600 12 T900 12 T1200 12 V24 H0Z"/>';
+  return `<div class="profile-water" aria-hidden="true"><svg class="water-wave water-wave-back" viewBox="0 0 1200 24" preserveAspectRatio="none">${wave}</svg><svg class="water-wave water-wave-front" viewBox="0 0 1200 24" preserveAspectRatio="none">${wave}</svg></div>`;
+}
+$('periodCards').innerHTML = ['week', 'month'].map(kind => `<section id="${kind}Card" class="card period-card ${kind}-card" data-period="${kind}" data-eligible="true" aria-labelledby="${kind}Title">
+  <div class="card-heading"><div class="period-title"><h2 id="${kind}Title">${kind === 'week' ? 'Недельный актив' : 'Месячный актив'}</h2><button class="info-button" data-rules="${kind}" aria-label="Правила ${kind === 'week' ? 'недельной' : 'месячной'} активности">${icons('info')}</button></div><div class="heading-clock" aria-label="До конца ${kind === 'week' ? 'недели' : 'месяца'}">${icons('clock')}<strong id="${kind}Countdown">—</strong></div></div>
+  <div class="raffle-stage"><div class="raffle-window"><div class="raffle-track" id="${kind}Reel"></div></div><span class="raffle-pointer" aria-hidden="true"></span></div>
+  <div class="self-profile" id="${kind}Profile" data-progress="0" style="--fill:0%">${waterMarkup()}<span class="avatar self">U</span><div class="self-copy">Вы · Игрок<small id="${kind}SelfStatus" hidden></small></div><strong class="self-score" id="${kind}SelfScore" role="progressbar" aria-label="Прогресс ${kind === 'week' ? 'недельного' : 'месячного'} актива" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">0%</strong></div>
+</section>`).join('');
 $('gamesList').innerHTML = games.map(([key, title], i) => `<div class="game-row" data-game="${i}"><img class="game-image" src="./assets/${key}.webp" alt=""><strong class="game-title">${title}</strong><span class="game-reward" id="reward${i}"></span><button class="game-action" data-play="${i}" aria-label="Отметить игру «${title}» пройденной в макете" aria-pressed="false">${icons('arrow')}</button></div>`).join('');
 
 function gameWindow() {
@@ -42,12 +68,11 @@ function gameWindow() {
   document.querySelectorAll('[data-play]').forEach((button, i) => button.tabIndex = expanded || i < 2 ? 0 : -1);
 }
 function renderGames() {
-  $('gamesCount').textContent = `${gamesDone.filter(Boolean).length} / 6`;
   document.querySelectorAll('[data-play]').forEach((button, i) => {
     button.setAttribute('aria-pressed', String(gamesDone[i])); button.innerHTML = icons(gamesDone[i] ? 'check' : 'arrow');
     $('reward' + i).innerHTML = gamesDone[i] ? `${icons('gem')} +${games[i][2] || 18}` : '';
   });
-  $('dailyComplete').hidden = !gamesDone.every(Boolean); gameWindow();
+  gameWindow();
 }
 document.querySelectorAll('[data-play]').forEach(button => button.onclick = () => {
   const i = Number(button.dataset.play); gamesDone[i] = !gamesDone[i];
@@ -60,38 +85,19 @@ addEventListener('resize', gameWindow);
 function focusPeriod(kind) { $(kind + 'Card').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); }
 function renderActivity() {
   const state = stats();
-  const focus = state.week.eligible ? 'week' : state.month.eligible ? 'month' : 'week';
-  $('activeFocus').textContent = state.week.eligible && state.month.eligible ? 'Вы в двух активах' : state.month.eligible ? 'Ваш актив — месячный' : state.week.eligible ? 'Ваш актив — недельный' : 'Новый шанс — на следующей неделе';
-  $('activeFocus').dataset.focus = focus;
   for (const kind of ['week', 'month']) {
     const value = state[kind], card = $(kind + 'Card');
-    card.dataset.eligible = String(value.eligible); card.dataset.primary = String(kind === focus); card.dataset.misses = value.misses;
-    $(kind + 'Badge').textContent = value.eligible ? 'Участвуете' : 'Вне актива';
-    $(kind + 'Progress').textContent = `${value.done} / ${value.days}`;
-    $(kind + 'SelfScore').textContent = `${value.done} / ${value.days}`;
-    $(kind + 'WheelStatus').textContent = value.eligible ? 'Вы в активе' : 'Без участия';
-    $(kind + 'SelfStatus').textContent = value.eligible ? 'Участие сохранено' : 'Вне этого розыгрыша';
-    $(kind + 'SelfOrbit').setAttribute('aria-hidden', String(!value.eligible));
-    $(kind + 'Pool').textContent = (kind === 'week' ? 128 : 256) + Number(value.eligible);
-    $(kind + 'Wheel').setAttribute('aria-label', `Демонстрационные участники ${kind === 'week' ? 'недельного' : 'месячного'} розыгрыша. ${value.eligible ? 'Вы участвуете' : 'Вы вне актива'}. Пройдено ${value.done} из ${value.days} дней.`);
-    $(kind + 'Circle').style.strokeDashoffset = 439.823 * (1 - value.done / value.days);
-    $(kind + 'Misses').innerHTML = `${value.misses} <span>/ ${value.limit}</span>`;
-    $(kind + 'Misses').className = `fact-value ${!value.eligible ? 'danger' : value.left === 0 ? 'warning' : ''}`;
-    $(kind + 'Left').textContent = value.left;
-    const days = value.cells.map(cell => { const element = document.createElement('span'); element.className = 'day-cell'; element.dataset.state = cell.state; element.title = `${cell.key}: ${ { complete: 'Все 6 игр пройдены', missed: 'Пропущен', today: 'Сегодня, день ещё продолжается', future: 'Будущий день' }[cell.state] }`; return element; });
-    $(kind + 'Days').replaceChildren(...days);
-    const note = $(kind + 'Note'), cta = $(kind + 'Cta'); cta.hidden = true;
-    note.className = `card-note ${!value.eligible ? 'out' : value.left === 0 ? 'warning' : ''}`;
-    if (value.eligible) note.textContent = value.left === 0 ? `Лимит пропусков исчерпан. Следующий пропущенный день исключит вас из ${kind === 'week' ? 'недельного' : 'месячного'} актива.` : `Можно пропустить ещё ${value.left} ${value.left === 1 ? 'день' : value.left < 5 ? 'дня' : 'дней'}. Сегодня ещё можно завершить все 6 игр — до полуночи день не считается пропущенным.`;
-    else if (kind === 'week' && state.month.eligible) {
-      note.textContent = `Вы вышли из недельного актива: пропущено ${value.misses} дня при лимите ${value.limit}. Но ваш шанс в месячном активе сохраняется.`;
-      cta.hidden = false; cta.querySelector('span').textContent = 'Продолжить в месячном активе'; cta.onclick = () => focusPeriod('month');
-    } else if (kind === 'month' && state.week.eligible) {
-      note.textContent = `Вы вышли из месячного актива: пропущено ${value.misses} дней при лимите ${value.limit}. В недельном активе вы по-прежнему участвуете.`;
-      cta.hidden = false; cta.querySelector('span').textContent = 'Перейти к недельному активу'; cta.onclick = () => focusPeriod('week');
-    } else {
-      note.textContent = kind === 'week' ? `Вы вышли из недельного актива: пропущено ${value.misses} дня. Попробуйте снова с началом следующей недели — счётчик начнётся заново.` : `Вы вышли из месячного актива: пропущено ${value.misses} дней при лимите ${value.limit}. Следующий шанс — в новом месяце. А раньше можно вернуться в недельный актив с началом новой недели.`;
-    }
+    card.dataset.eligible = String(value.eligible); card.dataset.misses = value.misses;
+    const percent = Math.round(value.done / value.days * 100), profile = $(kind + 'Profile'), score = $(kind + 'SelfScore');
+    profile.style.setProperty('--fill', `${value.done / value.days * 100}%`);
+    profile.dataset.progress = String(percent);
+    score.textContent = `${percent}%`;
+    score.setAttribute('aria-valuenow', String(percent));
+    score.setAttribute('aria-valuetext', `${percent}%, завершено ${value.done} из ${value.days} дней`);
+    const status = $(kind + 'SelfStatus');
+    status.hidden = value.eligible;
+    status.textContent = value.eligible ? '' : kind === 'week' ? 'Вне недельного актива' : 'Вне месячного актива';
+    renderReel(kind, value.eligible);
   }
   $('previewDate').textContent = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', day: 'numeric', month: 'long', year: 'numeric', weekday: 'short' }).format(new Date(now()));
   updateTimers();
@@ -99,7 +105,7 @@ function renderActivity() {
 function countdown(end) {
   const value = remaining(end, now());
   const clock = [value.hours, value.minutes, value.seconds].map(n => String(n).padStart(2, '0')).join(':');
-  return value.days ? `${value.days} д ${clock}` : clock;
+  return value.days ? `${value.days}д ${clock}` : clock;
 }
 function updateTimers() {
   const today = dayKey(now());
@@ -133,7 +139,6 @@ $('allRules').onclick = () => showRules(); $('closeDialog').onclick = closeRules
 $('rulesDialog').addEventListener('click', event => { if (event.target === $('rulesDialog')) { const box = $('rulesDialog').getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) closeRules(); } });
 $('profileButton').onclick = () => toast('В макете используется демонстрационный профиль.');
 $('bellButton').onclick = () => toast('Уведомления доступны в основной версии приложения.');
-if (matchMedia('(max-width: 800px)').matches) document.querySelector('.scenario-details').open = false;
 selectScenario(selected);
 let timer = setInterval(updateTimers, 1000);
 document.addEventListener('visibilitychange', () => { document.body.classList.toggle('is-hidden', document.hidden); clearInterval(timer); if (!document.hidden) { updateTimers(); timer = setInterval(updateTimers, 1000); } });
