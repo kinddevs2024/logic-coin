@@ -1,0 +1,1 @@
+{"name":"logic-home-activity-preview","private":true,"type":"module","scripts":{"test":"node --test tests/activity.test.mjs"}}
