@@ -58,6 +58,7 @@ export function MessagesScreen() {
   const [nicknameDismissed, setNicknameDismissed] = useState(false);
   const insets = useSafeAreaInsets();
   const chatOpen = Boolean(params.chat);
+  const ChatTransition = Platform.OS === "web" && isDesktop ? MotionEntrance : View;
   const closeConversation = useCallback(() => {
     Keyboard.dismiss();
     router.setParams({ chat: "", messageSearch: "" });
@@ -359,6 +360,11 @@ export function MessagesScreen() {
         flex: 1,
         minHeight: 0,
         paddingTop: isDesktop ? 15 : 0,
+        ...(Platform.OS === "web" && isDesktop ? ({
+          transitionProperty: "padding-left, padding-bottom",
+          transitionDuration: reducedMotion ? "0ms" : "280ms",
+          transitionTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        } as unknown as ViewStyle) : {}),
         maxWidth: 1600,
         paddingLeft: isDesktop && !chatOpen ? 150 : 0,
         paddingRight: isDesktop ? 24 : 0,
@@ -819,9 +825,8 @@ export function MessagesScreen() {
           </View>
         ) : null}
         {selected ? (
-          <View style={{ flex: 1, minWidth: 0 }}>
+          <ChatTransition key={selected.id} testID="chat-conversation-transition" style={{ flex: 1, minWidth: 0 }}>
             <ConversationPane
-              key={selected.id}
               room={{ ...selected, title: roomTitle(selected) }}
               token={token}
               initialSearch={params.messageSearch ?? ""}
@@ -831,9 +836,9 @@ export function MessagesScreen() {
               onProfile={profile}
               onInfo={() => setInfo(true)}
             />
-          </View>
+          </ChatTransition>
         ) : isDesktop ? (
-          <View style={styles.empty}>
+          <ChatTransition key="empty-chat" testID="chat-empty-transition" style={styles.empty}>
             <View
               style={[styles.emptyIcon, { backgroundColor: theme.primarySoft }]}
             >
@@ -852,7 +857,7 @@ export function MessagesScreen() {
               icon="create-outline"
               onPress={() => setCreating("direct")}
             />
-          </View>
+          </ChatTransition>
         ) : null}
       </View>
       {error && !creating ? (
