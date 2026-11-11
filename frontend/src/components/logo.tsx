@@ -5,7 +5,7 @@ export function LogoMark({ size = 52 }: { size?: number }) {
     <View style={{ width: size, height: size, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
     <Image
       accessibilityIgnoresInvertColors
-      source={require("../../assets/brand/logo-mark.png")}
+      source={require("../../assets/brand/logo-mark-native.png")}
       resizeMode="contain"
       style={{ width: size * 1.7, height: size * 1.7 }}
     />
