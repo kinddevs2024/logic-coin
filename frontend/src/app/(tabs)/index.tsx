@@ -1,3 +1,4 @@
+import { HomeActivityBlocks } from "@/components/home-activity-blocks";
 import { RaffleBanner } from "@/components/raffle-banner";
 import { useUiCopy } from "@/components/localized-native";
 
@@ -88,7 +89,7 @@ export default function HomeScreen() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.all(["bootstrap", "challenges", "leaderboard", "unread-count"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["bootstrap", "challenges", "leaderboard", "home-activity", "unread-count"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
     } finally { setRefreshing(false); }
   };
   const balance = useAppStore((state) => state.balanceUnits);
@@ -124,7 +125,7 @@ export default function HomeScreen() {
       {refreshing ? <AppText accessibilityLiveRegion="polite" muted>{copyText("Обновляем…")}</AppText> : null}
 
       {!tourActive ? <HomeDesktopAds position="top" /> : null}
-      <View onLayout={({ nativeEvent: { layout } }) => { giftScene.current.top = layout.y; }} style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
+      <View onLayout={({ nativeEvent: { layout } }) => { giftScene.current.top = layout.y; }} style={[styles.dashboard, isDesktop && styles.dashboardDesktop, Platform.OS === "web" && isDesktop && { alignItems: "flex-start" }]}>
         <View ref={jarTarget} collapsable={false} onLayout={({ nativeEvent: { layout } }) => {
           giftScene.current.height = layout.height;
           setGiftBounds({ top: layout.height * 0.08, bottom: layout.height * 0.82, width: layout.width });
@@ -155,7 +156,7 @@ export default function HomeScreen() {
         </View>
 
         <RaffleBanner />
-        <GlassSurface
+        {Platform.OS === "web" ? <View style={isDesktop ? { flex: 1, minWidth: 0 } : { width: "100%" }}><HomeActivityBlocks today={today} pendingGameKey={pendingGameKey} challengesTarget={challengesTarget} /></View> : <GlassSurface
           intensity={68}
           variant="strong"
           style={[
@@ -208,7 +209,7 @@ export default function HomeScreen() {
               />
             </View>
           </GlassSurface>
-        </GlassSurface>
+        </GlassSurface>}
       </View>
 
       {!tourActive ? <HomeDesktopAds position="bottom" /> : null}
