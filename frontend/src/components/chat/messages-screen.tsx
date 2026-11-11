@@ -256,6 +256,34 @@ export function MessagesScreen() {
     [query.data],
   );
   const selected = chats.find((room) => room.id === params.chat);
+  const desktopChatMotion = Platform.OS === "web" && isDesktop;
+  const [leavingChat, setLeavingChat] = useState<{ room: ChatRoom; search: string } | null>(null);
+  const retainedChat = useRef<typeof leavingChat>(null);
+  const [exitMotion] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    if (!desktopChatMotion) {
+      retainedChat.current = null;
+      setLeavingChat(null);
+      exitMotion.setValue(1);
+      return;
+    }
+    if (selected) {
+      const sameChat = retainedChat.current?.room.id === selected.id;
+      retainedChat.current = { room: selected, search: params.messageSearch ?? "" };
+      setLeavingChat(retainedChat.current);
+      if (!sameChat) { exitMotion.setValue(1); return; }
+      const enter = Animated.timing(exitMotion, { toValue: 1, duration: reducedMotion ? 0 : 180, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+      enter.start();
+      return () => enter.stop();
+    }
+    if (!retainedChat.current) return;
+    const exit = Animated.timing(exitMotion, { toValue: 0, duration: reducedMotion ? 0 : 220, easing: Easing.in(Easing.quad), useNativeDriver: false });
+    exit.start(({ finished }) => {
+      if (finished) { retainedChat.current = null; setLeavingChat(null); }
+    });
+    return () => exit.stop();
+  }, [desktopChatMotion, selected, params.messageSearch, reducedMotion, exitMotion]);
+  const visibleRoom = selected ?? (desktopChatMotion ? leavingChat?.room : undefined);
   const unreadByFolder = useMemo(() => {
     const counts: Record<string, number> = {all: 0, direct: 0, group: 0, channel: 0};
     for (const room of chats) {
@@ -824,12 +852,16 @@ export function MessagesScreen() {
             </Animated.View>
           </View>
         ) : null}
-        {selected ? (
-          <ChatTransition key={selected.id} testID="chat-conversation-transition" style={{ flex: 1, minWidth: 0 }}>
+        {visibleRoom ? (
+          <Animated.View key={visibleRoom.id} testID="chat-exit-transition" pointerEvents={selected ? "auto" : "none"} style={[{ flex: 1, minWidth: 0 }, desktopChatMotion && {
+            opacity: exitMotion,
+            transform: [{ translateX: exitMotion.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+          }]}>
+          <ChatTransition testID="chat-conversation-transition" style={{ flex: 1, minWidth: 0 }}>
             <ConversationPane
-              room={{ ...selected, title: roomTitle(selected) }}
+              room={{ ...visibleRoom, title: roomTitle(visibleRoom) }}
               token={token}
-              initialSearch={params.messageSearch ?? ""}
+              initialSearch={selected ? params.messageSearch ?? "" : leavingChat?.search ?? ""}
               accountId={user.id ?? ""}
               chats={chats}
               onBack={closeConversation}
@@ -837,6 +869,7 @@ export function MessagesScreen() {
               onInfo={() => setInfo(true)}
             />
           </ChatTransition>
+          </Animated.View>
         ) : isDesktop ? (
           <ChatTransition key="empty-chat" testID="chat-empty-transition" style={styles.empty}>
             <View

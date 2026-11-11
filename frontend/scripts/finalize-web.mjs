@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+const favicon = '<link rel="icon" type="image/png" sizes="64x64" href="/favicon-brain-3884d676.png">';
 const telegramSdk = '<script src="https://telegram.org/js/telegram-web-app.js"></script>';
 
 export function finalizeWebHtml(html) {
@@ -10,8 +11,9 @@ export function finalizeWebHtml(html) {
   // SDK must read real launch parameters before the router changes the URL.
   // This does not load Monetag on the ordinary website or fabricate initData.
   return html
+    .replace(/\s*<link\b(?=[^>]*\brel=["'](?:shortcut\s+)?icon["'])[^>]*>/gi, "")
     .replace(/\s*<script\b[^>]*\bsrc=["']https:\/\/telegram\.org\/js\/telegram-web-app\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/gi, "")
-    .replace(/<head(?:\s[^>]*)?>/i, match => `${match}\n${telegramSdk}`);
+    .replace(/<head(?:\s[^>]*)?>/i, match => `${match}\n${favicon}\n${telegramSdk}`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
