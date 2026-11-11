@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RankingPreview } from "@/components/ranking-preview";
 import Svg, { Circle } from "react-native-svg";
-import { Pressable, StyleSheet, View, ScrollView } from "react-native";
+import { Pressable, StyleSheet, View, ScrollView, Platform } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { HomeDesktopAds } from "@/components/home-desktop-ads";
@@ -98,13 +98,13 @@ export default function HomeScreen() {
 
   return (<>
     <AppFrame wide desktopNavigationInset fixedHeader={
-      <View testID="home-fixed-header" style={styles.header}>
-        <View style={styles.headerSide}>
-          <Pressable accessibilityRole="button" accessibilityLabel={copyText(t("tabs.profile"))} onPress={() => setDrawerOpen(true)}><Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
+      <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} testID="home-fixed-header" style={styles.header}>
+        <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} style={styles.headerSide}>
+          <Pressable pointerEvents="auto" accessibilityRole="button" accessibilityLabel={copyText(t("tabs.profile"))} onPress={() => setDrawerOpen(true)}><Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
-        <View ref={rankingTarget} collapsable={false}><RankingPreview metric="yesterday" onPress={() => setLeaderboardOpen(true)} /></View>
-        <View style={[styles.headerSide, styles.headerSideEnd]}>
-          <View ref={inboxButton} collapsable={false}><HomeBell
+        <View pointerEvents="auto" ref={rankingTarget} collapsable={false}><RankingPreview metric="yesterday" onPress={() => setLeaderboardOpen(true)} /></View>
+        <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} style={[styles.headerSide, styles.headerSideEnd]}>
+          <View pointerEvents="auto" ref={inboxButton} collapsable={false}><HomeBell
             onPress={() => {
               inboxButton.current?.measureInWindow((x, y, width, height) => {
                 setInboxAnchor({ x, y, width, height });
@@ -149,7 +149,7 @@ export default function HomeScreen() {
               </AppButton>
             </View>
           </SavingsScene>
-          <View collapsable={false} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          <View collapsable={false} pointerEvents={Platform.OS === "web" ? "none" : "box-none"} style={StyleSheet.absoluteFill}>
             <FloatingHomeGift key="bank-attached-gift" active={!tourActive && giftSceneVisible && !drawerOpen && !leaderboardOpen && !inboxOpen && !activityInfoOpen} bounds={giftBounds} />
           </View>
         </View>

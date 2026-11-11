@@ -200,6 +200,7 @@ export function AppFrame({
   const theme = useAppTheme();
   const { isDesktop, isTablet } = useResponsiveLayout();
   const blurTarget = useRef<View | null>(null);
+  const [fixedHeaderHeight, setFixedHeaderHeight] = useState(0);
   const content = [
     styles.content,
     {
@@ -223,13 +224,19 @@ export function AppFrame({
     },
     contentStyle,
   ];
-  // Home actions stay above the scroller and share its responsive width and safe-area insets.
+  // Only controls float over the scroll viewport. Empty space lets content and gestures through.
   const header = fixedHeader ? (
-    <View style={[content, { paddingBottom: 0, flexShrink: 0, zIndex: 20 }]}>
-      {fixedHeader}
+    <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} testID="app-fixed-header-layer" style={[
+      styles.fixedHeaderLayer,
+      desktopNavigationInset && isDesktop && { left: 130 },
+    ]}>
+      <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} onLayout={event => setFixedHeaderHeight(event.nativeEvent.layout.height)}
+        style={[content, { paddingBottom: 0 }]}>
+        {fixedHeader}
+      </View>
     </View>
   ) : null;
-  const scrollContent = fixedHeader ? [content, { paddingTop: 0 }] : content;
+  const scrollContent = fixedHeader ? [content, { paddingTop: fixedHeaderHeight }] : content;
   // Virtualized screens own the scroll container while sharing the same insets,
   // background and swipe handlers. Never nest their list inside a ScrollView.
   const body = renderScrollContent ? renderScrollContent(scrollContent) : scroll ? (
@@ -271,8 +278,8 @@ export function AppFrame({
                 styles.animatedContentDesktopNavigation,
             ]}
           >
-            {header}
             {body}
+            {header}
           </View>
         ) : (
           <Reanimated.View
@@ -286,8 +293,8 @@ export function AppFrame({
                 styles.animatedContentDesktopNavigation,
             ]}
           >
-            {header}
             {body}
+            {header}
           </Reanimated.View>
         )}
       </GlassBlurTargetContext.Provider>
@@ -303,6 +310,7 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  fixedHeaderLayer: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 },
   animatedContent: {
     flex: 1,
   },
