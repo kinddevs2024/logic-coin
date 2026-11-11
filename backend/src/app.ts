@@ -1,3 +1,4 @@
+import { incrementalResponses } from "./middleware/incremental-responses.js";
 import express from "express";
 import { legacyThemeCompatibility } from "./middleware/legacy-theme.js";
 import cors from "cors";
@@ -79,6 +80,7 @@ api.use("/admin", adminRoutes);
 api.use("/profile", publicProfileRoutes);
 api.use("/ads", adsRoutes);
 api.use(requireAuth);
+api.use(incrementalResponses);
 api.use("/chat", chatRoutes);
 api.use("/raffle", raffleRoutes);
 api.use("/home", homeRoutes);

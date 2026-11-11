@@ -1,3 +1,4 @@
+import { NativeDataCacheBoundary } from "@/components/native-data-cache-boundary";
 import { ChatRuntime } from "@/components/chat/chat-runtime";
 import { localizeBuiltIn } from "@/lib/localize-built-in";
 import "react-native-reanimated";
@@ -272,6 +273,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        <NativeDataCacheBoundary client={queryClient}>
         <QueryClientProvider client={queryClient}>
           <AuthErrorProvider>
           <RaffleProvider>
@@ -298,6 +300,7 @@ export default function RootLayout() {
           </RaffleProvider>
           </AuthErrorProvider>
         </QueryClientProvider>
+        </NativeDataCacheBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,3 +1,5 @@
+import { nativeDataCache, dataCacheScope } from "./native-data-cache";
+import { cacheableRead, revalidatedBody } from "./incremental-cache";
 import { withNetworkDeadline, NetworkTimeoutError } from "./network-deadline";
 import { localizeBuiltIn } from "./localize-built-in";
 import { telegramChallengeInitData } from "./telegram-context";
@@ -98,15 +100,44 @@ export async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  const account = useAppStore.getState();
+  const scoped = account.user.id ? dataCacheScope(API_URL, account.user.id, account.language ?? "uz") : null;
+  const cachedRead = Platform.OS !== "web" && token === account.accessToken && Boolean(token) &&
+    (fetchOptions.method ?? "GET").toUpperCase() === "GET" && cacheableRead(path) &&
+    nativeDataCache.ready && scoped !== null && nativeDataCache.scope === scoped;
+  const generation = nativeDataCache.generation;
+  const cached = cachedRead ? nativeDataCache.get(path) : undefined;
+  if (cachedRead) {
+    headers.set("X-Data-Cache-Version", "1");
+    if (cached) headers.set("If-None-Match", cached.etag);
+  }
   let response: Response;
   let payload: {data?:T}|ApiErrorBody;
+  let revalidated = false;
   try {
     const result=await withNetworkDeadline(async signal=>{
-      const response=await fetch(`${API_URL}${path}`,{...fetchOptions,headers,signal});
+      let response=await fetch(`${API_URL}${path}`,{...fetchOptions,headers,signal});
+      if (response.status === 304 && !cached) {
+        headers.delete("If-None-Match");
+        headers.set("Cache-Control", "no-cache");
+        response=await fetch(`${API_URL}${path}`,{...fetchOptions,headers,signal});
+      }
+      if (cachedRead && generation !== nativeDataCache.generation) {
+        const aborted = new Error("Account changed during request"); aborted.name = "AbortError"; throw aborted;
+      }
+      if (response.status === 304 && cached && response.headers.get("X-Data-Cache-Version") === "1") {
+        const payload = revalidatedBody(cached.body, response.headers.get("X-Server-Time"));
+        nativeDataCache.put(path, { ...cached, body: payload, savedAt: Date.now() }, generation);
+        return { response, payload, revalidated: true };
+      }
       const payload=await response.json().catch(()=>{if(response.ok&&response.status!==204)throw new ApiError("Invalid server response",502,"invalid_response");return {};});
-      return {response,payload};
+      const etag = response.headers.get("ETag");
+      if (cachedRead && response.status === 200 && etag && response.headers.get("X-Data-Cache-Version") === "1") {
+        nativeDataCache.put(path, { body: payload, etag, savedAt: Date.now() }, generation);
+      }
+      return {response,payload,revalidated: false};
     },fetchOptions.signal);
-    response=result.response;payload=result.payload;
+    response=result.response;payload=result.payload as typeof payload;revalidated=result.revalidated;
   } catch(error) {
     if(error instanceof ApiError)throw error;
     if(error instanceof NetworkTimeoutError)throw new ApiError(localizeBuiltIn("Сервер не ответил. Проверьте соединение и результат операции.",useAppStore.getState().language??"uz"),0,"request_timeout");
@@ -123,7 +154,7 @@ export async function request<T>(
     });
   }
 
-  if (!response.ok) {
+  if (!response.ok && !revalidated) {
     const body = payload as ApiErrorBody;
     throw new ApiError(
       localizeBuiltIn(body.error?.message || body.message || "Request failed", useAppStore.getState().language ?? "uz"),
@@ -1051,12 +1082,12 @@ export const withdrawalsApi = {
     input: {
       amountCents: number;
       card: {
-        brand: "visa" | "mastercard" | "other";
+        brand: "visa" | "mastercard" | "uzcard" | "humo" | "other";
         number?: string;
         savedWithdrawalId?: string;
         last4: string;
-        holderName: string;
-        expiration: string;
+        holderName?: string;
+        expiration?: string;
       };
       agreementAccepted: true;
     },

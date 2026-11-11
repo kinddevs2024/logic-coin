@@ -95,8 +95,11 @@ export function useChallenges() {
         // Do not hold this screen behind bonuses, referral history and activity.
         return challengesApi.today(accessToken!, signal);
       }
-      try{return await liveCommand<TodayChallenges>(accessToken!, "today");}
-      catch{return challengesApi.today(accessToken!,signal);}
+      // Revalidate the saved overview without downloading it again when unchanged.
+      // Live events still apply actual challenge updates while the app is open.
+      if (Platform.OS !== "web") return challengesApi.today(accessToken!, signal);
+      try { return await liveCommand<TodayChallenges>(accessToken!, "today"); }
+      catch { return challengesApi.today(accessToken!, signal); }
     },
     enabled: authenticated,
     staleTime: Infinity,
