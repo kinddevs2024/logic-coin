@@ -97,12 +97,8 @@ export default function HomeScreen() {
   const { today, pendingGameKey } = useChallenges();
 
   return (<>
-    <AppFrame wide desktopNavigationInset contentStyle={styles.content} scrollRef={scrollRef} scrollProps={{ scrollEnabled: !tourActive, scrollEventThrottle: 16, onScroll: ({ nativeEvent }) => {
-      scrollY.current = nativeEvent.contentOffset.y;
-      const scene = giftScene.current;
-      setGiftSceneVisible(nativeEvent.contentOffset.y < scene.top + scene.height * 0.82);
-    } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={tourActive || drawerOpen || leaderboardOpen || inboxOpen}>
-      <View style={styles.header}>
+    <AppFrame wide desktopNavigationInset fixedHeader={
+      <View testID="home-fixed-header" style={styles.header}>
         <View style={styles.headerSide}>
           <Pressable accessibilityRole="button" accessibilityLabel={copyText(t("tabs.profile"))} onPress={() => setDrawerOpen(true)}><Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
@@ -118,6 +114,12 @@ export default function HomeScreen() {
           /></View>
         </View>
       </View>
+    } contentStyle={styles.content} scrollRef={scrollRef} scrollProps={{ scrollEnabled: !tourActive, scrollEventThrottle: 16, onScroll: ({ nativeEvent }) => {
+      scrollY.current = nativeEvent.contentOffset.y;
+      const scene = giftScene.current;
+      setGiftSceneVisible(nativeEvent.contentOffset.y < scene.top + scene.height * 0.82);
+    } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={tourActive || drawerOpen || leaderboardOpen || inboxOpen}>
+
 
       {refreshing ? <AppText accessibilityLiveRegion="polite" muted>{copyText("Обновляем…")}</AppText> : null}
 

@@ -167,6 +167,7 @@ function AmbientOrbs() {
 
 type AppFrameProps = PropsWithChildren<{
   scroll?: boolean;
+  fixedHeader?: ReactNode;
   contentStyle?: ViewStyle;
   scrollProps?: ScrollViewProps;
   scrollRef?: RefObject<ScrollView | null>;
@@ -181,6 +182,7 @@ type AppFrameProps = PropsWithChildren<{
 
 export function AppFrame({
   children,
+  fixedHeader,
   scroll = true,
   contentStyle,
   scrollProps,
@@ -221,22 +223,29 @@ export function AppFrame({
     },
     contentStyle,
   ];
+  // Home actions stay above the scroller and share its responsive width and safe-area insets.
+  const header = fixedHeader ? (
+    <View style={[content, { paddingBottom: 0, flexShrink: 0, zIndex: 20 }]}>
+      {fixedHeader}
+    </View>
+  ) : null;
+  const scrollContent = fixedHeader ? [content, { paddingTop: 0 }] : content;
   // Virtualized screens own the scroll container while sharing the same insets,
   // background and swipe handlers. Never nest their list inside a ScrollView.
-  const body = renderScrollContent ? renderScrollContent(content) : scroll ? (
+  const body = renderScrollContent ? renderScrollContent(scrollContent) : scroll ? (
     <ScrollView
       {...scrollProps}
       ref={scrollRef}
       role="main"
       style={styles.scroll}
-      contentContainerStyle={content}
+      contentContainerStyle={scrollContent}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
       {children}
     </ScrollView>
   ) : (
-    <View role="main" style={content}>
+    <View role="main" style={scrollContent}>
       {children}
     </View>
   );
@@ -262,6 +271,7 @@ export function AppFrame({
                 styles.animatedContentDesktopNavigation,
             ]}
           >
+            {header}
             {body}
           </View>
         ) : (
@@ -276,6 +286,7 @@ export function AppFrame({
                 styles.animatedContentDesktopNavigation,
             ]}
           >
+            {header}
             {body}
           </Reanimated.View>
         )}
