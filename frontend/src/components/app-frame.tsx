@@ -236,6 +236,17 @@ export function AppFrame({
       </View>
     </View>
   ) : null;
+  // Android keeps the cutout safe area even when the system status bar is hidden.
+  // Blend only the first 12 dp of scrolling content; the floating buttons stay crisp.
+  const edgeColor = String(theme.backgroundStart);
+  const topFade = Platform.OS === "android" && fixedHeader ? (
+    <LinearGradient
+      pointerEvents="none"
+      testID="android-home-top-fade"
+      colors={[edgeColor, /^#[0-9a-f]{6}$/i.test(edgeColor) ? `${edgeColor}00` : "transparent"]}
+      style={styles.nativeTopFade}
+    />
+  ) : null;
   const scrollContent = fixedHeader ? [content, { paddingTop: fixedHeaderHeight }] : content;
   // Virtualized screens own the scroll container while sharing the same insets,
   // background and swipe handlers. Never nest their list inside a ScrollView.
@@ -294,6 +305,7 @@ export function AppFrame({
             ]}
           >
             {body}
+            {topFade}
             {header}
           </Reanimated.View>
         )}
@@ -310,6 +322,7 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  nativeTopFade: { position: "absolute", top: 0, left: 0, right: 0, height: 12, zIndex: 19 },
   fixedHeaderLayer: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 },
   animatedContent: {
     flex: 1,

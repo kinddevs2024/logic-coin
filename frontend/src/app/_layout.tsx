@@ -277,7 +277,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthErrorProvider>
           <RaffleProvider>
-          <StatusBar style={theme.mode === "dark" ? "light" : "dark"} />
+          <StatusBar hidden={Platform.OS === "android"} style={theme.mode === "dark" ? "light" : "dark"} />
           <Stack
             screenOptions={{
               title: "Logic Coin",
