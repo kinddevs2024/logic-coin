@@ -20,8 +20,8 @@ Initial pass: overly saturated green participant badges/border differed from the
 
 ## Interaction verification
 
-Exported app tested in Chromium at 470, 1440 and 320px; graphite, dark and light themes. All three cards render; expand/collapse works; hidden game actions cannot be tabbed to; 0% and 33% reflect API progress; rules dialog opens and Escape closes it; no horizontal overflow; reduced-motion disables waves; no page errors. A simulated API failure shows a retry control and recovers successfully. Eligible current users are included in the reel; ineligible ones keep only their separate profile card. Earlier pass also covered 485px. Browser fixtures isolate requests from production accounts; database-backed end-to-end verification has not been performed.
+Exported app tested in Chromium at 470, 1440 and 320px; graphite, dark and light themes. All three cards render; expand/collapse works; hidden game actions cannot be tabbed to; 0% and 33% reflect API progress; rules dialog opens and Escape closes it; no horizontal overflow; reduced-motion disables waves; no page errors. A simulated API failure shows a retry control and recovers successfully. Eligible current users are included in the reel; ineligible ones keep only their separate profile card. Earlier pass also covered 485px. Browser fixtures isolate requests from production accounts; the activity service was additionally verified by read-only queries against production; no real account session was used for browser tests.
 
 ## Release boundary
 
-Draft only. Production website and Android OTA are untouched. New authenticated read endpoint must accompany the website build when this draft is deployed. Prize settlement and live draw behavior are unchanged.
+Published on explicit user request, 2026-11-11. Candidate built from the current production release and passed the same three browser viewport checks. Read-only production database check passed (287ms cold, cached call under 1ms). Backend restarted and returned a healthy connected database; unauthenticated activity requests return 401. Android OTA, prize settlement and live draw behavior are unchanged.
