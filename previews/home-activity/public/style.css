@@ -107,8 +107,9 @@ h2 { font-size: 21px; letter-spacing: -.65px; font-weight: 700; line-height: 1.2
 .expand-button { width: 100%; display: flex; align-items: center; justify-content: center; gap: 9px; background: transparent; color: var(--primary); font-size: 12px; font-weight: 650; min-height: 45px; margin-top: 3px; }
 .expand-button svg { width: 18px; height: 18px; transition: transform .3s; }
 .expanded .expand-button svg { transform: rotate(180deg); }
-.period-card { position: relative; overflow: hidden; }
-.raffle-stage { position: relative; height: 316px; border: 1px solid color-mix(in srgb, var(--mint) 60%, var(--line)); border-radius: 23px; overflow: hidden; margin-bottom: 18px; }
+.period-card { position: relative; overflow: hidden; padding-top: 16px; padding-bottom: 16px; }
+.period-card .card-heading { margin-bottom: 14px; }
+.raffle-stage { position: relative; height: 220px; border: 1px solid color-mix(in srgb, var(--mint) 60%, var(--line)); border-radius: 23px; overflow: hidden; margin-bottom: 12px; }
 .raffle-window {
   height: 100%; overflow: hidden;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, .45) 10%, #000 24%, #000 76%, rgba(0, 0, 0, .45) 90%, transparent 100%);
@@ -116,7 +117,7 @@ h2 { font-size: 21px; letter-spacing: -.65px; font-weight: 700; line-height: 1.2
 }
 .raffle-track { animation: raffle-scroll var(--reel-duration, 28s) linear infinite; animation-delay: -4s; will-change: transform; }
 .raffle-group { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.raffle-player { display: flex; align-items: center; gap: 12px; min-height: 76px; height: 76px; width: min(100%, 290px); margin: 0 auto; padding: 7px 20px; flex-shrink: 0; }
+.raffle-player { display: flex; align-items: center; gap: 12px; min-height: 64px; height: 64px; width: min(100%, 290px); margin: 0 auto; padding: 7px 20px; flex-shrink: 0; }
 .raffle-player .avatar { width: 43px; height: 43px; font-size: 19px; border: 0; }
 .raffle-copy { min-width: 0; flex: 1; }
 .raffle-copy > strong { display: block; font-size: 14px; font-weight: 650; letter-spacing: -.25px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -125,7 +126,7 @@ h2 { font-size: 21px; letter-spacing: -.65px; font-weight: 700; line-height: 1.2
 .raffle-stats svg { width: 11px; height: 11px; }
 .raffle-coins { color: var(--warning); background: color-mix(in srgb, var(--warning) 10%, transparent); }
 .raffle-money { color: var(--mint); background: color-mix(in srgb, var(--mint) 10%, transparent); }
-.self-profile { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 10px; min-height: 70px; border: 1px solid var(--line); background: var(--soft); border-radius: 18px; padding: 12px; }
+.self-profile { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 10px; min-height: 60px; border: 1px solid var(--line); background: var(--soft); border-radius: 18px; padding: 9px 12px; }
 .profile-water { position: absolute; bottom: 0; left: 0; width: 100%; height: var(--fill, 0%); color: var(--water); background: linear-gradient(to bottom, transparent 6px, currentColor 6px); pointer-events: none; transition: height .85s cubic-bezier(.22, 1, .36, 1), opacity .3s; }
 .self-profile[data-progress="0"] .profile-water { opacity: 0; }
 .self-profile[data-progress="100"] .profile-water { background: currentColor; }
@@ -193,6 +194,7 @@ dialog b { color: var(--text); font-weight: 650; }
   .preview-header .icon-button { width: 34px; height: 34px; }
   .workspace { margin: 24px auto 36px; padding: 0 18px; }
   .card { padding: 20px; border-radius: 27px; }
+  .period-card { padding-top: 16px; padding-bottom: 16px; }
   .card-heading h2 { font-size: 18px; }
   .game-title { font-size: 13px; }
   .account-avatar { width: 42px; height: 42px; }
@@ -214,6 +216,7 @@ dialog b { color: var(--text); font-weight: 650; }
 @media (max-width: 390px) {
   .workspace { padding: 0 12px; }
   .card { padding: 17px; }
+  .period-card { padding-top: 14px; padding-bottom: 14px; }
   .card-heading h2 { font-size: 14px; }
   .heading-clock { gap: 4px; }
   .game-row { gap: 9px; padding-right: 8px; }
@@ -221,7 +224,7 @@ dialog b { color: var(--text); font-weight: 650; }
   .game-image { width: 48px; height: 48px; }
   .game-action { width: 40px; height: 40px; }
   .game-reward { font-size: 10px; }
-  .raffle-stage { height: 300px; }
+  .raffle-stage { height: 204px; }
   .raffle-copy > strong { font-size: 13px; }
   .raffle-player { gap: 10px; }
   .raffle-stats { gap: 4px; }
