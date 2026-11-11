@@ -156,7 +156,7 @@ export default function HomeScreen() {
         </View>
 
         <RaffleBanner />
-        {Platform.OS === "web" ? <View style={isDesktop ? { flex: 1, minWidth: 0 } : { width: "100%" }}><HomeActivityBlocks today={today} pendingGameKey={pendingGameKey} challengesTarget={challengesTarget} /></View> : <GlassSurface
+        {Platform.OS === "web" ? <View style={isDesktop ? { flex: 1, minWidth: 0 } : { width: "100%", marginTop: 18 }}><HomeActivityBlocks today={today} pendingGameKey={pendingGameKey} challengesTarget={challengesTarget} /></View> : <GlassSurface
           intensity={68}
           variant="strong"
           style={[
