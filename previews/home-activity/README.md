@@ -6,7 +6,7 @@ The daily card starts partially collapsed with an opacity mask and expansion
 button. The mask reaches full transparency before the clip boundary, avoiding
 a visible cutoff against the translucent card in either theme.
 Each heading has a single compact clock at the right. Activity cards contain
-a vertical sample participant reel with edge fades and a left center marker,
+a vertical sample participant reel with edge fades,
 followed by the viewer's profile. Progress is the percentage of completed days
 in the full period, shown as water filling the profile behind its text, with
 continuous small waves. There are no separate status badges, day bars or footer

@@ -125,7 +125,6 @@ h2 { font-size: 21px; letter-spacing: -.65px; font-weight: 700; line-height: 1.2
 .raffle-stats svg { width: 11px; height: 11px; }
 .raffle-coins { color: var(--warning); background: color-mix(in srgb, var(--warning) 10%, transparent); }
 .raffle-money { color: var(--mint); background: color-mix(in srgb, var(--mint) 10%, transparent); }
-.raffle-pointer { position: absolute; left: 5px; top: 50%; width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 11px solid var(--warning); transform: translateY(-50%); pointer-events: none; z-index: 1; }
 .self-profile { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 10px; min-height: 70px; border: 1px solid var(--line); background: var(--soft); border-radius: 18px; padding: 12px; }
 .profile-water { position: absolute; bottom: 0; left: 0; width: 100%; height: var(--fill, 0%); color: var(--water); background: linear-gradient(to bottom, transparent 6px, currentColor 6px); pointer-events: none; transition: height .85s cubic-bezier(.22, 1, .36, 1), opacity .3s; }
 .self-profile[data-progress="0"] .profile-water { opacity: 0; }
