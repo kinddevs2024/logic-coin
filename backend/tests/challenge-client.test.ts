@@ -11,9 +11,9 @@ function launch(age = 0) {
   const key = createHmac("sha256", "WebAppData").update("123:challenge_test_token_01234567890123456789").digest();
   params.set("hash", createHmac("sha256", key).update(data).digest("hex")); return params.toString();
 }
-it("rejects Telegram challenge requests even with genuine signed launch data", () => {
-  expect(() => requireChallengeRequest({ "user-agent": "Mozilla/5.0", "x-telegram-init-data": launch() })).toThrow();
-  expect(() => requireChallengeRequest({ "user-agent": "okhttp/4.12.0", "x-telegram-init-data": launch() })).toThrow();
+it("allows Telegram challenge requests with genuine signed launch data", () => {
+  expect(() => requireChallengeRequest({ "user-agent": "Mozilla/5.0", "x-telegram-init-data": launch() })).not.toThrow();
+  expect(() => requireChallengeRequest({ "user-agent": "okhttp/4.12.0", "x-telegram-init-data": launch() })).not.toThrow();
 });
 it("keeps installed APKs working and rejects browser starts", () => {
   expect(() => requireChallengeRequest({ "user-agent": "okhttp/4.12.0" })).not.toThrow();
@@ -22,3 +22,7 @@ it("keeps installed APKs working and rejects browser starts", () => {
   expect(() => requireChallengeRequest({ "user-agent": "Mozilla/5.0", "x-telegram-init-data": "forged" })).toThrow();
 });
 
+
+it("rejects expired, tampered and malformed Telegram launches", () => {
+ for(const data of [launch(86401),launch().replace("QA","Forged"),"",[launch()]])expect(()=>requireChallengeRequest({"user-agent":"Mozilla/5.0","x-telegram-init-data":data})).toThrow();
+});

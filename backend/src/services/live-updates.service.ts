@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { API_PREFIX } from "../config/constants.js";
 import { ApiError } from "../lib/api-error.js";
-import { isNativeAppClient } from "../lib/native-client.js";
+import { isChallengeClient } from "./challenge-client.service.js";
 import { isAccessSessionActive, verifyAccessToken } from "./token.service.js";
 
 const AUTH_TIMEOUT_MS = 10_000;
@@ -60,8 +60,7 @@ export function attachLiveUpdates(server: Server): () => void {
   });
 
   websocketServer.on("connection", (websocket, request) => {
-    const nativeClient = isNativeAppClient(request.headers);
-    let challengeClient = nativeClient;
+    let telegramInitData: unknown;
     let authenticated = false;
     let authInProgress = false;
     let alive = true;
@@ -100,7 +99,7 @@ export function attachLiveUpdates(server: Server): () => void {
               return;
             }
             const { executeLiveCommand } = await import("./live-command.service.js");
-            const data = await executeLiveCommand(identity.userId, message.method, message.input ?? {}, challengeClient, payload.sid);
+            const data = await executeLiveCommand(identity.userId, message.method, message.input ?? {}, isChallengeClient(request.headers, telegramInitData), payload.sid);
             // A committed mutation is acknowledged even if refreshing its view fails.
             let state;
             if (!["today", "pendingReward", "raffleState", "rafflePresence"].includes(message.method)) {
@@ -141,7 +140,7 @@ export function attachLiveUpdates(server: Server): () => void {
             return;
           }
           if (websocket.readyState !== WebSocket.OPEN) return;
-          challengeClient = nativeClient && !message.telegramInitData;
+          telegramInitData = message.telegramInitData;
           authenticated = true;
           clearTimeout(authTimeout);
           clients.add(websocket);

@@ -117,20 +117,20 @@ describe("challenge routes", () => {
     expect(challengeMocks.claimContestReward).toHaveBeenCalledWith(resultId, userId);
   });
 
-  it.each(["start", "complete", "double"])("rejects Telegram Mini App %s without invoking the game service", async operation => {
+  it.each(["start", "complete", "double"])("allows signed Telegram Mini App %s", async operation => {
     const path = operation === "double" ? "/double" : `/tetris/${operation}`;
     const input = operation === "double" ? { scope: "game" } : operation === "start" ? {} : { score: 10 };
-    await request(app).post(path).set("User-Agent", "Mozilla/5.0 (Android 14)").set("X-Telegram-Init-Data", "valid-telegram-fixture").send(input).expect(403);
+    await request(app).post(path).set("User-Agent", "Mozilla/5.0 (Android 14)").set("X-Telegram-Init-Data", "valid-telegram-fixture").send(input).expect(201);
     const service = operation === "start" ? challengeMocks.startChallengeAttempt : operation === "complete" ? challengeMocks.completeChallengeAttempt : challengeMocks.doubleChallengeCoins;
-    expect(service).not.toHaveBeenCalled();
+    expect(service).toHaveBeenCalledOnce();
   });
 
-  it("rejects website starts and Telegram starts including valid bot requests", async () => {
+  it("rejects website and forged Telegram starts, accepts signed bot requests", async () => {
     await request(app).post("/tetris/start").set("User-Agent", "Mozilla/5.0").expect(403);
     await request(app).post("/tetris/start").set("User-Agent", "Mozilla/5.0").set("X-Telegram-Init-Data", "forged").expect(403);
     expect(challengeMocks.startChallengeAttempt).not.toHaveBeenCalled();
-    await request(app).post("/tetris/start").set("User-Agent", "Mozilla/5.0").set("X-Telegram-Init-Data", "valid-telegram-fixture").expect(403);
-    expect(challengeMocks.startChallengeAttempt).not.toHaveBeenCalled();
+    await request(app).post("/tetris/start").set("User-Agent", "Mozilla/5.0").set("X-Telegram-Init-Data", "valid-telegram-fixture").expect(201);
+    expect(challengeMocks.startChallengeAttempt).toHaveBeenCalledOnce();
   });
   it("preserves ordinary web games", async () => {
     await request(app).post("/practice/tetris/complete").set("User-Agent", "Mozilla/5.0").send({ score: 10 }).expect(201);

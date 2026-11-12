@@ -1,3 +1,4 @@
+import { isTelegramMiniApp } from "@/lib/telegram-context";
 import { useRafflePause } from "@/components/raffle-provider";
 import { useUiCopy } from "@/components/localized-native";
 
@@ -114,7 +115,7 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 
 export default function DynamicGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
-  if (Platform.OS === "web" && firstParam(params.mode) === "challenge") return <AppFrame><ChallengeAppRequired /></AppFrame>;
+  if (Platform.OS === "web" && !isTelegramMiniApp() && firstParam(params.mode) === "challenge") return <AppFrame><ChallengeAppRequired /></AppFrame>;
   if (!isGameVisible(firstParam(params.gameKey) ?? "") && firstParam(params.mode) !== "challenge") return <Redirect href="/games" />;
   // A replacement of the same dynamic route must get a fresh host, not only
   // a fresh child game with the previous host's completed/discarded session.

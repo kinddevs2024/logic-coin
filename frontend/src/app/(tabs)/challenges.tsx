@@ -1,3 +1,4 @@
+import { isTelegramMiniApp } from "@/lib/telegram-context";
 import { useUiCopy } from "@/components/localized-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -25,7 +26,7 @@ const copy = {
 } as const;
 
 export default function ChallengesScreen() {
-  if (Platform.OS === "web") return <AppFrame><ChallengeAppRequired /></AppFrame>;
+  if (Platform.OS === "web" && !isTelegramMiniApp()) return <AppFrame><ChallengeAppRequired /></AppFrame>;
   return <AvailableChallengesScreen />;
 }
 
