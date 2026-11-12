@@ -55,12 +55,12 @@ const createWithdrawalSchema = z
     amountCents: z.number().int().positive(),
     method: z.literal("bank_card"),
     card: z.object({
-      brand: z.enum(["visa", "mastercard", "other"]),
+      brand: z.enum(["visa", "mastercard", "uzcard", "humo", "other"]),
       number: z.string().regex(/^\d{16,19}$/).optional(),
       savedWithdrawalId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
       last4: z.string().regex(/^\d{4}$/),
-      holderName: z.string().trim().min(2).max(80),
-      expiration: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/)
+      holderName: z.string().trim().min(2).max(80).optional(),
+      expiration: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/).optional()
     }).strict(),
     agreementAccepted: z.literal(true),
     agreementVersion: z.literal("2026-08-23"),
@@ -91,8 +91,8 @@ router.post(
         ...(input.card.savedWithdrawalId?{savedWithdrawalId:input.card.savedWithdrawalId}:{}),
         brand: input.card.brand!,
         last4: input.card.last4!,
-        holderName: input.card.holderName!,
-        expiration: input.card.expiration!
+        ...(input.card.holderName ? { holderName: input.card.holderName } : {}),
+        ...(input.card.expiration ? { expiration: input.card.expiration } : {})
       },
       agreementVersion: input.agreementVersion
     });

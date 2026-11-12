@@ -178,6 +178,7 @@ type AppFrameProps = PropsWithChildren<{
   onOpenProfile?: () => void;
   onSwipeRefresh?: () => void;
   swipesDisabled?: boolean;
+  animateEntrance?: boolean;
 }>;
 
 export function AppFrame({
@@ -194,6 +195,7 @@ export function AppFrame({
   onOpenProfile,
   onSwipeRefresh,
   swipesDisabled,
+  animateEntrance = true,
 }: AppFrameProps) {
   const swipeHandlers = useTabSwipe({ disabled: swipesDisabled, onOpenProfile, onRefresh: onSwipeRefresh });
   const wheelRootRef = useDesktopTabWheel({ disabled: swipesDisabled });
@@ -280,7 +282,7 @@ export function AppFrame({
         <AmbientOrbs />
       </BlurTargetView>
       <GlassBlurTargetContext.Provider value={blurTarget}>
-        {Platform.OS === "web" ? (
+        {Platform.OS === "web" || !animateEntrance ? (
           <View
             style={[
               styles.animatedContent,
@@ -290,6 +292,7 @@ export function AppFrame({
             ]}
           >
             {body}
+            {Platform.OS !== "web" ? topFade : null}
             {header}
           </View>
         ) : (

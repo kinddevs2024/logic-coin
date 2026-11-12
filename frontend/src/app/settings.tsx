@@ -150,11 +150,13 @@ export default function SettingsScreen() {
         style={[styles.settingsGrid, isDesktop && styles.settingsGridDesktop]}
       >
         <GlassSurface
+          testID="settings-notifications"
           intensity={58}
           variant="strong"
           style={[
             styles.section,
             isDesktop && styles.settingsCardDesktop,
+            isDesktop && styles.settingsFullWidthDesktop,
             { borderColor: theme.glassBorder },
           ]}
         >
@@ -181,11 +183,13 @@ export default function SettingsScreen() {
         </GlassSurface>
 
         <GlassSurface
+          testID="settings-appearance"
           intensity={54}
           variant="strong"
           style={[
             styles.blockGlass,
             isDesktop && styles.settingsCardDesktop,
+            isDesktop && styles.settingsFullWidthDesktop,
           ]}
         >
         <AppText variant="heading">{copyContent(t("settings.theme"))}</AppText>
@@ -202,6 +206,7 @@ export default function SettingsScreen() {
                 onPress={() => changeTheme(themeMode)}
                 style={({ pressed }) => [
                   styles.themeCard,
+                  isDesktop && styles.themeCardDesktop,
                   {
                     backgroundColor: mode === "dark" ? palette.surface : palette.glassFillStrong,
                     borderColor: selected ? theme.primary : theme.border,
@@ -259,7 +264,8 @@ export default function SettingsScreen() {
           })}
           <Pressable accessibilityRole="button" accessibilityLabel={copyText("Тема с фото")} disabled={photoBusy}
             onPress={()=> user.preferences?.customTheme ? changeTheme("custom") : void choosePhoto()}
-            style={[styles.themeCard,{borderColor:mode === "custom" ? theme.primary : theme.border,backgroundColor:theme.surfaceRaised}]}>
+            style={[styles.themeCard,
+                  isDesktop && styles.themeCardDesktop,{borderColor:mode === "custom" ? theme.primary : theme.border,backgroundColor:theme.surfaceRaised}]}>
             <View style={[styles.themePreview,{backgroundColor:theme.primarySoft,overflow:"hidden",alignItems:"center",justifyContent:"center"}]}>
               {user.preferences?.customTheme?.wallpaperUrl ? <Image source={{uri:user.preferences.customTheme.wallpaperUrl}} resizeMode="cover" style={StyleSheet.absoluteFill}/> : <Ionicons name="image-outline" size={28} color={String(theme.primary)}/>}
               {mode === "custom" ? <Ionicons name="checkmark-circle" size={20} color={String(theme.primary)} style={{position:"absolute",right:4,top:4}}/> : null}
@@ -271,6 +277,7 @@ export default function SettingsScreen() {
         </GlassSurface>
 
         <GlassSurface
+          testID="settings-language"
           intensity={56}
           variant="strong"
           style={[
@@ -300,6 +307,7 @@ export default function SettingsScreen() {
         </GlassSurface>
 
         <GlassSurface
+          testID="settings-goal"
           intensity={56}
           variant="strong"
           style={[
@@ -353,6 +361,8 @@ const styles = StyleSheet.create({
     minWidth: 360,
     marginBottom: 0,
   },
+  settingsFullWidthDesktop: { flexBasis: "100%", width: "100%" },
+  themeCardDesktop: { flexBasis: "22%", minWidth: 140 },
   section: {
     borderWidth: 1,
     borderRadius: radii.lg,

@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import {sourceChatRoute} from "@/lib/player-profile-navigation";
+import { useCallback, useMemo, useState } from "react";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, BackHandler, Platform, Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -17,9 +18,20 @@ export default function PlayerProfileScreen() {
   const c = useChatCopy(),
     theme = useAppTheme(),
     router = useRouter(),
-    params = useLocalSearchParams<{ id: string }>(),
+    params = useLocalSearchParams<{ id: string; returnChat?: string; returnSearch?: string }>(),
     token = useAppStore((s) => s.accessToken),
     ownId = useAppStore((s) => s.user.id);
+  const sourceChat = useMemo(() => sourceChatRoute(params.returnChat, params.returnSearch), [params.returnChat, params.returnSearch]);
+  const goBack = useCallback(() => {
+    if (sourceChat) router.dismissTo(sourceChat as never);
+    else if (router.canGoBack()) router.back();
+    else router.replace("/messages");
+  }, [router, sourceChat]);
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS === "web" || !sourceChat) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => { goBack(); return true; });
+    return () => subscription.remove();
+  }, [goBack, sourceChat]));
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const id = typeof params.id === "string" ? params.id : "";
@@ -55,7 +67,7 @@ export default function PlayerProfileScreen() {
   };
   return (
     <AppFrame>
-      <ScreenHeader title={c.profile} onBack={() => router.back()} />
+      <ScreenHeader title={c.profile} onBack={goBack} />
       {query.isPending && token ? (
         <ActivityIndicator color={String(theme.primary)} />
       ) : null}

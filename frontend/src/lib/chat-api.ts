@@ -43,7 +43,10 @@ export type ChatFile = {
   size: number;
   url: string;
 };
+export type WithdrawalSystemEvent = { kind: "withdrawal_approved"; recipientId: string; recipientName: string; amountCents: number };
+export type RaffleWinnerSystemEvent = { kind: "raffle_winner"; recipientId: string; recipientName: string; raffleTitle: string; amountCents?: number; prizeText?: string };
 export type ChatItem = {
+  system?: WithdrawalSystemEvent | RaffleWinnerSystemEvent;
   id: string;
   seq: number;
   sender: ChatPerson;

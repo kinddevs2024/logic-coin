@@ -1,3 +1,4 @@
+import { TOP_THIRTY_CONTEST_POLICY } from "../lib/top-thirty-contest-plan.js";
 import { randomUUID } from "node:crypto";
 import type { Types } from "mongoose";
 import {
@@ -81,7 +82,7 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         cashPrizeMinUnits: DEFAULT_DAILY_PRIZE_MIN_UNITS,
         cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
-        payoutPolicy: TOP_TEN_CONTEST_POLICY,
+        payoutPolicy: TOP_THIRTY_CONTEST_POLICY,
         payoutSeed: newContestPayoutSeed(),
         cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS,
         descendingCashPrizes: true,

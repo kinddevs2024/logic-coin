@@ -1,3 +1,4 @@
+import {playerProfileRoute} from "@/lib/player-profile-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
@@ -71,19 +72,16 @@ export function MessagesScreen() {
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); closeConversation(); }
     };
-    const popstate = () => router.replace("/messages");
     if (Platform.OS === "web") {
       window.addEventListener("keydown", keydown);
-      window.addEventListener("popstate", popstate);
     }
     return () => {
       subscription.remove();
       if (Platform.OS === "web") {
         window.removeEventListener("keydown", keydown);
-        window.removeEventListener("popstate", popstate);
       }
     };
-  }, [chatOpen, focused, closeConversation, router]);
+  }, [chatOpen, focused, closeConversation]);
 
   const [invitingFriends,setInvitingFriends]=useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -255,7 +253,21 @@ export function MessagesScreen() {
       ),
     [query.data],
   );
-  const selected = chats.find((room) => room.id === params.chat);
+  const listedRoom = chats.find((room) => room.id === params.chat);
+  // A push can reference a new conversation absent from the restored list.
+  // Fetch it now instead of waiting for the list's polling/stale interval.
+  const openingChat = useQuery({
+    queryKey: ["chat-open", token, params.chat],
+    enabled: Boolean(token && focused && params.chat && !listedRoom),
+    queryFn: () => chatApi.list(token!),
+    staleTime: 0,
+    gcTime: 0,
+    retry: 1,
+  });
+  useEffect(() => {
+    if (openingChat.data) client.setQueryData(["chat-list", token], openingChat.data);
+  }, [openingChat.data, client, token]);
+  const selected = listedRoom ?? openingChat.data?.chats.find(room => room.id === params.chat);
   const desktopChatMotion = Platform.OS === "web" && isDesktop;
   const [leavingChat, setLeavingChat] = useState<{ room: ChatRoom; search: string } | null>(null);
   const retainedChat = useRef<typeof leavingChat>(null);
@@ -263,6 +275,7 @@ export function MessagesScreen() {
   useEffect(() => {
     if (!desktopChatMotion) {
       retainedChat.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the retained desktop animation snapshot.
       setLeavingChat(null);
       exitMotion.setValue(1);
       return;
@@ -361,8 +374,8 @@ export function MessagesScreen() {
     setSearch("");
     setDebounced("");
     setSearchOpen(false);
-    router.push(`/player/${id}` as never);
-  }, [router]);
+    router.push(playerProfileRoute(id, params.chat, params.messageSearch) as never);
+  }, [router, params.chat, params.messageSearch]);
   const input = [
     styles.input,
     {
@@ -384,6 +397,7 @@ export function MessagesScreen() {
       noPadding
       wide
       swipesDisabled
+      animateEntrance={false}
       contentStyle={{
         flex: 1,
         minHeight: 0,
@@ -420,7 +434,7 @@ export function MessagesScreen() {
           isDesktop && styles.desktop,
         ]}
       >
-        {isDesktop || !selected ? (
+        {isDesktop || (!selected && !chatOpen) ? (
           <View
             style={[
               styles.sidebar,
@@ -870,6 +884,18 @@ export function MessagesScreen() {
             />
           </ChatTransition>
           </Animated.View>
+        ) : chatOpen ? (
+          <View testID="chat-opening-state" style={[styles.empty, { flex: 1 }]}>
+            <ChatAction title={c.close} icon="arrow-back" onPress={closeConversation} />
+            {openingChat.isPending || openingChat.isFetching ? (
+              <ActivityIndicator color={String(theme.primary)} accessibilityLabel={c.loading} />
+            ) : (
+              <>
+                <AppText>{c.error}</AppText>
+                <ChatAction title={c.retry} icon="refresh" onPress={() => { void openingChat.refetch(); }} />
+              </>
+            )}
+          </View>
         ) : isDesktop ? (
           <ChatTransition key="empty-chat" testID="chat-empty-transition" style={styles.empty}>
             <View

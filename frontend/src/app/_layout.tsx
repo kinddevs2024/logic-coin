@@ -1,3 +1,4 @@
+import { notificationChatRoute } from "@/lib/notification-chat-route";
 import { NativeDataCacheBoundary } from "@/components/native-data-cache-boundary";
 import { ChatRuntime } from "@/components/chat/chat-runtime";
 import { localizeBuiltIn } from "@/lib/localize-built-in";
@@ -6,7 +7,7 @@ import "../global.css";
 import "@/lib/referral-attribution";
 
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, router } from "expo-router";
+import { Stack, router, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -58,6 +59,7 @@ export default function RootLayout() {
   const notificationTime = useAppStore((state) => state.notificationTime);
   const language = useAppStore((state) => state.language) ?? "uz";
   const [pushInbox, setPushInbox] = useState(false);
+  const [pendingChat, setPendingChat] = useState<{ id: string; account: string } | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -88,7 +90,7 @@ export default function RootLayout() {
     let cleanup: (() => void) | undefined;
     void installNotificationHandlers(async (ids, conversationId) => {
       const state = useAppStore.getState();
-      if (conversationId) router.push({ pathname: "/messages", params: { chat: conversationId } } as never);
+      if (conversationId && state.user.id) setPendingChat({ id: conversationId, account: state.user.id });
       else setPushInbox(true);
       if (state.accessToken && ids.length) {
         await inboxApi.read(state.accessToken, ids);
@@ -290,6 +292,7 @@ export default function RootLayout() {
           <AdRuntime />
           <AppliedUpdateNotice />
           <ChatRuntime />
+          <NotificationChatNavigation pending={pendingChat} onOpened={() => setPendingChat(null)} />
           <RewardBurst />
           <ContestRewardModal />
           <WithdrawalApprovedModal />
@@ -304,4 +307,30 @@ export default function RootLayout() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+// Mount inside the cache boundary: neither cold-start notification replay nor
+// a background tap may navigate before the restored account and Stack exist.
+function NotificationChatNavigation({ pending, onOpened }: {
+  pending: { id: string; account: string } | null;
+  onOpened: () => void;
+}) {
+  const navigation = useRootNavigationState();
+  const account = useAppStore(state => state.user.id);
+  const token = useAppStore(state => state.accessToken);
+  const auth = useAppStore(state => state.authMode);
+  const [active, setActive] = useState(AppState.currentState === "active");
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", state => setActive(state === "active"));
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (pending && pending.account !== account) { onOpened(); return; }
+    const destination = notificationChatRoute(pending, { ready: Boolean(navigation?.key), active, authenticated: auth === "authenticated", account, token });
+    if (!destination) return;
+    void queryClient.invalidateQueries({ queryKey: ["chat-list", token] });
+    router.navigate(destination as never);
+    onOpened();
+  }, [pending, navigation?.key, active, auth, token, account, onOpened]);
+  return null;
 }

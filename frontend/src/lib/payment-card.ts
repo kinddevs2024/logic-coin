@@ -1,4 +1,4 @@
-export type PaymentCardBrand = "visa" | "mastercard" | "other";
+export type PaymentCardBrand = "visa" | "mastercard" | "uzcard" | "humo" | "other";
 
 export function digitsOnly(value: string) {
   return value.replace(/\D/g, "").slice(0, 19);
@@ -15,6 +15,8 @@ export function formatExpiration(value: string) {
 
 export function detectCardBrand(value: string): PaymentCardBrand {
   const digits = digitsOnly(value);
+  if (/^8600/.test(digits)) return "uzcard";
+  if (/^9860/.test(digits)) return "humo";
   if (/^4/.test(digits)) return "visa";
   if (/^(5[1-5]|2(2[2-9]|[3-6]\d|7[01]|720))/.test(digits)) return "mastercard";
   return "other";

@@ -13,12 +13,12 @@ export async function createSandboxWithdrawal(input: {
   amountCents: number;
   idempotencyKey: string;
   card: {
-    brand: "visa" | "mastercard" | "other";
+    brand: "visa" | "mastercard" | "uzcard" | "humo" | "other";
     last4: string;
     number?: string;
     savedWithdrawalId?: string;
-    holderName: string;
-    expiration: string;
+    holderName?: string;
+    expiration?: string;
   };
   agreementVersion: string;
 }) {

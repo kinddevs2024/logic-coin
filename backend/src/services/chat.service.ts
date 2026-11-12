@@ -677,7 +677,8 @@ export async function listMessages(
         seq: m.seq,
         sender: sender
           ? chatProfile(sender)
-          : { id: String(m.senderId), name: "User", avatarUrl: null },
+          : { id: String(m.system?.recipientId ?? m.senderId), name: m.system ? "Logic Coin" : "User", avatarUrl: null },
+        ...(m.system && !m.deletedAt ? { system: { kind: m.system.kind, recipientId: String(m.system.recipientId), recipientName: m.system.recipientName, ...(m.system.amountCents != null ? { amountCents: m.system.amountCents } : {}), ...(m.system.kind === "raffle_winner" ? { raffleTitle: m.system.raffleTitle, ...(m.system.prizeText ? { prizeText: m.system.prizeText } : {}) } : {}) } } : {}),
         text: m.deletedAt ? "" : m.text,
         createdAt: m.createdAt.toISOString(),
         edited: Boolean(m.editedAt),
@@ -707,7 +708,7 @@ export async function listMessages(
               emoji: r.emoji,
               user: reactionProfiles.get(String(r.userId)),
             })),
-        own: String(m.senderId) === String(userId),
+        own: !m.system && String(m.senderId) === String(userId),
         voiceListened: listened.some(receipt => String(receipt.messageId) === String(m._id)),
       };
     }),
@@ -745,6 +746,7 @@ export async function sendChatMessage(
     }).lean();
     if (!source) return fail(404, "message_not_found", "Message not found");
     await chatAccess(userId, String(source.conversationId));
+    if (source.system) return fail(403, "system_message", "System messages cannot be forwarded");
     text = source.text;
     attachmentIds = source.attachmentIds;
     const author = await User.findById(source.senderId).select("name").lean();
@@ -851,6 +853,8 @@ export async function changeMessage(
     userId,
     String(m.conversationId),
   );
+  if (m.system && (action.text !== undefined || action.emoji !== undefined))
+    return fail(403, "system_message", "System messages cannot be edited or reacted to");
   const own = String(m.senderId) === String(userId),
     moderator = admin || member.role === "owner" || member.role === "admin";
   if (action.report) {

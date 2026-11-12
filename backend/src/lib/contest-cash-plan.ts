@@ -70,8 +70,8 @@ export function topFifthLadder(participants: number, budget: number, limit: numb
 // Cash recipients are capped at ceil(participants / 5). Increasing the pool
 // increases prizes within this band, never the number of paid ranks beyond it.
 // Reserve integer-cent minimums first; keep the fixed podium and final cent.
-export function fixedPodiumLadder(participants: number, budget: number): number[] {
-  const goal = Math.ceil(participants / 5);
+export function fixedPodiumLadder(participants: number, budget: number, cashPercent = 20): number[] {
+  const goal = Math.ceil(participants * cashPercent / 100);
   if (goal === 0) return [];
   const prizes = [250, 100, 50, 25].slice(0, goal);
   const remaining = budget - prizes.reduce((sum, value) => sum + value, 0);

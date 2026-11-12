@@ -131,7 +131,7 @@ export type Withdrawal = {
   amountUnits: number;
   method: "sandbox" | "bank_card";
   accountLabel?: string | null;
-  cardBrand?: "visa" | "mastercard" | "other" | null;
+  cardBrand?: "visa" | "mastercard" | "uzcard" | "humo" | "other" | null;
   cardLast4?: string | null;
   status: string;
   requestedAt: string;

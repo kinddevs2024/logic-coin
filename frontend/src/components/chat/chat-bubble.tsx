@@ -1,3 +1,5 @@
+import { RaffleWinnerSystemMessage } from "./raffle-winner-system-message";
+import { WithdrawalSystemMessage } from "./withdrawal-system-message";
 import { VideoPlayer } from "./video-player";
 import { isChatVideo } from "@/lib/chat-video";
 import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
@@ -38,6 +40,8 @@ export const ChatBubble = memo(function ChatBubble({
 }) {
   const theme = useAppTheme(),
     c = useChatCopy();
+  if (item.system?.kind === "raffle_winner" && !item.deleted) return <RaffleWinnerSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} />;
+  if (item.system?.kind === "withdrawal_approved" && !item.deleted) return <WithdrawalSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} />;
   const hasVoice = !item.deleted && item.attachments.some(file => file.kind === "voice");
   const voiceOnly = hasVoice && item.attachments.length === 1 && !item.text;
   const inlineTime = Boolean(item.text) && !item.deleted && !item.attachments.length && !item.reactions.length && !item.edited && !item.pinned;

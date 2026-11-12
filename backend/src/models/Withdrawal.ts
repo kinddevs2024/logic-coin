@@ -8,7 +8,7 @@ const withdrawalSchema = new Schema(
     amountUnits: { type: Number, required: true, min: 1 },
     method: { type: String, enum: ["sandbox", "bank_card"], default: "bank_card" },
     accountLabel: { type: String, maxlength: 120 },
-    cardBrand: { type: String, enum: ["visa", "mastercard", "other"] },
+    cardBrand: { type: String, enum: ["visa", "mastercard", "uzcard", "humo", "other"] },
     cardNumberEncrypted: {type:String,select:false,maxlength:256},
     cardLast4: { type: String, match: /^\d{4}$/ },
     cardHolder: { type: String, trim: true, maxlength: 80 },

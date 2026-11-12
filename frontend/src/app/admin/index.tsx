@@ -2,7 +2,7 @@ import { useUiCopy } from "@/components/localized-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { AdminBarChart, AdminDataState, AdminMetricCard, AdminPageHeader, formatUnits } from "@/components/admin/admin-ui";
 import { useAdminSession } from "@/components/admin/admin-session";
@@ -25,6 +25,7 @@ function shortDay(dayKey: string) {
 export default function AdminOverviewScreen() {
   const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
+  const { width } = useWindowDimensions();
   const { adminToken } = useAdminSession();
   const dayKey = localDayKey();
   const overviewQuery = useQuery({
@@ -63,14 +64,14 @@ export default function AdminOverviewScreen() {
         }
       />
 
-      <View style={styles.metrics}>
-        <AdminMetricCard label="Новые регистрации" value={formatUnits(overview.registrations)} icon="person-add-outline" detail={overview.registrationGrowthPercent === null ? "Нет прошлого периода" : `${overview.registrationGrowthPercent >= 0 ? "+" : ""}${formatUnits(overview.registrationGrowthPercent)}% к прошлому дню`} tone={overview.registrationGrowthPercent !== null && overview.registrationGrowthPercent < 0 ? "danger" : "primary"} />
-        <AdminMetricCard label="Всего пользователей" value={formatUnits(overview.totalUsers)} icon="people-outline" />
-        <AdminMetricCard label="Активные игроки" value={formatUnits(overview.activePlayers)} icon="pulse-outline" tone="success" />
-        <AdminMetricCard label="Участники челленджа" value={formatUnits(overview.challengeParticipants)} icon="game-controller-outline" />
-        <AdminMetricCard label="Завершённые игры" value={formatUnits(overview.completedAttempts)} icon="checkmark-done-outline" tone="success" />
-        <AdminMetricCard label="Выдано coin" value={formatUnits(overview.coinsIssued)} icon="diamond-outline" tone="warning" />
-        <AdminMetricCard label="Выдано LC" value={formatUnits(overview.moneyIssuedUnits)} icon="cash-outline" tone="success" />
+      <View style={[styles.metrics, width >= 1024 && styles.metricsSingleRow]}>
+        <AdminMetricCard compact label="Новые регистрации" explanation="Количество аккаунтов, созданных за выбранный день по часовому поясу, указанному в заголовке. Процент под числом показывает изменение относительно предыдущего дня. Если в предыдущий день регистраций не было, процент не рассчитывается." value={formatUnits(overview.registrations)} icon="person-add-outline" detail={overview.registrationGrowthPercent === null ? "Нет прошлого периода" : `${overview.registrationGrowthPercent >= 0 ? "+" : ""}${formatUnits(overview.registrationGrowthPercent)}% к прошлому дню`} tone={overview.registrationGrowthPercent !== null && overview.registrationGrowthPercent < 0 ? "danger" : "primary"} />
+        <AdminMetricCard compact label="Всего пользователей" explanation="Общее количество аккаунтов, которые сейчас хранятся в базе, за всё время работы платформы. Включает пользователей независимо от их активности сегодня. Удалённые из базы аккаунты не учитываются." value={formatUnits(overview.totalUsers)} icon="people-outline" />
+        <AdminMetricCard compact label="Активные за день" explanation="Уникальные пользователи, у которых за выбранный день зафиксирован вход в аккаунт, получение награды за вход, начало или завершение игры либо запись в журнале активности. Каждый пользователь считается один раз, даже если совершил несколько действий. Это активность за день, а не количество людей онлайн одновременно." value={formatUnits(overview.activePlayers)} icon="pulse-outline" tone="success" />
+        <AdminMetricCard compact label="Участники челленджа" explanation="Уникальные пользователи, начавшие хотя бы одну игру челленджа за выбранный день. Завершать все шесть игр для попадания в этот показатель не обязательно." value={formatUnits(overview.challengeParticipants)} icon="game-controller-outline" />
+        <AdminMetricCard compact label="Завершённые игры" explanation="Количество завершённых игровых попыток в режиме челленджа за выбранный день. Считаются игры, а не люди: один участник может завершить несколько игр. Тренировки и незавершённые попытки сюда не входят." value={formatUnits(overview.completedAttempts)} icon="checkmark-done-outline" tone="success" />
+        <AdminMetricCard compact label="Выдано coin" explanation="Сумма начислений внутренних coin, записанных в журнал операций за выбранный день. Это количество монет, а не число получателей и не их текущий баланс. Денежные начисления LC показываются отдельно." value={formatUnits(overview.coinsIssued)} icon="diamond-outline" tone="warning" />
+        <AdminMetricCard compact label="Выдано LC" explanation="Сумма всех положительных начислений LC в журнале кошелька за выбранный день, включая награды и другие зачисления. Списания не вычитаются. Это не сумма выплаченных выводов и не общий баланс пользователей." value={formatUnits(overview.moneyIssuedUnits)} icon="cash-outline" tone="success" />
       </View>
 
       <View style={styles.grid}>
@@ -134,6 +135,7 @@ const styles = StyleSheet.create({
   page: { gap: 16 },
   refresh: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.26)" },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  metricsSingleRow: { flexWrap: "nowrap" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   panel: { flex: 1, minWidth: 290, borderRadius: 26, padding: 16 },
   panelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },

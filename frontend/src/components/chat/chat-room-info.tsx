@@ -1,3 +1,4 @@
+import {playerProfileRoute} from "@/lib/player-profile-navigation";
 import { pickChatPhoto } from "@/lib/chat-media";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useEffect, useState } from "react";
@@ -299,7 +300,7 @@ export function ChatRoomInfo({
           icon="person-outline"
           onPress={() => {
             onClose();
-            router.push(`/player/${room.peer!.id}` as never);
+            router.push(playerProfileRoute(room.peer!.id, room.id) as never);
           }}
         />
       ) : null}
@@ -321,7 +322,7 @@ export function ChatRoomInfo({
             accessibilityLabel={`${c.profile}: ${person.name}`}
             onPress={() => {
               onClose();
-              router.push(`/player/${person.id}` as never);
+              router.push(playerProfileRoute(person.id, room.id) as never);
             }}
             style={{
               flex: 1,

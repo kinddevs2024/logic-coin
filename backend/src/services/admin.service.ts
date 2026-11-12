@@ -1,3 +1,4 @@
+import { TOP_THIRTY_CONTEST_POLICY } from "../lib/top-thirty-contest-plan.js";
 import { broadcastDailyChallengeUpdate } from "./live-updates.service.js";
 import { randomUUID } from "node:crypto";
 import { NEW_CHALLENGE_CASH_LIMIT_UNITS } from "../config/constants.js";
@@ -257,7 +258,7 @@ export async function configureDailyChallenge(input: {
     : existing?.publishedAt ?? new Date();
   const endsAt = !isFirstPublication && existing?.endsAt ? existing.endsAt : new Date(firstPublishedAt.getTime() + 24 * 60 * 60 * 1_000);
   const update = {
-    ...(!existing ? { $setOnInsert: { payoutPolicy: TOP_TEN_CONTEST_POLICY, payoutSeed: newContestPayoutSeed(), cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS, descendingCashPrizes: true } } : {}),
+    ...(!existing ? { $setOnInsert: { payoutPolicy: TOP_THIRTY_CONTEST_POLICY, payoutSeed: newContestPayoutSeed(), cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS, descendingCashPrizes: true } } : {}),
     $set: {
       timezone: env.DEFAULT_TIMEZONE,
       status: publish ? ("published" as const) : ("draft" as const),
@@ -266,7 +267,7 @@ export async function configureDailyChallenge(input: {
       gameIds,
       cashPrizeMinUnits: input.cashPrizeMinUnits,
       cashPrizeMaxUnits: input.cashPrizeMaxUnits,
-      prizePoolUnits: !existing || existing.payoutPolicy?.startsWith("all-six-percent-v") ? 825 : input.prizePoolUnits,
+      prizePoolUnits: !existing || existing.payoutPolicy === TOP_THIRTY_CONTEST_POLICY ? 1000 : existing.payoutPolicy?.startsWith("all-six-percent-v") ? 825 : input.prizePoolUnits,
       coinPrizeAmounts: input.coinPrizeAmounts ?? [0, 0, 0, 0, 0, 0],
       maxAttemptsPerGame,
       oneSecondAttemptLimit,

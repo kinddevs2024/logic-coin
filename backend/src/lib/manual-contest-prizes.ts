@@ -1,3 +1,4 @@
+import { topThirtyContestPlan, TOP_THIRTY_CONTEST_POLICY } from "./top-thirty-contest-plan.js";
 import { ApiError } from "./api-error.js";
 import { fixedPercentContestPlan, percentContestPlan, PERCENT_CONTEST_POLICY } from "./percent-contest-plan.js";
 import { contestCashPlan } from "./contest-cash-plan.js";
@@ -31,6 +32,7 @@ export function contestPrizePlan(standings: readonly ContestStandingInput[], set
   descendingCashPrizes?: boolean | null;
   manualCashPrizes?: readonly ManualCashPrize[] | null;
 }) {
+  if (settings.payoutPolicy === TOP_THIRTY_CONTEST_POLICY) return topThirtyContestPlan(standings, settings.prizePoolUnits);
   if (settings.payoutPolicy === TOP_TEN_CONTEST_POLICY) return topTenContestPlan(standings,settings.payoutSeed);
   if (settings.payoutPolicy === PERCENT_CONTEST_POLICY) return percentContestPlan(standings);
   if (settings.payoutPolicy === "all-six-percent-v1") return fixedPercentContestPlan(standings);

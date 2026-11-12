@@ -2,8 +2,8 @@ import { useUiCopy } from "@/components/localized-native";
 import { useAppStore } from "@/store/app-store";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
-import type { ReactNode } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
@@ -24,16 +24,29 @@ export function AdminPageHeader({ title, description, action }: { title: string;
   );
 }
 
-export function AdminMetricCard({ label, value, icon, tone = "primary", detail }: { label: string; value: string; icon: IconName; tone?: "primary" | "success" | "warning" | "danger"; detail?: string }) {
-  const { copyContent } = useUiCopy();
+export function AdminMetricCard({ label, value, icon, tone = "primary", detail, explanation, compact = false }: { label: string; value: string; icon: IconName; tone?: "primary" | "success" | "warning" | "danger"; detail?: string; explanation?: string; compact?: boolean }) {
   const theme = useAppTheme();
+  const { width } = useWindowDimensions();
+  const [expanded, setExpanded] = useState(false);
   const color = tone === "success" ? theme.success : tone === "warning" ? theme.warning : tone === "danger" ? theme.danger : theme.primary;
   return (
-    <GlassSurface style={styles.metricCard} intensity={64}>
-      <View style={[styles.metricIcon, { backgroundColor: `${String(color)}15` }]}><Ionicons name={icon} size={19} color={String(color)} /></View>
-      <AppText style={styles.metricValue}>{copyContent(value)}</AppText>
-      <AppText variant="caption" muted>{copyContent(label)}</AppText>
-      {detail ? <AppText style={[styles.metricDetail, { color }]}>{copyContent(detail)}</AppText> : null}
+    <GlassSurface style={[styles.metricCard, compact && [styles.metricCompact, { minWidth: width >= 1024 ? 0 : 130 }]]} intensity={64}>
+      {!compact && <View style={[styles.metricIcon, { backgroundColor: `${String(color)}15` }]}><Ionicons name={icon} size={19} color={String(color)} /></View>}
+      <AppText style={styles.metricValue}>{value}</AppText>
+      {explanation ? <Pressable accessibilityRole="button" accessibilityLabel={`${label}: пояснение`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={styles.metricLabel}>
+        <AppText variant="caption" muted style={{ flexShrink: 1 }}>{label}</AppText>
+        <Ionicons name="information-circle-outline" size={16} color={String(theme.textMuted)} />
+      </Pressable> : <AppText variant="caption" muted>{label}</AppText>}
+      {explanation ? <Modal visible={expanded} transparent animationType="fade" onRequestClose={() => setExpanded(false)}>
+        <View style={styles.helpBackdrop}>
+          <View accessibilityViewIsModal style={[styles.helpPanel, { backgroundColor: theme.surfaceRaised }]}>
+            <AppText variant="heading">{label}</AppText>
+            <AppText>{explanation}</AppText>
+            <Pressable accessibilityRole="button" onPress={() => setExpanded(false)} style={[styles.retry, { backgroundColor: theme.primarySoft }]}><AppText variant="label">Понятно</AppText></Pressable>
+          </View>
+        </View>
+      </Modal> : null}
+      {detail ? <AppText style={[styles.metricDetail, { color }]}>{detail}</AppText> : null}
     </GlassSurface>
   );
 }
@@ -87,6 +100,10 @@ const styles = StyleSheet.create({
   pageHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 },
   pageTitleWrap: { flex: 1, minWidth: 0, gap: 3 },
   metricCard: { flex: 1, minWidth: 150, minHeight: 142, borderRadius: 24, padding: 15, gap: 4 },
+  metricCompact: { minWidth: 0, flexBasis: 0, minHeight: 110, padding: 11, borderRadius: 20 },
+  helpBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", padding: 24 },
+  helpPanel: { width: "100%", maxWidth: 480, borderRadius: 24, padding: 24, gap: 16 },
+  metricLabel: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32 },
   metricIcon: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center", marginBottom: 6 },
   metricValue: { fontSize: 23, lineHeight: 28, fontWeight: "900", letterSpacing: -0.5 },
   metricDetail: { fontSize: 10, lineHeight: 13, fontWeight: "800", marginTop: 3 },

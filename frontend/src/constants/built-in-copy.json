@@ -7783,5 +7783,30 @@
     "ru": "Добавить реквизиты карты",
     "uz": "Karta rekvizitlarini qo‘shish",
     "en": "Add card details"
+  },
+  "Карта для вывода": {
+    "ru": "Карта для вывода",
+    "uz": "Yechib olish kartasi",
+    "en": "Withdrawal card"
+  },
+  "Сохраним платёжную систему и последние 4 цифры": {
+    "ru": "Сохраним платёжную систему и последние 4 цифры",
+    "uz": "To‘lov tizimi va oxirgi 4 raqamni saqlaymiz",
+    "en": "We’ll remember the card network and last 4 digits"
+  },
+  "Проверьте 16-значный номер карты.": {
+    "ru": "Проверьте 16-значный номер карты.",
+    "uz": "16 xonali karta raqamini tekshiring.",
+    "en": "Check the 16-digit card number."
+  },
+  "Подтвердить принадлежность карты и согласие с условиями выплаты": {
+    "ru": "Подтвердить принадлежность карты и согласие с условиями выплаты",
+    "uz": "Karta sizga tegishli ekanini va to‘lov shartlariga rozilikni tasdiqlash",
+    "en": "Confirm card ownership and accept payout terms"
+  },
+  "Минимальная сумма вывода — $5": {
+    "ru": "Минимальная сумма вывода — $5",
+    "uz": "Minimal yechish miqdori — $5",
+    "en": "Minimum withdrawal is $5"
   }
 }
