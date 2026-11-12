@@ -35,15 +35,17 @@ const root = path.resolve(
       : ".chat-media"),
 );
 const defaultsReady = new Map<string, number>();
-const userFields = "_id name username avatarUrl referralCode";
+const userFields = "_id name username avatarUrl referralCode role";
 export function chatProfile(user: {
   _id: unknown;
   name: string;
   username?: string | null;
   avatarUrl?: string | null;
   referralCode?: string;
+  role?: string;
 }) {
   return {
+    platformRole: user.role ?? "user",
     id: String(user._id),
     name: user.name,
     username: user.username ?? null,
@@ -55,7 +57,7 @@ async function siteAdmin(userId: Types.ObjectId) {
   return Boolean(
     await User.exists({
       _id: userId,
-      $or: [{ role: "admin" }, { email: { $in: env.ADMIN_EMAILS } }],
+      role: "admin",
     }),
   );
 }
@@ -95,7 +97,7 @@ export async function ensureChatDefaults(userId: Types.ObjectId) {
     await ensureMember(c._id, userId, "member", true);
     result.push(c);
   }
-  const adminFilter = {$or: [{role:"admin"}, {email:{$in:env.ADMIN_EMAILS}}], _id:{$ne:userId}};
+  const adminFilter = {role:"admin", _id:{$ne:userId}};
   const admin = await User.findOne({...adminFilter, email:{$not:/@telegram\.logiccoin\.local$/}}).sort({createdAt:1}).select("_id").lean()
     ?? await User.findOne(adminFilter).sort({createdAt:1}).select("_id").lean();
   if (admin && String(admin._id) !== String(userId)) {
@@ -381,7 +383,13 @@ export async function friendshipStatus(userId: Types.ObjectId, targetId: string)
   const relation = await ChatFriendship.findOne({pairKey: friendPair(userId, targetId)}).lean();
   return !relation ? "none" : relation.status === "accepted" ? "friends" : String(relation.requesterId) === String(userId) ? "outgoing" : "incoming";
 }
+export async function canDirectMessage(userId: Types.ObjectId, targetId: string) {
+  // Staff may start a conversation; its recipient may reply. Blocks are checked separately.
+  if (await User.exists({_id: {$in: [userId, oid(targetId)]}, role: {$in: ["manager", "admin", "owner"]}})) return true;
+  return await friendshipStatus(userId, targetId) === "friends";
+}
 async function requireFriend(userId: Types.ObjectId, targetId: string) {
+  if (await canDirectMessage(userId, targetId)) return;
   if (await friendshipStatus(userId, targetId) !== "friends") return fail(403, "friendship_required", "Accept a friend request first");
 }
 export async function requestFriend(userId: Types.ObjectId, targetId: string) {
@@ -422,6 +430,7 @@ export async function createDirect(userId: Types.ObjectId, targetId: string) {
     return fail(400, "chat_self", "Choose another user");
   if (!(await User.exists({ _id: targetId })))
     return fail(404, "user_not_found", "User not found");
+  if (await ChatBlock.exists({$or:[{userId,blockedId:oid(targetId)},{userId:oid(targetId),blockedId:userId}]})) return fail(403,"chat_blocked","Messages are unavailable for this conversation");
   await Promise.all([
     ensureChatDefaults(userId),
     ensureChatDefaults(oid(targetId)),
@@ -1052,7 +1061,7 @@ export async function addChatMember(
     })
   )
     return fail(403, "chat_blocked", "This user cannot be added");
-  await requireFriend(userId, targetId);
+  if (await friendshipStatus(userId, targetId) !== "friends") return fail(403, "friendship_required", "Accept a friend request first");
   const target = await ensureMember(c._id, oid(targetId));
   if (target.leftAt)
     await ChatMember.updateOne(

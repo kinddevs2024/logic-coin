@@ -2,7 +2,7 @@ export const API_PREFIX = "/api/v1";
 
 export const SUPPORTED_LANGUAGES = ["en", "ru", "uz"] as const;
 export const THEMES = ["auto", "light", "sky", "dark", "green", "blue", "pink", "graphite", "custom"] as const;
-export const USER_ROLES = ["user", "admin"] as const;
+export const USER_ROLES = ["user", "manager", "admin", "owner"] as const;
 
 export const DAILY_BONUS_REWARDS_UNITS = [2, 3, 4, 5, 7, 10, 15] as const;
 export const WEEKLY_BONUS_REWARD_UNITS = 25;

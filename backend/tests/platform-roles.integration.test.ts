@@ -1,0 +1,45 @@
+import express from "express";
+import request from "supertest";
+import mongoose, { Types } from "mongoose";
+import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from "vitest";
+vi.mock("../src/services/token.service.js",()=>({verifyAccessToken:(token:string)=>({sub:token,sid:"507f1f77bcf86cd799439099"}),isAccessSessionActive:async()=>true}));
+import { requireAuth } from "../src/middleware/auth.js";
+import { requireAdmin } from "../src/middleware/admin.js";
+import adminUsers from "../src/routes/admin-users.routes.js";
+import ownerRoutes from "../src/routes/owner.routes.js";
+import { sendAdminNotification } from "../src/services/admin.service.js";
+import { listInbox } from "../src/services/inbox.service.js";
+import { NotificationEvent } from "../src/models/NotificationEvent.js";
+import { User } from "../src/models/User.js";
+import { ChatFriendship, ChatBlock } from "../src/models/Chat.js";
+import { canDirectMessage, createDirect } from "../src/services/chat.service.js";
+const uri=process.env.QA_MONGODB_URI;
+describe.skipIf(!uri)("four platform roles in isolated database",()=>{
+ const ids=Object.fromEntries(["user","manager","admin","owner","admin2"].map(r=>[r,new Types.ObjectId()]));
+ const app=express();app.use(express.json());app.use("/admin/users",requireAuth,requireAdmin,adminUsers);app.use("/owner",ownerRoutes);
+ app.use((e:any,_q:express.Request,r:express.Response,_n:express.NextFunction)=>r.status(e.statusCode??500).json({error:e.code??e.message}));
+ const auth=(r:string)=>`Bearer ${ids[r]}`;
+ beforeAll(async()=>{if(!uri?.startsWith("mongodb://127.0.0.1:27951/"))throw Error("Isolated database only");await mongoose.connect(uri,{dbName:`roles_qa_${Date.now()}`});await User.init();});
+ beforeEach(async()=>{await User.deleteMany({});await NotificationEvent.deleteMany({});await ChatFriendship.deleteMany({});await ChatBlock.deleteMany({});await mongoose.connection.db!.collection("adminuseraudits").deleteMany({});await User.create(Object.entries(ids).map(([role,_id])=>({_id,name:role,email:`${role}@test.invalid`,referralCode:`ROLETEST${role.toUpperCase()}`,role:role==="admin2"?"admin":role})));});
+ afterAll(async()=>{await mongoose.connection.dropDatabase();await mongoose.disconnect();});
+ it.each(["user","manager","owner"])("%s cannot edit users or assign roles",async role=>{expect((await request(app).patch(`/admin/users/${ids.user}/role`).set("Authorization",auth(role)).send({role:"admin",expectedRole:"user",reason:"Test role"})).status).toBe(403);expect((await User.findById(ids.user))!.role).toBe("user");});
+ it("admin assigns manager and records the change",async()=>{const r=await request(app).patch(`/admin/users/${ids.user}/role`).set("Authorization",auth("admin")).send({role:"manager",expectedRole:"user",reason:"Test manager"});expect(r.status).toBe(200);expect(r.body.data.user.role).toBe("manager");expect(await mongoose.connection.db!.collection("adminuseraudits").countDocuments({action:"change_role"})).toBe(1);});
+ it("rejects self-demotion and stale writes",async()=>{expect((await request(app).patch(`/admin/users/${ids.admin}/role`).set("Authorization",auth("admin")).send({role:"owner",expectedRole:"admin",reason:"Test demotion"})).status).toBe(400);expect((await request(app).patch(`/admin/users/${ids.user}/role`).set("Authorization",auth("admin")).send({role:"owner",expectedRole:"manager",reason:"Stale role"})).status).toBe(409);});
+ it("serializes concurrent cross-demotions and retains an admin",async()=>{const results=await Promise.all([request(app).patch(`/admin/users/${ids.admin2}/role`).set("Authorization",auth("admin")).send({role:"user",expectedRole:"admin",reason:"Concurrent role"}),request(app).patch(`/admin/users/${ids.admin}/role`).set("Authorization",auth("admin2")).send({role:"user",expectedRole:"admin",reason:"Concurrent role"})]);expect(results.filter(r=>r.status===200)).toHaveLength(1);expect(await User.countDocuments({role:"admin"})).toBe(1);});
+ it.each(["owner","admin"])("%s can read finances but owner router has no mutation endpoints",async role=>{expect((await request(app).get("/owner/budget?days=7").set("Authorization",auth(role))).status).toBe(200);expect((await request(app).post("/owner/budget").set("Authorization",auth(role)).send({amount:999})).status).toBe(404);});
+ it.each(["user","manager"])("%s cannot read financial reports",async role=>{expect((await request(app).get("/owner/budget").set("Authorization",auth(role))).status).toBe(403);});
+ it("immediately revokes report access after demotion",async()=>{await User.updateOne({_id:ids.owner},{$set:{role:"user"}});expect((await request(app).get("/owner/budget").set("Authorization",auth("owner"))).status).toBe(403);});
+ it.each(["manager","owner","admin"])("%s may write to non-friends, who may reply",async role=>{expect(await canDirectMessage(ids[role]!,String(ids.user))).toBe(true);expect(await canDirectMessage(ids.user!,String(ids[role]))).toBe(true);});
+ it("ordinary users still need friendship; demotion revokes bypass",async()=>{await User.updateOne({_id:ids.manager},{$set:{role:"user"}});expect(await canDirectMessage(ids.manager!,String(ids.user))).toBe(false);await ChatFriendship.create({pairKey:[String(ids.user),String(ids.manager)].sort().join(":"),requesterId:ids.user,recipientId:ids.manager,status:"accepted"});expect(await canDirectMessage(ids.manager!,String(ids.user))).toBe(true);});
+ it("system messages remain in the inbox without push devices",async()=>{
+  const delivery=await sendAdminNotification({title:"Notice",body:"From administration",recipientName:"user@test.invalid",adminSubject:String(ids.admin)});
+  expect(delivery.targetCount).toBe(0);expect(delivery.sentCount).toBe(0);
+  const inbox=await listInbox(ids.user!,true);expect(inbox.items).toEqual(expect.arrayContaining([expect.objectContaining({title:"Notice",body:"From administration",kind:"admin_broadcast"})]));
+  expect((await listInbox(ids.manager!,true)).items).toHaveLength(0);
+ });
+ it("system broadcasts reach all existing accounts in the inbox",async()=>{
+  await sendAdminNotification({title:"Everyone",body:"Platform announcement",adminSubject:String(ids.admin)});
+  for(const userId of Object.values(ids))expect((await listInbox(userId,true)).items).toEqual(expect.arrayContaining([expect.objectContaining({title:"Everyone",kind:"admin_broadcast"})]));
+ });
+ it("staff cannot bypass a recipient's block",async()=>{await ChatBlock.create({userId:ids.user,blockedId:ids.owner});await expect(createDirect(ids.owner!,String(ids.user))).rejects.toMatchObject({statusCode:403,code:"chat_blocked"});});
+});

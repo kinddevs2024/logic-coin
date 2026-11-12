@@ -4,7 +4,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { THEMES, SUPPORTED_LANGUAGES } from "../config/constants.js";
+import { THEMES, SUPPORTED_LANGUAGES, USER_ROLES } from "../config/constants.js";
 import { User } from "../models/User.js";
 import { ApiError } from "../lib/api-error.js";
 import { validateBody } from "../middleware/validate.js";
@@ -33,6 +33,22 @@ router.get("/",async(req,res)=>{
  const filter=q?{$or:[{name:{$regex:escaped,$options:"i"}},{email:{$regex:escaped,$options:"i"}},{username:{$regex:escaped.replace(/^@/,""),$options:"i"}},{referralCode:{$regex:escaped,$options:"i"}}]}:{};
  const [users,total]=await Promise.all([User.find(filter).select(projection).sort({_id:1}).skip(Math.floor(page)*25).limit(25).lean(),User.countDocuments(filter)]);
  res.json({data:{users,total}});
+});
+router.patch("/:id/role", validateBody(z.object({role:z.enum(USER_ROLES), expectedRole:z.enum(USER_ROLES), reason:z.string().trim().min(3).max(240)}).strict()), async(req,res)=>{
+ const userId=id(String(req.params.id)), session=await mongoose.startSession();let result;
+ try { await session.withTransaction(async()=>{
+  await mongoose.connection.db!.collection<{_id:string; revision:number}>("platformrolelocks").updateOne({_id:"roles"},{$inc:{revision:1}},{upsert:true,session});
+  const actor=await User.findById(req.auth!.userId).select("role").session(session).lean();
+  if(actor?.role!=="admin")throw new ApiError(403,"admin_required","Administrator access is required");
+  const target=await User.findById(userId).select("role").session(session).lean();
+  if(!target)throw new ApiError(404,"not_found","Пользователь не найден.");
+  if(target.role!==req.body.expectedRole)throw new ApiError(409,"changed","Роль уже изменена. Обновите список.");
+  if(String(userId)===String(req.auth!.userId)&&req.body.role!=="admin")throw new ApiError(400,"self_demotion","Изменить вашу роль должен другой администратор.");
+  if(target.role==="admin"&&req.body.role!=="admin"&&await User.countDocuments({role:"admin"}).session(session)<=1)throw new ApiError(409,"last_admin","Нельзя удалить последнего администратора.");
+  result=await User.findByIdAndUpdate(userId,{$set:{role:req.body.role}},{new:true,runValidators:true,session}).select(projection).lean();
+  await mongoose.connection.db!.collection("adminuseraudits").insertOne({operationId:randomUUID(),adminId:req.auth!.userId,userId,action:"change_role",before:target.role,after:req.body.role,reason:req.body.reason,createdAt:new Date()},{session});
+ });}finally{await session.endSession();}
+ res.json({data:{user:result}});
 });
 router.patch("/:id",validateBody(z.object({expectedUpdatedAt:z.string().datetime(),reason:z.string().trim().min(3).max(240),profile:editableUserProfile}).strict()),async(req,res)=>{
  const userId=id(String(req.params.id)),session=await mongoose.startSession();let result;

@@ -167,15 +167,15 @@ async function serializeChallengeSets(sets: readonly ChallengeSetLike[]) {
   }));
 }
 
-export async function getAdminDailyChallenge(dayKey: string) {
-  await settleExpiredDailyContests(dayKey);
+export async function getAdminDailyChallenge(dayKey: string, readOnly = false) {
+  if (!readOnly) await settleExpiredDailyContests(dayKey);
   const set = (await DailyChallengeSet.findOne({ dayKey }).lean()) as ChallengeSetLike | null;
   if (!set) return null;
   return (await serializeChallengeSets([set]))[0] ?? null;
 }
 
-export async function listAdminDailyChallenges(from: string, to: string) {
-  await settleExpiredDailyContests();
+export async function listAdminDailyChallenges(from: string, to: string, readOnly = false) {
+  if (!readOnly) await settleExpiredDailyContests();
   const sets = (await DailyChallengeSet.find({ dayKey: { $gte: from, $lte: to } })
     .sort({ dayKey: -1 })
     .lean()) as ChallengeSetLike[];
@@ -341,7 +341,7 @@ export async function configureDailyChallenge(input: {
   };
 }
 
-export async function getAdminOverview(dayKey: string) {
+export async function getAdminOverview(dayKey: string, readOnly = false) {
   const { from, to } = dayBoundsInTimeZone(dayKey, env.DEFAULT_TIMEZONE);
   const previousDayKey = addDays(dayKey, -1);
   const previousBounds = dayBoundsInTimeZone(previousDayKey, env.DEFAULT_TIMEZONE);
@@ -375,7 +375,7 @@ export async function getAdminOverview(dayKey: string) {
       { $match: { createdAt: { $gte: from, $lt: to }, amountUnits: { $gt: 0 } } },
       { $group: { _id: null, total: { $sum: "$amountUnits" } } }
     ]),
-    getAdminDailyChallenge(dayKey),
+    getAdminDailyChallenge(dayKey, readOnly),
     DailyContestSettlement.findOne({ dayKey }).lean()
   ]);
 
@@ -407,8 +407,8 @@ export async function getAdminOverview(dayKey: string) {
   };
 }
 
-export async function getAdminAnalytics(dayKey: string) {
-  const overview = await getAdminOverview(dayKey);
+export async function getAdminAnalytics(dayKey: string, readOnly = false) {
+  const overview = await getAdminOverview(dayKey, readOnly);
   const results = await DailyContestResult.find({ dayKey }).sort({ rank: 1 }).limit(500).lean();
   const users = await User.find({ _id: { $in: results.map((result) => result.userId) } })
     .select("name avatarUrl")

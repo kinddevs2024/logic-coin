@@ -106,13 +106,14 @@ router.post("/users/:id/friend-answer", writeLimiter, validateBody(z.object({acc
 router.get("/users/:id", async (req, res) => {
   const userId = parseId(req.params.id),
     user = await User.findById(userId)
-      .select("name username avatarUrl referralCode coins wallet countryCode")
+      .select("name username avatarUrl referralCode coins wallet countryCode role")
       .lean();
   if (!user) throw new ApiError(404, "user_not_found", "User not found");
   res.json({
     data: {
       ...chat.chatProfile(user),
       friendship: await chat.friendshipStatus(req.auth!.userId, userId),
+      canMessage: await chat.canDirectMessage(req.auth!.userId, userId),
       countryCode: user.countryCode,
       coinBalance: user.coins.balance,
       balanceUnits: user.wallet.availableUnits,

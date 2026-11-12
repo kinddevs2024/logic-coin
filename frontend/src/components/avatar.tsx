@@ -1,5 +1,6 @@
 import { useUiCopy } from "@/components/localized-native";
 
+import { RoleBadge } from "@/components/role-badge";
 import { useState } from "react";
 import { Image, View } from "react-native";
 
@@ -23,6 +24,7 @@ export function Avatar({
 }) {
   const theme = useAppTheme();
   return (
+    <View style={{width: size, height: size}}>
     <View
       style={{
         width: size,
@@ -33,6 +35,8 @@ export function Avatar({
       }}
     >
       <AvatarContent key={avatarUrl || "initials"} userId={userId} name={name} avatarUrl={avatarUrl} size={size} />
+    </View>
+    {userId ? <View pointerEvents="none" style={{position:"absolute",bottom:-3,left:-(Math.max(0,40-size)/2),right:-(Math.max(0,40-size)/2)}}><RoleBadge userId={userId} compact={size<64} /></View> : null}
     </View>
   );
 }

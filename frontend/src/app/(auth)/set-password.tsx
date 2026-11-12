@@ -41,7 +41,7 @@ export default function SetPasswordScreen() {
         balanceUnits: result.user.wallet?.availableUnits,
       });
       const setupUserId = useAppStore.getState().postAuthLanguageUserId;
-      const destination = result.user.role === "admin"
+      const destination = result.user.role === "owner" ? "/owner" : result.user.role === "admin"
         ? "/admin"
         : !result.user.countryCode
           ? setupUserId === result.user.id ? "/country" : "/language"

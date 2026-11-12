@@ -19,7 +19,7 @@ export function useSignInCompletion(onAuthenticated?: (result: SocialAuthResult)
       refreshToken: result.tokens.refreshToken,
       balanceUnits: result.user.wallet?.availableUnits,
     });
-    const destination = result.user.role === "admin" ? "/admin"
+    const destination = result.user.role === "owner" ? "/owner" : result.user.role === "admin" ? "/admin"
       : !result.user.countryCode
         ? state.postAuthLanguageUserId === result.user.id ? "/country" : "/language"
         : "/(tabs)";

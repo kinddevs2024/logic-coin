@@ -26,11 +26,13 @@ export default function AdminNotificationsScreen() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [userName, setUserName] = useState("");
+  const [review, setReview] = useState(false);
+  const [sent, setSent] = useState("");
   const send = useMutation({
     mutationFn: () => adminApi.sendNotification({ title: title.trim(), body: body.trim(), ...(userName.trim() ? { userName: userName.trim() } : {}) }, adminToken),
     onSuccess: ({ notification }) => {
       const target = notification.recipientName ? notification.recipientName : `${notification.targetCount} устройств`;
-      Alert.alert("Уведомление отправлено", `Получатель: ${target}. Доставлено: ${notification.sentCount}.`);
+      setSent(`Системное сообщение сохранено. ${notification.recipientName ? `Получатель: ${notification.recipientName}.` : "Получатели: все пользователи."} Push: ${notification.sentCount} из ${notification.targetCount}.`); setReview(false);
       setTitle(""); setBody(""); setUserName("");
     },
     onError: (error) => Alert.alert("Не удалось отправить", error instanceof Error ? error.message : "Повторите попытку"),
@@ -38,15 +40,16 @@ export default function AdminNotificationsScreen() {
   const valid = title.trim().length > 0 && body.trim().length > 0;
 
   return <View style={styles.page}>
-    <WinnerReplies />
-    <AdminPageHeader title="Уведомления" description="Рассылка всем игрокам или одному пользователю по имени либо email." />
+
+    <AdminPageHeader title="Системные сообщения" description="Сообщение от администрации во вкладке «Системные» — всем игрокам или одному получателю." />
     <GlassSurface intensity={72} variant="strong" style={styles.card}>
-      <View style={styles.iconLine}><View style={[styles.icon, { backgroundColor: theme.primarySoft }]}><Ionicons name="notifications" size={22} color={String(theme.primary)} /></View><View><AppText variant="heading">{copyText("Новое push-уведомление")}</AppText><AppText variant="caption" muted>{copyText("Пользователь получит его, если разрешил уведомления в приложении.")}</AppText></View></View>
+      <View style={styles.iconLine}><View style={[styles.icon, { backgroundColor: theme.primarySoft }]}><Ionicons name="notifications" size={22} color={String(theme.primary)} /></View><View><AppText variant="heading">{copyText("Новое системное сообщение")}</AppText><AppText variant="caption" muted>{copyText("Сохранится внутри приложения. Если уведомления разрешены, дополнительно придёт push.")}</AppText></View></View>
       <Field label="Кому (необязательно)" value={userName} onChangeText={setUserName} placeholder={copyText("Имя пользователя или email; пусто — всем")} theme={theme} />
       <Field label="Заголовок" value={title} onChangeText={setTitle} placeholder={copyText("Например: Новый челлендж")} theme={theme} maxLength={120} />
       <Field label="Сообщение" value={body} onChangeText={setBody} placeholder={copyText("Текст уведомления")} theme={theme} multiline maxLength={500} />
       <AppText variant="caption" muted>{copyContent("Команды в заголовке и сообщении: {name} — имя получателя, {country} — его страна на языке приложения. Пример: Привет, {name}! Как дела в стране {country}? Если данных нет, появится «Игрок» или «Страна не указана».")}</AppText>
-      <AppButton icon="send" loading={send.isPending} disabled={!valid} onPress={() => send.mutate()}>{copyText("Отправить уведомление")}</AppButton>
+      {sent?<AppText accessibilityRole="alert">{sent}</AppText>:null}
+      {review?<View style={{gap:10,padding:16,borderRadius:16,backgroundColor:theme.surfaceRaised}}><AppText variant="label">{userName.trim()?`Получатель: ${userName.trim()}`:"Получатели: все пользователи"}</AppText><AppText variant="heading">{title.trim()}</AppText><AppText>{body.trim()}</AppText><AppButton icon="send" loading={send.isPending} disabled={!valid} onPress={()=>send.mutate()}>Отправить системное сообщение</AppButton><AppButton disabled={send.isPending} onPress={()=>setReview(false)}>Назад к редактированию</AppButton></View>:<AppButton disabled={!valid} onPress={()=>{setSent("");setReview(true);}}>Посмотреть перед отправкой</AppButton>}
     </GlassSurface>
     <View style={styles.presets}>{PRESETS.map((preset) => <Pressable key={preset.title} accessibilityRole="button" onPress={() => { setTitle(preset.title); setBody(preset.body); }} style={({ pressed }) => [styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }, pressed && styles.pressed]}><Ionicons name="flash-outline" size={17} color={String(theme.primary)} /><View style={{ flex: 1 }}><AppText variant="label">{copyContent(preset.title)}</AppText><AppText variant="caption" muted numberOfLines={2}>{copyContent(preset.body)}</AppText></View></Pressable>)}</View>
   </View>;

@@ -839,7 +839,16 @@ export type AdminWithdrawal = {
 };
 export type AdminWithdrawalPage = { withdrawals: AdminWithdrawal[]; nextCursor: string | null; summary: { status: string; count: number; amountCents: number }[] };
 
+export const profileRolesApi = () => request<{roles: Record<string, string>}>("/profile/roles");
+export const ownerApi = {
+ overview: (dayKey: string, token: string) => request<AdminOverview>(`/owner/overview?dayKey=${encodeURIComponent(dayKey)}`, {token}),
+ analytics: (dayKey: string, token: string) => request<AdminOverview & {recipients: {userId:string;name:string;rank:number;totalCoins:number;cashUnits:number}[]}>(`/owner/analytics?dayKey=${encodeURIComponent(dayKey)}`, {token}),
+ budget: (days: number, token: string) => request<AdminBudget>(`/owner/budget?days=${days}`, {token}),
+ challenges: (from:string,to:string,token:string) => request<{challenges:AdminChallenge[]}>(`/owner/daily-challenges?from=${from}&to=${to}`,{token}),
+ withdrawals: (token:string) => request<{totals:{_id:string;count:number;amountUnits:number}[]}>("/owner/withdrawals",{token}),
+};
 export const adminApi = {
+ changeRole(id:string,input:{role:string;expectedRole:string;reason:string},token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}/role`,{method:"PATCH",token,body:JSON.stringify(input)});},
  telegramContact(id:string,token:string){return request<{contact:{telegramId:string;chatId:string;firstName?:string;lastName?:string;username?:string;phoneNumber?:string;phoneVerifiedAt?:string;subscriptionCheckedAt?:string}|null}>(`/admin/users/${encodeURIComponent(id)}/telegram-contact`,{token});},
  users(q:string,page:number,token:string){return request<{users:any[];total:number}>(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`,{token});},
  editUser(id:string,input:any,token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}`,{method:"PATCH",token,body:JSON.stringify(input)});},

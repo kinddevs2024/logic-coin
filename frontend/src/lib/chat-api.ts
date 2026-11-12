@@ -1,6 +1,7 @@
 import { uploadChatBinary } from "./chat-upload";
 import { API_URL, authenticatedRequest as request } from "./api";
 export type ChatPerson = {
+  platformRole?: "user" | "manager" | "admin" | "owner";
   id: string;
   name: string;
   username?: string | null;
@@ -106,6 +107,7 @@ export const chatApi = {
         coinBalance: number;
         balanceUnits: number;
         blocked: boolean;
+        canMessage?: boolean;
         friendship: "self" | "none" | "incoming" | "outgoing" | "friends";
       }
     >(token, `/users/${id}`),

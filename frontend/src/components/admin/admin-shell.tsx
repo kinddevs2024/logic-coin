@@ -22,7 +22,7 @@ const NAV_ITEMS: { href: "/admin/winners" | "/admin/chats" | "/admin/raffle" | "
   { href: "/admin/raffle", label: "Розыгрыши", icon: "sparkles-outline" },
   { href: "/admin/games", label: "Игры", icon: "apps-outline" },
   { href: "/admin/chats", label: "Сообщения и жалобы", icon: "chatbubbles-outline" },
-  { href: "/admin/notifications", label: "Уведомления", icon: "notifications-outline" },
+  { href: "/admin/notifications", label: "Системные сообщения", icon: "notifications-outline" },
   { href: "/admin/budget", label: "Бюджет", icon: "wallet-outline" },
   { href: "/admin/withdrawals", label: "Выводы", icon: "cash-outline" },
   { href: "/admin/blocked", label: "Блокировки", icon: "ban-outline" },

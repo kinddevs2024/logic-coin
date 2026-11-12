@@ -34,7 +34,7 @@ export type UserPreferences = {
 
 export type User = {
   id?: string;
-  role?: "user" | "admin";
+  role?: "user" | "manager" | "admin" | "owner";
   name: string;
   email?: string;
   avatarUrl?: string | null;

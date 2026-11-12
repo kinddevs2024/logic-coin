@@ -49,7 +49,7 @@ export default function PlayerProfileScreen() {
     if (busy) return;
     setBusy(true);
     try {
-      if (p?.friendship !== "friends") {
+      if (!p?.canMessage && p?.friendship !== "friends") {
         const result = p?.friendship === "incoming" ? await chatApi.answerFriend(token,id,true) : await chatApi.requestFriend(token,id);
         await query.refetch();
         if (!("id" in result) || !result.id) return;
@@ -107,7 +107,7 @@ export default function PlayerProfileScreen() {
             <>
               <Pressable
                 accessibilityRole="button"
-                disabled={busy || p.friendship === "outgoing" || p.blocked}
+                disabled={busy || (!p.canMessage && p.friendship === "outgoing") || p.blocked}
                 onPress={() => {
                   void write();
                 }}
@@ -120,7 +120,7 @@ export default function PlayerProfileScreen() {
                 }}
               >
                 <AppText color={String(theme.onPrimary)} variant="label">
-                  {p.friendship === "friends" ? c.newChat : p.friendship === "incoming" ? c.acceptFriend : p.friendship === "outgoing" ? c.requestSent : c.friendRequest}
+                  {p.canMessage || p.friendship === "friends" ? c.newChat : p.friendship === "incoming" ? c.acceptFriend : p.friendship === "outgoing" ? c.requestSent : c.friendRequest}
                 </AppText>
               </Pressable>
               <ChatAction

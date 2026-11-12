@@ -9,6 +9,11 @@ import { listAvatarUrl } from "../lib/list-avatar.js";
 const router = Router();
 const codeSchema = z.string().trim().regex(/^[A-Z0-9-]{4,32}$/i);
 
+router.get("/roles", async (_request, response) => {
+  response.setHeader("Cache-Control", "no-store");
+  const users = await User.find({role: {$in: ["manager", "admin", "owner"]}}).select("role").lean();
+  response.json({data: {roles: Object.fromEntries(users.map(user => [String(user._id), user.role]))}});
+});
 router.get("/:referralCode", async (request, response) => {
   const parsed = codeSchema.safeParse(request.params.referralCode);
   if (!parsed.success) throw new ApiError(400, "invalid_profile_code", "Profile code is invalid");

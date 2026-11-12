@@ -95,7 +95,7 @@ function ConversationPaneContent({
     return () => { show.remove(); hide.remove(); };
   }, []);
   const peer = useQuery({queryKey:["chat-profile",token,room.peer?.id],enabled:room.kind === "direct" && Boolean(room.peer?.id),queryFn:()=>chatApi.profile(token,room.peer!.id),refetchInterval:15_000});
-  const needsFriend = room.kind === "direct" && peer.data?.friendship !== "friends";
+  const needsFriend = room.kind === "direct" && !peer.data?.canMessage && peer.data?.friendship !== "friends";
   const [inputHeight, setInputHeight] = useState(44);
   const [chatMenu, setChatMenu] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
