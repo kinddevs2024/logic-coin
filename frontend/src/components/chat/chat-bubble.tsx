@@ -1,3 +1,4 @@
+import { SystemMessageReactions } from "./system-message-reactions";
 import { RaffleWinnerSystemMessage } from "./raffle-winner-system-message";
 import { WithdrawalSystemMessage } from "./withdrawal-system-message";
 import { VideoPlayer } from "./video-player";
@@ -30,25 +31,29 @@ export const ChatBubble = memo(function ChatBubble({
   onProfile,
   onPhoto,
   onListened,
+  onReplyPress,
+  highlighted,
 }: {
   item: ChatItem;
   room: ChatRoom;
   onActions: (item: ChatItem, anchor?: ChatAnchor) => void;
   onProfile: (id: string) => void;
   onPhoto: (file: ChatFile) => void;
+  onReplyPress?: (id: string) => void;
+  highlighted?: boolean;
   onListened?: (item: ChatItem) => void;
 }) {
   const theme = useAppTheme(),
     c = useChatCopy();
-  if (item.system?.kind === "raffle_winner" && !item.deleted) return <RaffleWinnerSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} />;
-  if (item.system?.kind === "withdrawal_approved" && !item.deleted) return <WithdrawalSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} />;
+  if (item.system?.kind === "raffle_winner" && !item.deleted) return <View nativeID={`chat-seq-${item.seq}`} style={{width:"100%",backgroundColor:highlighted?theme.primarySoft:undefined,borderRadius:16}}><RaffleWinnerSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} /><SystemMessageReactions item={item} onActions={onActions} /></View>;
+  if (item.system?.kind === "withdrawal_approved" && !item.deleted) return <View nativeID={`chat-seq-${item.seq}`} style={{width:"100%",backgroundColor:highlighted?theme.primarySoft:undefined,borderRadius:16}}><WithdrawalSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} /><SystemMessageReactions item={item} onActions={onActions} /></View>;
   const hasVoice = !item.deleted && item.attachments.some(file => file.kind === "voice");
   const voiceOnly = hasVoice && item.attachments.length === 1 && !item.text;
   const inlineTime = Boolean(item.text) && !item.deleted && !item.attachments.length && !item.reactions.length && !item.edited && !item.pinned;
   const time = new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).replace(/\s/g, "\u00a0");
   return (
     <Animated.View entering={reactionEntering} layout={reactionLayout}
-      style={[styles.row, item.own && { justifyContent: "flex-end" }]}
+      style={[styles.row, highlighted && { backgroundColor: theme.primarySoft, borderRadius: 16 }, item.own && { justifyContent: "flex-end" }]}
     >
       {!item.own ? (
         <Pressable
@@ -101,14 +106,14 @@ export const ChatBubble = memo(function ChatBubble({
           </AppText>
         ) : null}
         {item.reply ? (
-          <View style={[styles.quote, { borderLeftColor: theme.primary }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={c.viewOriginal} onPress={event=>{event.stopPropagation();onReplyPress?.(item.reply!.id);}} style={[styles.quote, { borderLeftColor: theme.primary }]}>
             <AppText variant="caption" color={String(theme.primary)}>
               {item.reply.sender}
             </AppText>
             <AppText numberOfLines={2} variant="caption" muted>
               {item.reply.text || c.attach}
             </AppText>
-          </View>
+          </Pressable>
         ) : null}
         {item.deleted ? (
           <AppText muted>{c.deleted}</AppText>

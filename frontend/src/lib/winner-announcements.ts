@@ -1,6 +1,6 @@
 import { authenticatedRequest } from "./api";
 export type WinnerRecipient = { id: string; name: string; username?: string | null; referralCode?: string };
-export type WinnerDraft = { operationId: string; recipientId: string; raffleTitle: string } & ({ prizeType: "cash"; amountCents: number } | { prizeType: "item"; prizeText: string });
+export type WinnerDraft = { operationId: string; destinations?: ("news" | "community")[]; recipientId: string; raffleTitle: string } & ({ prizeType: "cash"; amountCents: number } | { prizeType: "item"; prizeText: string });
 export type PublishedWinner = { id: string; recipientId: string; recipientName: string; raffleTitle: string; prizeType: "cash" | "item"; amountCents?: number; prizeText?: string; createdAt: string; destinations: { systemKey: "news" | "community"; conversationId: string; messageId: string }[] };
 export function parsePrizeCents(text: string): number | null {
   const normalized = text.trim().replace(",", ".");

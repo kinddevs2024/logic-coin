@@ -16,6 +16,7 @@ import { parsePrizeCents, winnerAnnouncementsApi, type WinnerDraft, type WinnerR
 
 export default function AdminWinnersScreen() {
   const { adminToken } = useAdminSession(), theme = useAppTheme(), router = useRouter(), { isDesktop } = useResponsiveLayout();
+  const [destination, setDestination] = useState<"both" | "news" | "community">("both");
   const [search, setSearch] = useState(""), [debounced, setDebounced] = useState("");
   const [recipient, setRecipient] = useState<WinnerRecipient | null>(null);
   const [title, setTitle] = useState(""), [prizeType, setPrizeType] = useState<"cash" | "item">("cash"), [amount, setAmount] = useState(""), [prizeText, setPrizeText] = useState("");
@@ -26,8 +27,8 @@ export default function AdminWinnersScreen() {
   const searchReady = search.trim() === debounced && debounced.length >= 2;
   const recipients = useQuery({ queryKey: ["admin", "winner-recipients", debounced, adminToken], queryFn: () => winnerAnnouncementsApi.recipients(debounced, adminToken), enabled: !recipient && searchReady });
   const history = useQuery({ queryKey: ["admin", "winner-announcements", adminToken], queryFn: () => winnerAnnouncementsApi.list(adminToken) });
-  const publish = useMutation({ mutationFn: (draft: WinnerDraft) => winnerAnnouncementsApi.publish(draft, adminToken), onSuccess: () => {
-    operation.current = null; setNotice("Опубликовано в общем канале и комьюнити."); setRecipient(null); setSearch(""); setTitle(""); setAmount(""); setPrizeText(""); void history.refetch();
+  const publish = useMutation({ mutationFn: (draft: WinnerDraft) => winnerAnnouncementsApi.publish(draft, adminToken), onSuccess: ({ announcement }) => {
+    operation.current = null; setNotice(announcement.destinations.length === 2 ? "Опубликовано в общем канале и комьюнити." : announcement.destinations[0]?.systemKey === "news" ? "Опубликовано в общем канале." : "Опубликовано в комьюнити."); setRecipient(null); setSearch(""); setTitle(""); setAmount(""); setPrizeText(""); void history.refetch();
   } });
   const cents = parsePrizeCents(amount);
   const valid = Boolean(recipient && title.trim() && (prizeType === "cash" ? cents !== null : prizeText.trim()));
@@ -36,7 +37,7 @@ export default function AdminWinnersScreen() {
   const submit = () => {
     if (!valid || !recipient || publish.isPending) return;
     operation.current ??= Crypto.randomUUID();
-    const base = { operationId: operation.current, recipientId: recipient.id, raffleTitle: title.trim() };
+    const base = { destinations: destination === "both" ? ["news", "community"] as ("news" | "community")[] : [destination], operationId: operation.current, recipientId: recipient.id, raffleTitle: title.trim() };
     publish.mutate(prizeType === "cash" ? { ...base, prizeType, amountCents: cents! } : { ...base, prizeType, prizeText: prizeText.trim() });
   };
   const openProfile = (id: string) => { if (recipient) router.push(playerProfileRoute(id) as never); };
@@ -45,6 +46,8 @@ export default function AdminWinnersScreen() {
     <View style={[styles.columns, isDesktop && styles.desktop]}>
       <GlassSurface variant="strong" style={[styles.form, isDesktop && { flex: 1 }]}>
         <AppText variant="heading">Победитель и приз</AppText>
+        <AppText variant="caption" muted>Куда опубликовать</AppText>
+        <View style={styles.choices}>{([['both','Канал и комьюнити'],['news','Только канал'],['community','Только комьюнити']] as const).map(([value,label]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{checked:destination===value}} disabled={publish.isPending} onPress={()=>{changed();setDestination(value);}} style={[styles.choice,{borderColor:destination===value?theme.primary:theme.border,backgroundColor:destination===value?theme.primarySoft:theme.surface}]}><AppText variant="caption">{label}</AppText></Pressable>)}</View>
         <AppText variant="caption" muted>Выберите пользователя</AppText>
         {recipient ? <View style={[styles.selected, { borderColor: theme.primary, backgroundColor: theme.primarySoft }]}>
           <AppText variant="label">{recipient.name}</AppText><AppText variant="caption" muted>{recipient.username ? `@${recipient.username}` : recipient.referralCode}</AppText>
@@ -63,11 +66,11 @@ export default function AdminWinnersScreen() {
         <AppText variant="caption" muted>Публикация объявляет результат. Деньги на баланс она не начисляет.</AppText>
         {notice ? <AppText accessibilityRole="alert" color={String(theme.success)}>{notice}</AppText> : null}
         {publish.error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{publish.error instanceof Error ? publish.error.message : "Не удалось опубликовать. Повторите попытку."}</AppText> : null}
-        <AppButton accessibilityLabel="Опубликовать в канал и чат" icon="send-outline" disabled={!valid} loading={publish.isPending} onPress={submit}>Опубликовать в канал и чат</AppButton>
+        <AppButton accessibilityLabel="Опубликовать объявление" icon="send-outline" disabled={!valid} loading={publish.isPending} onPress={submit}>Опубликовать объявление</AppButton>
       </GlassSurface>
       <GlassSurface variant="strong" style={[styles.preview, isDesktop && { flex: 1 }]}>
         <AppText variant="heading">Предпросмотр</AppText>
-        <AppText variant="caption" muted>Общий канал + комьюнити · без отправителя</AppText>
+        <AppText variant="caption" muted>{destination === "both" ? "Общий канал + комьюнити" : destination === "news" ? "Общий канал" : "Комьюнити"} · без отправителя</AppText>
         <View style={styles.choices}>{([['ru','Русский'],['uz','O‘zbekcha'],['en','English']] as const).map(([value,label]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: language === value }} onPress={() => setLanguage(value)} style={[styles.language, { borderColor: language === value ? theme.primary : theme.border }]}><AppText variant="caption">{label}</AppText></Pressable>)}</View>
         <View style={[styles.previewChat, { backgroundColor: theme.background, borderColor: theme.border }]}>
           <RaffleWinnerSystemMessage event={{ kind: "raffle_winner", recipientId: recipient?.id ?? "", recipientName: recipient?.name ?? "Имя победителя", raffleTitle: title.trim() || "Название розыгрыша", ...(prizeType === "cash" ? { amountCents: cents ?? 0 } : { prizeText: prizeText.trim() || "Название приза" }) }} createdAt={previewTime} onProfile={openProfile} language={language} />
@@ -80,7 +83,7 @@ export default function AdminWinnersScreen() {
       {history.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
       {history.error ? <><AppText color={String(theme.danger)}>Не удалось загрузить историю.</AppText><AppButton variant="secondary" onPress={() => { void history.refetch(); }}>Повторить загрузку</AppButton></> : null}
       {history.data?.items.length === 0 ? <AppText muted>Объявлений пока нет.</AppText> : null}
-      {history.data?.items.map(item => <View key={item.id} style={[styles.historyRow, { borderColor: theme.border }]}><AppText variant="label">{item.recipientName} · {item.prizeType === "cash" ? `$${((item.amountCents ?? 0) / 100).toFixed(2)}` : item.prizeText}</AppText><AppText>{item.raffleTitle}</AppText><AppText variant="caption" muted>{new Date(item.createdAt).toLocaleString("ru-RU")} · Канал и комьюнити</AppText></View>)}
+      {history.data?.items.map(item => <View key={item.id} style={[styles.historyRow, { borderColor: theme.border }]}><AppText variant="label">{item.recipientName} · {item.prizeType === "cash" ? `$${((item.amountCents ?? 0) / 100).toFixed(2)}` : item.prizeText}</AppText><AppText>{item.raffleTitle}</AppText><AppText variant="caption" muted>{new Date(item.createdAt).toLocaleString("ru-RU")} · {item.destinations.length === 2 ? "Канал и комьюнити" : item.destinations[0]?.systemKey === "news" ? "Канал" : "Комьюнити"}</AppText></View>)}
     </GlassSurface>
   </View>;
 }

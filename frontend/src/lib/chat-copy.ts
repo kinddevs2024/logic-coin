@@ -1,5 +1,8 @@
 import { useAppStore } from "@/store/app-store";
 const ru = {
+  comments: "Комментарии",
+  viewOriginal: "Показать исходное сообщение",
+  originalUnavailable: "Сообщение удалено или недоступно",
   title: "Сообщения",
   chooseUsername: "Выберите никнейм",
   addFriends: "Добавить друзей",
@@ -129,6 +132,7 @@ const ru = {
 };
 type Copy = typeof ru;
 const en: Copy = {
+  comments: "Comments", viewOriginal: "Show original message", originalUnavailable: "Message deleted or unavailable",
   deleteMessage: "Delete message",
   deleteForBoth: "Delete for me and",
   removeAttachment: "Remove attachment",
@@ -257,6 +261,7 @@ const en: Copy = {
   ready: "Done",
 };
 const uz: Copy = {
+  comments: "Izohlar", viewOriginal: "Asl xabarni ko‘rsatish", originalUnavailable: "Xabar o‘chirilgan yoki mavjud emas",
   deleteMessage: "Xabarni o‘chirish",
   deleteForBoth: "Men va bu suhbatdosh uchun o‘chirish:",
   removeAttachment: "Ilovani olib tashlash",

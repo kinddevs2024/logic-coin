@@ -1,3 +1,4 @@
+import { ChannelComments } from "./channel-comments";
 import { FeedAd } from "@/components/feed-ad";
 import { catchUpChatHead } from "@/lib/chat-sync";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -150,6 +151,7 @@ function ConversationPaneContent({
     const timer = setTimeout(() => setSearch(searchDraft.trim()), 350);
     return () => clearTimeout(timer);
   }, [searchDraft]);
+  const [commentPost, setCommentPost] = useState<ChatItem | null>(null);
   const [reply, setReply] = useState<ChatItem | null>(null),
     [editing, setEditing] = useState<ChatItem | null>(null),
     [action, setAction] = useState<ChatItem | null>(null);
@@ -179,6 +181,8 @@ function ConversationPaneContent({
     previewUrls.current = next;
   }, [attachments]);
   useEffect(() => () => { for (const uri of previewUrls.current) URL.revokeObjectURL(uri); }, []);
+  const scrollRetry=useRef<ReturnType<typeof setTimeout>|null>(null),scrollAttempts=useRef(0);
+  useEffect(()=>()=>{if(scrollRetry.current)clearTimeout(scrollRetry.current);},[]);
   const list = useRef<FlatList<ChatItem>>(null),
     autoScroll = useRef(true),
     readSeq = useRef(0);
@@ -206,6 +210,8 @@ function ConversationPaneContent({
   const pinnedMessages = query.data?.pages[0]?.pinned ?? items.filter(item => item.pinned && !item.deleted).slice().reverse();
   const [pinIndex, setPinIndex] = useState(0);
   const pinnedMessage = pinnedMessages[pinIndex % Math.max(1, pinnedMessages.length)];
+  const [highlightedMessage, setHighlightedMessage] = useState<string | null>(null);
+  useEffect(()=>{if(!highlightedMessage)return;const timer=setTimeout(()=>setHighlightedMessage(null),3000);return()=>clearTimeout(timer);},[highlightedMessage]);
   const [jumpToPin, setJumpToPin] = useState<string | null>(null);
   const { isFetching, hasNextPage, fetchNextPage } = query;
   const historyLaidOut = useRef(false);
@@ -222,14 +228,17 @@ function ConversationPaneContent({
       const frame = requestAnimationFrame(() => {
         if (index >= 0) {
           autoScroll.current = false;
+          setHighlightedMessage(jumpToPin);
+          scrollAttempts.current=0;
           list.current?.scrollToIndex({ index, animated: !reducedMotion, viewPosition: 0.3 });
         }
+        if(index < 0) setError(c.originalUnavailable);
         setJumpToPin(null);
       });
       return () => cancelAnimationFrame(frame);
     }
     void fetchNextPage();
-  }, [jumpToPin, displayItems, isFetching, hasNextPage, fetchNextPage, reducedMotion]);
+  }, [jumpToPin, displayItems, isFetching, hasNextPage, fetchNextPage, reducedMotion, c.originalUnavailable]);
   const refresh = useCallback(() => {
     void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
     return client.invalidateQueries({
@@ -583,7 +592,8 @@ function ConversationPaneContent({
             } else olderHistoryRequested.current = false;
           }}
           onScrollToIndexFailed={({index, averageItemLength}) => {
-            list.current?.scrollToOffset({offset: index * averageItemLength, animated: !reducedMotion});
+            list.current?.scrollToOffset({offset: index * averageItemLength, animated: false});
+            if(scrollAttempts.current++<3){if(scrollRetry.current)clearTimeout(scrollRetry.current);scrollRetry.current=setTimeout(()=>list.current?.scrollToIndex({index,animated:!reducedMotion,viewPosition:0.3}),180);}
           }}
           scrollEventThrottle={100}
           onContentSizeChange={() => {
@@ -607,9 +617,11 @@ function ConversationPaneContent({
             ) : null
           }
           renderItem={({ item }) => (
-            <ChatBubble
+            <View><ChatBubble
               item={item}
               room={room}
+              highlighted={item.id === highlightedMessage}
+              onReplyPress={id=>{autoScroll.current=false;setShowSearch(false);setSearchDraft("");setSearch("");setJumpToPin(id);}}
               onActions={(message, anchor) => {
                 setActionAnchor(anchor ?? {x: 180, y: 180});
                 setAction(message);
@@ -623,6 +635,8 @@ function ConversationPaneContent({
                 }).catch(showError);
               }}
             />
+            {room.kind === "channel" && !item.deleted ? <Pressable accessibilityRole="button" accessibilityLabel={`${c.comments}: ${item.commentCount??0}`} onPress={()=>setCommentPost(item)} style={{alignSelf:"center",paddingVertical:10,paddingHorizontal:16,borderWidth:1,borderColor:theme.border,borderRadius:99,marginBottom:10}}><AppText variant="caption" color={String(theme.primary)}>{c.comments} · {item.commentCount??0}</AppText></Pressable>:null}
+            </View>
           )}
           ListHeaderComponent={
             <>
@@ -863,6 +877,7 @@ function ConversationPaneContent({
             />
           </ChatSheet>
         ) : null}
+        {commentPost ? <ChannelComments room={room} item={commentPost} token={token} onClose={()=>setCommentPost(null)} onProfile={onProfile} onChanged={()=>{void query.refetch();}}/> : null}
         {action ? (
           <ChatPopover anchor={actionAnchor} onClose={() => setAction(null)}>
             {!action.deleted ? (
@@ -900,7 +915,7 @@ function ConversationPaneContent({
                 }}
               />
             ) : null}
-            {!action.deleted ? (
+            {!action.deleted && !action.system ? (
               <ChatAction
                 title={c.forward}
                 icon="arrow-redo-outline"
