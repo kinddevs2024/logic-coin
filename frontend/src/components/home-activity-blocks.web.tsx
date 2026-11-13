@@ -55,6 +55,7 @@ export function HomeActivityBlocks({ today, pendingGameKey, challengesTarget }: 
   const [expanded, setExpanded] = useState(false); const [height, setHeight] = useState(178);
   const list = useRef<HTMLDivElement>(null); const dialog = useRef<HTMLDialogElement>(null);
   const weekHeading = useRef<HTMLDivElement>(null);
+  const monthHeading = useRef<HTMLDivElement>(null);
   const shownWeeks = useRef(new Set<string>());
   const [rules, setRules] = useState<"week" | "month">("week");
   const [now, setNow] = useState(Date.now); const [visible, setVisible] = useState(true);
@@ -68,38 +69,47 @@ export function HomeActivityBlocks({ today, pendingGameKey, challengesTarget }: 
   }, []);
   useEffect(() => { const el = list.current; if (!el) return; const observer = new ResizeObserver(() => setHeight(el.scrollHeight)); observer.observe(el); setHeight(el.scrollHeight); return () => observer.disconnect(); }, [today?.games.length]);
   const weekFrom = query.data?.week.from;
+  const monthFrom = query.data?.month.from;
   const weekStorageKey = authenticated && user.id && weekFrom ? `lc-weekly-rules:${user.id}:${weekFrom}` : null;
+  const monthStorageKey = authenticated && user.id && monthFrom ? `lc-monthly-rules:${user.id}:${monthFrom}` : null;
   function showRules(kind: "week" | "month") {
     if (!dialog.current || dialog.current.open) return;
     setRules(kind);
     dialog.current.showModal();
-    if (kind === "week" && weekStorageKey) {
-      shownWeeks.current.add(weekStorageKey);
-      try { localStorage.setItem(weekStorageKey, "seen"); } catch { /* Session fallback if storage is unavailable. */ }
+    const key = kind === "week" ? weekStorageKey : monthStorageKey;
+    if (key) {
+      shownWeeks.current.add(key);
+      try { localStorage.setItem(key, "seen"); } catch { /* Session fallback if storage is unavailable. */ }
     }
   }
   useEffect(() => {
-    const heading = weekHeading.current;
-    if (!heading || !weekStorageKey || !visible) return;
-    const seen = () => {
-      if (shownWeeks.current.has(weekStorageKey)) return true;
-      try { return localStorage.getItem(weekStorageKey) === "seen"; } catch { return false; }
-    };
-    if (seen()) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const observer = new IntersectionObserver(([entry]) => {
-      clearTimeout(timer);
-      if (!entry?.isIntersecting || entry.intersectionRatio < .75) return;
-      timer = setTimeout(() => {
-        if (seen() || document.hidden || document.querySelector('dialog[open], [aria-modal="true"]')) return;
-        showRules("week");
-      }, 400);
-    }, { threshold: .75, rootMargin: "-90px 0px -90px 0px" });
-    observer.observe(heading);
-    return () => { observer.disconnect(); clearTimeout(timer); };
-  // The period start is supplied by the server, so account/timezone changes cannot share a reminder.
+    if (!visible) return;
+    const cleanups = (["week", "month"] as const).map(kind => {
+      const heading = kind === "week" ? weekHeading.current : monthHeading.current;
+      const key = kind === "week" ? weekStorageKey : monthStorageKey;
+      if (!heading || !key) return () => {};
+      const seen = () => {
+        if (shownWeeks.current.has(key)) return true;
+        try { return localStorage.getItem(key) === "seen"; } catch { return false; }
+      };
+      let timer: ReturnType<typeof setInterval> | undefined;
+      const observer = new IntersectionObserver(([entry]) => {
+        clearInterval(timer);
+        if (!entry?.isIntersecting || entry.intersectionRatio < .75 || seen()) return;
+        timer = setInterval(() => {
+          if (seen()) { clearInterval(timer); return; }
+          if (document.hidden || document.querySelector('dialog[open], [aria-modal="true"]')) return;
+          showRules(kind);
+          clearInterval(timer);
+        }, 500);
+      }, { threshold: .75, rootMargin: "-90px 0px -90px 0px" });
+      observer.observe(heading);
+      return () => { observer.disconnect(); clearInterval(timer); };
+    });
+    return () => cleanups.forEach(cleanup => cleanup());
+  // Server period boundaries keep reminders separate for each account and period.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekStorageKey, visible]);
+  }, [weekStorageKey, monthStorageKey, visible]);
   const serverOffset = query.data ? Date.parse(query.data.serverNow) - query.dataUpdatedAt : 0;
   const clockNow = now + serverOffset;
   const colors = { "--card": String(theme.surface), "--text": String(theme.text), "--muted": String(theme.textMuted), "--line": String(theme.border), "--primary": String(theme.primary), "--primary-ink": String(theme.onPrimary), "--soft": `color-mix(in srgb, ${String(theme.primary)} 10%, transparent)`, "--mint": theme.mode === "dark" ? "#b9ddcc" : "#347359", "--warning": theme.mode === "dark" ? "#f3d18f" : "#9e6812", "--water": String(theme.primary), color: String(theme.text) } as CSSProperties;
@@ -117,11 +127,12 @@ export function HomeActivityBlocks({ today, pendingGameKey, challengesTarget }: 
     const players = period?.eligible && user.id && !sample.some(player => player.id === user.id)
       ? [...sample, { id: user.id, name: user.name, avatarUrl: user.avatarUrl ?? null, coins: selfCoins, balanceUnits: selfBalance }] : sample;
     return <section className="card period-card" data-testid={`home-${kind}-card`} aria-labelledby={`${id}-${kind}`}>
-      <div className="card-heading" ref={kind === "week" ? weekHeading : undefined}><div className="period-title"><h2 id={`${id}-${kind}`}>{c[kind]}</h2><button className="info-button" aria-label={c[kind]} onClick={() => showRules(kind)}><Icon name="information-circle-outline" /></button></div><div className="heading-clock"><Icon name="time-outline" /><strong>{remaining(period?.endsAt, clockNow, c.days)}</strong></div></div>
+      <div className="card-heading" ref={kind === "week" ? weekHeading : monthHeading}><div className="period-title"><h2 id={`${id}-${kind}`}>{c[kind]}</h2><button className="info-button" aria-label={c[kind]} onClick={() => showRules(kind)}><Icon name="information-circle-outline" /></button></div><div className="heading-clock"><Icon name="time-outline" /><strong>{remaining(period?.endsAt, clockNow, c.days)}</strong></div></div>
       <div className="raffle-stage"><div className="raffle-window">
         {players.length ? <div className={`raffle-track${players.length < 4 ? " short" : ""}`} style={{ animationDuration: `${players.length * 2.6}s` }}><ul className="raffle-group" aria-label={c[kind]}>{players.map(playerRow)}</ul>{players.length >= 4 ? <ul className="raffle-group" aria-hidden="true">{players.map(playerRow)}</ul> : null}</div> : <div className="activity-empty">{!authenticated ? c.guest : query.isError ? <>{c.error}<button onClick={() => void query.refetch()}>{c.retry}</button></> : query.isPending ? c.loading : c.empty}</div>}
       </div></div>
       <div className="self-profile" data-progress={percent ?? 0} style={{ "--fill": `${percent ?? 0}%` } as CSSProperties}>
+        <div className="profile-water-base" aria-hidden="true"><svg className="water-wave" viewBox="0 0 1200 24" preserveAspectRatio="none"><path d="M0 12 Q150 0 300 12 T600 12 T900 12 T1200 12 V24 H0Z" /></svg></div>
         <div className="profile-water" aria-hidden="true">{[0, 1].map(n => <svg key={n} className="water-wave" viewBox="0 0 1200 24" preserveAspectRatio="none"><path d="M0 12 Q150 0 300 12 T600 12 T900 12 T1200 12 V24 H0Z" /></svg>)}</div>
         <div className="self-avatar"><Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={40} /></div><div className="self-copy">{c.you} · {user.name}<small>{period && !period.eligible ? kind === "week" ? c.outWeek : c.outMonth : ""}</small></div><strong className="self-score" role="progressbar" aria-label={c[kind]} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined}>{percent === null ? "—" : `${percent}%`}</strong>
       </div>

@@ -10,6 +10,7 @@ import { memo } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { AppText } from "@/components/app-text";
+import { LogoMark } from "@/components/logo";
 import { Avatar } from "@/components/avatar";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import {
@@ -60,17 +61,18 @@ export const ChatBubble = memo(function ChatBubble({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${c.profile}: ${item.sender.name}`}
+          disabled={item.sender.isSupportTeam}
           onPress={(event) => {
             event.stopPropagation();
             onProfile(item.sender.id);
           }}
           style={{ alignSelf: "flex-end" }}
         >
-          <Avatar userId={item.sender.id}
+          <>{item.sender.isSupportTeam ? <LogoMark size={30} /> : <Avatar userId={item.sender.id}
             name={item.sender.name}
             avatarUrl={item.sender.avatarUrl}
             size={30}
-          />
+          />}</>
         </Pressable>
       ) : null}
       <MessagePressable
@@ -89,8 +91,8 @@ export const ChatBubble = memo(function ChatBubble({
           },
         ]}
       >
-        {!item.own && ["group", "channel"].includes(room.kind) ? (
-          <Pressable
+        {!item.own && (["group", "channel"].includes(room.kind) || item.sender.isSupportTeam) ? (
+          <Pressable disabled={item.sender.isSupportTeam}
             onPress={(event) => {
               event.stopPropagation();
               onProfile(item.sender.id);

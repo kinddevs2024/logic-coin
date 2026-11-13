@@ -1169,6 +1169,7 @@ export const meApi = {
       theme?: ThemePreference;
       notificationsEnabled?: boolean;
       dailyReminderEnabled?: boolean;
+      homeIntroSeen?: true;
       timezone?: string;
     },
     token: string,

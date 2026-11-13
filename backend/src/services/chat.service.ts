@@ -1,3 +1,4 @@
+import { canMessageEveryone } from "../lib/platform-roles.js";
 import { ChatComment } from "../models/ChatComment.js";
 import { chatVideoMime } from "../lib/chat-video.js";
 import { randomBytes, createHmac, timingSafeEqual } from "node:crypto";
@@ -69,6 +70,23 @@ async function ensureMember(
     { new: true, upsert: true },
   );
 }
+// Each support room belongs to exactly one customer; platform staff share the inbox.
+function supportCustomer(c: { kind: string; directKey?: string | null }) {
+  const value = c.kind === "support" ? c.directKey?.slice("support:".length) : undefined;
+  return c.directKey?.startsWith("support:") && value && Types.ObjectId.isValid(value) ? value : null;
+}
+async function syncSupportMembers(c: { _id: Types.ObjectId; kind: string; directKey?: string | null }) {
+  const customer = supportCustomer(c);
+  if (!customer) return fail(403, "chat_access_denied", "Invalid support conversation");
+  const staff = await User.find({ role: { $in: ["manager", "admin", "owner"] } }).select("_id").lean();
+  const ids = [...new Set([customer, ...staff.map(u => String(u._id))])].map(oid);
+  await ChatMember.bulkWrite(ids.map(userId => ({ updateOne: {
+    filter: { conversationId: c._id, userId },
+    update: { $set: { role: "member" }, $unset: { leftAt: 1, canEditInfo: 1 }, $setOnInsert: { conversationId: c._id, userId, muted: false } },
+    upsert: true,
+  } })));
+  await ChatMember.updateMany({ conversationId: c._id, userId: { $nin: ids }, leftAt: { $exists: false } }, { $set: { leftAt: new Date() } });
+}
 export async function ensureChatDefaults(userId: Types.ObjectId) {
   if ((defaultsReady.get(String(userId)) ?? 0) > Date.now()) return [];
   await syncReferralFriends(userId);
@@ -93,29 +111,12 @@ export async function ensureChatDefaults(userId: Types.ObjectId) {
     await ensureMember(c._id, userId, "member", true);
     result.push(c);
   }
-  const adminFilter = {role:"admin", _id:{$ne:userId}};
-  const admin = await User.findOne({...adminFilter, email:{$not:/@telegram\.logiccoin\.local$/}}).sort({createdAt:1}).select("_id").lean()
-    ?? await User.findOne(adminFilter).sort({createdAt:1}).select("_id").lean();
-  if (admin && String(admin._id) !== String(userId)) {
-    const directKey = `support:${userId}`;
-    const c = await ChatConversation.findOneAndUpdate(
-      { directKey },
-      {
-        $setOnInsert: {
-          directKey,
-          kind: "support",
-          title: "Logic Coin Support",
-          ownerId: admin._id,
-        },
-      },
-      { new: true, upsert: true },
-    );
-    await Promise.all([
-      ensureMember(c._id, userId),
-      ensureMember(c._id, admin._id, "owner"),
-    ]);
-    result.push(c);
-  }
+  const directKey = `support:${userId}`;
+  const support = await ChatConversation.findOneAndUpdate({ directKey }, {
+    $setOnInsert: { directKey, kind: "support", title: "Logic Coin Support" },
+  }, { new: true, upsert: true });
+  await syncSupportMembers(support);
+  result.push(support);
   if (defaultsReady.size > 10000) defaultsReady.clear();
   defaultsReady.set(String(userId), Date.now() + 15 * 60_000);
   return result;
@@ -127,6 +128,12 @@ export async function chatAccess(
 ) {
   const c = await ChatConversation.findById(id).lean();
   if (!c) return fail(404, "chat_not_found", "Chat not found");
+  const platformRole = await siteRole(userId);
+  if (c.kind === "support") {
+    if (supportCustomer(c) !== String(userId) && !canMessageEveryone(platformRole))
+      return fail(403, "chat_access_denied", "Support is private to its customer and staff");
+    await syncSupportMembers(c);
+  }
   let member = await ChatMember.findOne({
     conversationId: c._id,
     userId,
@@ -140,7 +147,6 @@ export async function chatAccess(
       "chat_access_denied",
       "Join the chat to read or send messages",
     );
-  const platformRole = await siteRole(userId);
   const admin = platformRole === "admin";
   if (
     writing &&
@@ -153,7 +159,7 @@ export async function chatAccess(
     })
   )
     return fail(403, "chat_read_only", "Only channel administrators can post");
-  if (writing && (c.kind === "direct" || c.kind === "support")) {
+  if (writing && c.kind === "direct") {
     const others = await ChatMember.distinct("userId", {
       conversationId: c._id,
       userId: { $ne: userId },
@@ -188,6 +194,14 @@ async function changed(c: { _id: Types.ObjectId; systemKey?: string | null }) {
 }
 export async function listChats(userId: Types.ObjectId, sessionId: string) {
   await ensureChatDefaults(userId);
+  const platformRole = await siteRole(userId);
+  if (canMessageEveryone(platformRole)) {
+    const tickets = await ChatConversation.find({ kind: "support", lastSeq: { $gt: 0 } }).sort({ lastMessageAt: -1, _id: -1 }).limit(100).select("_id").lean();
+    if (tickets.length) await ChatMember.bulkWrite(tickets.map(c => ({ updateOne: {
+      filter: { conversationId: c._id, userId },
+      update: { $set: { role: "member" }, $unset: { leftAt: 1 }, $setOnInsert: { conversationId: c._id, userId, muted: false } }, upsert: true,
+    } })));
+  }
   const memberships = await ChatMember.find({
     userId,
     leftAt: { $exists: false },
@@ -196,7 +210,7 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
     .lean();
   const allRooms = await ChatConversation.find({
     _id: { $in: memberships.map((m) => m.conversationId) },
-    $or: [{kind:{$ne:"support"}}, {directKey:`support:${userId}`}, {lastSeq:{$gt:0}}],
+    $or: [{kind:{$ne:"support"}}, {directKey:`support:${userId}`}, ...(canMessageEveryone(platformRole) ? [{lastSeq:{$gt:0}}] : [])],
   })
     .sort({ lastMessageAt: -1, createdAt: -1 })
     .limit(100)
@@ -223,7 +237,6 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
   })
     .select(userFields)
     .lean();
-  const platformRole = await siteRole(userId);
   const admin = platformRole === "admin";
   const lastMessages = rooms.length
     ? await ChatMessage.find({
@@ -268,7 +281,7 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
       (m) => String(m.conversationId) === String(c._id),
     )!;
     const other = others.find(
-      (m) => String(m.conversationId) === String(c._id),
+      (m) => String(m.conversationId) === String(c._id) && (c.kind !== "support" || String(m.userId) === supportCustomer(c)),
     );
     const profile = profiles.find(
       (p) => String(p._id) === String(other?.userId),
@@ -307,7 +320,7 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
       unread:
         unreadRows.find((row) => String(row._id) === String(c._id))?.count ?? 0,
       lastSeq: c.lastMessageSeq,
-      peerReadSeq: other?.lastReadSeq ?? 0,
+      peerReadSeq: c.kind === "support" && supportCustomer(c) === String(userId) ? Math.max(0, ...others.filter(m => String(m.conversationId) === String(c._id)).map(m => m.lastReadSeq ?? 0)) : other?.lastReadSeq ?? 0,
       lastMessageAt:
         c.lastMessageAt?.toISOString() ?? c.createdAt.toISOString(),
       incoming: (() => {
@@ -435,16 +448,6 @@ export async function createDirect(userId: Types.ObjectId, targetId: string) {
     ensureChatDefaults(userId),
     ensureChatDefaults(oid(targetId)),
   ]);
-  const support = await ChatConversation.findOne({
-    kind: "support",
-    $or: [
-      { directKey: `support:${userId}`, ownerId: oid(targetId) },
-      { directKey: `support:${targetId}`, ownerId: userId },
-    ],
-  })
-    .select("_id")
-    .lean();
-  if (support) return { id: String(support._id) };
   await requireFriend(userId, targetId);
   const directKey = [String(userId), targetId].sort().join(":");
   const c = await ChatConversation.findOneAndUpdate(
@@ -687,7 +690,9 @@ export async function listMessages(
         id: String(m._id),
         seq: m.seq,
         ...(c.kind === "channel" ? {commentCount:commentCounts.find(row=>String(row._id)===String(m._id))?.count??0} : {}),
-        sender: sender
+        sender: c.kind === "support" && String(m.senderId) !== supportCustomer(c)
+          ? { id: String(m.senderId), name: "Logic Coin Support", avatarUrl: null, isSupportTeam: true }
+          : sender
           ? chatProfile(sender)
           : { id: String(m.system?.recipientId ?? m.senderId), name: m.system ? "Logic Coin" : "User", avatarUrl: null },
         ...(m.system && !m.deletedAt ? { system: { kind: m.system.kind, recipientId: String(m.system.recipientId), recipientName: m.system.recipientName, ...(m.system.amountCents != null ? { amountCents: m.system.amountCents } : {}), ...(m.system.kind === "raffle_winner" ? { raffleTitle: m.system.raffleTitle, ...(m.system.prizeText ? { prizeText: m.system.prizeText } : {}) } : {}) } } : {}),
@@ -701,7 +706,7 @@ export async function listMessages(
           ? {
               id: String(quote._id),
               text: quote.deletedAt ? "" : quote.text.slice(0, 160),
-              sender:
+              sender: c.kind === "support" && String(quote.senderId) !== supportCustomer(c) ? "Logic Coin Support" :
                 profiles.find((p) => String(p._id) === String(quote.senderId))
                   ?.name ?? "User",
             }
@@ -1081,30 +1086,22 @@ export async function addChatMember(
   await changed(c);
   return { ok: true };
 }
-export async function chatMembers(userId: Types.ObjectId, id: string) {
+export async function chatMembers(userId: Types.ObjectId, id: string, after?: string, limit = 6) {
   const { c } = await chatAccess(userId, id);
-  const members = await ChatMember.find({
-    conversationId: c._id,
-    leftAt: { $exists: false },
-  })
-    .sort({ role: 1 })
-    .limit(100)
-    .lean();
-  const users = await User.find({ _id: { $in: members.map((m) => m.userId) } })
-    .select(userFields)
-    .lean();
+  if (after && !Types.ObjectId.isValid(after)) return fail(400, "invalid_cursor", "Invalid member cursor");
+  const size = Math.max(1, Math.min(50, Math.floor(limit) || 6));
+  const filter = { conversationId: c._id, leftAt: { $exists: false } };
+  const rows = await ChatMember.find({ ...filter, ...(after ? { _id: { $gt: oid(after) } } : {}) })
+    .sort({ _id: 1 }).limit(size + 1).lean();
+  const members = rows.slice(0, size);
+  const users = await User.find({ _id: { $in: members.map(m => m.userId) } }).select(userFields).lean();
   return {
-    count: await ChatMember.countDocuments({
-      conversationId: c._id,
-      leftAt: { $exists: false },
+    count: await ChatMember.countDocuments(filter),
+    nextCursor: rows.length > size ? String(members[members.length - 1]!._id) : null,
+    members: members.flatMap(m => {
+      const u = users.find(u => String(u._id) === String(m.userId));
+      return u ? [{ ...chatProfile(u), role: m.role, canEditInfo: Boolean(m.canEditInfo) }] : [];
     }),
-    members: users.map((u) => ({
-      ...chatProfile(u),
-      role: members.find((m) => String(m.userId) === String(u._id))!.role,
-      canEditInfo: Boolean(
-        members.find((m) => String(m.userId) === String(u._id))!.canEditInfo,
-      ),
-    })),
   };
 }
 export async function uploadChatAttachment(
@@ -1231,10 +1228,14 @@ export async function readChatAttachment(
   const a = await ChatAttachment.findById(id).lean();
   if (!a) return fail(404, "attachment_not_found", "File not found");
   if (String(a.ownerId) !== user) {
-    const memberships = await ChatMember.distinct("conversationId", {
+    let memberships = await ChatMember.distinct("conversationId", {
       userId: user,
       leftAt: { $exists: false },
     });
+    if (!canMessageEveryone(await siteRole(oid(user)))) {
+      const excluded = await ChatConversation.distinct("_id", { _id: { $in: memberships }, kind: "support", directKey: { $ne: `support:${user}` } });
+      memberships = memberships.filter(id => !excluded.some(other => String(other) === String(id)));
+    }
     if (
       !(await ChatMessage.exists({
         conversationId: { $in: memberships },

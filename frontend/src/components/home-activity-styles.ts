@@ -48,6 +48,7 @@ export const homeActivityCss = `.lc-home-activity h2 { font-size: 21px; letter-s
 .lc-home-activity .raffle-coins { color: var(--warning); background: color-mix(in srgb, var(--warning) 10%, transparent); }
 .lc-home-activity .raffle-money { color: var(--mint); background: color-mix(in srgb, var(--mint) 10%, transparent); }
 .lc-home-activity .self-profile { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 10px; min-height: 60px; border: 1px solid var(--line); background: var(--soft); border-radius: 18px; padding: 9px 12px; }
+.lc-home-activity .profile-water-base{position:absolute;inset:auto 0 0;height:30%;color:var(--water);background:linear-gradient(to bottom,transparent 6px,currentColor 6px);opacity:.16;pointer-events:none}.lc-home-activity .profile-water-base .water-wave{fill:var(--water)}
 .lc-home-activity .profile-water { position: absolute; bottom: 0; left: 0; width: 100%; height: var(--fill, 0%); color: var(--water); background: linear-gradient(to bottom, transparent 6px, currentColor 6px); pointer-events: none; transition: height .85s cubic-bezier(.22, 1, .36, 1), opacity .3s; }
 .lc-home-activity .self-profile[data-progress="0"] .profile-water { opacity: 0; }
 .lc-home-activity .self-profile[data-progress="100"] .profile-water { background: currentColor; }

@@ -2,7 +2,7 @@ import {playerProfileRoute} from "@/lib/player-profile-navigation";
 import { pickChatPhoto } from "@/lib/chat-media";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   Pressable,
@@ -44,9 +44,11 @@ export function ChatRoomInfo({
     client = useQueryClient();
   const [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
-  const query = useQuery({
-    queryKey: ["chat-members", token, room.id],
-    queryFn: () => chatApi.members(token, room.id),
+  const query = useInfiniteQuery({
+    queryKey: ["chat-members-paged", token, room.id],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => chatApi.members(token, room.id, pageParam),
+    getNextPageParam: page => page.nextCursor ?? undefined,
     staleTime: 10_000,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -63,7 +65,8 @@ export function ChatRoomInfo({
     enabled: addOpen,
     staleTime: 10000,
   });
-  const selected = query.data?.members.find((p) => p.id === selectedId);
+  const members = query.data?.pages.flatMap(page => page.members) ?? [];
+  const selected = members.find((p) => p.id === selectedId);
   const canManageMembers =
     room.canManage &&
     !room.systemKey &&
@@ -71,7 +74,7 @@ export function ChatRoomInfo({
   const people =
     candidates.data?.users.filter(
       (p) =>
-        p.id !== accountId && !query.data?.members.some((m) => m.id === p.id),
+        p.id !== accountId && !members.some((m) => m.id === p.id),
     ) ?? [];
   const roleLabel = (role: string) =>
     role === "owner" ? c.owner : role === "admin" ? c.admin : c.member;
@@ -105,7 +108,7 @@ export function ChatRoomInfo({
       <Ionicons name="chevron-forward" size={17} color={String(theme.textMuted)} />
     </Pressable>;
   }
-  if (editor) return <ChatSheet title={c[editor]} onClose={() => setEditor(null)}>
+  if (editor) return <ChatSheet key={`editor:${editor}`} title={c[editor]} onClose={() => setEditor(null)} onEscape={onClose}>
     {editor === "roomType" ? <View style={{ gap: 4 }}>
       {(["public", "invite"] as const).map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: visibility === value }}
         onPress={() => setVisibility(value)} style={{ minHeight: 52, padding: 12, borderRadius: 14, backgroundColor: theme.surfaceRaised, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -129,7 +132,7 @@ export function ChatRoomInfo({
   </ChatSheet>;
   if (selected)
     return (
-      <ChatSheet
+      <ChatSheet key={`member:${selected.id}`}
         title={`${c.memberSettings} · ${selected.name}`}
         onClose={onClose}
       >
@@ -206,7 +209,7 @@ export function ChatRoomInfo({
       </ChatSheet>
     );
   return (
-    <ChatSheet title={room.title} onClose={onClose}>
+    <ChatSheet key="room-info" title={room.title} onClose={onClose}>
       <View style={{ alignItems: "center", gap: 8, paddingBottom: 14 }}>
         {room.username ? <AppText muted>@{room.username}</AppText> : null}
         {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && !room.isOwner)) ? <LogoMark size={64} /> : (
@@ -284,9 +287,9 @@ export function ChatRoomInfo({
         />
       ) : null}
       <AppText variant="heading">
-        {c.members} · {query.data?.count ?? "…"}
+        {c.members} · {query.data?.pages[0]?.count ?? "…"}
       </AppText>
-      {query.data?.members.map((person) => (
+      {members.map((person) => (
         <View
           key={person.id}
           style={{
@@ -353,6 +356,8 @@ export function ChatRoomInfo({
           ) : null}
         </View>
       ))}
+      {query.isPending || query.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null}
+      {query.isError ? <ChatAction title={c.retry} onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())} /> : query.hasNextPage ? <ChatAction title={c.loadMoreMembers} icon="chevron-down" disabled={query.isFetchingNextPage} onPress={() => void query.fetchNextPage()} /> : null}
       {canManageMembers ? (
         <>
           <ChatAction

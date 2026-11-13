@@ -266,7 +266,7 @@ router.post(
 );
 router.get("/:id/members", async (req, res) =>
   res.json({
-    data: await chat.chatMembers(req.auth!.userId, parseId(req.params.id)),
+    data: await chat.chatMembers(req.auth!.userId, parseId(req.params.id), typeof req.query.after === "string" ? req.query.after : undefined, Number(req.query.limit) || 6),
   }),
 );
 router.post(

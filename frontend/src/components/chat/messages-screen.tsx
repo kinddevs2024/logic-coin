@@ -70,7 +70,7 @@ export function MessagesScreen() {
       closeConversation(); return true;
     });
     const keydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); closeConversation(); }
+      if (event.key === "Escape" && !event.repeat && !event.defaultPrevented && !document.querySelector('[aria-modal="true"], dialog[open]')) { event.preventDefault(); closeConversation(); }
     };
     if (Platform.OS === "web") {
       window.addEventListener("keydown", keydown);

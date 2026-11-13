@@ -23,6 +23,7 @@ export type CoinWallet = {
 };
 
 export type UserPreferences = {
+  homeIntroSeen?: boolean;
   language: Language;
   theme: ThemePreference;
   customTheme?: {wallpaperUrl: string; accent: string; dark: boolean};

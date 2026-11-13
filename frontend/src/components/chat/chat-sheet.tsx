@@ -1,6 +1,7 @@
 import { MotionEntrance } from "@/components/motion-entrance";
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type PropsWithChildren,
@@ -24,15 +25,17 @@ import { useChatCopy } from "@/lib/chat-copy";
 export function ChatSheet({
   title,
   onClose,
+  onEscape,
   children,
-}: PropsWithChildren<{ title: string; onClose: () => void }>) {
+}: PropsWithChildren<{ title: string; onClose: () => void; onEscape?: () => void }>) {
   const theme = useAppTheme(),
     c = useChatCopy();
   const reduced = useReducedMotion();
+  const sheetId = useId();
   const closing = useRef(false);
   const [opacity] = useState(() => new Animated.Value(1));
   useEffect(() => () => opacity.stopAnimation(), [opacity]);
-  const close = () => {
+  const closeWith = (done: () => void) => {
     if (closing.current) return;
     closing.current = true;
     Animated.timing(opacity, {
@@ -40,12 +43,28 @@ export function ChatSheet({
       duration: reduced ? 0 : 150,
       useNativeDriver: Platform.OS !== "web",
     }).start(({ finished }) => {
-      if (finished) onClose();
+      if (finished) done();
     });
   };
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const sheet = document.getElementById(sheetId);
+      const top = Array.from(document.querySelectorAll('[aria-modal="true"]')).at(-1);
+      if (!sheet || !top || !(sheet.contains(top) || top.contains(sheet))) return;
+      event.preventDefault(); event.stopPropagation();
+      if (!event.repeat) closeWith(onEscape ?? onClose);
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  // The capture handler also works during the Modal entrance animation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetId, onClose, onEscape, reduced]);
+  const close = () => closeWith(onClose);
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={close}>
-      <Animated.View style={[styles.backdrop, { opacity }]}>
+    <Modal transparent visible animationType="fade" onRequestClose={() => closeWith(onEscape ?? onClose)}>
+      <Animated.View nativeID={sheetId} style={[styles.backdrop, { opacity }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={c.cancel}

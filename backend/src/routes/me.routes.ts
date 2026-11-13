@@ -176,6 +176,7 @@ const preferencesSchema = z
     theme: z.enum(THEMES).optional(),
     notificationsEnabled: z.boolean().optional(),
     dailyReminderEnabled: z.boolean().optional(),
+    homeIntroSeen: z.literal(true).optional(),
     timezone: z
       .string()
       .min(1)
