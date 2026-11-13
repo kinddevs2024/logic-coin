@@ -1,5 +1,6 @@
 import { z } from "zod";
 const common = {
+  destinations: z.array(z.enum(["news", "community"])).min(1).max(2).refine(v => new Set(v).size === v.length).optional(),
   operationId: z.string().uuid(),
   recipientId: z.string().regex(/^[a-f\d]{24}$/i),
   raffleTitle: z.string().trim().min(1).max(160),

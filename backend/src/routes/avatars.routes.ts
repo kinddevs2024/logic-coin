@@ -1,3 +1,4 @@
+import { isTelegramAvatar, renderTelegramAvatar } from "../lib/telegram-avatar.js";
 import { Router, type Request, type Response } from "express";
 import { User } from "../models/User.js";
 import { UserAvatar } from "../models/UserAvatar.js";
@@ -20,6 +21,9 @@ async function loadAvatar(userId: string, revision: string, original: boolean): 
     if (!value) return null;
     return { bytes: Buffer.isBuffer(value) ? value : Buffer.from(value.value()), type: original ? stored.contentType : "image/webp" };
   }
+  if (!original && avatar && isTelegramAvatar(avatar) && listAvatarRevision(avatar) === revision) {
+    try { return { bytes: await renderTelegramAvatar(avatar), type: "image/webp" }; } catch { return null; }
+  }
   if (!avatar || !isInlineAvatar(avatar) || listAvatarRevision(avatar) !== revision) return null;
   try {
     return original
@@ -29,7 +33,7 @@ async function loadAvatar(userId: string, revision: string, original: boolean): 
 }
 
 // Only avatars already exposed in public rankings/friends. This endpoint never
-// fetches remote URLs or accepts filesystem paths or image contents from a URL.
+// accepts remote URLs from callers. Only stored Telegram userpic URLs use a bounded image fetch.
 function imageHandler(original: boolean) { return async (request: Request, response: Response) => {
   const userId = String(request.params.userId ?? "");
   const revision = String(request.params.revision ?? "");

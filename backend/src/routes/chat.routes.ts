@@ -1,3 +1,4 @@
+import { listChatComments, sendChatComment, removeChatComment } from "../services/chat-comments.service.js";
 import { Router } from "express";
 import { z } from "zod";
 import { rateLimit } from "express-rate-limit";
@@ -191,6 +192,16 @@ router.post(
 );
 router.post("/messages/:id/listen", writeLimiter, async (req, res) => {
   res.json({ data: await chat.markVoiceListened(req.auth!.userId, parseId(req.params.id)) });
+});
+router.get("/:id/messages/:messageId/comments", async(req,res)=>{
+ const before=req.query.before===undefined?undefined:parseId(req.query.before);
+ res.set("Cache-Control","no-store").json({data:await listChatComments(req.auth!.userId,parseId(req.params.id),parseId(req.params.messageId),before)});
+});
+router.post("/:id/messages/:messageId/comments",writeLimiter,validateBody(z.object({clientId:z.string().min(8).max(100),text:z.string().trim().min(1).max(4000),replyTo:id.optional()}).strict()),async(req,res)=>{
+ res.json({data:await sendChatComment(req.auth!.userId,parseId(req.params.id),parseId(req.params.messageId),req.body)});
+});
+router.delete("/:id/messages/:messageId/comments/:commentId",writeLimiter,async(req,res)=>{
+ res.json({data:await removeChatComment(req.auth!.userId,parseId(req.params.id),parseId(req.params.messageId),parseId(req.params.commentId))});
 });
 router.get("/:id/messages", async (req, res) => {
   const before =

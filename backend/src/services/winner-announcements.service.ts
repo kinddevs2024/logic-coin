@@ -23,7 +23,8 @@ export async function listWinnerAnnouncements() {
   return { items: (await WinnerAnnouncement.find().sort({ createdAt: -1, _id: -1 }).limit(30).lean()).map(serialize) };
 }
 export async function publishWinnerAnnouncement(input: WinnerAnnouncementInput, adminId: Types.ObjectId) {
-  const fingerprint = createHash("sha256").update(JSON.stringify({ recipientId: input.recipientId.toLowerCase(), raffleTitle: input.raffleTitle, prizeType: input.prizeType, prize: input.prizeType === "cash" ? input.amountCents : input.prizeText })).digest("hex");
+  const destinations = input.destinations ?? ["news", "community"];
+  const fingerprint = createHash("sha256").update(JSON.stringify({ recipientId: input.recipientId.toLowerCase(), raffleTitle: input.raffleTitle, prizeType: input.prizeType, prize: input.prizeType === "cash" ? input.amountCents : input.prizeText, ...(destinations.length === 1 ? { destinations } : {}) })).digest("hex");
   const filter = { createdBy: adminId, operationId: input.operationId };
   const replay = (row: any) => {
     if (row.fingerprint !== fingerprint) throw new ApiError(409, "announcement_changed", "Эта публикация уже отправлена с другими данными. Создайте новое объявление.");
@@ -42,6 +43,7 @@ export async function publishWinnerAnnouncement(input: WinnerAnnouncementInput, 
       const [record] = await WinnerAnnouncement.create([{ ...filter, recipientId: person._id, recipientName: person.name, raffleTitle: input.raffleTitle, prizeType: input.prizeType, ...prize, fingerprint }], { session });
       const messages = [];
       for (const [systemKey, kind, title] of [["news", "channel", "Logic Coin"], ["community", "group", "Logic Coin Community"]] as const) {
+        if (!destinations.includes(systemKey)) continue;
         const room = await ChatConversation.findOneAndUpdate({ systemKey }, {
           $setOnInsert: { kind, title, visibility: "public", inviteCode: randomBytes(18).toString("base64url") },
           $inc: { lastSeq: 1 }, $set: { lastMessageAt: now },
