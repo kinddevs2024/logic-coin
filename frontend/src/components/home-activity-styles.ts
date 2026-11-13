@@ -8,15 +8,15 @@ export const homeActivityCss = `.lc-home-activity h2 { font-size: 21px; letter-s
 .lc-home-activity .heading-clock { display: flex; align-items: center; gap: 5px; color: var(--muted); flex-shrink: 0; }
 .lc-home-activity .heading-clock svg { width: 15px; height: 15px; }
 .lc-home-activity .heading-clock strong { font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 550; white-space: nowrap; letter-spacing: -.15px; }
-.lc-home-activity .games-viewport { position: relative; height: 202px; overflow: hidden; transition: height .38s cubic-bezier(.2, .8, .2, 1); }
+.lc-home-activity .games-viewport { position: relative; height: 178px; overflow: hidden; transition: height .38s cubic-bezier(.2, .8, .2, 1); }
 /* Fade the content itself, so its last pixels merge with any card background. */
 .lc-home-activity .games-card:not(.expanded) .games-viewport {
   -webkit-mask-image: linear-gradient(to bottom, #000 52%, rgba(0, 0, 0, .85) 66%, rgba(0, 0, 0, .32) 83%, transparent 96%);
   mask-image: linear-gradient(to bottom, #000 52%, rgba(0, 0, 0, .85) 66%, rgba(0, 0, 0, .32) 83%, transparent 96%);
 }
 .lc-home-activity .games-list { display: flex; flex-direction: column; gap: 10px; padding: 1px; }
-.lc-home-activity .game-row { display: flex; align-items: center; gap: 12px; min-height: 72px; border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: 8px 10px 8px 8px; }
-.lc-home-activity .game-image { width: 52px; height: 52px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+.lc-home-activity .game-row { display: flex; align-items: center; gap: 12px; min-height: 62px; border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: 7px 10px 7px 8px; }
+.lc-home-activity .game-image { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
 .lc-home-activity .game-title { font-size: 14px; line-height: 1.35; letter-spacing: -.2px; font-weight: 650; flex: 1; min-width: 0; }
 .lc-home-activity .game-reward { color: var(--primary); font-size: 11px; display: flex; align-items: center; gap: 3px; font-weight: 650; }
 .lc-home-activity .game-reward svg { width: 14px; height: 14px; color: var(--warning); }
@@ -77,7 +77,9 @@ export const homeActivityCss = `.lc-home-activity h2 { font-size: 21px; letter-s
 .lc-home-activity .activity-empty button,.lc-home-activity .activity-dialog button { padding:10px 20px; border-radius:16px; color:var(--primary-ink); background:var(--primary); }
 .lc-home-activity .activity-dialog { background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:24px; max-width:440px; width:calc(100% - 32px); padding:24px; }
 .lc-home-activity .activity-dialog::backdrop { background:#0008; }
-.lc-home-activity .activity-dialog p { line-height:1.6; }
+.lc-home-activity .activity-dialog ul { margin:16px 0 22px; padding-left:20px; line-height:1.6; }
+.lc-home-activity .activity-dialog li + li { margin-top:10px; }
+.lc-home-activity .activity-dialog { max-height:calc(100dvh - 48px); overflow-y:auto; }
 .lc-home-activity.is-hidden .raffle-track,.lc-home-activity.is-hidden .water-wave { animation-play-state:paused; }
 @keyframes raffle-scroll { to { transform:translateY(-50%); } }
 @keyframes water-drift { to { transform:translateX(-50%); } }

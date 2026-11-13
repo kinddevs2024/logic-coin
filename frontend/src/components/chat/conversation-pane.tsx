@@ -896,9 +896,9 @@ function ConversationPaneContent({
                     onPress={() => {
                       void reactToMessage(action, emoji);
                     }}
-                    style={styles.icon}
+                    style={{ flex: 1, minWidth: 0, minHeight: 48, paddingVertical: 6, alignItems: "center", justifyContent: "center" }}
                   >
-                    <AppText style={{ fontSize: 25 }}>{emoji}</AppText>
+                    <AppText style={{ fontSize: 25, lineHeight: 34, includeFontPadding: true, flexShrink: 0 }}>{emoji}</AppText>
                   </Pressable>
                 ))}
               </View>

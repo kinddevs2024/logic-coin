@@ -1,5 +1,9 @@
 import { useAppStore } from "@/store/app-store";
 const ru = {
+  roomType: "Тип чата",
+  publicShort: "Открытый",
+  privateShort: "Закрытый",
+
   comments: "Комментарии",
   viewOriginal: "Показать исходное сообщение",
   originalUnavailable: "Сообщение удалено или недоступно",
@@ -132,6 +136,10 @@ const ru = {
 };
 type Copy = typeof ru;
 const en: Copy = {
+  roomType: "Chat type",
+  publicShort: "Public",
+  privateShort: "Private",
+
   comments: "Comments", viewOriginal: "Show original message", originalUnavailable: "Message deleted or unavailable",
   deleteMessage: "Delete message",
   deleteForBoth: "Delete for me and",
@@ -261,6 +269,10 @@ const en: Copy = {
   ready: "Done",
 };
 const uz: Copy = {
+  roomType: "Chat turi",
+  publicShort: "Ochiq",
+  privateShort: "Yopiq",
+
   comments: "Izohlar", viewOriginal: "Asl xabarni ko‘rsatish", originalUnavailable: "Xabar o‘chirilgan yoki mavjud emas",
   deleteMessage: "Xabarni o‘chirish",
   deleteForBoth: "Men va bu suhbatdosh uchun o‘chirish:",

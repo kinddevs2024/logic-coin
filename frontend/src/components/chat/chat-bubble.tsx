@@ -1,3 +1,4 @@
+import { MessagePressable } from "./message-pressable";
 import { SystemMessageReactions } from "./system-message-reactions";
 import { RaffleWinnerSystemMessage } from "./raffle-winner-system-message";
 import { WithdrawalSystemMessage } from "./withdrawal-system-message";
@@ -72,10 +73,10 @@ export const ChatBubble = memo(function ChatBubble({
           />
         </Pressable>
       ) : null}
-      <Pressable
+      <MessagePressable
         nativeID={`chat-seq-${item.seq}`}
         accessibilityLabel={c.messageActions}
-        onPress={event => onActions(item, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
+        onActions={anchor => onActions(item, anchor)}
         style={[
           styles.bubble,
           {
@@ -160,7 +161,6 @@ export const ChatBubble = memo(function ChatBubble({
               <AppText
                 color={String(theme.text)}
                 selectable
-                onLongPress={() => onActions(item)}
                 style={{ lineHeight: 22, flexShrink: 1, maxWidth: "100%" }}
               >
                 {item.text}
@@ -225,7 +225,7 @@ export const ChatBubble = memo(function ChatBubble({
           ) : null}
         </View>
         </View> : null}
-      </Pressable>
+      </MessagePressable>
     </Animated.View>
   );
 });

@@ -13,7 +13,7 @@ export function ChatPopover({ anchor, onClose, children }: PropsWithChildren<{ a
     <View style={{ flex: 1 }}>
       <Pressable accessibilityLabel={c.cancel} onPress={onClose} style={StyleSheet.absoluteFill} />
       <MotionEntrance accessibilityViewIsModal style={{ position: "absolute", top, left, width: menuWidth, maxHeight: menuHeight, padding: 6, borderRadius: 18, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceRaised, boxShadow: "0 8px 30px rgba(0,0,0,0.2)", overflow: "hidden" }}>
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingVertical: 3 }} testID="message-actions-menu">{children}</ScrollView>
       </MotionEntrance>
     </View>
   </Modal>;

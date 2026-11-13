@@ -1,0 +1,15 @@
+# Home and chat interaction refinements — 13 November 2026
+
+Website changes requested from five browser annotations:
+
+- Daily game rows decrease from 72 to 62 CSS pixels; covers from 52 to 46. Action buttons retain a 44-pixel target. The collapsed viewport decreases from 202 to 178 pixels and retains the continuous fade, expansion and hidden-row keyboard behavior. These dimensions apply at all existing responsive sizes.
+- Weekly activity explains its rules after the heading is at least 75% visible, with 90-pixel top/bottom margins for fixed navigation and a 400ms dwell. It appears once per account and server-supplied week start in this browser, stored in localStorage with an in-memory fallback. It does not open for guests, hidden pages, or over an existing modal. The information button always remains available. Copy is localized in Russian, Uzbek and English; 2 weekly misses / 4 monthly misses and current challenge calendar rules are unchanged. Progress is described as completed days, not winning probability.
+- Chat information presents separate rows for name, description, public/private type, username and photo. Each text/type row opens its own editor, with explicit Save. Existing edit/member/moderation permissions, photo picker, notifications, invite sharing and member list remain. Drafts are reset on entry and canceled edits are not included in another field's save.
+- Message bodies no longer open the menu on a click/tap. Desktop uses right click or Shift+F10 / ContextMenu; touch/pen uses a 450ms hold, canceled on movement, scrolling or release. The synthetic release click is suppressed near the original touch point so it cannot immediately close the new menu. Dedicated profile/media/reaction buttons retain their actions. The shared native component uses native long press, but this delivery does not publish an APK/OTA.
+- Reaction buttons use 48-pixel targets with a 34-pixel line height for 25-pixel emoji, padding, and flexible equal widths. The menu remains scrollable on short screens.
+
+Validation: frontend TypeScript and production export; isolated Chromium at 320, 470 and 1440 pixels, including touch events, tap vs hold, drag cancellation, mouse hold vs right click, all six emoji, settings persistence through mocked API requests, game dimensions/expansion, weekly reload suppression and next-week redisplay, Russian/Uzbek/English, no horizontal overflow or uncaught browser errors. No real chat messages or chat settings were modified during verification.
+
+Reproduce browser checks using `BASE_URL=http://127.0.0.1:8120 node frontend/tests/home-chat-browser.cjs`. All API/WebSocket/external requests are intercepted. Screenshots and reports are under `/workspace/shared/home-chat-*`.
+
+Delivery uses a frontend-only staging build from the current server source: `/srv/apps/logic-coin/staging/home-chat-polish-20261113`. Source and published-index hashes guard against concurrent changes, with source/web backups and rollback. The current release symlink, backend, APK/OTA, channel comments, role badges, existing cached hashed assets, and updated app-ads.txt are preserved.
