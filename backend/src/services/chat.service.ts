@@ -1,3 +1,4 @@
+import { ChatComment } from "../models/ChatComment.js";
 import { chatVideoMime } from "../lib/chat-video.js";
 import { randomBytes, createHmac, timingSafeEqual } from "node:crypto";
 import { mkdir, writeFile, readFile, open } from "node:fs/promises";
@@ -648,6 +649,8 @@ export async function listMessages(
   const pinnedMessages = await ChatMessage.find({ conversationId: c._id, pinned: true, hiddenFor: { $ne: userId }, deletedAt: { $exists: false } })
     .select("seq text attachmentIds").sort({ seq: -1 }).limit(100).lean();
   const selected = rows.slice(0, 40);
+  const commentCounts = c.kind === "channel" ? await ChatComment.aggregate<{_id:Types.ObjectId;count:number}>([{$match:{messageId:{$in:selected.map(m=>m._id)},conversationId:c._id,deletedAt:{$exists:false}}},{$group:{_id:"$messageId",count:{$sum:1}}}]) : [];
+
   const listened = await ChatVoiceReceipt.find({ userId, messageId: { $in: selected.map(m => m._id) } }).select("messageId").lean();
   const replyIds = selected.map((m) => m.replyTo).filter(Boolean);
   const quoted = await ChatMessage.find({
@@ -684,6 +687,7 @@ export async function listMessages(
       return {
         id: String(m._id),
         seq: m.seq,
+        ...(c.kind === "channel" ? {commentCount:commentCounts.find(row=>String(row._id)===String(m._id))?.count??0} : {}),
         sender: sender
           ? chatProfile(sender)
           : { id: String(m.system?.recipientId ?? m.senderId), name: m.system ? "Logic Coin" : "User", avatarUrl: null },
@@ -862,8 +866,8 @@ export async function changeMessage(
     userId,
     String(m.conversationId),
   );
-  if (m.system && (action.text !== undefined || action.emoji !== undefined))
-    return fail(403, "system_message", "System messages cannot be edited or reacted to");
+  if (m.system && action.text !== undefined)
+    return fail(403, "system_message", "System messages cannot be edited");
   const own = String(m.senderId) === String(userId),
     moderator = admin || member.role === "owner" || member.role === "admin";
   if (action.report) {
