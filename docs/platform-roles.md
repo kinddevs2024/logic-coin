@@ -37,3 +37,15 @@ The persisted role is authoritative. Admin allowlist fallback was removed from a
 Integration tests require `QA_MONGODB_URI` pointing to an isolated replica set at `127.0.0.1:27951`; the suite refuses other addresses and deletes only its uniquely named QA database. Never use production credentials.
 
 `ROLES_URL=http://127.0.0.1:8117 node frontend/tests/platform-roles-browser.cjs` with an exported web preview. Screenshots/report go to `/workspace/shared/roles-*`.
+
+## Official channel posting — 2026-11-13
+
+Manager, Admin and Owner can publish in the official news channel (`systemKey: news`). User remains read-only there. Ordinary community chat behavior is unchanged. The database platform role controls both message-write authorization and the list API's `canPost` value, which enables the composer in the existing website and APK. Room ownership alone does not grant posting in the official news channel. Demotion takes effect on the next write request.
+
+Profile navigation and direct messaging without friendship already support all three staff roles; verified with real service calls against an isolated database. Explicit recipient blocks still apply. Manager/Owner do not gain unrelated private-channel posting, moderation, or platform administration privileges.
+
+Delivery is backend-only: `chat-policy` and `chat.service` source and compiled files, guarded against concurrent edits, with backups and automatic rollback on failed health checks. Current channel comments and system-message reactions were preserved. No web rebuild or APK update is necessary; reopen the chat to refresh its permissions. Stage: `/srv/apps/logic-coin/staging/staff-channel-posting-20261113`.
+
+Validation: backend typecheck/build; 35 tests passed, including 11 isolated MongoDB integration tests for actual posting, composer permission, role demotion, DM/reply without friendship, unrelated channels and blocks. No production messages or notifications were sent. The stage's outdated middleware test was replaced with the current repository test before verification; its old expectation incorrectly allowed demoted accounts through an email allowlist removed in the role rollout.
+
+Run `QA_MONGODB_URI=... npx vitest run tests/staff-channel.integration.test.ts tests/chat-policy.test.ts tests/admin-middleware.test.ts` from `backend` against an isolated replica set at `127.0.0.1:27951`.

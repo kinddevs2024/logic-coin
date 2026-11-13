@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { canPostChat, normalizeUsername } from "../src/lib/chat-policy.js";
 describe("chat permissions", () => {
-  it("reserves the official news feed for site administrators", () => {
+  it("denies an ordinary user even when they hold a channel membership role", () => {
     expect(
       canPostChat({
         kind: "channel",
@@ -50,4 +50,16 @@ describe("optional unique usernames", () => {
     ])
       expect(normalizeUsername(name)).toBeNull();
   });
+});
+
+describe("official channel platform roles", () => {
+ it.each(["manager", "admin", "owner"])("allows %s to publish", platformRole => {
+  expect(canPostChat({kind:"channel",systemKey:"news",siteAdmin:platformRole==="admin",platformRole,memberRole:"member"})).toBe(true);
+ });
+ it.each(["user", "unknown", undefined])("rejects %s", platformRole => {
+  expect(canPostChat({kind:"channel",systemKey:"news",siteAdmin:false,platformRole,memberRole:"owner"})).toBe(false);
+ });
+ it.each(["manager","owner"])("does not grant %s permission to post in other people's channels", platformRole => {
+  expect(canPostChat({kind:"channel",siteAdmin:false,platformRole,memberRole:"member"})).toBe(false);
+ });
 });

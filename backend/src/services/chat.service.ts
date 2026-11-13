@@ -54,13 +54,8 @@ export function chatProfile(user: {
     referralCode: user.referralCode,
   };
 }
-async function siteAdmin(userId: Types.ObjectId) {
-  return Boolean(
-    await User.exists({
-      _id: userId,
-      role: "admin",
-    }),
-  );
+async function siteRole(userId: Types.ObjectId) {
+  return (await User.findById(userId).select("role").lean())?.role ?? "user";
 }
 async function ensureMember(
   conversationId: Types.ObjectId,
@@ -145,13 +140,15 @@ export async function chatAccess(
       "chat_access_denied",
       "Join the chat to read or send messages",
     );
-  const admin = await siteAdmin(userId);
+  const platformRole = await siteRole(userId);
+  const admin = platformRole === "admin";
   if (
     writing &&
     !canPostChat({
       kind: c.kind,
       systemKey: c.systemKey,
       siteAdmin: admin,
+      platformRole,
       memberRole: member.role,
     })
   )
@@ -226,7 +223,8 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
   })
     .select(userFields)
     .lean();
-  const admin = await siteAdmin(userId);
+  const platformRole = await siteRole(userId);
+  const admin = platformRole === "admin";
   const lastMessages = rooms.length
     ? await ChatMessage.find({
         $or: rooms.map((c) => ({
@@ -324,6 +322,7 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
         kind: c.kind,
         systemKey: c.systemKey,
         siteAdmin: admin,
+        platformRole,
         memberRole: member.role,
       }),
       canManage: admin || member.role === "owner" || member.role === "admin",
