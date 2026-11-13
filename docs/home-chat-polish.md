@@ -13,3 +13,5 @@ Validation: frontend TypeScript and production export; isolated Chromium at 320,
 Reproduce browser checks using `BASE_URL=http://127.0.0.1:8120 node frontend/tests/home-chat-browser.cjs`. All API/WebSocket/external requests are intercepted. Screenshots and reports are under `/workspace/shared/home-chat-*`.
 
 Delivery uses a frontend-only staging build from the current server source: `/srv/apps/logic-coin/staging/home-chat-polish-20261113`. Source and published-index hashes guard against concurrent changes, with source/web backups and rollback. The current release symlink, backend, APK/OTA, channel comments, role badges, existing cached hashed assets, and updated app-ads.txt are preserved.
+
+Published to `https://logic-coin.online/` and rechecked against the public build with intercepted fixtures at 470px: ordinary-user home reminder/next-week behavior and admin chat touch gestures/settings passed. Public homepage fixtures use a User account because Admin accounts are correctly redirected to administration. The published app-ads.txt still contains all 171 authorized seller entries.

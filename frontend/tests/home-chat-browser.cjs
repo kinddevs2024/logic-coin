@@ -3,7 +3,7 @@ const base=process.env.BASE_URL||'http://127.0.0.1:8120';const account='507f1f77
 const games=[['2048','2048'],['color-match','Цвет'],['space-find-number','Космические числа'],['one-second','Одна секунда'],['shadow','Тени'],['find-letter','Найди букву']].map(([key,title])=>({id:key,key,slug:key,title,description:'',icon:'flash',color:'#88bbff',engine:key,difficulty:'medium',family:'arcade',challengeEnabled:true,practiceEnabled:true,state:{status:'not_started',score:0,coinsAwarded:0,doubled:false,completedAt:null}}));
 const players=['Умида','Диёра','Сабина','Мурод','Алишер'].map((name,i)=>({id:'player'+i,name,avatarUrl:null,coins:1951+i*4321,balanceUnits:i*3}));
 const today={status:'published',available:true,dayKey:'2026-11-13',endsAt:new Date(Date.now()+43200000).toISOString(),totalCount:6,completedCount:0,totalCoinsToday:0,weeklyCompletedDays:1,monthlyCompletedDays:10,monthlyDaysInMonth:30,games,coins:{balance:1951,lifetimeEarned:1951,referralEarned:0},prizes:null};
-async function setup(browser,width,lang='ru',touch=false){
+async function setup(browser,width,lang='ru',touch=false,role='admin'){
  const page=await browser.newPage({viewport:{width,height:854},hasTouch:touch,isMobile:touch});let errors=[],writes=[],week='2026-11-09';
  const room={id:roomId,title:'Logic Coin Community',kind:'group',systemKey:'community',isOfficial:true,description:'Описание сообщества',username:'logiccommunity',visibility:'public',peer:null,unread:0,lastSeq:1,peerReadSeq:0,lastMessageAt:new Date().toISOString(),preview:'Проверка меню сообщения',hasAttachment:false,muted:false,pinned:false,canPost:true,canManage:true,canEditInfo:true,canPromote:true,isOwner:false,inviteCode:null};
  const item={id:'607f1f77bcf86cd799439011',seq:1,sender:{id:peer,name:'Собеседник',avatarUrl:null},text:'Проверка меню сообщения',createdAt:new Date().toISOString(),edited:false,deleted:false,pinned:false,forwardedFrom:null,reply:null,attachments:[],reactions:[],own:false};
@@ -14,7 +14,7 @@ async function setup(browser,width,lang='ru',touch=false){
   if(r.request().method()==='PATCH'&&u===`/api/v1/chat/${roomId}`){const body=r.request().postDataJSON();writes.push(body);Object.assign(room,body);data={ok:true};}
   else if(u.endsWith('/read'))data={ok:true};
   else return r.fulfill({status:503,json:{error:{message:'No production writes'}}});
- }else if(u.endsWith('/profile/roles'))data={roles:{[account]:'admin'}};
+ }else if(u.endsWith('/profile/roles'))data={roles:{[account]:role}};
  else if(u.endsWith('/activity/home')){const period={from:week,endsAt:new Date(Date.now()+2*86400000).toISOString(),totalDays:7,completedDays:1,missedDays:3,allowedMisses:2,eligible:false,percent:14,participants:players};data={serverNow:new Date().toISOString(),dayKey:today.dayKey,week:period,month:{...period,from:'2026-11-01',totalDays:30,completedDays:10,percent:33,eligible:true,missedDays:3,allowedMisses:4}};}
  else if(u.endsWith('/challenges/today'))data={today};
  else if(u.endsWith('/raffle/state'))data={event:null,serverNow:new Date().toISOString()};
@@ -27,12 +27,12 @@ async function setup(browser,width,lang='ru',touch=false){
  return r.fulfill({status:200,json:{data}});
  }
  if(url.hostname!==new URL(base).hostname)return r.abort();return r.continue();});
- await page.addInitScript(({lang,account})=>{if(!localStorage.getItem('logic-coin-state-v1'))localStorage.setItem('logic-coin-state-v1',JSON.stringify({version:3,state:{language:lang,onboardingDone:true,authMode:'authenticated',accessToken:'isolated-ui-fixture',user:{id:account,name:'Тест',username:'fixture',countryCode:'UZ',role:'admin'},theme:'graphite',balanceUnits:640,goalUnits:1000}}));localStorage.setItem('logic-coin:home-tour:v1:'+account,'done');},{lang,account});
+ await page.addInitScript(({lang,account,role})=>{if(!localStorage.getItem('logic-coin-state-v1'))localStorage.setItem('logic-coin-state-v1',JSON.stringify({version:3,state:{language:lang,onboardingDone:true,authMode:'authenticated',accessToken:'isolated-ui-fixture',user:{id:account,name:'Тест',username:'fixture',countryCode:'UZ',role},theme:'graphite',balanceUnits:640,goalUnits:1000}}));localStorage.setItem('logic-coin:home-tour:v1:'+account,'done');},{lang,account,role});
  return {page,errors,writes,nextWeek:()=>week='2026-11-16'};
 }
 (async()=>{const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox'],...(base.startsWith('https:')?{proxy:{server:process.env.HTTPS_PROXY}}:{})});const checks=[];
 for(const [width,lang] of (process.env.CHAT_ONLY?[]:process.env.QUICK?[[470,'ru']]:[[470,'ru'],[320,'uz'],[1440,'en']])){
- const {page:p,errors,nextWeek}=await setup(browser,width,lang);await p.goto(base,{waitUntil:'networkidle'});await p.locator('.game-row').first().waitFor();
+ const {page:p,errors,nextWeek}=await setup(browser,width,lang,false,'user');await p.goto(base,{waitUntil:'networkidle'});await p.locator('.game-row').first().waitFor();
  assert.equal(await p.locator('.game-row').first().evaluate(e=>e.getBoundingClientRect().height),62);
  assert.equal(await p.locator('.games-viewport').evaluate(e=>e.clientHeight),178);
  const dialog=p.locator('dialog[open]'),week=p.getByTestId('home-week-card');
