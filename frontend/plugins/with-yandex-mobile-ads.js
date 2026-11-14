@@ -6,7 +6,7 @@ const {
   withDangerousMod,
 } = require("expo/config-plugins");
 
-const YANDEX_DEPENDENCY = 'implementation("com.yandex.android:mobileads:8.4.0")';
+const YANDEX_DEPENDENCY = 'implementation("com.yandex.android:mobileads:8.6.0")';
 const AUTO_INIT_META = "com.yandex.mobile.ads.AUTOMATIC_SDK_INITIALIZATION";
 const PACKAGE_NAME = "com.kinddevs.logiccoin";
 const NATIVE_SOURCE_FILES = ["YandexAdsModule.java", "YandexAdsPackage.java"];
@@ -22,7 +22,7 @@ function addOnce(source, anchor, value) {
 module.exports = function withYandexMobileAds(config) {
   config = withAppBuildGradle(config, (gradleConfig) => {
     gradleConfig.modResults.contents = addOnce(
-      gradleConfig.modResults.contents,
+      gradleConfig.modResults.contents.replace(/implementation\("com\.yandex\.android:mobileads:[^"\r\n]+"\)/g, YANDEX_DEPENDENCY),
       'implementation("com.facebook.react:react-android")',
       YANDEX_DEPENDENCY,
     );
