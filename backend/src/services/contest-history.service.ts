@@ -52,7 +52,7 @@ export async function getContestHistory(day: string | undefined, offset: number,
     const own = await DailyContestResult.findOne({ dayKey, userId }).select("rank totalCoins cashUnits completedGamesCount").lean();
     if (own) self = { userId: userId.toString(), rank: own.rank, totalCoins: own.totalCoins, cashUnits: own.cashUnits ?? 0, completedGamesCount: own.completedGamesCount };
   } else if (status === "live") {
-    const standings = await collectContestStandings(dayKey);
+    const standings = await collectContestStandings(dayKey, set ?? undefined);
     const ranked = contestPrizePlan(standings, set!).ranked;
     total = ranked.length;
     entries = ranked.slice(offset, offset + 15);

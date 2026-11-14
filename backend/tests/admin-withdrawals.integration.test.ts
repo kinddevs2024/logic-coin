@@ -1,3 +1,6 @@
+import { ChatConversation, ChatMessage, ChatMember } from "../src/models/Chat.js";
+import { NotificationEvent } from "../src/models/NotificationEvent.js";
+import { listMessages, changeMessage, sendChatMessage } from "../src/services/chat.service.js";
 import mongoose, { Types } from "mongoose";
 import express from "express";
 import request from "supertest";
@@ -26,10 +29,10 @@ describe.skipIf(!uri)("admin withdrawal processing, isolated MongoDB", () => {
   beforeAll(async () => {
     if (!uri?.startsWith("mongodb://127.0.0.1:27938/")) throw Error("Only isolated QA MongoDB is permitted");
     await mongoose.connect(uri, { dbName: `logic_coin_qa_withdrawals_${Date.now()}` });
-    await Promise.all([User.init(), Withdrawal.init(), LedgerEntry.init()]);
+    await Promise.all([User.init(), Withdrawal.init(), LedgerEntry.init(), ChatConversation.init(), ChatMessage.init(), ChatMember.init(), NotificationEvent.init()]);
   });
   beforeEach(async () => {
-    await Promise.all([User.deleteMany({}), Withdrawal.deleteMany({}), LedgerEntry.deleteMany({})]);
+    await Promise.all([User.deleteMany({}), Withdrawal.deleteMany({}), LedgerEntry.deleteMany({}), ChatConversation.deleteMany({}), ChatMessage.deleteMany({}), ChatMember.deleteMany({}), NotificationEvent.deleteMany({})]);
     await User.create([
       { _id: adminId, name: "QA Admin", email: "qa-admin@example.invalid", referralCode: "QAWITHDRAWADMIN", role: "admin" },
       { _id: userId, name: "QA User", email: "qa-user@example.invalid", referralCode: "QAWITHDRAWUSER", wallet: { availableUnits: units * 5 } },
@@ -119,4 +122,60 @@ describe.skipIf(!uri)("admin withdrawal processing, isolated MongoDB", () => {
     await request(app).get("/withdrawals?limit=10000").set("Authorization", "Bearer admin").expect(400);
     await request(app).post(`/withdrawals/${withdrawal._id}/review`).set("Authorization", "Bearer admin").send({ action: "approve", expectedVersion: 0 }).expect(200);
   });
+  it("publishes one senderless system post with public recipient and amount on approval", async () => {
+    const { withdrawal } = await create(); const id = String(withdrawal._id);
+    await review(id, "approve");
+    const posts = await ChatMessage.find({ "system.kind": "withdrawal_approved" }).lean();
+    expect(posts).toHaveLength(1);
+    expect(posts[0]!.senderId).toBeUndefined();
+    expect(posts[0]!.system).toMatchObject({ kind: "withdrawal_approved", recipientName: "QA User", amountCents });
+    expect(String(posts[0]!.system!.recipientId)).toBe(String(userId));
+    const room = await ChatConversation.findOne({ systemKey: "community" }).lean();
+    expect(room!.lastSeq).toBe(posts[0]!.seq); expect(room!.lastMessageSeq).toBe(posts[0]!.seq);
+    const response = await listMessages(userId, identity.admin, String(room!._id));
+    expect(response.items[0]).toMatchObject({ own: false, system: { recipientId: String(userId), recipientName: "QA User", amountCents } });
+    expect(response.items[0]!.text).toContain("$" + (amountCents / 100).toFixed(2));
+    expect(response.items[0]).not.toHaveProperty("cardNumber");
+    expect(response.items[0]).not.toHaveProperty("withdrawalId");
+    await expect(review(id, "approve")).rejects.toMatchObject({ statusCode: 409 });
+    await review(id, "mark_paid", 1);
+    expect(await ChatMessage.countDocuments({ "system.kind": "withdrawal_approved" })).toBe(1);
+  });
+  it("creates exactly one community post when approval requests race", async () => {
+    const { withdrawal } = await create(); const id = String(withdrawal._id);
+    const result = await Promise.allSettled([review(id, "approve"), review(id, "approve")]);
+    expect(result.filter(r => r.status === "fulfilled")).toHaveLength(1);
+    expect(await ChatMessage.countDocuments({ "system.kind": "withdrawal_approved" })).toBe(1);
+  });
+  it("does not announce rejected or failed withdrawals", async () => {
+    const { withdrawal } = await create(); await review(String(withdrawal._id), "reject");
+    const second = await create("qa-second");
+    await User.updateOne({ _id: userId }, { $set: { "wallet.lockedUnits": 0 } });
+    await expect(review(String(second.withdrawal._id), "approve")).rejects.toMatchObject({ statusCode: 409 });
+    expect(await ChatMessage.countDocuments({})).toBe(0);
+  });
+  it("rolls approval and its private notice back when the community post fails", async () => {
+    const { withdrawal } = await create(); const id = String(withdrawal._id);
+    const failure = vi.spyOn(ChatMessage, "create").mockRejectedValueOnce(new Error("QA post failure"));
+    await expect(review(id, "approve")).rejects.toThrow("QA post failure"); failure.mockRestore();
+    expect((await Withdrawal.findById(id))!.status).toBe("pending_review");
+    expect(await NotificationEvent.countDocuments({ eventKey: `withdrawal:${id}:approved` })).toBe(0);
+    expect(await ChatMessage.countDocuments({})).toBe(0);
+    await review(id, "approve"); expect(await ChatMessage.countDocuments({})).toBe(1);
+  });
+  it("allows recipient reactions while protecting system text and forwarding", async () => {
+    const { withdrawal } = await create(); await review(String(withdrawal._id), "approve");
+    const post = (await ChatMessage.findOne({ "system.kind": "withdrawal_approved" }))!;
+    await listMessages(userId, identity.admin, String(post.conversationId));
+    await expect(changeMessage(userId, String(post._id), { text: "Fake amount" })).rejects.toMatchObject({ code: "system_message" });
+    await changeMessage(userId, String(post._id), { emoji: "👍" });
+    expect((await ChatMessage.findById(post._id))!.reactions).toHaveLength(1);
+    await changeMessage(userId, String(post._id), { emoji: "❤️" });
+    expect((await ChatMessage.findById(post._id))!.reactions.map(r => r.emoji)).toEqual(["❤️"]);
+    await changeMessage(userId, String(post._id), { emoji: "" });
+    expect((await ChatMessage.findById(post._id))!.reactions).toHaveLength(0);
+    await expect(sendChatMessage(userId, String(post.conversationId), { clientId: "qa-forward", text: "", attachmentIds: [], forwardId: String(post._id) })).rejects.toMatchObject({ code: "system_message" });
+    expect(await ChatMessage.countDocuments({})).toBe(1);
+  });
+
 });

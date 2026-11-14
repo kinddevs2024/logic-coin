@@ -849,6 +849,10 @@ export const ownerApi = {
  withdrawals: (token:string) => request<{totals:{_id:string;count:number;amountUnits:number}[]}>("/owner/withdrawals",{token}),
 };
 export const adminApi = {
+ banStatus(id:string,token:string){return request<{banned:boolean;reason:string|null;deviceCount:number;ipCount:number}>(`/admin/users/${encodeURIComponent(id)}/ban`,{token});},
+ banUser(id:string,reason:string,token:string){return request<{banned:boolean;deviceCount:number;ipCount:number}>(`/admin/users/${encodeURIComponent(id)}/ban`,{method:'POST',token,body:JSON.stringify({reason})});},
+ unbanUser(id:string,reason:string,token:string){return request<{banned:boolean}>(`/admin/users/${encodeURIComponent(id)}/ban`,{method:'DELETE',token,body:JSON.stringify({reason})});},
+ deleteUser(id:string,reason:string,token:string){return request<{deleted:boolean;pendingMedia:number}>(`/admin/users/${encodeURIComponent(id)}`,{method:'DELETE',token,body:JSON.stringify({reason,confirmation:'DELETE'})});},
  changeRole(id:string,input:{role:string;expectedRole:string;reason:string},token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}/role`,{method:"PATCH",token,body:JSON.stringify(input)});},
  telegramContact(id:string,token:string){return request<{contact:{telegramId:string;chatId:string;firstName?:string;lastName?:string;username?:string;phoneNumber?:string;phoneVerifiedAt?:string;subscriptionCheckedAt?:string}|null}>(`/admin/users/${encodeURIComponent(id)}/telegram-contact`,{token});},
  users(q:string,page:number,token:string){return request<{users:any[];total:number}>(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`,{token});},

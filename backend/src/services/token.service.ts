@@ -7,6 +7,7 @@ import { generateRefreshToken, hashOpaqueToken } from "../lib/crypto.js";
 import { RefreshSession } from "../models/RefreshSession.js";
 import { Device } from "../models/Device.js";
 import { assertDeviceAccess } from "./device-security.service.js";
+import { assertAccountAccess, isAccountAccessBlocked } from "./account-ban.service.js";
 
 export interface SessionContext {
   deviceId?: string;
@@ -125,6 +126,7 @@ function signAccessToken(userId: Types.ObjectId, sessionId: Types.ObjectId): str
 }
 
 export async function issueTokenPair(userId: Types.ObjectId, context: SessionContext = {}) {
+  await assertAccountAccess(userId, context);
   await assertDeviceAccess(userId, context.deviceId);
   const refreshToken = generateRefreshToken();
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 86_400_000);
@@ -169,21 +171,18 @@ export function verifyAccessToken(token: string): AccessPayload {
 
 export async function isAccessSessionActive(
   userId: Types.ObjectId,
-  sessionId: string
+  sessionId: string,
+  context: { ip?: string | undefined } = {}
 ): Promise<boolean> {
-  return Boolean(
-    await RefreshSession.exists({
-      _id: sessionId,
-      userId,
-      revokedAt: { $exists: false },
-      expiresAt: { $gt: new Date() }
-    })
-  );
+  const session = await RefreshSession.findOne({ _id: sessionId, userId, revokedAt: { $exists: false }, expiresAt: { $gt: new Date() } }).select("deviceId ip").lean();
+  return !!session && !(await isAccountAccessBlocked(userId, { deviceId: session.deviceId, ip: context.ip ?? session.ip }));
 }
 
 export async function rotateRefreshToken(refreshToken: string, context: SessionContext = {}) {
   const now = new Date();
   const presentedHash = hashOpaqueToken(refreshToken);
+  const prior = await RefreshSession.findOne({ tokenHash: presentedHash, revokedAt: { $exists: false }, expiresAt: { $gt: now } }).select("userId deviceId ip").lean();
+  if (prior) await assertAccountAccess(prior.userId, { deviceId: context.deviceId ?? prior.deviceId, ip: context.ip ?? prior.ip });
   const replacementToken = generateRefreshToken();
   const replacementHash = hashOpaqueToken(replacementToken);
   const databaseSession = await mongoose.startSession();
@@ -283,6 +282,7 @@ export async function rotateRefreshToken(refreshToken: string, context: SessionC
   if (outcome.kind !== "rotated") {
     throw new ApiError(401, "invalid_refresh_token", "Refresh token is invalid or expired");
   }
+  await assertAccountAccess(outcome.userId, context);
   await assertDeviceAccess(outcome.userId, context.deviceId);
   return {
     userId: outcome.userId,

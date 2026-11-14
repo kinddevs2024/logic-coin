@@ -17,7 +17,7 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
-const NAV_ITEMS: { href: "/admin/winners" | "/admin/chats" | "/admin/raffle" | "/admin/games" | "/admin/users" | "/admin" | "/admin/challenges" | "/admin/budget" | "/admin/blocked" | "/admin/notifications" | "/admin/withdrawals"; label: string; icon: IconName }[] = [
+const NAV_ITEMS: { href: "/admin/rating" | "/admin/winners" | "/admin/chats" | "/admin/raffle" | "/admin/games" | "/admin/users" | "/admin" | "/admin/challenges" | "/admin/budget" | "/admin/blocked" | "/admin/notifications" | "/admin/withdrawals"; label: string; icon: IconName }[] = [
   { href: "/admin/users", label: "Пользователи", icon: "people-outline" },
   { href: "/admin", label: "Главная", icon: "grid-outline" },
   { href: "/admin/challenges", label: "Челленджи", icon: "game-controller-outline" },
@@ -29,6 +29,7 @@ const NAV_ITEMS: { href: "/admin/winners" | "/admin/chats" | "/admin/raffle" | "
   { href: "/admin/budget", label: "Бюджет", icon: "wallet-outline" },
   { href: "/admin/withdrawals", label: "Выводы", icon: "cash-outline" },
   { href: "/admin/blocked", label: "Блокировки", icon: "ban-outline" },
+  { href: "/admin/rating", label: "Рейтинг по дням", icon: "podium-outline" },
 ];
 
 function NativeAdminShell({ children }: PropsWithChildren) {

@@ -1,3 +1,5 @@
+import { postApprovedWithdrawal } from "./community-withdrawal.service.js";
+import { notifyChatChange } from "./live-updates.service.js";
 import {decryptPayoutCard} from "../lib/payout-card.js";
 import mongoose, { Types } from "mongoose";
 import { ApiError } from "../lib/api-error.js";
@@ -46,6 +48,7 @@ export async function reviewAdminWithdrawal(input: {
   if (input.action === "mark_paid" && (!input.paymentConfirmed || reference.length < 3)) throw new ApiError(400, "payment_confirmation_required", "Подтвердите уже выполненный перевод и укажите номер операции.");
   const target = input.action === "approve" ? "approved" : input.action === "reject" ? "rejected" : "paid";
   const allowed = input.action === "approve" ? ["pending_review"] : input.action === "reject" ? ["pending_review", "approved"] : ["approved"];
+  let communityChatId: string | undefined;
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
@@ -73,6 +76,7 @@ export async function reviewAdminWithdrawal(input: {
           payload: { userIds: [String(row.userId)], withdrawalId: String(row._id),
             title: "Вывод одобрен!", body: "Ваша заявка на вывод одобрена. Ожидайте перевода средств." },
         }], { session });
+        communityChatId = await postApprovedWithdrawal({ withdrawalId: row._id, userId: row.userId, amountCents: row.amountCents }, session);
         return;
       }
       const user = await User.findOneAndUpdate(walletFilter, { $inc: {
@@ -87,5 +91,6 @@ export async function reviewAdminWithdrawal(input: {
       }], { session });
     });
   } finally { await session.endSession(); }
+  if (communityChatId) notifyChatChange(null, communityChatId);
   return { id: input.id, status: target };
 }

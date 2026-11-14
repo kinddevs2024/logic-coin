@@ -43,7 +43,7 @@ const rawEnvSchema = z.object({
   YANDEX_CLIENT_SECRET: z.string().optional(),
   YANDEX_REDIRECT_URIS: z.string().default(""),
   UNIT_VALUE_CENTS: z.coerce.number().int().min(1).max(100).default(1),
-  MIN_WITHDRAWAL_CENTS: z.coerce.number().int().min(1_000).default(1_000),
+  MIN_WITHDRAWAL_CENTS: z.coerce.number().int().min(500).default(500),
   // Five LS = $0.05 when one unit represents one cent.
   // Retained for old deployments; signup rewards have been discontinued.
   REFERRAL_SIGNUP_REWARD_UNITS: z.coerce.number().int().min(0).max(100_000).default(0),

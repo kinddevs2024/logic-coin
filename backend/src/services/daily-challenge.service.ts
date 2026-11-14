@@ -1,3 +1,5 @@
+import { challengeDoublingEnabled } from "../lib/challenge-doubling-policy.js";
+import { TOP_THIRTY_CONTEST_POLICY } from "../lib/top-thirty-contest-plan.js";
 import { randomUUID } from "node:crypto";
 import type { Types } from "mongoose";
 import {
@@ -11,6 +13,7 @@ import { env } from "../config/env.js";
 import { currentMonthBounds, dayBoundsInTimeZone, localDayKey } from "../lib/date.js";
 import { ApiError } from "../lib/api-error.js";
 import { pickSeededSubset } from "../lib/seeded-random.js";
+import { TOP_TEN_CONTEST_POLICY, newContestPayoutSeed } from "../lib/top-ten-contest-plan.js";
 import { ChallengeAttempt } from "../models/ChallengeAttempt.js";
 import { CoinLedgerEntry } from "../models/CoinLedgerEntry.js";
 import { DailyChallengeSet } from "../models/DailyChallengeSet.js";
@@ -80,6 +83,8 @@ export async function ensureDailyChallengeSet(dayKey: string = challengeDayKey()
         cashPrizeMinUnits: DEFAULT_DAILY_PRIZE_MIN_UNITS,
         cashPrizeMaxUnits: DEFAULT_DAILY_PRIZE_MAX_UNITS,
         prizePoolUnits: DEFAULT_DAILY_PRIZE_POOL_UNITS,
+        payoutPolicy: TOP_THIRTY_CONTEST_POLICY,
+        payoutSeed: newContestPayoutSeed(),
         cashPrizeLimitUnits: NEW_CHALLENGE_CASH_LIMIT_UNITS,
         descendingCashPrizes: true,
         coinPrizeAmounts: [100, 100, 100, 100, 100, 100],
@@ -219,6 +224,7 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId, account?
     available: true,
     dayKey,
     nextChallengeAt: null,
+    startsAt: dayBoundsInTimeZone(dayKey, env.DEFAULT_TIMEZONE).from.toISOString(),
     endsAt: set.endsAt?.toISOString() ?? null,
     revision: set.updatedAt?.toISOString() ?? null,
     totalCount: items.length,
@@ -235,7 +241,7 @@ export async function getTodayChallengeOverview(userId: Types.ObjectId, account?
       firstGameKey: items[0]?.key ?? null,
       gameDoubled: items[0]?.state.doubled ?? false,
       dayDoubled: Boolean(dayDoubleEntry),
-      dayEligible: items.length === DAILY_CHALLENGE_GAME_COUNT && completedCount === items.length
+      dayEligible: challengeDoublingEnabled(dayKey) && items.length === DAILY_CHALLENGE_GAME_COUNT && completedCount === items.length
     },
     prizes: {
       cashMinUnits: set.cashPrizeMinUnits,

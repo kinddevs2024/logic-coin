@@ -1,3 +1,4 @@
+import adminWinnerAnnouncementRoutes from "./admin-winner-announcements.routes.js";
 import { ChatReport, ChatMessage, ChatMember, ChatConversation } from "../models/Chat.js";
 import { notifyChatChange } from "../services/live-updates.service.js";
 import { Router } from "express";
@@ -30,6 +31,7 @@ import { serializeGame } from "../services/serialization.service.js";
 import { listBannedDevices, resetDevice, unbanDevice } from "../services/device-security.service.js";
 
 import adminUsersRoutes from "./admin-users.routes.js";
+import adminRatingRoutes from "./admin-rating.routes.js";
 import { HomeContent } from "../models/HomeContent.js";
 const router = Router();
 
@@ -43,6 +45,7 @@ const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 }, "Invalid calendar day");
 
 router.use("/withdrawals", adminWithdrawalRoutes);
+router.use("/winner-announcements", adminWinnerAnnouncementRoutes);
 router.use(requireAuth, requireAdmin);
 router.get("/chat-reports", async (_req, res) => {
   const reports = await ChatReport.find().sort({ createdAt: -1 }).limit(100).populate({ path: "userId", model: "User", select: "name" }).populate({ path: "messageId", model: "ChatMessage", select: "text senderId conversationId deletedAt" }).lean();
@@ -78,6 +81,7 @@ router.put("/home-content", validateBody(homeContentSchema), async (req, res) =>
   res.json({ data: await HomeContent.findOneAndUpdate({ key: "home" }, { $set: req.body }, { upsert: true, new: true, runValidators: true }).lean() });
 });
 router.use("/users", adminUsersRoutes);
+router.use("/rating", adminRatingRoutes);
 
 router.get("/daily-challenges/:dayKey/prizes", async (request, response) => {
   const dayKey = dayKeySchema.safeParse(request.params.dayKey);

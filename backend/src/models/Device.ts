@@ -14,6 +14,7 @@ const deviceSchema = new Schema(
       }, { _id: false }),
       required: false
     },
+    notificationSyncVersion: { type: Number, enum: [0, 1], default: 0 },
     notificationsEnabled: { type: Boolean, default: true },
     dailyReminderEnabled: { type: Boolean, default: true },
     reminderTime: { type: String, default: "19:00" },

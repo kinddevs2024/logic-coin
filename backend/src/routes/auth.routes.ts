@@ -295,7 +295,7 @@ router.post(
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const role = env.ADMIN_EMAILS.includes(email) ? "admin" : existing.role;
+    const role = existing.role;
     const user = await User.findOneAndUpdate(
       {
         _id: existing._id,
@@ -556,7 +556,7 @@ router.post("/login", authLimiter, validateBody(loginSchema), async (request, re
   }
 
   user.lastLoginAt = new Date();
-  if (env.ADMIN_EMAILS.includes(user.email)) user.role = "admin";
+  // Roles are changed only by the administration, never by signing in.
   await user.save();
   const tokens = await issueTokenPair(user._id, sessionContext(request, deviceId));
   response.json({ data: { user: serializeUser(user), tokens } });

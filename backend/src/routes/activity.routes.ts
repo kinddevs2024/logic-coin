@@ -1,3 +1,4 @@
+import { homeActivity } from "../services/home-activity.service.js";
 import { Router } from "express";
 import { z } from "zod";
 import { ApiError } from "../lib/api-error.js";
@@ -13,6 +14,11 @@ import { ActivityDay } from "../models/ActivityDay.js";
 import { User } from "../models/User.js";
 
 const router = Router();
+
+router.get("/home", async (request, response) => {
+  response.set("Cache-Control", "private, no-store");
+  response.json({ data: await homeActivity(String(request.auth!.userId)) });
+});
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   try {
     parseDayKey(value);

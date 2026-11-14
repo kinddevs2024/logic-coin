@@ -51,6 +51,7 @@ const devicePreferencesSchema = z
     fcmToken: z.string().trim().min(8).max(4_096).nullable().optional(),
     pushToken: z.string().trim().min(8).max(4_096).nullable().optional(),
     webPush: webPushSchema.nullable().optional(),
+    notificationSyncVersion: z.union([z.literal(0), z.literal(1)]).optional(),
     notificationsEnabled: z.boolean().default(true),
     dailyReminderEnabled: z.boolean().default(true),
     reminderTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("19:00"),
@@ -69,6 +70,7 @@ router.put(
     const input = request.body as z.infer<typeof devicePreferencesSchema>;
     const set: Record<string, unknown> = {
       platform: input.platform,
+      notificationSyncVersion: input.notificationSyncVersion ?? 0,
       notificationsEnabled: input.notificationsEnabled,
       dailyReminderEnabled: input.dailyReminderEnabled,
       reminderTime: input.reminderTime,

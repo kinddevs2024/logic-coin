@@ -37,6 +37,10 @@ object ChatReadState {
     if (sequence <= 0) return true // Legacy pushes are removed by their inbox ID.
     return sequence > prefs(context).getLong("read:$account:${data.optString("conversationId")}", 0)
   }
+  @Synchronized fun postIfUnread(context: Context, data: JSONObject?, post: () -> Unit): Boolean {
+    if (!canPresent(context, data)) return false
+    post(); return true
+  }
   @Synchronized fun acknowledge(context: Context, account: String, conversation: String, sequence: Long, ids: Set<String>) {
     if (!account.matches(Regex("[a-fA-F0-9]{24}")) || !conversation.matches(Regex("[a-fA-F0-9]{24}")) || sequence < 0) return
     val storage = prefs(context); val key = "read:$account:$conversation"

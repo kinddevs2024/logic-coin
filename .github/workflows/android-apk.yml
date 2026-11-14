@@ -91,6 +91,13 @@ jobs:
           # needs to be requested explicitly.
           packages: platform-tools
 
+      - name: Restore native task cache across notification build iterations
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: chat-read-native-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
+          restore-keys: chat-read-native-${{ hashFiles('package-lock.json') }}-
+
       - name: Install frontend workspace
         run: |
           node scripts/ota/verify-certificate.mjs
@@ -114,7 +121,7 @@ jobs:
           npm run typecheck --workspace frontend
           cd frontend
           npx eslint src/lib/chat-notification-sync.ts src/lib/chat-notification-sync.web.ts src/lib/notification-payload.ts src/lib/cache-boot.ts src/lib/notifications.ts src/lib/notifications.web.ts src/components/native-data-cache-boundary.tsx src/components/chat/chat-runtime.tsx src/components/chat/conversation-pane.tsx src/app/_layout.tsx
-          npx vitest run tests/chat-notification-read.test.ts tests/chat-notification-native-compat.test.ts
+          npx vitest run tests/chat-notification-read.test.ts tests/chat-notification-native-compat.test.ts tests/notification-open.test.ts
 
       - name: Verify Android JavaScript bundle
         working-directory: frontend
@@ -209,6 +216,13 @@ jobs:
           path: artifacts/android-js-check/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Save native task cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: chat-read-native-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
 
   sign-android:
     name: Sign and verify APK and AAB

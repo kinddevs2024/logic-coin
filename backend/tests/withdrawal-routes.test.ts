@@ -11,6 +11,10 @@ const mocks = vi.hoisted(() => ({
   withdrawalFind: vi.fn()
 }));
 
+vi.mock("../src/middleware/rate-limits.js", () => ({
+  withdrawalLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+
 vi.mock("../src/services/withdrawal.service.js", () => ({
   addWithdrawalCard: vi.fn(),
   createSandboxWithdrawal: mocks.createWithdrawal
@@ -66,11 +70,11 @@ describe("withdrawal card boundary", () => {
     idempotencyKey: "withdraw-test-123"
   } as const;
 
-  it("accepts only truncated card data", async () => {
+  it("accepts legacy card metadata without passing it to the payout service", async () => {
     await request(app).post("/").send(validBody).expect(201);
     expect(mocks.createWithdrawal).toHaveBeenCalledWith(expect.objectContaining({
       userId,
-      card: validBody.card,
+      card: {brand: "visa", last4: "4242"},
       agreementVersion: "2026-08-23"
     }));
   });
@@ -82,6 +86,27 @@ describe("withdrawal card boundary", () => {
     expect(JSON.stringify(result.body)).not.toContain(number);
     expect(JSON.stringify(mocks.notifyAdmin.mock.calls)).not.toContain(number);
   });
+  it("accepts a 16-digit number without a name or expiration", async () => {
+    await request(app).post("/").send({...validBody, card: {number: "4242424242424242", brand: "visa", last4: "4242"}}).expect(201);
+    const card = mocks.createWithdrawal.mock.calls[0]![0].card;
+    expect(card).toEqual({number: "4242424242424242", brand: "visa", last4: "4242"});
+  });
+
+  it.each(["uzcard", "humo"])("accepts %s metadata", async brand => {
+    await request(app).post("/").send({...validBody, card: {brand, last4: "1234"}}).expect(201);
+  });
+
+  it.each(["424242424242424", "42424242424242424", "4242424242424242424"])("rejects a PAN with the wrong length: %s", async number => {
+    await request(app).post("/").send({...validBody, card: {number, brand: "visa", last4: "4242"}}).expect(400);
+    expect(mocks.createWithdrawal).not.toHaveBeenCalled();
+  });
+
+  it("accepts a saved card reference without optional fields", async () => {
+    const card = {savedWithdrawalId: "0123456789abcdef01234567", brand: "visa", last4: "4242"};
+    await request(app).post("/").send({...validBody, card}).expect(201);
+    expect(mocks.createWithdrawal.mock.calls[0]![0].card).toEqual(card);
+  });
+
   it("rejects unsupported card fields at the API boundary", async () => {
     await request(app).post("/").send({
       ...validBody,

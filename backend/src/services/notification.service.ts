@@ -1,3 +1,5 @@
+import { ChatMember } from "../models/Chat.js";
+import { startChatReadSyncWorker } from "./chat-read-sync.service.js";
 import { localizeBuiltIn } from "../lib/localize-built-in.js";
 import { renderNotificationTemplate } from "../lib/notification-template.js";
 import type { Types } from "mongoose";
@@ -33,7 +35,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
   let targetCount = 0, sentCount = 0, failedCount = 0;
   const errors = new Set<string>();
   try {
-    const payload = (event.payload ?? {}) as { conversationId?: string; dayKey?: string; gameKey?: string; giftId?: string; title?: string; body?: string; userIds?: string[]; expiresAt?: string; localized?: Record<string, { title: string; body: string }> };
+    const payload = (event.payload ?? {}) as { seq?: number; conversationId?: string; dayKey?: string; gameKey?: string; giftId?: string; title?: string; body?: string; userIds?: string[]; expiresAt?: string; localized?: Record<string, { title: string; body: string }> };
     if (payload.expiresAt && Date.parse(payload.expiresAt) <= Date.now()) {
       await NotificationEvent.updateOne({ _id: event._id }, { $set: { status: "sent", processedAt: new Date() } });
       return { status: "expired", targetCount: 0, sentCount: 0, failedCount: 0 };
@@ -48,7 +50,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       notificationsEnabled: true,
       $or: [{ fcmToken: { $exists: true, $ne: "" } }, { pushToken: { $exists: true, $ne: "" } }, { "webPush.endpoint": { $exists: true } }],
       ...(recipients ? { userId: { $in: recipients } } : {})
-    }).select("fcmToken pushToken webPush userId").lean();
+    }).select("fcmToken pushToken webPush userId notificationSyncVersion platform").lean();
     const inboxId = event.type === "gift_received" && payload.giftId ? `gift:${payload.giftId}`
       : event.type === "gift_received" && /^gift:[a-f\d]{24}$/i.test(event.eventKey ?? "") ? event.eventKey
       : `event:${event._id}`;
@@ -63,6 +65,10 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
         ] }).select("_id").lean(),
       ]);
       const excluded = new Set([...readUsers.map(String), ...excludedUsers.map(user => String(user._id))]);
+      if (event.type === "chat_message" && payload.conversationId && typeof payload.seq === "number") {
+        const readMembers = await ChatMember.distinct("userId", { conversationId: payload.conversationId, userId: { $in: deviceUsers }, lastReadSeq: { $gte: payload.seq } });
+        for (const id of readMembers) excluded.add(String(id));
+      }
       devices = devices.filter(device => !excluded.has(String(device.userId)));
     }
     const profiles = deviceUsers.length ? await User.find({ _id: { $in: deviceUsers } }).select("name countryCode preferences.language").lean() : [];
@@ -85,7 +91,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       data: { type: event.type, eventId: String(event._id),
         inboxId,
         createdAt: event.createdAt.toISOString(),
-        conversationId: payload.conversationId ?? null,
+        conversationId: payload.conversationId ?? null, seq: payload.seq ?? null,
         expiresAt: payload.expiresAt ?? null, dayKey: payload.dayKey ?? null, gameKey: payload.gameKey ?? null, url: payload.conversationId ? `/messages?chat=${payload.conversationId}` : "/?notifications=1" }
     };
     const personalized = (kind: "fcm" | "expo" | "web", token: string) => {
@@ -94,7 +100,10 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
         const localized = payload.localized[profile?.preferences.language ?? "uz"] ?? payload.localized.uz;
         return { ...notification, ...localized };
       }
-      if (event.type === "chat_message") return notification;
+      if (event.type === "chat_message") {
+        const userId = devices.find(device => kind === "fcm" ? device.fcmToken === token : kind === "web" ? device.webPush?.endpoint === token : device.pushToken === token)?.userId;
+        return { ...notification, data: { ...notification.data, recipientId: String(userId) } };
+      }
       if (event.type !== "admin_broadcast") {
         const language = profile?.preferences.language ?? "ru";
         return { ...notification, title: localizeBuiltIn(notification.title, language), body: localizeBuiltIn(notification.body, language) };
@@ -103,7 +112,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
     };
     for (const group of batches(fcmTokens, 10)) await Promise.all(group.map(async token => {
       try {
-        const outcome = await sendFcmPush(token, personalized("fcm", token), fetchImplementation);
+        const outcome = await sendFcmPush(token, personalized("fcm", token), fetchImplementation, devices.some(device => device.fcmToken === token && device.notificationSyncVersion === 1));
         if (outcome === "accepted") sentCount++;
         else {
           failedCount++; errors.add("fcm:unregistered");
@@ -126,7 +135,7 @@ export async function dispatchNotificationEvent(eventId: Types.ObjectId | string
       try {
         const response = await fetchImplementation(env.EXPO_PUSH_API_URL, {
           method: "POST", headers: headers(), signal: AbortSignal.timeout(8000),
-          body: JSON.stringify(group.map(to => ({ to, title: personalized("expo", to).title, body: personalized("expo", to).body, data: notification.data, sound: "default", channelId: "messages", priority: "high", ...(payload.expiresAt ? { ttl: Math.max(0, Math.ceil((Date.parse(payload.expiresAt) - Date.now()) / 1000)) } : {}) })))
+          body: JSON.stringify(group.map(to => ({ to, title: personalized("expo", to).title, body: personalized("expo", to).body, data: personalized("expo", to).data, sound: "default", channelId: "messages", priority: "high", ...(payload.expiresAt ? { ttl: Math.max(0, Math.ceil((Date.parse(payload.expiresAt) - Date.now()) / 1000)) } : {}) })))
         });
         if (!response.ok) { failedCount += group.length; errors.add(`expo:http_${response.status}`); continue; }
         const body = await response.json() as { data?: Array<{ status?: string; id?: string; details?: { error?: string } }> };
@@ -179,6 +188,7 @@ export async function checkPushReceipts(fetchImplementation: typeof fetch = fetc
 
 // Transactional outbox: process gifts/referrals only after commit. No client polling.
 export function startNotificationWorker() {
+  const stopReadSync = startChatReadSyncWorker();
   let busy = false;
   const tick = async () => {
     if (busy) return;
@@ -191,5 +201,5 @@ export function startNotificationWorker() {
     finally { busy = false; }
   };
   const timer = setInterval(() => { void tick(); }, 15000);
-  return () => clearInterval(timer);
+  return () => { clearInterval(timer); stopReadSync(); };
 }

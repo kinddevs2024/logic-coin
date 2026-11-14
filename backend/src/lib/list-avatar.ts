@@ -1,3 +1,4 @@
+import { isTelegramAvatar } from "./telegram-avatar.js";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { env } from "../config/env.js";
@@ -8,7 +9,7 @@ export function isAppAvatarOrigin(origin: string) {
 }
 export function isStoredAvatarReference(value: string | null | undefined, userId: string, revision: string) {
   if (!value) return false;
-  try { const url = new URL(value); return isAppAvatarOrigin(url.origin) && url.pathname === `/api/v1/avatars/${userId}/${revision}/original` && !url.search && !url.hash; }
+  try { const url = new URL(value, env.APP_PUBLIC_URL); return isAppAvatarOrigin(url.origin) && url.pathname === `/api/v1/avatars/${userId}/${revision}/original` && !url.search && !url.hash; }
   catch { return false; }
 }
 export function isInlineAvatar(value: string) { return inlineImage.test(value); }
@@ -22,9 +23,10 @@ export function listAvatarRevision(value: string) {
  */
 export function listAvatarUrl(userId: { toString(): string }, value?: string | null): string | null {
   if (!value) return null;
+  if (isTelegramAvatar(value)) return new URL(`/api/v1/avatars/${userId.toString()}/${listAvatarRevision(value)}.webp`, env.APP_PUBLIC_URL).href;
   if (!isInlineAvatar(value)) {
     try {
-      const url = new URL(value);
+      const url = new URL(value, env.APP_PUBLIC_URL);
       const revision = url.pathname.match(/^\/api\/v1\/avatars\/[a-f0-9]{24}\/([a-f0-9]{24})\/original$/)?.[1];
       if (isAppAvatarOrigin(url.origin) && revision) {
         return new URL(`/api/v1/avatars/${userId.toString()}/${revision}.webp`, env.APP_PUBLIC_URL).href;

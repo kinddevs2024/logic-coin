@@ -23,7 +23,7 @@ class ReadFirebaseMessagingService : ExpoFirebaseMessagingService() {
       if (message.data["type"] != "chat_message" || message.notification != null) return message
       return RemoteMessage.Builder(message.from ?: "logiccoin")
         .setMessageId(message.messageId ?: UUID.randomUUID().toString())
-        .setData(message.data + mapOf("gcm.n.e" to "1", "gcm.n.title" to (message.data["title"] ?: "Logic Coin"), "gcm.n.body" to (message.data["message"] ?: ""), "gcm.n.android_channel_id" to "messages", "gcm.n.sound2" to "default"))
+        .setData(message.data + mapOf("google.sent_time" to (message.sentTime.takeIf { it > 0 } ?: System.currentTimeMillis()).toString(), "google.delivered_priority" to "high", "google.original_priority" to "high", "gcm.n.e" to "1", "gcm.n.title" to (message.data["title"] ?: "Logic Coin"), "gcm.n.body" to (message.data["message"] ?: ""), "gcm.n.android_channel_id" to "messages", "gcm.n.sound2" to "default"))
         .build()
     }
   }

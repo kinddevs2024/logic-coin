@@ -1,3 +1,4 @@
+import { listChatComments, sendChatComment, removeChatComment } from "../services/chat-comments.service.js";
 import { Router } from "express";
 import { z } from "zod";
 import { rateLimit } from "express-rate-limit";
@@ -106,13 +107,14 @@ router.post("/users/:id/friend-answer", writeLimiter, validateBody(z.object({acc
 router.get("/users/:id", async (req, res) => {
   const userId = parseId(req.params.id),
     user = await User.findById(userId)
-      .select("name username avatarUrl referralCode coins wallet countryCode")
+      .select("name username avatarUrl referralCode coins wallet countryCode role")
       .lean();
   if (!user) throw new ApiError(404, "user_not_found", "User not found");
   res.json({
     data: {
       ...chat.chatProfile(user),
       friendship: await chat.friendshipStatus(req.auth!.userId, userId),
+      canMessage: await chat.canDirectMessage(req.auth!.userId, userId),
       countryCode: user.countryCode,
       coinBalance: user.coins.balance,
       balanceUnits: user.wallet.availableUnits,
@@ -191,6 +193,16 @@ router.post(
 router.post("/messages/:id/listen", writeLimiter, async (req, res) => {
   res.json({ data: await chat.markVoiceListened(req.auth!.userId, parseId(req.params.id)) });
 });
+router.get("/:id/messages/:messageId/comments", async(req,res)=>{
+ const before=req.query.before===undefined?undefined:parseId(req.query.before);
+ res.set("Cache-Control","no-store").json({data:await listChatComments(req.auth!.userId,parseId(req.params.id),parseId(req.params.messageId),before)});
+});
+router.post("/:id/messages/:messageId/comments",writeLimiter,validateBody(z.object({clientId:z.string().min(8).max(100),text:z.string().trim().min(1).max(4000),replyTo:id.optional()}).strict()),async(req,res)=>{
+ res.json({data:await sendChatComment(req.auth!.userId,parseId(req.params.id),parseId(req.params.messageId),req.body)});
+});
+router.delete("/:id/messages/:messageId/comments/:commentId",writeLimiter,async(req,res)=>{
+ res.json({data:await removeChatComment(req.auth!.userId,parseId(req.params.id),parseId(req.params.messageId),parseId(req.params.commentId))});
+});
 router.get("/:id/messages", async (req, res) => {
   const before =
       req.query.before === undefined
@@ -254,7 +266,7 @@ router.post(
 );
 router.get("/:id/members", async (req, res) =>
   res.json({
-    data: await chat.chatMembers(req.auth!.userId, parseId(req.params.id)),
+    data: await chat.chatMembers(req.auth!.userId, parseId(req.params.id), typeof req.query.after === "string" ? req.query.after : undefined, Number(req.query.limit) || 6),
   }),
 );
 router.post(

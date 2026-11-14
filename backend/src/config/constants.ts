@@ -2,7 +2,7 @@ export const API_PREFIX = "/api/v1";
 
 export const SUPPORTED_LANGUAGES = ["en", "ru", "uz"] as const;
 export const THEMES = ["auto", "light", "sky", "dark", "green", "blue", "pink", "graphite", "custom"] as const;
-export const USER_ROLES = ["user", "admin"] as const;
+export const USER_ROLES = ["user", "manager", "admin", "owner"] as const;
 
 export const DAILY_BONUS_REWARDS_UNITS = [2, 3, 4, 5, 7, 10, 15] as const;
 export const WEEKLY_BONUS_REWARD_UNITS = 25;
@@ -19,8 +19,8 @@ export const CONTEST_CASE_PERCENT = 0.45;
 export const CONTEST_RANDOM_PERCENT = 0.35;
 export const CONTEST_CONSOLATION_COINS = 500;
 export const CONTEST_STANDARD_CASE_KIND = "standard";
-export const DEFAULT_DAILY_PRIZE_MIN_UNITS = 500;
-export const DEFAULT_DAILY_PRIZE_MAX_UNITS = 1_000;
+export const DEFAULT_DAILY_PRIZE_MIN_UNITS = 0;
+export const DEFAULT_DAILY_PRIZE_MAX_UNITS = 250;
 export const DEFAULT_DAILY_PRIZE_POOL_UNITS = 1_000;
 export const NEW_CHALLENGE_CASH_LIMIT_UNITS = 250;
 export const GIFT_TIME_EXTENSION_SECONDS = 15;

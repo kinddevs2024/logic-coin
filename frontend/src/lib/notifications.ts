@@ -1,3 +1,4 @@
+import { markNotificationOpen } from "./notification-open";
 import { notificationPayload } from "./notification-payload";
 import { chatNotificationSyncVersion, configureChatNotificationAccount } from "./chat-notification-sync";
 import { useAppStore } from "@/store/app-store";
@@ -292,6 +293,7 @@ export async function installNotificationHandlers(onOpen: (ids: string[], conver
       await Notifications.clearLastNotificationResponseAsync();
       const data = notificationPayload(response.notification.request.content.data);
       if (!data.logicUpdate && data.type !== "chat_read") {
+        markNotificationOpen();
         const conversationId = typeof data.conversationId === "string" && /^[a-f\d]{24}$/i.test(data.conversationId) ? data.conversationId : undefined;
         const ids = inboxNotificationIds(data, response.notification.request.identifier);
         if (conversationId) await onOpen(ids, conversationId, typeof data.recipientId === "string" ? data.recipientId : undefined);

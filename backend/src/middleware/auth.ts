@@ -20,7 +20,7 @@ export async function requireAuth(
       throw new ApiError(401, "invalid_access_token", "Access token is invalid");
     }
     const userId = new Types.ObjectId(payload.sub);
-    if (!(await isAccessSessionActive(userId, payload.sid))) {
+    if (!(await isAccessSessionActive(userId, payload.sid, { ip: request.ip }))) {
       throw new ApiError(401, "invalid_access_session", "Access session is revoked or expired");
     }
     request.auth = {

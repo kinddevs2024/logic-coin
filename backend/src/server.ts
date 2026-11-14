@@ -8,11 +8,13 @@ import { env } from "./config/env.js";
 import { startTelegramLocalPolling, stopTelegramLocalPolling } from "./services/telegram-auth.service.js";
 import { settleExpiredDailyContests } from "./services/contest.service.js";
 import { startNotificationWorker } from "./services/notification.service.js";
+import { startDeletedMediaWorker } from "./services/admin-delete-user.service.js";
 
 import { startRaffleWorker } from "./services/raffle.service.js";
 const server = createServer(app);
 const closeLiveUpdates = attachLiveUpdates(server);
 const stopNotificationWorker = startNotificationWorker();
+const stopDeletedMediaWorker = startDeletedMediaWorker();
 const stopRaffleWorker = startRaffleWorker();
 server.listen(env.PORT, () => {
   console.log(`Logic Coin API listening on http://localhost:${env.PORT}`);
@@ -57,6 +59,7 @@ function shutdown(signal: string): void {
   console.log(`${signal} received; shutting down`);
   stopTelegramLocalPolling();
   stopNotificationWorker();
+  stopDeletedMediaWorker();
   stopRaffleWorker();
   clearInterval(contestSweep);
   if (rolloverTimer) clearTimeout(rolloverTimer);

@@ -35,6 +35,12 @@ class ChatReadStateTest {
     ChatReadState.acknowledge(context, account, chat, 2, emptySet())
     assertFalse(ChatReadState.canPresent(context, data(1))); assertTrue(ChatReadState.canPresent(context, data(3)))
   }
+  @Test fun readBetweenReceivingAndPresentingCannotRepostAnOldNotification() {
+    val received = data(1)
+    ChatReadState.acknowledge(context, account, chat, 1, emptySet())
+    val shown = ChatReadState.postIfUnread(context, received) { manager.notify("late", 0, Notification.Builder(context, "messages").setSmallIcon(android.R.drawable.ic_dialog_info).build()) }
+    assertFalse(shown); assertEquals(0, manager.activeNotifications.size)
+  }
   @Test fun silentControlIsNeverDisplayed() { assertFalse(ChatReadState.canPresent(context, JSONObject().put("type", "chat_read"))) }
   @Test fun accountSwitchCannotShowPreviousAccountMessages() { ChatReadState.configure(context, other); assertFalse(ChatReadState.canPresent(context, data(99))); assertTrue(ChatReadState.canPresent(context, data(1, other))) }
   @Test fun removesReadButPreservesLaterUnreadAndNonChatNotificationsWithoutReact() {
@@ -52,8 +58,8 @@ class ChatReadStateTest {
     ChatReadState.acknowledge(context, account, chat, 10, setOf(id)); assertEquals(1, manager.activeNotifications.size)
   }
   @Test fun dataOnlyTransportKeepsExpoTitleBodyAndTapPayload() {
-    val message = RemoteMessage.Builder("server").setData(mapOf("type" to "chat_message", "title" to "Group", "message" to "Hello", "body" to data(1).toString())).build()
+    val message = RemoteMessage.Builder("server").setData(mapOf("google.sent_time" to "1794657600000", "type" to "chat_message", "title" to "Group", "message" to "Hello", "body" to data(1).toString())).build()
     val converted = ReadFirebaseMessagingService.asExpoNotification(message)
-    assertNotNull(converted.notification); assertEquals("Group", converted.notification?.title); assertEquals("Hello", converted.notification?.body); assertEquals(message.data["body"], converted.data["body"])
+    assertEquals(message.sentTime, converted.sentTime); assertNotNull(converted.notification); assertEquals("Group", converted.notification?.title); assertEquals("Hello", converted.notification?.body); assertEquals(message.data["body"], converted.data["body"])
   }
 }

@@ -1,10 +1,12 @@
+import { canMessageEveryone } from "./platform-roles.js";
 export function canPostChat(input: {
   kind: string;
   systemKey?: string | null | undefined;
   siteAdmin: boolean;
+  platformRole?: string | null | undefined;
   memberRole?: string | null | undefined;
 }) {
-  if (input.systemKey === "news") return input.siteAdmin;
+  if (input.systemKey === "news") return input.siteAdmin || canMessageEveryone(input.platformRole);
   if (input.kind === "channel")
     return (
       input.siteAdmin ||

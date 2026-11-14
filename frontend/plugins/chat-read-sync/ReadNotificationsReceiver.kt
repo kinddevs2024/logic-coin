@@ -26,8 +26,8 @@ class ReadPresentationDelegate(context: Context) : ExpoPresentationDelegate(cont
     CoroutineScope(Dispatchers.IO).launch {
       runCatching {
         val built = createNotification(notification, behavior)
-        synchronized(ChatReadState) {
-          if (ChatReadState.canPresent(context, data)) NotificationManagerCompat.from(context).notify(notification.notificationRequest.identifier, getNotifyId(notification.notificationRequest), built)
+        ChatReadState.postIfUnread(context, data) {
+          NotificationManagerCompat.from(context).notify(notification.notificationRequest.identifier, getNotifyId(notification.notificationRequest), built)
         }
       }
     }

@@ -1,3 +1,6 @@
+import { rateLimit } from "express-rate-limit";
+import { MongoRateLimitStore } from "../services/mongo-rate-limit-store.js";
+import { scanCardPhoto } from "../services/card-scan.service.js";
 import { Router } from "express";
 import { z } from "zod";
 import { env } from "../config/env.js";
@@ -11,6 +14,24 @@ import { notifyWithdrawalAdmin } from "../services/telegram.service.js";
 import { addWithdrawalCard, createSandboxWithdrawal } from "../services/withdrawal.service.js";
 
 const router = Router();
+
+const cardScanLimiter = rateLimit({
+  windowMs: 60000, limit: 12,
+  keyGenerator: request => request.auth!.userId.toString(),
+  ...(env.NODE_ENV === "production" ? { store: new MongoRateLimitStore("card-scan", 60000), passOnStoreError: false } : {}),
+  standardHeaders: "draft-8", legacyHeaders: false,
+  message: { error: { code: "scan_rate_limit", message: "Слишком много сканирований. Повторите через минуту." } },
+});
+router.post("/scan-card", (_request, response, next) => { response.set("Cache-Control", "no-store"); next(); }, cardScanLimiter,
+  validateBody(z.object({ base64: z.string().min(4).max(2000000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict()),
+  async (request, response) => {
+    const controller = new AbortController();
+    const cancel = () => { if (!response.writableEnded) controller.abort(); };
+    response.once("close", cancel);
+    try { response.json({ data: await scanCardPhoto(request.body.base64, controller.signal) }); }
+    finally { response.removeListener("close", cancel); }
+  });
+
 
 router.get("/", async (request, response) => {
   const [user, withdrawals] = await Promise.all([
@@ -45,7 +66,7 @@ router.get("/", async (request, response) => {
   });
 });
 
-router.patch("/:id/card",withdrawalLimiter,validateBody(z.object({number:z.string().regex(/^\d{16,19}$/)}).strict()),async(req,res)=>{
+router.patch("/:id/card",withdrawalLimiter,validateBody(z.object({number:z.string().regex(/^\d{16}$/)}).strict()),async(req,res)=>{
  if(!/^[a-f0-9]{24}$/i.test(String(req.params.id)))throw new ApiError(400,"invalid_withdrawal_id","Некорректный номер заявки.");
  res.set("Cache-Control","no-store");res.json({data:await addWithdrawalCard(req.auth!.userId,String(req.params.id),req.body.number)});
 });
@@ -55,12 +76,12 @@ const createWithdrawalSchema = z
     amountCents: z.number().int().positive(),
     method: z.literal("bank_card"),
     card: z.object({
-      brand: z.enum(["visa", "mastercard", "other"]),
-      number: z.string().regex(/^\d{16,19}$/).optional(),
+      brand: z.enum(["visa", "mastercard", "uzcard", "humo", "other"]),
+      number: z.string().regex(/^\d{16}$/).optional(),
       savedWithdrawalId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
       last4: z.string().regex(/^\d{4}$/),
-      holderName: z.string().trim().min(2).max(80),
-      expiration: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/)
+      holderName: z.string().trim().max(80).optional(),
+      expiration: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/).or(z.literal("")).optional()
     }).strict(),
     agreementAccepted: z.literal(true),
     agreementVersion: z.literal("2026-08-23"),
@@ -90,9 +111,7 @@ router.post(
         ...(input.card.number?{number:input.card.number}:{}),
         ...(input.card.savedWithdrawalId?{savedWithdrawalId:input.card.savedWithdrawalId}:{}),
         brand: input.card.brand!,
-        last4: input.card.last4!,
-        holderName: input.card.holderName!,
-        expiration: input.card.expiration!
+        last4: input.card.last4!
       },
       agreementVersion: input.agreementVersion
     });

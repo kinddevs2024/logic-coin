@@ -1,22 +1,29 @@
+import { deleteAdminUser } from "../services/admin-delete-user.service.js";
+import { isIP } from "node:net";
+import { AccountBan } from "../models/AccountBan.js";
+import { RefreshSession } from "../models/RefreshSession.js";
+import { DeviceSecurity } from "../models/DeviceSecurity.js";
+import { normalizeUsername } from "../lib/chat-policy.js";
 import {TelegramContact} from "../models/TelegramContact.js";
 import { Router } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { THEMES, SUPPORTED_LANGUAGES } from "../config/constants.js";
+import { THEMES, SUPPORTED_LANGUAGES, USER_ROLES } from "../config/constants.js";
 import { User } from "../models/User.js";
 import { ApiError } from "../lib/api-error.js";
 import { validateBody } from "../middleware/validate.js";
 
 // Mounted only after requireAuth and requireAdmin. Never expose credentials.
 const router = Router();
-const projection = "name email countryCode avatarUrl role preferences wallet coins referralCode referredBy createdAt updatedAt lastLoginAt";
+const projection = "name username email countryCode avatarUrl role preferences wallet coins referralCode referredBy createdAt updatedAt lastLoginAt";
 const integer = z.number().int().min(0).max(1_000_000_000);
 export const editableUserProfile = z.object({
+  username: z.union([z.string().max(100).refine(value => !value.trim() || normalizeUsername(value) !== null, "Никнейм: 4–24 латинских буквы, цифры или _, начинается с буквы; служебные имена недоступны.").transform(value => value.trim() ? normalizeUsername(value)! : null), z.null()]).optional(),
   name: z.string().trim().min(1).max(80), email: z.string().email().max(254).transform(v=>v.toLowerCase()),
   countryCode: z.string().regex(/^[A-Z]{2}$/).optional(), avatarUrl: z.string().max(14000000).optional(),
-  preferences: z.object({ language: z.enum(SUPPORTED_LANGUAGES), theme: z.enum(THEMES), customTheme: z.object({ wallpaperUrl: z.string().min(1).max(2048), accent: z.string().regex(/^#[0-9a-f]{6}$/i), dark: z.boolean() }).strict().optional(), savingsGoalCents: integer, notificationsEnabled: z.boolean(), dailyReminderEnabled: z.boolean(), timezone: z.string().max(80).refine(v=>{try{new Intl.DateTimeFormat("en",{timeZone:v});return true;}catch{return false;}}) }).strict(),
-  wallet: z.object({ availableUnits: integer }).strict(), coins: z.object({ balance: integer }).strict(),
+  preferences: z.object({ homeIntroSeen: z.boolean().optional(), language: z.enum(SUPPORTED_LANGUAGES), theme: z.enum(THEMES), customTheme: z.object({ wallpaperUrl: z.string().min(1).max(2048), accent: z.string().regex(/^#[0-9a-f]{6}$/i), dark: z.boolean() }).strict().optional(), savingsGoalCents: integer, notificationsEnabled: z.boolean(), dailyReminderEnabled: z.boolean(), timezone: z.string().max(80).refine(v=>{try{new Intl.DateTimeFormat("en",{timeZone:v});return true;}catch{return false;}}) }).strict(),
+  wallet: z.object({ availableUnits: z.number().min(0).max(1_000_000_000) }).strict(), coins: z.object({ balance: integer }).strict(),
 }).strict();
 function id(value: string) {if(!/^[a-f0-9]{24}$/i.test(value))throw new ApiError(400,"invalid_user","Некорректный пользователь.");return new mongoose.Types.ObjectId(value);}
 router.get("/:id/telegram-contact",async(req,res)=>{
@@ -28,19 +35,45 @@ router.get("/:id/telegram-contact",async(req,res)=>{
 router.get("/",async(req,res)=>{
  const q=String(req.query.q??"").trim().slice(0,100),page=Math.max(0,Math.min(100000,Number(req.query.page)||0));
  const escaped=q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
- const filter=q?{$or:[{name:{$regex:escaped,$options:"i"}},{email:{$regex:escaped,$options:"i"}},{referralCode:{$regex:escaped,$options:"i"}}]}:{};
+ const filter=q?{$or:[{name:{$regex:escaped,$options:"i"}},{email:{$regex:escaped,$options:"i"}},{username:{$regex:escaped.replace(/^@/,""),$options:"i"}},{referralCode:{$regex:escaped,$options:"i"}}]}:{};
  const [users,total]=await Promise.all([User.find(filter).select(projection).sort({_id:1}).skip(Math.floor(page)*25).limit(25).lean(),User.countDocuments(filter)]);
  res.json({data:{users,total}});
+});
+router.patch("/:id/role", validateBody(z.object({role:z.enum(USER_ROLES), expectedRole:z.enum(USER_ROLES), reason:z.string().trim().min(3).max(240)}).strict()), async(req,res)=>{
+ const userId=id(String(req.params.id)), session=await mongoose.startSession();let result;
+ try { await session.withTransaction(async()=>{
+  await mongoose.connection.db!.collection<{_id:string; revision:number}>("platformrolelocks").updateOne({_id:"roles"},{$inc:{revision:1}},{upsert:true,session});
+  const actor=await User.findById(req.auth!.userId).select("role").session(session).lean();
+  if(actor?.role!=="admin")throw new ApiError(403,"admin_required","Administrator access is required");
+  const target=await User.findById(userId).select("role").session(session).lean();
+  if(!target)throw new ApiError(404,"not_found","Пользователь не найден.");
+  if(target.role!==req.body.expectedRole)throw new ApiError(409,"changed","Роль уже изменена. Обновите список.");
+  if(String(userId)===String(req.auth!.userId)&&req.body.role!=="admin")throw new ApiError(400,"self_demotion","Изменить вашу роль должен другой администратор.");
+  if(target.role==="admin"&&req.body.role!=="admin"&&await User.countDocuments({role:"admin"}).session(session)<=1)throw new ApiError(409,"last_admin","Нельзя удалить последнего администратора.");
+  result=await User.findByIdAndUpdate(userId,{$set:{role:req.body.role}},{new:true,runValidators:true,session}).select(projection).lean();
+  await mongoose.connection.db!.collection("adminuseraudits").insertOne({operationId:randomUUID(),adminId:req.auth!.userId,userId,action:"change_role",before:target.role,after:req.body.role,reason:req.body.reason,createdAt:new Date()},{session});
+ });}finally{await session.endSession();}
+ res.json({data:{user:result}});
 });
 router.patch("/:id",validateBody(z.object({expectedUpdatedAt:z.string().datetime(),reason:z.string().trim().min(3).max(240),profile:editableUserProfile}).strict()),async(req,res)=>{
  const userId=id(String(req.params.id)),session=await mongoose.startSession();let result;
  try{await session.withTransaction(async()=>{
   const old=await User.findById(userId).select(projection).session(session).lean();if(!old)throw new ApiError(404,"not_found","Пользователь не найден.");
   if(new Date(old.updatedAt).toISOString()!==req.body.expectedUpdatedAt)throw new ApiError(409,"changed","Данные изменились. Обновите список.");
-  const p=req.body.profile;const fields={name:p.name,email:p.email,...(p.countryCode?{countryCode:p.countryCode}:{}),...(p.avatarUrl!==undefined?{avatarUrl:p.avatarUrl}:{}),...Object.fromEntries(Object.entries(p.preferences).map(([key,value])=>[`preferences.${key}`,value])),"wallet.availableUnits":p.wallet.availableUnits,"coins.balance":p.coins.balance};
-  result=await User.findOneAndUpdate({_id:userId,updatedAt:old.updatedAt},{$set:fields},{new:true,runValidators:true,session}).select(projection).lean();if(!result)throw new ApiError(409,"changed","Обновите список.");
+  const p=req.body.profile;const fields={...(p.username != null ? {username:p.username}:{}),name:p.name,email:p.email,...(p.countryCode?{countryCode:p.countryCode}:{}),...(p.avatarUrl!==undefined?{avatarUrl:p.avatarUrl}:{}),...Object.fromEntries(Object.entries(p.preferences).map(([key,value])=>[`preferences.${key}`,value])),"wallet.availableUnits":p.wallet.availableUnits,"coins.balance":p.coins.balance};
+  result=await User.findOneAndUpdate({_id:userId,updatedAt:old.updatedAt},{$set:fields,...(p.username===null?{$unset:{username:1}}:{})},{new:true,runValidators:true,session}).select(projection).lean();if(!result)throw new ApiError(409,"changed","Обновите список.");
   await mongoose.connection.db!.collection("adminuseraudits").insertOne({operationId:randomUUID(),adminId:req.auth!.userId,action:"edit_user",reason:req.body.reason,before:old,after:result,createdAt:new Date()},{session});
- });}finally{await session.endSession();}res.json({data:{user:result}});
+ });}catch(error){
+  const duplicate=error as {code?:number;keyPattern?:Record<string,unknown>;keyValue?:Record<string,unknown>};
+  if(duplicate.code===11000&&(duplicate.keyPattern?.username||duplicate.keyValue?.username))throw new ApiError(409,"username_taken","Этот никнейм уже занят. Выберите другой.");
+  throw error;
+ }finally{await session.endSession();}res.json({data:{user:result}});
+});
+router.get('/:id/ban',async(req,res)=>{const userId=id(String(req.params.id));const ban=await AccountBan.findOne({userId,active:true}).select('reason createdAt deviceIds ips').lean();res.json({data:{banned:!!ban,reason:ban?.reason??null,deviceCount:ban?.deviceIds.length??0,ipCount:ban?.ips.length??0}})});
+router.post('/:id/ban',validateBody(z.object({reason:z.string().trim().min(3).max(240)}).strict()),async(req,res)=>{const userId=id(String(req.params.id));if(String(userId)===String(req.auth!.userId))throw new ApiError(400,'self_ban','Нельзя заблокировать себя');const session=await mongoose.startSession();let details:{deviceCount:number;ipCount:number}={deviceCount:0,ipCount:0};try{await session.withTransaction(async()=>{await mongoose.connection.db!.collection<{_id:string;revision:number}>("platformrolelocks").updateOne({_id:"roles"},{$inc:{revision:1}},{upsert:true,session});const target=await User.findById(userId).select('role').session(session).lean();if(!target)throw new ApiError(404,'not_found','Пользователь не найден');const bannedAdmins=await AccountBan.distinct('userId',{active:true}).session(session);if(target.role==='admin'&&await User.countDocuments({role:'admin',_id:{$nin:bannedAdmins}}).session(session)<=1)throw new ApiError(409,'last_admin','Нельзя заблокировать последнего администратора');const sessions=await RefreshSession.find({userId}).select('deviceId ip').sort({updatedAt:-1}).limit(200).session(session).lean();const devices=await DeviceSecurity.find({accountIds:userId}).select('deviceId').limit(200).session(session).lean();const deviceIds=[...new Set([...sessions.map(x=>x.deviceId),...devices.map(x=>x.deviceId)].filter((x):x is string=>!!x))];const ips=[...new Set(sessions.map(x=>x.ip).filter((x):x is string=>!!x&&!!isIP(x)&&x!=='127.0.0.1'&&x!=='::1'&&x!=='::ffff:127.0.0.1'))];await AccountBan.findOneAndUpdate({userId},{$set:{active:true,reason:req.body.reason,adminId:req.auth!.userId,deviceIds,ips}},{upsert:true,new:true,session});await RefreshSession.updateMany({userId,revokedAt:{$exists:false}},{$set:{revokedAt:new Date(),revokeReason:'logout_all'}},{session});await mongoose.connection.db!.collection('adminuseraudits').insertOne({operationId:randomUUID(),adminId:req.auth!.userId,userId,action:'ban_user',reason:req.body.reason,deviceCount:deviceIds.length,ipCount:ips.length,createdAt:new Date()},{session});details={deviceCount:deviceIds.length,ipCount:ips.length}})}finally{await session.endSession()}res.json({data:{banned:true,...details}})});
+router.delete('/:id/ban',validateBody(z.object({reason:z.string().trim().min(3).max(240)}).strict()),async(req,res)=>{const userId=id(String(req.params.id));const changed=await AccountBan.updateOne({userId,active:true},{$set:{active:false}});if(!changed.modifiedCount)throw new ApiError(404,'not_banned','Блокировка не найдена');await mongoose.connection.db!.collection('adminuseraudits').insertOne({operationId:randomUUID(),adminId:req.auth!.userId,userId,action:'unban_user',reason:req.body.reason,createdAt:new Date()});res.json({data:{banned:false}})});
+router.delete('/:id',validateBody(z.object({reason:z.string().trim().min(3).max(240),confirmation:z.literal('DELETE')}).strict()),async(req,res)=>{
+ const result=await deleteAdminUser(id(String(req.params.id)),req.auth!.userId,req.body.reason);res.json({data:result});
 });
 router.post("/reset-balances",validateBody(z.object({kind:z.enum(["money","coins"]),confirmation:z.string(),reason:z.string().trim().min(3).max(240),operationId:z.string().uuid()}).strict()),async(req,res)=>{
  const {kind,confirmation,reason,operationId}=req.body;

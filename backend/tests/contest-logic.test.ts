@@ -24,25 +24,10 @@ describe("daily challenge selection", () => {
 });
 
 describe("challenge coin rules", () => {
-  it("keeps the three-word Hangman reward at or below one thousand", () => {
-    expect(challengeCoinsForScore(1000, 1000, "hangman")).toBe(1000);
-    expect(challengeCoinsForScore(50000, 1000, "hangman")).toBe(1000);
-    expect(challengeCoinsForScore(330, 1000, "hangman")).toBe(330);
-    expect(challengeCoinsForScore(0, 1000, "hangman")).toBe(100);
-    expect(challengeCoinsForScore(99, 1000, "hangman")).toBe(100);
-    expect(() => challengeCoinsForScore(1000, -1, "hangman")).toThrow();
-  });
-  it("does not cut calibrated game rewards at the old daily allowance", () => {
-    expect(challengeCoinsForScore(50000, 1000, "math")).toBe(2129);
-  });
-  it("calibrates ordinary rewards without a hard thousand-coin ceiling", () => {
-    expect(challengeCoinsForScore(0)).toBe(0);
-    expect(challengeCoinsForScore(499)).toBe(499);
-    expect(challengeCoinsForScore(50_000)).toBe(2129);
-    expect(challengeCoinsForScore(67, 1000, "math-quiz")).toBe(67);
-    expect(challengeCoinsForScore(200, 1000, "math-quiz")).toBe(200);
-    expect(challengeCoinsForScore(1000, 1000, "math-quiz")).toBe(1000);
-    expect(challengeCoinsForScore(1000, 1000, "one-second")).toBe(25);
+  it("caps one game at 1000 coins while preserving the raw score contract", () => {
+    expect(challengeCoinsForScore(0)).toBe(25);
+    expect(challengeCoinsForScore(499)).toBe(49);
+    expect(challengeCoinsForScore(50_000)).toBe(1_000);
   });
 
   it("calculates the direct 15 percent referral prize share in integer units", () => {
@@ -53,16 +38,14 @@ describe("challenge coin rules", () => {
 });
 
 describe("contest settlement rules", () => {
-  it("rotates the middle reward band through time, replay, coins and gifted hints", () => {
-    expect(Array.from({ length: 8 }, (_, index) => contestGiftKindForIndex(index))).toEqual([
+  it("rotates the middle reward band through extra time, replay, and coin gifts", () => {
+    expect(Array.from({ length: 6 }, (_, index) => contestGiftKindForIndex(index))).toEqual([
       "extra_time",
       "replay",
       "coin",
-      "hint",
       "extra_time",
       "replay",
-      "coin",
-      "hint"
+      "coin"
     ]);
   });
 
@@ -94,7 +77,7 @@ describe("contest settlement rules", () => {
     expect([1, 2]).toContain(box.replayCount);
     expect([15, 30, 45, 60]).toContain(box.extraTimeSeconds);
     expect(buildContestGiftBundle("2026-08-25", "user-1")).toEqual(box);
-    expect(["coin", "replay", "extra_time", "hint"]).toContain(
+    expect(["coin", "replay", "extra_time"]).toContain(
       buildContestRandomReward("2026-08-25", "user-2").kind
     );
   });

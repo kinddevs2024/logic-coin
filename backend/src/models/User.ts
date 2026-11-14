@@ -17,6 +17,7 @@ const preferencesSchema = new Schema(
     customTheme: { type: new Schema({ wallpaperUrl: {type: String, required: true}, accent: {type: String, required: true}, dark: {type: Boolean, required: true} }, {_id:false}), default: undefined },
     savingsGoalCents: { type: Number, min: 0, default: 1_000, required: true },
     notificationsEnabled: { type: Boolean, default: true, required: true },
+    homeIntroSeen: { type: Boolean, default: false },
     dailyReminderEnabled: { type: Boolean, default: true, required: true },
     timezone: { type: String, default: "UTC", required: true }
   },

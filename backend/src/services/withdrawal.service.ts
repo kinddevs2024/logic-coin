@@ -13,12 +13,12 @@ export async function createSandboxWithdrawal(input: {
   amountCents: number;
   idempotencyKey: string;
   card: {
-    brand: "visa" | "mastercard" | "other";
+    brand: "visa" | "mastercard" | "uzcard" | "humo" | "other";
     last4: string;
     number?: string;
     savedWithdrawalId?: string;
-    holderName: string;
-    expiration: string;
+    holderName?: string;
+    expiration?: string;
   };
   agreementVersion: string;
 }) {
@@ -94,8 +94,6 @@ export async function createSandboxWithdrawal(input: {
             ...(encrypted ? {cardNumberEncrypted:encrypted}:{}),
             cardBrand: input.card.brand,
             cardLast4: input.card.last4,
-            cardHolder: input.card.holderName,
-            cardExpiration: input.card.expiration,
             agreementVersion: input.agreementVersion,
             status: "pending_review",
             requestedAt: now

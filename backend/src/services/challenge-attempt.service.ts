@@ -1,3 +1,4 @@
+import { challengeDoublingEnabled } from "../lib/challenge-doubling-policy.js";
 import mongoose, { type Types } from "mongoose";
 import {
   DAILY_CHALLENGE_GAME_COUNT,
@@ -343,8 +344,11 @@ export async function doubleChallengeCoins(input: {
   scope: "game" | "day";
   ad?: RewardedAdProof;
 }) {
-  const adVerification = await verifyRewardedAd(input.ad, input.userId);
   const dayKey = challengeDayKey();
+  if (!challengeDoublingEnabled(dayKey)) {
+    throw new ApiError(403, "challenge_doubling_disabled", "Challenge coin doubling is no longer available");
+  }
+  const adVerification = await verifyRewardedAd(input.ad, input.userId);
   const set = await getDailyChallengeSet(dayKey);
   if (!set || set.status !== "published") {
     throw new ApiError(409, "challenges_not_published", "Today's challenges are not published");

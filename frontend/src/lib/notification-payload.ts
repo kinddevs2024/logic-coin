@@ -10,7 +10,7 @@ export function notificationPayload(input: unknown): Record<string, unknown> {
     data = { ...data, ...value as Record<string, unknown> };
   }
   if (!(typeof data.conversationId === "string" && objectId.test(data.conversationId)) && typeof data.url === "string") {
-    try { const url = new URL(data.url, "https://logic-coin.online"); const id = url.searchParams.get("chat"); if (["logic-coin.online", "www.logic-coin.online"].includes(url.hostname) && url.pathname === "/messages" && id && objectId.test(id)) data.conversationId = id; } catch { /* Ignore malformed notification routes. */ }
+    try { const url = new URL(data.url, "https://logic-coin.online"); const id = url.searchParams.get("chat"); if ((["logic-coin.online", "www.logic-coin.online", "logic-coin.173.212.216.216.sslip.io"].includes(url.hostname) && url.pathname === "/messages" || url.protocol === "logiccoin:" && (url.pathname === "/messages" || url.hostname === "messages")) && id && objectId.test(id)) data.conversationId = id; } catch { /* Ignore malformed notification routes. */ }
   }
   return data;
 }

@@ -1,3 +1,4 @@
+import { challengeDoublingEnabled } from "../lib/challenge-doubling-policy.js";
 import { completeMonetagSessionIfReady } from "./monetag.service.js";
 import {
   createDecipheriv,
@@ -80,6 +81,9 @@ export async function startRewardedAdSession(
   provider: RewardedAdProvider = "yandex",
   gameAttemptId?: string
 ) {
+  if ((placement === "challenge-first-game" || placement === "challenge-day-complete") && !challengeDoublingEnabled(challengeDayKey())) {
+    throw new ApiError(403, "challenge_doubling_disabled", "Challenge coin doubling is no longer available");
+  }
   if (provider === "monetag" && !env.MONETAG_POSTBACK_SECRET) throw new ApiError(503, "ads_unavailable", "Реклама временно недоступна.");
   if (gameAttemptId) {
     if (placement !== "fortune-wheel" || !Types.ObjectId.isValid(gameAttemptId)) throw new ApiError(400, "invalid_fortune_attempt", "Неверная игровая попытка.");

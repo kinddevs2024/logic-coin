@@ -1,3 +1,4 @@
+import { chatNotificationTarget } from "../services/notification-target.service.js";
 import { Router } from "express";
 import { z } from "zod";
 import { countUnreadInbox, listInbox, markInboxRead, markAllInboxRead } from "../services/inbox.service.js";
@@ -5,6 +6,13 @@ import { validateBody } from "../middleware/validate.js";
 import { ApiError } from "../lib/api-error.js";
 import { RaffleWinNotice } from "../models/RaffleWinNotice.js";
 const router = Router();
+router.get("/target", async (req, res) => {
+  const parsed = z.string().regex(/^event:[a-f\d]{24}$/i).safeParse(req.query.id);
+  if (!parsed.success) throw new ApiError(400, "invalid_notification", "Invalid notification identifier");
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ data: { target: await chatNotificationTarget(req.auth!.userId, parsed.data) } });
+});
+
 router.get("/raffle-win", async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const notice = await RaffleWinNotice.findOne({ userId: req.auth!.userId, acknowledgedAt: { $exists: false } }).sort({ createdAt: 1 }).lean();

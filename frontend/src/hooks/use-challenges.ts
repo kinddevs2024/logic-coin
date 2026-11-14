@@ -52,7 +52,7 @@ function buildGuestToday(
       firstGameKey: games[0]?.key ?? null,
       gameDoubled,
       dayDoubled,
-      dayEligible: games.length > 0 && completedCount === games.length,
+      dayEligible: new Date().toISOString().slice(0, 10) < "2026-11-15" && games.length > 0 && completedCount === games.length,
     },
     prizes: null,
   };
@@ -189,6 +189,7 @@ export function useChallenges() {
 
   const doubleMutation = useMutation({
     mutationFn: async (scope: "game" | "day") => {
+      if ((authenticated ? today?.dayKey ?? "" : new Date().toISOString().slice(0, 10)) >= "2026-11-15") throw new Error("challenge_doubling_disabled");
       const ad = await showVerifiedRewardedAd({
         placement: scope === "game" ? "challenge-first-game" : "challenge-day-complete",
         accessToken,

@@ -13,6 +13,7 @@ const dailyContestResultSchema = new Schema(
       required: true
     },
     cashUnits: { type: Number, min: 0 },
+    cashMicros: { type: Number, min: 0, validate: Number.isSafeInteger },
     coinAmount: { type: Number, min: 0 },
     replayCount: { type: Number, min: 0, max: 10 },
     extraTimeSeconds: { type: Number, min: 0, max: 3_600 },

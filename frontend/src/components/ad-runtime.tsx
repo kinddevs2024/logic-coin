@@ -1,3 +1,4 @@
+import { notificationOpenRecently } from "@/lib/notification-open";
 import { useRafflePause } from "./raffle-provider";
 import { useCallback, useEffect, useRef } from "react";
 import { useGlobalSearchParams, usePathname } from "expo-router";
@@ -24,7 +25,7 @@ export function AdRuntime() {
   const authMode = useAppStore((state) => state.authMode);
   const userId = useAppStore((state) => state.user.id);
   const requestNavigationAd = useCallback(async () => {
-    if (navigationShowing.current || AppState.currentState !== "active") return;
+    if (navigationShowing.current || AppState.currentState !== "active" || notificationOpenRecently()) return;
     navigationShowing.current = true;
     try {
       if (await rewardedAds.showInterstitial("navigation-frequency")) navigationCounter.current.shown();
@@ -52,6 +53,7 @@ export function AdRuntime() {
       void rewardedAds.initialize(userId).then(async ready => {
         if (!ready || cancelled || AppState.currentState !== "active") return;
         startupAttempted.current = true;
+        if (notificationOpenRecently()) return;
         await rewardedAds.showAppOpen();
       }).catch(() => false);
     }, 2000);
@@ -62,7 +64,7 @@ export function AdRuntime() {
     if (!hydrated || authMode !== "authenticated") { previousPath.current = null; navigationCounter.current.reset(); return; }
     const previous = previousPath.current;
     previousPath.current = navigationKey;
-    if (rafflePaused || !shouldShowNavigationAd(previous, navigationKey)) return;
+    if (rafflePaused || notificationOpenRecently() || !shouldShowNavigationAd(previous, navigationKey)) return;
     if (navigationCounter.current.advance()) void requestNavigationAd();
   }, [authMode, hydrated, navigationKey, rafflePaused, requestNavigationAd]);
 
@@ -73,18 +75,22 @@ export function AdRuntime() {
 
   useEffect(() => {
     if (!hydrated || !authMode || authMode === "guest") return;
-    let previousState: AppStateStatus = AppState.currentState;
+    let previousState: AppStateStatus | null = AppState.currentState;
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
     let backgroundAt: number | null = null;
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "background" && backgroundAt === null) backgroundAt = Date.now();
-      if (previousState.match(/inactive|background/) && nextState === "active") {
+      if ((previousState === "inactive" || previousState === "background") && nextState === "active") {
         const elapsed = backgroundAt === null ? 0 : Date.now() - backgroundAt;
         backgroundAt = null;
-        if (!rafflePaused && isAdNavigationScreen(currentPath.current) && elapsed >= APP_OPEN_BACKGROUND_MS) void rewardedAds.showAppOpen().catch(() => false);
+        if (!rafflePaused && isAdNavigationScreen(currentPath.current) && elapsed >= APP_OPEN_BACKGROUND_MS) {
+          if (resumeTimer) clearTimeout(resumeTimer);
+          resumeTimer = setTimeout(() => { if (AppState.currentState === "active" && !notificationOpenRecently()) void rewardedAds.showAppOpen().catch(() => false); }, 500);
+        }
       }
       previousState = nextState;
     });
-    return () => subscription.remove();
+    return () => { subscription.remove(); if (resumeTimer) clearTimeout(resumeTimer); };
   }, [authMode, hydrated, rafflePaused]);
 
   return null;
