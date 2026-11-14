@@ -4,6 +4,9 @@ import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ComponentName
+import android.content.Intent
+import expo.modules.notifications.service.NotificationsService
 import android.content.Context
 import android.os.Bundle
 import com.google.firebase.messaging.RemoteMessage
@@ -26,6 +29,11 @@ class ChatReadStateTest {
     context = RuntimeEnvironment.getApplication(); manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     manager.cancelAll(); context.getSharedPreferences("logic-chat-read-v1", Context.MODE_PRIVATE).edit().clear().commit()
     manager.createNotificationChannel(NotificationChannel("messages", "Messages", NotificationManager.IMPORTANCE_HIGH)); ChatReadState.configure(context, account)
+  }
+  @Test fun upgradeKeepsLegacyTapIntentsButRoutesNewNotificationsThroughReadGuard() {
+    assertNotNull(context.packageManager.getReceiverInfo(ComponentName(context, NotificationsService::class.java), 0))
+    val selected = NotificationsService.findDesignatedBroadcastReceiver(context, Intent(NotificationsService.NOTIFICATION_EVENT_ACTION))
+    assertEquals(ReadNotificationsReceiver::class.java.name, selected?.name)
   }
   @Test fun firstUpgradePreservesExistingUnreadNotifications() {
     context.getSharedPreferences("logic-chat-read-v1", Context.MODE_PRIVATE).edit().remove("account").commit()

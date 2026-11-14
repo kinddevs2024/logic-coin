@@ -8,7 +8,12 @@ module.exports = function withChatReadSync(config) {
     manifest.$["xmlns:tools"] = "http://schemas.android.com/tools";
     const replace = (kind, original, name, actions) => {
       app[kind] = (app[kind] || []).filter(x => ![original, name].includes(x.$["android:name"]));
-      app[kind].push({ $: { "android:name": original, "tools:node": "remove" } });
+      // Keep the original receiver addressable by tap intents that were created
+      // before the APK upgrade (notably Android 7–11). All new dispatches resolve
+      // only to the guarded receiver, because the compatibility entry has no filters.
+      app[kind].push({ $: kind === "receiver"
+        ? { "android:name": original, "tools:node": "replace", "android:exported": "false", "android:enabled": "true" }
+        : { "android:name": original, "tools:node": "remove" } });
       app[kind].push({ $: { "android:name": name, "android:exported": "false", "android:enabled": "true" }, "intent-filter": [{ $: { "android:priority": "10" }, action: actions.map(action => ({ $: { "android:name": action } })) }] });
     };
     replace("service", "expo.modules.notifications.service.ExpoFirebaseMessagingService", `${base}.ReadFirebaseMessagingService`, ["com.google.firebase.MESSAGING_EVENT"]);
