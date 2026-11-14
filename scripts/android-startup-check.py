@@ -26,12 +26,29 @@ def ui(name):
     return ET.fromstring(xml)
 
 
+def dismiss_optional_google_picker(root, name):
+    # Login intentionally opens Google's account picker. A clean emulator has
+    # no Google account, so cancel this optional flow before asserting app UI.
+    nodes = list(root.iter("node"))
+    packages = {node.get("package", "") for node in nodes}
+    google = packages.intersection({"com.google.android.gms", "com.google.android.gsf.login"})
+    labels = " ".join(node.get("text", "") + " " + node.get("content-desc", "") for node in nodes)
+    if not google or not any(label in labels for label in ("Google Accounts", "Google Account", "Choose an account")):
+        return False
+    capture(f"{name}-google-picker")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    time.sleep(1)
+    return True
+
+
 def wait_for(label, name):
     labels = (label,) if isinstance(label, str) else label
     for _ in range(18):
         if not adb("shell", "pidof", PACKAGE, check=False).strip():
             raise RuntimeError(f"App process exited while waiting for {name}")
         root = ui(name)
+        if dismiss_optional_google_picker(root, name):
+            continue
         for node in root.iter("node"):
             if any(text in node.get("text", "") or text in node.get("content-desc", "") for text in labels):
                 return node
@@ -60,6 +77,8 @@ def onboarding(prefix):
         if not adb("shell", "pidof", PACKAGE, check=False).strip():
             raise RuntimeError(f"App process exited during {prefix} startup")
         root = ui(f"{prefix}-startup")
+        if dismiss_optional_google_picker(root, f"{prefix}-startup"):
+            continue
         nodes = list(root.iter("node"))
         if any(any(label in node.get("text", "") or label in node.get("content-desc", "") for label in LOGIN_LABELS) for node in nodes):
             capture(f"{prefix}-login")
@@ -130,6 +149,13 @@ try:
     if PACKAGE in crashes:
         raise RuntimeError("App crash found in Android crash buffer")
     print("\n".join(results))
+except Exception:
+    try:
+        capture("failed-screen")
+        (EVIDENCE / "crash-buffer.txt").write_text(adb("logcat", "-d", "-b", "crash"), encoding="utf-8")
+    except Exception:
+        pass
+    raise
 finally:
     (EVIDENCE / "checks.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     (EVIDENCE / "logcat.txt").write_text(adb("logcat", "-d", "-t", "2000", check=False), encoding="utf-8")
