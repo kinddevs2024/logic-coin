@@ -27,6 +27,11 @@ class ChatReadStateTest {
     manager.cancelAll(); context.getSharedPreferences("logic-chat-read-v1", Context.MODE_PRIVATE).edit().clear().commit()
     manager.createNotificationChannel(NotificationChannel("messages", "Messages", NotificationManager.IMPORTANCE_HIGH)); ChatReadState.configure(context, account)
   }
+  @Test fun firstUpgradePreservesExistingUnreadNotifications() {
+    context.getSharedPreferences("logic-chat-read-v1", Context.MODE_PRIVATE).edit().remove("account").commit()
+    manager.notify("logic-inbox:event:444444444444444444444444@2026-11-14T12:00:00Z", 0, Notification.Builder(context, "messages").setSmallIcon(android.R.drawable.ic_dialog_info).build())
+    ChatReadState.configure(context, account); assertEquals(1, manager.activeNotifications.size)
+  }
   @Test fun receiptsSurviveAnotherInstanceAndNeverGoBackwards() {
     ChatReadState.acknowledge(context, account, chat, 10, emptySet()); ChatReadState.acknowledge(context, account, chat, 4, emptySet())
     assertFalse(ChatReadState.canPresent(context, data(10))); assertTrue(ChatReadState.canPresent(context, data(11)))

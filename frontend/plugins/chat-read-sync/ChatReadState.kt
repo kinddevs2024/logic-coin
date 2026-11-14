@@ -20,9 +20,13 @@ object ChatReadState {
   @Synchronized fun configure(context: Context, account: String?) {
     val storage = prefs(context); val prior = storage.getString("account", null)
     if (prior != account) {
-      val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-      manager.activeNotifications.filter { it.tag?.startsWith("logic-inbox:") == true || it.tag?.startsWith("logic-inbox-") == true }
-        .forEach { manager.cancel(it.tag, it.id) }
+      // A first upgrade has no native account marker yet. Preserve its unread
+      // tray; the authenticated reconciliation removes only actual read items.
+      if (prior != null) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.activeNotifications.filter { it.tag?.startsWith("logic-inbox:") == true || it.tag?.startsWith("logic-inbox-") == true }
+          .forEach { manager.cancel(it.tag, it.id) }
+      }
       storage.edit().apply { if (account == null) remove("account") else putString("account", account) }.commit()
     }
   }
