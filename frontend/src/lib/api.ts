@@ -986,6 +986,7 @@ export const homeGiftApi = {
   claimAds: (token: string, cycleId: string) => request<{ credited: number; alreadyClaimed: boolean }>("/home-gift/ads/claim", { token, method: "POST", body: JSON.stringify({ cycleId }) }),
 };
 export const inboxApi = {
+  target(token: string, id: string) { return request<{ target: { conversationId: string } | null }>(`/notifications/target?id=${encodeURIComponent(id)}`, { token }); },
   winnerReplies(token: string) {
     return request<{ replies: { id: string; user: { _id: string; name: string } | null; telegramId: string; text: string; createdAt: string; forwarded: boolean }[] }>("/admin/raffle-winner-replies", { token });
   },

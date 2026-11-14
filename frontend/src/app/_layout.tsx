@@ -99,6 +99,17 @@ export default function RootLayout() {
         void dismissInboxNotifications(ids).catch(() => {});
         return; // The conversation marks messages read only after they are visible.
       }
+      const legacyEvent = ids.find(id => id.startsWith("event:"));
+      if (legacyEvent && state.accessToken) {
+        const resolved = await inboxApi.target(state.accessToken, legacyEvent).catch(() => null);
+        const current = useAppStore.getState();
+        if (current.user.id !== state.user.id) return;
+        if (resolved?.target) {
+          setPushInbox(false);
+          setPendingChat({ id: resolved.target.conversationId, account: state.user.id ?? "" });
+          return;
+        }
+      }
       setPushInbox(true);
       if (state.accessToken && ids.length) {
         await inboxApi.read(state.accessToken, ids);

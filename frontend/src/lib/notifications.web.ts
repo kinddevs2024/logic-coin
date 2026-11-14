@@ -72,7 +72,7 @@ export async function dismissInboxNotifications(ids?: string[], before?: string)
   const { beforeReadCutoff, inboxNotificationIds } = await import("./inbox-notification-tray");
   const notifications = await registration.getNotifications();
   for (const notification of notifications) {
-    const matches = inboxNotificationIds(notification.data);
+    const matches = inboxNotificationIds(notification.data, notification.tag);
     if (matches.length && (!selected || matches.some(id => selected.has(id))) &&
       beforeReadCutoff(notification.data?.createdAt, (notification as Notification & { timestamp?: number }).timestamp ?? Infinity, before)) notification.close();
   }

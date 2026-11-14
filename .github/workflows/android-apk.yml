@@ -114,7 +114,7 @@ jobs:
           npm run typecheck --workspace frontend
           cd frontend
           npx eslint src/lib/chat-notification-sync.ts src/lib/chat-notification-sync.web.ts src/lib/notification-payload.ts src/lib/cache-boot.ts src/lib/notifications.ts src/lib/notifications.web.ts src/components/native-data-cache-boundary.tsx src/components/chat/chat-runtime.tsx src/components/chat/conversation-pane.tsx src/app/_layout.tsx
-          npx vitest run tests/chat-notification-read.test.ts
+          npx vitest run tests/chat-notification-read.test.ts tests/chat-notification-native-compat.test.ts
 
       - name: Verify Android JavaScript bundle
         working-directory: frontend
@@ -150,6 +150,17 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :app:testReleaseUnitTest --tests 'com.kinddevs.logiccoin.chatnotify.ChatReadStateTest' -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --build-cache --no-daemon --stacktrace
+
+      - name: Upload native notification test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-read-native-test-results
+          path: |
+            frontend/android/app/build/test-results/testReleaseUnitTest/
+            frontend/android/app/build/reports/tests/testReleaseUnitTest/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Build release APK and Play Store bundle
         working-directory: frontend/android

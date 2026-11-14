@@ -28,7 +28,9 @@ export function inboxNotificationIds(data: unknown, identifier?: string): string
   if (typeof value.giftId === "string" && objectId.test(value.giftId)) return [`gift:${value.giftId}`];
   if (typeof value.eventId === "string" && objectId.test(value.eventId)) return [`event:${value.eventId}`];
   const native = nativeInboxTag(identifier);
-  return native ? [native.id] : [];
+  if (native) return [native.id];
+  const legacy = /^logic-([a-f\d]{24})$/i.exec(identifier ?? "");
+  return legacy ? [`event:${legacy[1]}`] : [];
 }
 
 export function beforeReadCutoff(createdAt: unknown, receivedAt: number, before?: string) {

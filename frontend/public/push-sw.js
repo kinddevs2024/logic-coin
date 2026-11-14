@@ -34,8 +34,9 @@ self.addEventListener('push', event => {
     if (payload.type === 'chat_read') { await applyRead(payload); return; }
     const data = payload.data || {};
     if (data.type === 'chat_message' && data.recipientId) {
-      if (await state('account') !== data.recipientId) return;
-      const cutoff = await state(`read:${data.recipientId}:${data.conversationId}`) || 0;
+      const account = await state('account').catch(() => undefined);
+      if (account !== undefined && account !== data.recipientId) return;
+      const cutoff = await state(`read:${data.recipientId}:${data.conversationId}`).catch(() => 0) || 0;
       if (Number.isSafeInteger(data.seq) && data.seq <= cutoff) return;
     }
     await self.registration.showNotification(payload.title || 'Logic Coin', { body: payload.body || '', icon: '/push-icon.png', badge: '/push-icon.png', tag: payload.tag || 'logic-coin', data });

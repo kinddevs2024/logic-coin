@@ -16,7 +16,7 @@ module.exports = function withChatReadSync(config) {
     return cfg;
   });
   config = withAppBuildGradle(config, cfg => {
-    if (!cfg.modResults.contents.includes("chat-read-sync-tests")) cfg.modResults.contents += '\n// chat-read-sync-tests\nandroid { testOptions { unitTests { includeAndroidResources = true } } }\ndependencies { testImplementation("junit:junit:4.13.2"); testImplementation("org.robolectric:robolectric:4.14.1") }\n';
+    if (!cfg.modResults.contents.includes("chat-read-sync-tests")) cfg.modResults.contents += '\n// chat-read-sync-tests\nandroid { testOptions { unitTests { includeAndroidResources = true } } }\ndependencies { implementation(project(":expo-modules-core")); implementation("com.google.firebase:firebase-messaging:25.0.1"); testImplementation("junit:junit:4.13.2"); testImplementation("org.robolectric:robolectric:4.14.1") }\n';
     return cfg;
   });
   return withDangerousMod(config, ["android", async cfg => {
