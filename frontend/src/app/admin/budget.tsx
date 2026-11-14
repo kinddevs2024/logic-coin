@@ -1,8 +1,9 @@
+import { AdminPressable as Pressable } from "@/components/admin/admin-primitives";
 import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {Modal,  ScrollView, StyleSheet, View} from "react-native";
 
 
 import { AdminBarChart, AdminDataState, AdminMetricCard, AdminPageHeader, formatUnits } from "@/components/admin/admin-ui";

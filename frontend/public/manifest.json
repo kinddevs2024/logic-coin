@@ -4,8 +4,8 @@
   "description": "Gamified rewards and savings progress",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#007A57",
+  "background_color": "#F7FAFF",
+  "theme_color": "#0866FF",
   "orientation": "portrait",
   "icons": [
     {

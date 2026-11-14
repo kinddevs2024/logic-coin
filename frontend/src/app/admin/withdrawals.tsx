@@ -1,9 +1,10 @@
+import { AdminPressable as Pressable } from "@/components/admin/admin-primitives";
 import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import { useAppStore as localeStore } from "@/store/app-store";
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, View } from "react-native";
+import {Modal,  ScrollView, View} from "react-native";
 
 import { useAdminSession } from "@/components/admin/admin-session";
 import { AdminDataState, AdminPageHeader } from "@/components/admin/admin-ui";

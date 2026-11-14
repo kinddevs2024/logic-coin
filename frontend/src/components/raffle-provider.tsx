@@ -44,8 +44,8 @@ export function RaffleProvider({ children }: PropsWithChildren) {
   useEffect(() => { const timer = setInterval(() => setNow(Date.now() + offset.current), intervalMs); return () => clearInterval(timer); }, [intervalMs]);
   const connected = now - lastUpdate < 90000;
   const event = token ? state?.event : null;
-  const locked = Boolean(token && role !== "admin" && !pathname.startsWith("/admin") && pathname !== "/raffle" && connected && event?.locked);
-  const paused = Boolean(token && role !== "admin" && connected && event?.locked);
+  const locked = Boolean(token && !["admin", "owner", "manager"].includes(role ?? "user") && !pathname.startsWith("/admin") && pathname !== "/raffle" && connected && event?.locked);
+  const paused = Boolean(token && !["admin", "owner", "manager"].includes(role ?? "user") && connected && event?.locked);
   return <PauseContext.Provider value={paused}><Context.Provider value={{ state: token ? state : null, now, connected, eligibleDays }}>
     {children}
     <Modal visible={locked} animationType="fade" statusBarTranslucent onRequestClose={() => {}}>

@@ -1,3 +1,4 @@
+import {playerProfileRoute} from "@/lib/player-profile-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
@@ -58,6 +59,7 @@ export function MessagesScreen() {
   const [nicknameDismissed, setNicknameDismissed] = useState(false);
   const insets = useSafeAreaInsets();
   const chatOpen = Boolean(params.chat);
+  const ChatTransition = Platform.OS === "web" && isDesktop ? MotionEntrance : View;
   const closeConversation = useCallback(() => {
     Keyboard.dismiss();
     router.setParams({ chat: "", messageSearch: "" });
@@ -68,21 +70,18 @@ export function MessagesScreen() {
       closeConversation(); return true;
     });
     const keydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); closeConversation(); }
+      if (event.key === "Escape" && !event.repeat && !event.defaultPrevented && !document.querySelector('[aria-modal="true"], dialog[open]')) { event.preventDefault(); closeConversation(); }
     };
-    const popstate = () => router.replace("/messages");
     if (Platform.OS === "web") {
       window.addEventListener("keydown", keydown);
-      window.addEventListener("popstate", popstate);
     }
     return () => {
       subscription.remove();
       if (Platform.OS === "web") {
         window.removeEventListener("keydown", keydown);
-        window.removeEventListener("popstate", popstate);
       }
     };
-  }, [chatOpen, focused, closeConversation, router]);
+  }, [chatOpen, focused, closeConversation]);
 
   const [invitingFriends,setInvitingFriends]=useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -108,6 +107,19 @@ export function MessagesScreen() {
       "menu" | "direct" | "group" | "channel" | null
     >(null);
   const [folderMotion] = useState(() => new Animated.Value(1));
+  const [folderBounds, setFolderBounds] = useState<Record<string, {x:number;y:number;width:number;height:number}>>({});
+  const [folderIndicator] = useState(() => ({x:new Animated.Value(0),y:new Animated.Value(0),width:new Animated.Value(0),height:new Animated.Value(0)}));
+  const indicatorReady = useRef(false);
+  useEffect(() => {
+    const bounds = folderBounds[filter];
+    if (!bounds) return;
+    const duration = reducedMotion || !indicatorReady.current ? 0 : 220;
+    indicatorReady.current = true;
+    const animation = Animated.parallel((Object.keys(folderIndicator) as (keyof typeof folderIndicator)[]).map(key =>
+      Animated.timing(folderIndicator[key], {toValue:bounds[key],duration,easing:Easing.out(Easing.cubic),useNativeDriver:false})));
+    animation.start();
+    return () => animation.stop();
+  }, [filter, folderBounds, folderIndicator, reducedMotion]);
   useEffect(() => {
     folderMotion.setValue(reducedMotion ? 1 : 0);
     const animation = Animated.timing(folderMotion, { toValue: 1, duration: reducedMotion ? 0 : 220, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== "web" });
@@ -241,7 +253,50 @@ export function MessagesScreen() {
       ),
     [query.data],
   );
-  const selected = chats.find((room) => room.id === params.chat);
+  const listedRoom = chats.find((room) => room.id === params.chat);
+  // A push can reference a new conversation absent from the restored list.
+  // Fetch it now instead of waiting for the list's polling/stale interval.
+  const openingChat = useQuery({
+    queryKey: ["chat-open", token, params.chat],
+    enabled: Boolean(token && focused && params.chat && !listedRoom),
+    queryFn: () => chatApi.list(token!),
+    staleTime: 0,
+    gcTime: 0,
+    retry: 1,
+  });
+  useEffect(() => {
+    if (openingChat.data) client.setQueryData(["chat-list", token], openingChat.data);
+  }, [openingChat.data, client, token]);
+  const selected = listedRoom ?? openingChat.data?.chats.find(room => room.id === params.chat);
+  const desktopChatMotion = Platform.OS === "web" && isDesktop;
+  const [leavingChat, setLeavingChat] = useState<{ room: ChatRoom; search: string } | null>(null);
+  const retainedChat = useRef<typeof leavingChat>(null);
+  const [exitMotion] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    if (!desktopChatMotion) {
+      retainedChat.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the retained desktop animation snapshot.
+      setLeavingChat(null);
+      exitMotion.setValue(1);
+      return;
+    }
+    if (selected) {
+      const sameChat = retainedChat.current?.room.id === selected.id;
+      retainedChat.current = { room: selected, search: params.messageSearch ?? "" };
+      setLeavingChat(retainedChat.current);
+      if (!sameChat) { exitMotion.setValue(1); return; }
+      const enter = Animated.timing(exitMotion, { toValue: 1, duration: reducedMotion ? 0 : 180, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+      enter.start();
+      return () => enter.stop();
+    }
+    if (!retainedChat.current) return;
+    const exit = Animated.timing(exitMotion, { toValue: 0, duration: reducedMotion ? 0 : 220, easing: Easing.in(Easing.quad), useNativeDriver: false });
+    exit.start(({ finished }) => {
+      if (finished) { retainedChat.current = null; setLeavingChat(null); }
+    });
+    return () => exit.stop();
+  }, [desktopChatMotion, selected, params.messageSearch, reducedMotion, exitMotion]);
+  const visibleRoom = selected ?? (desktopChatMotion ? leavingChat?.room : undefined);
   const unreadByFolder = useMemo(() => {
     const counts: Record<string, number> = {all: 0, direct: 0, group: 0, channel: 0};
     for (const room of chats) {
@@ -319,8 +374,8 @@ export function MessagesScreen() {
     setSearch("");
     setDebounced("");
     setSearchOpen(false);
-    router.push(`/player/${id}` as never);
-  }, [router]);
+    router.push(playerProfileRoute(id, params.chat, params.messageSearch) as never);
+  }, [router, params.chat, params.messageSearch]);
   const input = [
     styles.input,
     {
@@ -342,10 +397,16 @@ export function MessagesScreen() {
       noPadding
       wide
       swipesDisabled
+      animateEntrance={false}
       contentStyle={{
         flex: 1,
         minHeight: 0,
         paddingTop: isDesktop ? 15 : 0,
+        ...(Platform.OS === "web" && isDesktop ? ({
+          transitionProperty: "padding-left, padding-bottom",
+          transitionDuration: reducedMotion ? "0ms" : "280ms",
+          transitionTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        } as unknown as ViewStyle) : {}),
         maxWidth: 1600,
         paddingLeft: isDesktop && !chatOpen ? 150 : 0,
         paddingRight: isDesktop ? 24 : 0,
@@ -373,7 +434,7 @@ export function MessagesScreen() {
           isDesktop && styles.desktop,
         ]}
       >
-        {isDesktop || !selected ? (
+        {isDesktop || (!selected && !chatOpen) ? (
           <View
             style={[
               styles.sidebar,
@@ -445,6 +506,9 @@ export function MessagesScreen() {
                   },
                 ]}
               >
+                <Animated.View testID="messages-folder-indicator" pointerEvents="none" style={{position:"absolute",left:0,top:0,borderRadius:14,backgroundColor:theme.primarySoft,
+                  width:folderIndicator.width,height:folderIndicator.height,opacity:folderBounds[filter]?1:0,
+                  transform:[{translateX:folderIndicator.x},{translateY:folderIndicator.y}]}} />
                 {[
                   ["all", c.all],
                   ["direct", c.direct],
@@ -457,9 +521,13 @@ export function MessagesScreen() {
                     accessibilityRole="button"
                     accessibilityState={{ selected: filter === key }}
                     onPress={() => setFilter(key!)}
+                    onLayout={({nativeEvent:{layout}}) => setFolderBounds(current => {
+                      const old=current[key!];
+                      if(old && old.x===layout.x && old.y===layout.y && old.width===layout.width && old.height===layout.height)return current;
+                      return {...current,[key!]:{x:layout.x,y:layout.y,width:layout.width,height:layout.height}};
+                    })}
                     style={[
                       styles.filter,
-                      filter === key && { backgroundColor: theme.primarySoft },
                     ]}
                   >
                     <AppText
@@ -798,22 +866,38 @@ export function MessagesScreen() {
             </Animated.View>
           </View>
         ) : null}
-        {selected ? (
-          <View style={{ flex: 1, minWidth: 0 }}>
+        {visibleRoom ? (
+          <Animated.View key={visibleRoom.id} testID="chat-exit-transition" pointerEvents={selected ? "auto" : "none"} style={[{ flex: 1, minWidth: 0 }, desktopChatMotion && {
+            opacity: exitMotion,
+            transform: [{ translateX: exitMotion.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+          }]}>
+          <ChatTransition testID="chat-conversation-transition" style={{ flex: 1, minWidth: 0 }}>
             <ConversationPane
-              key={selected.id}
-              room={{ ...selected, title: roomTitle(selected) }}
+              room={{ ...visibleRoom, title: roomTitle(visibleRoom) }}
               token={token}
-              initialSearch={params.messageSearch ?? ""}
+              initialSearch={selected ? params.messageSearch ?? "" : leavingChat?.search ?? ""}
               accountId={user.id ?? ""}
               chats={chats}
               onBack={closeConversation}
               onProfile={profile}
               onInfo={() => setInfo(true)}
             />
+          </ChatTransition>
+          </Animated.View>
+        ) : chatOpen ? (
+          <View testID="chat-opening-state" style={[styles.empty, { flex: 1 }]}>
+            <ChatAction title={c.close} icon="arrow-back" onPress={closeConversation} />
+            {openingChat.isPending || openingChat.isFetching ? (
+              <ActivityIndicator color={String(theme.primary)} accessibilityLabel={c.loading} />
+            ) : (
+              <>
+                <AppText>{c.error}</AppText>
+                <ChatAction title={c.retry} icon="refresh" onPress={() => { void openingChat.refetch(); }} />
+              </>
+            )}
           </View>
         ) : isDesktop ? (
-          <View style={styles.empty}>
+          <ChatTransition key="empty-chat" testID="chat-empty-transition" style={styles.empty}>
             <View
               style={[styles.emptyIcon, { backgroundColor: theme.primarySoft }]}
             >
@@ -832,7 +916,7 @@ export function MessagesScreen() {
               icon="create-outline"
               onPress={() => setCreating("direct")}
             />
-          </View>
+          </ChatTransition>
         ) : null}
       </View>
       {error && !creating ? (

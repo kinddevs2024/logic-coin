@@ -167,6 +167,7 @@ function AmbientOrbs() {
 
 type AppFrameProps = PropsWithChildren<{
   scroll?: boolean;
+  fixedHeader?: ReactNode;
   contentStyle?: ViewStyle;
   scrollProps?: ScrollViewProps;
   scrollRef?: RefObject<ScrollView | null>;
@@ -177,10 +178,12 @@ type AppFrameProps = PropsWithChildren<{
   onOpenProfile?: () => void;
   onSwipeRefresh?: () => void;
   swipesDisabled?: boolean;
+  animateEntrance?: boolean;
 }>;
 
 export function AppFrame({
   children,
+  fixedHeader,
   scroll = true,
   contentStyle,
   scrollProps,
@@ -192,12 +195,14 @@ export function AppFrame({
   onOpenProfile,
   onSwipeRefresh,
   swipesDisabled,
+  animateEntrance = true,
 }: AppFrameProps) {
   const swipeHandlers = useTabSwipe({ disabled: swipesDisabled, onOpenProfile, onRefresh: onSwipeRefresh });
   const wheelRootRef = useDesktopTabWheel({ disabled: swipesDisabled });
   const theme = useAppTheme();
   const { isDesktop, isTablet } = useResponsiveLayout();
   const blurTarget = useRef<View | null>(null);
+  const [fixedHeaderHeight, setFixedHeaderHeight] = useState(0);
   const content = [
     styles.content,
     {
@@ -221,22 +226,46 @@ export function AppFrame({
     },
     contentStyle,
   ];
+  // Only controls float over the scroll viewport. Empty space lets content and gestures through.
+  const header = fixedHeader ? (
+    <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} testID="app-fixed-header-layer" style={[
+      styles.fixedHeaderLayer,
+      desktopNavigationInset && isDesktop && { left: 130 },
+    ]}>
+      <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} onLayout={event => setFixedHeaderHeight(event.nativeEvent.layout.height)}
+        style={[content, { paddingBottom: 0 }]}>
+        {fixedHeader}
+      </View>
+    </View>
+  ) : null;
+  // Android keeps the cutout safe area even when the system status bar is hidden.
+  // Blend only the first 12 dp of scrolling content; the floating buttons stay crisp.
+  const edgeColor = String(theme.backgroundStart);
+  const topFade = Platform.OS === "android" && fixedHeader ? (
+    <LinearGradient
+      pointerEvents="none"
+      testID="android-home-top-fade"
+      colors={[edgeColor, /^#[0-9a-f]{6}$/i.test(edgeColor) ? `${edgeColor}00` : "transparent"]}
+      style={styles.nativeTopFade}
+    />
+  ) : null;
+  const scrollContent = fixedHeader ? [content, { paddingTop: fixedHeaderHeight }] : content;
   // Virtualized screens own the scroll container while sharing the same insets,
   // background and swipe handlers. Never nest their list inside a ScrollView.
-  const body = renderScrollContent ? renderScrollContent(content) : scroll ? (
+  const body = renderScrollContent ? renderScrollContent(scrollContent) : scroll ? (
     <ScrollView
       {...scrollProps}
       ref={scrollRef}
       role="main"
       style={styles.scroll}
-      contentContainerStyle={content}
+      contentContainerStyle={scrollContent}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
       {children}
     </ScrollView>
   ) : (
-    <View role="main" style={content}>
+    <View role="main" style={scrollContent}>
       {children}
     </View>
   );
@@ -253,7 +282,7 @@ export function AppFrame({
         <AmbientOrbs />
       </BlurTargetView>
       <GlassBlurTargetContext.Provider value={blurTarget}>
-        {Platform.OS === "web" ? (
+        {Platform.OS === "web" || !animateEntrance ? (
           <View
             style={[
               styles.animatedContent,
@@ -263,6 +292,8 @@ export function AppFrame({
             ]}
           >
             {body}
+            {Platform.OS !== "web" ? topFade : null}
+            {header}
           </View>
         ) : (
           <Reanimated.View
@@ -277,6 +308,8 @@ export function AppFrame({
             ]}
           >
             {body}
+            {topFade}
+            {header}
           </Reanimated.View>
         )}
       </GlassBlurTargetContext.Provider>
@@ -292,6 +325,8 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  nativeTopFade: { position: "absolute", top: 0, left: 0, right: 0, height: 12, zIndex: 19 },
+  fixedHeaderLayer: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 },
   animatedContent: {
     flex: 1,
   },

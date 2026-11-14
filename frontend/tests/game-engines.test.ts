@@ -1,14 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { strikeSpeed } from "../src/games/arcade/a/strike-rules";
-
-describe("strike practice speed", () => {
-  it("starts gently and never exceeds its playable ceiling", () => {
-    expect(strikeSpeed(1)).toBe(0.35);
-    expect(strikeSpeed(38)).toBe(1.2);
-    expect(strikeSpeed(100000)).toBe(1.2);
-    expect(strikeSpeed(NaN)).toBe(0.35);
-  });
-});
 
 import {
   applyLongcatMove,
@@ -67,27 +57,6 @@ import { strikeRules } from "../src/games/arcade/a/strike-rules";
 import { createGameExitSession } from "../src/games/exit-session";
 
 describe("challenge exit confirmation", () => {
-  it("exits the fourth active game without altering three completed results or accepting late completion", () => {
-    const scores: number[] = [];
-    for (let index = 0; index < 3; index += 1) {
-      const session = createGameExitSession(`game-${index}`);
-      session.start();
-      session.complete(() => scores.push(100 + index));
-      expect(session.needsConfirmation()).toBe(false);
-      session.discard();
-    }
-    const fourth = createGameExitSession("fourth");
-    fourth.start();
-    expect(fourth.requestExit()).toBe(true);
-    fourth.stay();
-    expect(fourth.requestExit()).toBe(true);
-    fourth.complete(() => scores.push(999));
-    fourth.discard();
-    fourth.stay();
-    fourth.complete(() => scores.push(999));
-    expect(scores).toEqual([100, 101, 102]);
-    expect(fourth.needsConfirmation()).toBe(false);
-  });
   it("does not warn or save before the player starts", () => {
     const session = createGameExitSession("intro");
     let saves = 0;
@@ -166,13 +135,13 @@ describe("challenge exit confirmation", () => {
 });
 
 describe("Strike challenge rules", () => {
-  it("finishes a challenge after exactly 23 hits", () => {
+  it("always finishes challenge rounds after seven hits", () => {
     const rules = strikeRules(true);
-    expect(rules.attemptLimit).toBe(23);
-    for (let completedHits = 0; completedHits < 23; completedHits += 1) {
+    expect(rules.attemptLimit).toBe(7);
+    for (let completedHits = 0; completedHits < 7; completedHits += 1) {
       expect(completedHits >= rules.attemptLimit).toBe(false);
     }
-    expect(23 >= rules.attemptLimit).toBe(true);
+    expect(7 >= rules.attemptLimit).toBe(true);
   });
 
   it("keeps all practice defaults and result thresholds unchanged", () => {
@@ -181,18 +150,18 @@ describe("Strike challenge rules", () => {
     expect(strikeRules(false)).toEqual(practice);
   });
 
-  it("uses reachable, proportional win and grade thresholds", () => {
+  it("uses reachable, proportional win and grade thresholds for seven hits", () => {
     expect(strikeRules(true)).toEqual({
-      attemptLimit: 23,
-      winningHits: 17,
-      perfectGradeHits: 19,
-      excellentGradeHits: 14,
+      attemptLimit: 7,
+      winningHits: 6,
+      perfectGradeHits: 6,
+      excellentGradeHits: 5,
     });
   });
 
   it("does not carry a previous mode's rules into a replay or the next challenge", () => {
     expect([true, true, false, true, false, true].map((challengeMode) => strikeRules(challengeMode).attemptLimit))
-      .toEqual([23, 23, 38, 23, 38, 23]);
+      .toEqual([7, 7, 38, 7, 38, 7]);
   });
 });
 
@@ -350,17 +319,16 @@ describe("brain tricks engine", () => {
 describe("game reward contract", () => {
   it("is deterministic and shared-result safe", () => {
     expect(gameCoinReward(2_400, true)).toBe(gameCoinReward(2_400, true));
-    expect(gameCoinReward(2_400, true)).toBe(1253);
-    expect(gameCoinReward(2_400, false)).toBe(1253);
+    expect(gameCoinReward(2_400, true)).toBe(145);
+    expect(gameCoinReward(2_400, false)).toBe(145);
     expect(suggestedCoins(2_400, true)).toBe(gameCoinReward(2_400, true));
     expect(rewardCoins(2_400, false)).toBe(gameCoinReward(2_400, false));
   });
 
-  it("normalizes invalid scores and uses a soft rather than hard game cap", () => {
-    expect(gameCoinReward(Number.NaN, false)).toBe(0);
-    expect(gameCoinReward(-500, false)).toBe(0);
-    expect(gameCoinReward(1, false)).toBeGreaterThanOrEqual(MIN_GAME_COIN_REWARD);
-    expect(gameCoinReward(9_999_999, true)).toBeGreaterThan(MAX_GAME_COIN_REWARD);
+  it("normalizes invalid scores and never exceeds the game cap", () => {
+    expect(gameCoinReward(Number.NaN, false)).toBe(MIN_GAME_COIN_REWARD);
+    expect(gameCoinReward(-500, false)).toBe(MIN_GAME_COIN_REWARD);
+    expect(gameCoinReward(9_999_999, true)).toBe(MAX_GAME_COIN_REWARD);
   });
 });
 

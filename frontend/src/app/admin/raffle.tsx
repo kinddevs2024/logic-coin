@@ -1,5 +1,6 @@
+import { AdminPressable as Pressable } from "@/components/admin/admin-primitives";
 import { useState } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import {Switch, Text, View} from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminSession } from "@/components/admin/admin-session";
 import { AdminPageHeader, AdminDataState } from "@/components/admin/admin-ui";

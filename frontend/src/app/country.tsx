@@ -57,6 +57,7 @@ export default function CountryScreen() {
   if (authMode !== "authenticated" || !accessToken) {
     return <Redirect href="/login" />;
   }
+  if (user.role === "owner") return <Redirect href={"/owner" as never} />;
   if (user.role === "admin") return <Redirect href="/admin" />;
   if (user.countryCode) return <Redirect href="/(tabs)" />;
   if (postAuthLanguageUserId !== user.id) {

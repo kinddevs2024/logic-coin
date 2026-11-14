@@ -1,11 +1,11 @@
-export type PaymentCardBrand = "visa" | "mastercard" | "other";
+export type PaymentCardBrand = "visa" | "mastercard" | "uzcard" | "humo" | "other";
 
 export function digitsOnly(value: string) {
-  return value.replace(/\D/g, "").slice(0, 19);
+  return value.replace(/\D/g, "");
 }
 
 export function formatCardNumber(value: string) {
-  return digitsOnly(value).replace(/(.{4})/g, "$1 ").trim();
+  return digitsOnly(value).slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
 }
 
 export function formatExpiration(value: string) {
@@ -15,14 +15,17 @@ export function formatExpiration(value: string) {
 
 export function detectCardBrand(value: string): PaymentCardBrand {
   const digits = digitsOnly(value);
+  if (/^8600/.test(digits)) return "uzcard";
+  if (/^9860/.test(digits)) return "humo";
   if (/^4/.test(digits)) return "visa";
-  if (/^(5[1-5]|2(2[2-9]|[3-6]\d|7[01]|720))/.test(digits)) return "mastercard";
+  const prefix = Number(digits.slice(0, 4));
+  if (/^5[1-5]/.test(digits) || (digits.length >= 4 && prefix >= 2221 && prefix <= 2720)) return "mastercard";
   return "other";
 }
 
 export function isValidCardNumber(value: string) {
   const digits = digitsOnly(value);
-  if (digits.length < 16 || digits.length > 19) return false;
+  if (digits.length !== 16) return false;
   let sum = 0;
   let double = false;
   for (let index = digits.length - 1; index >= 0; index -= 1) {
@@ -35,6 +38,21 @@ export function isValidCardNumber(value: string) {
     double = !double;
   }
   return sum % 10 === 0;
+}
+
+// Local card labels and dates must never be included in a payout request.
+export function payoutCardDetails(card: {
+  number?: string;
+  savedWithdrawalId?: string;
+  brand: PaymentCardBrand;
+  last4: string;
+}) {
+  return {
+    ...(card.number ? { number: digitsOnly(card.number) } : {}),
+    ...(card.savedWithdrawalId ? { savedWithdrawalId: card.savedWithdrawalId } : {}),
+    brand: card.brand,
+    last4: card.last4,
+  };
 }
 
 export function isValidExpiration(value: string, now = new Date()) {

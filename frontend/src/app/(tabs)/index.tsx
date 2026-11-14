@@ -1,3 +1,4 @@
+import { HomeActivityBlocks } from "@/components/home-activity-blocks";
 import { RaffleBanner } from "@/components/raffle-banner";
 import { useUiCopy } from "@/components/localized-native";
 
@@ -8,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RankingPreview } from "@/components/ranking-preview";
 import Svg, { Circle } from "react-native-svg";
-import { Pressable, StyleSheet, View, ScrollView } from "react-native";
+import { Pressable, StyleSheet, View, ScrollView, Platform } from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { HomeDesktopAds } from "@/components/home-desktop-ads";
@@ -88,7 +89,7 @@ export default function HomeScreen() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.all(["bootstrap", "challenges", "leaderboard", "unread-count"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["bootstrap", "challenges", "leaderboard", "home-activity", "unread-count"].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
     } finally { setRefreshing(false); }
   };
   const balance = useAppStore((state) => state.balanceUnits);
@@ -97,18 +98,14 @@ export default function HomeScreen() {
   const { today, pendingGameKey } = useChallenges();
 
   return (<>
-    <AppFrame wide desktopNavigationInset contentStyle={styles.content} scrollRef={scrollRef} scrollProps={{ scrollEnabled: !tourActive, scrollEventThrottle: 16, onScroll: ({ nativeEvent }) => {
-      scrollY.current = nativeEvent.contentOffset.y;
-      const scene = giftScene.current;
-      setGiftSceneVisible(nativeEvent.contentOffset.y < scene.top + scene.height * 0.82);
-    } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={tourActive || drawerOpen || leaderboardOpen || inboxOpen}>
-      <View style={styles.header}>
-        <View style={styles.headerSide}>
-          <Pressable accessibilityRole="button" accessibilityLabel={copyText(t("tabs.profile"))} onPress={() => setDrawerOpen(true)}><Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
+    <AppFrame wide desktopNavigationInset fixedHeader={
+      <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} testID="home-fixed-header" style={styles.header}>
+        <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} style={styles.headerSide}>
+          <Pressable pointerEvents="auto" accessibilityRole="button" accessibilityLabel={copyText(t("tabs.profile"))} onPress={() => setDrawerOpen(true)}><Avatar userId={user.id} name={user.name} avatarUrl={user.avatarUrl} size={44} /></Pressable>
         </View>
-        <View ref={rankingTarget} collapsable={false}><RankingPreview metric="yesterday" onPress={() => setLeaderboardOpen(true)} /></View>
-        <View style={[styles.headerSide, styles.headerSideEnd]}>
-          <View ref={inboxButton} collapsable={false}><HomeBell
+        <View pointerEvents="auto" ref={rankingTarget} collapsable={false}><RankingPreview metric="yesterday" onPress={() => setLeaderboardOpen(true)} /></View>
+        <View pointerEvents={Platform.OS === "web" ? "none" : "box-none"} style={[styles.headerSide, styles.headerSideEnd]}>
+          <View pointerEvents="auto" ref={inboxButton} collapsable={false}><HomeBell
             onPress={() => {
               inboxButton.current?.measureInWindow((x, y, width, height) => {
                 setInboxAnchor({ x, y, width, height });
@@ -118,11 +115,17 @@ export default function HomeScreen() {
           /></View>
         </View>
       </View>
+    } contentStyle={styles.content} scrollRef={scrollRef} scrollProps={{ scrollEnabled: !tourActive, scrollEventThrottle: 16, onScroll: ({ nativeEvent }) => {
+      scrollY.current = nativeEvent.contentOffset.y;
+      const scene = giftScene.current;
+      setGiftSceneVisible(nativeEvent.contentOffset.y < scene.top + scene.height * 0.82);
+    } }} onOpenProfile={() => setDrawerOpen(true)} onSwipeRefresh={() => void refreshHome()} swipesDisabled={tourActive || drawerOpen || leaderboardOpen || inboxOpen}>
+
 
       {refreshing ? <AppText accessibilityLiveRegion="polite" muted>{copyText("Обновляем…")}</AppText> : null}
 
       {!tourActive ? <HomeDesktopAds position="top" /> : null}
-      <View onLayout={({ nativeEvent: { layout } }) => { giftScene.current.top = layout.y; }} style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
+      <View onLayout={({ nativeEvent: { layout } }) => { giftScene.current.top = layout.y; }} style={[styles.dashboard, isDesktop && styles.dashboardDesktop, Platform.OS === "web" && isDesktop && { alignItems: "flex-start" }]}>
         <View ref={jarTarget} collapsable={false} onLayout={({ nativeEvent: { layout } }) => {
           giftScene.current.height = layout.height;
           setGiftBounds({ top: layout.height * 0.08, bottom: layout.height * 0.82, width: layout.width });
@@ -147,66 +150,13 @@ export default function HomeScreen() {
               </AppButton>
             </View>
           </SavingsScene>
-          <View collapsable={false} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          <View collapsable={false} pointerEvents={Platform.OS === "web" ? "none" : "box-none"} style={StyleSheet.absoluteFill}>
             <FloatingHomeGift key="bank-attached-gift" active={!tourActive && giftSceneVisible && !drawerOpen && !leaderboardOpen && !inboxOpen && !activityInfoOpen} bounds={giftBounds} />
           </View>
         </View>
 
         <RaffleBanner />
-        <GlassSurface
-          intensity={68}
-          variant="strong"
-          style={[
-            styles.tasksPanel,
-            isDesktop && styles.tasksPanelDesktop,
-            { borderColor: theme.glassBorder },
-          ]}
-        >
-          <HomeChallengeClock
-            endsAt={today?.endsAt}
-            onPress={() => router.push("/challenges" as never)}
-          />
-          <View style={styles.taskList}>
-            {(today?.games ?? []).map((game, index) => (
-              <View key={game.key} ref={index === 0 ? challengesTarget : undefined} collapsable={false}>
-              <ChallengeCard
-                game={game}
-                state={game.state}
-                compact
-                index={index}
-                loading={pendingGameKey === game.key}
-                onPress={() => router.push({ pathname: "/play/[gameKey]", params: { gameKey: game.key, mode: "challenge" } } as never)}
-              />
-              </View>
-            ))}
-            {!today?.games.length ? <View ref={challengesTarget} collapsable={false}><ChallengeEmptyState compact /></View> : null}
-          </View>
-          <GlassSurface
-            intensity={58}
-            variant="soft"
-            style={[styles.activityStrip, { borderColor: theme.glassBorder }]}
-          >
-            <View style={styles.activityItem}>
-              <Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={copyText(language === "uz" ? "Haftalik faollik haqida" : language === "en" ? "About weekly activity" : "О недельной активности")} onPress={() => setActivityInfoOpen("week")} style={styles.activityLabelRow}><AppText adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={2} style={styles.activityTitle}>{copyContent(language === "uz" ? "Haftalik\nfaollik" : language === "en" ? "Weekly\nactivity" : "Недельная\nактивность")}{copyContent("\u00a0")}<Ionicons name="information-circle-outline" size={14} color={String(theme.textMuted)} /></AppText><AppText style={{ fontSize: 11, color: theme.primary, fontWeight: "700" }}>{copyContent(language === "ru" ? "Подробнее" : language === "uz" ? "Batafsil" : "Details")}</AppText></Pressable>
-              <ProgressDonut
-                value={today?.weeklyCompletedDays === undefined ? "—" : `${today.weeklyCompletedDays}/7`}
-                progress={(today?.weeklyCompletedDays ?? 0) / 7}
-                color={String(theme.primary)}
-                accessibilityLabel={copyText(language === "uz" ? "Haftada yopilgan kunlar" : language === "en" ? "Completed days this week" : "Завершённые дни за неделю")}
-              />
-            </View>
-            <View style={[styles.activityDivider, { backgroundColor: theme.border }]} />
-            <View style={styles.activityItem}>
-              <Pressable hitSlop={6} accessibilityRole="button" accessibilityLabel={copyText(language === "uz" ? "Oylik faollik haqida" : language === "en" ? "About monthly activity" : "О месячной активности")} onPress={() => setActivityInfoOpen("month")} style={styles.activityLabelRow}><AppText adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={2} style={styles.activityTitle}>{copyContent(language === "uz" ? "Oylik\nfaollik" : language === "en" ? "Monthly\nactivity" : "Месячная\nактивность")}{copyContent("\u00a0")}<Ionicons name="information-circle-outline" size={14} color={String(theme.textMuted)} /></AppText><AppText style={{ fontSize: 11, color: theme.primary, fontWeight: "700" }}>{copyContent(language === "ru" ? "Подробнее" : language === "uz" ? "Batafsil" : "Details")}</AppText></Pressable>
-              <ProgressDonut
-                value={today?.monthlyCompletedDays === undefined ? "—" : `${today.monthlyCompletedDays}/${today.monthlyDaysInMonth}`}
-                progress={today?.monthlyDaysInMonth ? Math.min(1, (today.monthlyCompletedDays ?? 0) / today.monthlyDaysInMonth) : 0}
-                color={String(theme.primary)}
-                  accessibilityLabel={copyText(language === "uz" ? "Oyda to‘liq yopilgan kunlar" : language === "en" ? "Fully completed challenge days this month" : "Полностью завершённые дни челленджа за месяц")}
-              />
-            </View>
-          </GlassSurface>
-        </GlassSurface>
+        <View style={isDesktop ? { flex: 1, minWidth: 0 } : { width: "100%", marginTop: Platform.OS === "web" ? 18 : 0 }}><HomeActivityBlocks today={today} pendingGameKey={pendingGameKey} challengesTarget={challengesTarget} /></View>
       </View>
 
       {!tourActive ? <HomeDesktopAds position="bottom" /> : null}
@@ -220,7 +170,7 @@ export default function HomeScreen() {
       />
       {activityInfoOpen ? <MonthlyActivityInfo period={activityInfoOpen} onClose={() => setActivityInfoOpen(null)} /> : null}
       {leaderboardOpen ? <LeaderboardModal visible onClose={() => setLeaderboardOpen(false)} /> : null}
-      {inboxOpen ? <NotificationInbox anchor={inboxAnchor} onClose={() => setInboxOpen(false)} /> : null}
+      {inboxOpen ? <NotificationInbox anchor={inboxAnchor} anchorRef={inboxButton} onClose={() => setInboxOpen(false)} /> : null}
     </AppFrame>
   </>);
 }

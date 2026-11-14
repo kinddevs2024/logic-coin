@@ -1,9 +1,10 @@
+import { AdminPressable as Pressable } from "@/components/admin/admin-primitives";
 import { useUiCopy } from "@/components/localized-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import {StyleSheet, View} from "react-native";
 
 import { useAdminSession } from "@/components/admin/admin-session";
 import { AdminDataState, AdminPageHeader } from "@/components/admin/admin-ui";

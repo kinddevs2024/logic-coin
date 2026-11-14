@@ -1,3 +1,4 @@
+import {ChallengeTimeWater} from "./challenge-time-water";
 import { useUiCopy } from "@/components/localized-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -97,7 +98,7 @@ function ChallengeReadyClock({ today, focused, onRules }: { today: TodayChalleng
   const firstGame = today.games[0];
   return <Pressable accessibilityRole="button" accessibilityLabel={copyText(language === "ru" ? "Начать челлендж с первой игры" : language === "uz" ? "Sinovni birinchi o‘yindan boshlash" : "Start challenge from the first game")} disabled={!firstGame || seconds === 0} onPress={() => {
     if (firstGame) router.push({ pathname: "/play/[gameKey]", params: { gameKey: firstGame.key, mode: "challenge" } } as never);
-  }}><GlassSurface variant="strong" intensity={76} style={styles.ready}>
+  }}><GlassSurface variant="strong" intensity={76} style={styles.ready}><ChallengeTimeWater today={today}/>
     <AppText style={styles.countdown} numberOfLines={1} adjustsFontSizeToFit>{copyContent(countdown)}</AppText>
     <AppText variant="caption" muted style={{ textAlign: "center" }}>{copyContent(labels.until)}</AppText>
     <View style={styles.pool}>
@@ -195,7 +196,7 @@ function ActiveChallengeProgress({ today }: { today?: TodayChallenges }) {
     position.current = { firstRank: 0, y: 0, initialized: false, programmatic: false };
     void client.resetQueries({ queryKey, exact: true });
   };
-  return <><Pressable accessibilityRole="button" accessibilityLabel={copyText(c.info)} onPress={() => setDetails(true)}><GlassSurface variant="strong" intensity={76} style={styles.card}>
+  return <><Pressable accessibilityRole="button" accessibilityLabel={copyText(c.info)} onPress={() => setDetails(true)}><GlassSurface variant="strong" intensity={76} style={styles.card}><ChallengeTimeWater today={today}/>
     <View style={styles.metrics}>
       <View style={styles.score}>
         <Ionicons name="diamond-outline" size={22} color={String(theme.primary)} />
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
   detailsGame: { width: "31%", alignItems: "center", gap: 4, paddingVertical: 8 },
   detailsGameIcon: { width: 38, height: 38, borderRadius: 19, overflow: "hidden" },
   detailsRank: { height: 72, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 10, borderRadius: 18 },
-  ready: { borderRadius: 30, padding: 24, minHeight: 216, alignItems: "center", justifyContent: "center", gap: 6 },
+  ready: { borderRadius: 30, padding: 24, minHeight: 216, overflow: "hidden", alignItems: "center", justifyContent: "center", gap: 6 },
   countdown: { fontSize: 56, lineHeight: 66, fontWeight: "900", fontVariant: ["tabular-nums"] },
   pool: { flexDirection: "row", flexWrap: "nowrap", alignSelf: "center", maxWidth: "100%", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 16 },
   readyPoolText: { minWidth: 0, flexShrink: 1, alignItems: "center" },

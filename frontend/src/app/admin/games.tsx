@@ -1,7 +1,7 @@
 import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { StyleSheet, Switch, View } from "react-native";
+import {StyleSheet, Switch, View} from "react-native";
 
 import { useAdminSession } from "@/components/admin/admin-session";
 import { AdminPageHeader } from "@/components/admin/admin-ui";

@@ -1,9 +1,10 @@
+import { AdminPressable as Pressable } from "@/components/admin/admin-primitives";
 import { useUiCopy } from "@/components/localized-native";
 import { useAppStore } from "@/store/app-store";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
-import type { ReactNode } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import {ActivityIndicator, Modal,  StyleSheet, useWindowDimensions, View} from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
@@ -17,23 +18,36 @@ export function AdminPageHeader({ title, description, action }: { title: string;
     <View style={styles.pageHeader}>
       <View style={styles.pageTitleWrap}>
         <AppText variant="title">{copyContent(title)}</AppText>
-        <AppText muted>{copyContent(description)}</AppText>
+
       </View>
       {action}
     </View>
   );
 }
 
-export function AdminMetricCard({ label, value, icon, tone = "primary", detail }: { label: string; value: string; icon: IconName; tone?: "primary" | "success" | "warning" | "danger"; detail?: string }) {
-  const { copyContent } = useUiCopy();
+export function AdminMetricCard({ label, value, icon = "stats-chart-outline", tone = "primary", detail, explanation, compact = false }: { label: string; value: string; icon?: IconName; tone?: "primary" | "success" | "warning" | "danger"; detail?: ReactNode; explanation?: string; compact?: boolean }) {
   const theme = useAppTheme();
+  const { width } = useWindowDimensions();
+  const [expanded, setExpanded] = useState(false);
   const color = tone === "success" ? theme.success : tone === "warning" ? theme.warning : tone === "danger" ? theme.danger : theme.primary;
   return (
-    <GlassSurface style={styles.metricCard} intensity={64}>
-      <View style={[styles.metricIcon, { backgroundColor: `${String(color)}15` }]}><Ionicons name={icon} size={19} color={String(color)} /></View>
-      <AppText style={styles.metricValue}>{copyContent(value)}</AppText>
-      <AppText variant="caption" muted>{copyContent(label)}</AppText>
-      {detail ? <AppText style={[styles.metricDetail, { color }]}>{copyContent(detail)}</AppText> : null}
+    <GlassSurface style={[styles.metricCard, compact && [styles.metricCompact, { minWidth: width >= 1024 ? 0 : 130 }]]} intensity={64}>
+      {!compact && <View style={[styles.metricIcon, { backgroundColor: `${String(color)}15` }]}><Ionicons name={icon} size={19} color={String(color)} /></View>}
+      <AppText style={styles.metricValue}>{value}</AppText>
+      {explanation ? <Pressable accessibilityRole="button" accessibilityLabel={`${label}: пояснение`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={styles.metricLabel}>
+        <AppText variant="caption" muted style={{ flexShrink: 1 }}>{label}</AppText>
+        <Ionicons name="information-circle-outline" size={16} color={String(theme.textMuted)} />
+      </Pressable> : <AppText variant="caption" muted>{label}</AppText>}
+      {explanation ? <Modal visible={expanded} transparent animationType="fade" onRequestClose={() => setExpanded(false)}>
+        <View style={styles.helpBackdrop}>
+          <View accessibilityViewIsModal style={[styles.helpPanel, { backgroundColor: theme.surfaceRaised }]}>
+            <AppText variant="heading">{label}</AppText>
+            <AppText>{explanation}</AppText>
+            <Pressable accessibilityRole="button" onPress={() => setExpanded(false)} style={[styles.retry, { backgroundColor: theme.primarySoft }]}><AppText variant="label">Понятно</AppText></Pressable>
+          </View>
+        </View>
+      </Modal> : null}
+      {detail ? <AppText style={[styles.metricDetail, { color }]}>{detail}</AppText> : null}
     </GlassSurface>
   );
 }
@@ -61,22 +75,25 @@ export function AdminDataState({ loading, error, empty, emptyText = "Данны�
   return null;
 }
 
-export function AdminBarChart({ values, labels, color }: { values: number[]; labels: string[]; color: string }) {
-  const { copyText, copyContent } = useUiCopy();
-  const theme = useAppTheme();
-  const max = Math.max(1, ...values.map((value) => Math.abs(value)));
-  return (
-    <View style={styles.chart} accessibilityLabel={copyText("График динамики")}>
-      {values.map((value, index) => (
-        <View key={`${labels[index] ?? index}-${index}`} style={styles.chartColumn}>
-          <View style={styles.barTrack}>
-            <View style={[styles.bar, { backgroundColor: color, height: `${Math.max(value === 0 ? 3 : 10, Math.round((Math.abs(value) / max) * 100))}%` }]} />
-          </View>
-          <AppText style={[styles.chartLabel, { color: theme.textMuted }]}>{copyContent(labels[index])}</AppText>
-        </View>
-      ))}
-    </View>
-  );
+export function AdminBarChart({values,labels,color}:{values:number[];labels:string[];color:string}) {
+ const theme=useAppTheme();const [selected,setSelected]=useState<number|null>(null);
+ const max=Math.max(1,...values),min=Math.min(0,...values),range=max-min,zero=(0-min)/range*180;
+ return <View style={{marginTop:20,gap:10}}>
+ <View style={{flexDirection:"row",height:210,gap:7}}>
+  <View style={{width:42,height:180,justifyContent:"space-between"}}>{[0,1,2,3,4].map(i=><AppText key={i} variant="caption" muted style={{fontSize:10,textAlign:"right"}}>{formatUnits(max-range*i/4)}</AppText>)}</View>
+  <View style={{flex:1,height:210}}>
+   {[0,1,2,3,4].map(i=><View key={i} style={{position:"absolute",left:0,right:0,top:i*45,borderTopWidth:1,borderColor:theme.border}}/>)}
+   <View style={{height:210,flexDirection:"row",gap:3}}>{values.map((value,index)=>{
+    const h=Math.abs(value)/range*180;
+    return <Pressable key={index} accessibilityRole="button" accessibilityLabel={`${labels[index]}: ${formatUnits(value)}`} onPress={()=>setSelected(index)} style={{flex:1,height:210}}>
+     <View style={{height:180,position:"relative"}}><View style={{position:"absolute",bottom:value>=0?zero:zero-h,left:2,right:2,height:h,backgroundColor:color,borderRadius:3,opacity:selected===null||selected===index?1:0.4}}/></View>
+     <AppText muted variant="caption" style={{fontSize:10,textAlign:"center",marginTop:7}}>{index%Math.max(1,Math.ceil(labels.length/7))===0?labels[index]:""}</AppText>
+    </Pressable>;
+   })}</View>
+  </View>
+ </View>
+ <AppText variant="caption" muted>{selected===null?"Нажмите на столбец, чтобы увидеть значение":`${labels[selected]}: ${formatUnits(values[selected])}`}</AppText>
+ </View>;
 }
 
 export function formatUnits(value: number) {
@@ -87,6 +104,10 @@ const styles = StyleSheet.create({
   pageHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 },
   pageTitleWrap: { flex: 1, minWidth: 0, gap: 3 },
   metricCard: { flex: 1, minWidth: 150, minHeight: 142, borderRadius: 24, padding: 15, gap: 4 },
+  metricCompact: { minWidth: 0, flexBasis: 0, minHeight: 110, padding: 11, borderRadius: 20 },
+  helpBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", padding: 24 },
+  helpPanel: { width: "100%", maxWidth: 480, borderRadius: 24, padding: 24, gap: 16 },
+  metricLabel: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32 },
   metricIcon: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center", marginBottom: 6 },
   metricValue: { fontSize: 23, lineHeight: 28, fontWeight: "900", letterSpacing: -0.5 },
   metricDetail: { fontSize: 10, lineHeight: 13, fontWeight: "800", marginTop: 3 },

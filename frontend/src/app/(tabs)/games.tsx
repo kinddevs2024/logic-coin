@@ -1,4 +1,3 @@
-import { FeedAd } from "@/components/feed-ad";
 import { useUiCopy } from "@/components/localized-native";
 
 import { isGameVisible } from "@/constants/game-availability";
@@ -173,10 +172,10 @@ export default function GamesScreen() {
     }
     return result;
   }, [games, wide]);
-  const renderRow = useCallback(({ item, index }: ListRenderItemInfo<GameCatalogItem[]>) => (
+  const renderRow = useCallback(({ item }: ListRenderItemInfo<GameCatalogItem[]>) => (
     <View><View style={wide ? styles.listRowWide : undefined}>
       {item.map((game) => <GameCard key={game.key} game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId} />)}
-    </View>{index === (wide ? 2 : 5) ? <FeedAd placement="games-catalog"/> : null}</View>
+    </View></View>
   ), [ready, wide]);
   const renderNativeCatalog = (contentContainerStyle: StyleProp<ViewStyle>) => (
     <>
@@ -209,7 +208,7 @@ export default function GamesScreen() {
           <>
             <GamesHeader />
             <View style={[styles.grid, wide && styles.gridWide]}>
-              {games.map((game,index) => <Fragment key={game.key}><GameCard game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId}/>{index===5?<FeedAd placement="games-catalog"/>:null}</Fragment>)}
+              {games.map((game) => <Fragment key={game.key}><GameCard game={game} ready={ready} wide={wide} onOpenSkins={setEconomyGameId}/></Fragment>)}
             </View>
             {economyGameId === "bottle-flip" ? <BottleThemes visible onClose={() => setEconomyGameId(null)} /> : economyGameId ? <GameEconomyModal gameId={economyGameId} visible onClose={() => setEconomyGameId(null)} /> : null}
           </>

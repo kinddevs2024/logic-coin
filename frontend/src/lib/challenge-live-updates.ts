@@ -1,7 +1,7 @@
 import { API_URL, refreshAccessToken } from "@/lib/api";
 import { telegramChallengeInitData } from "./telegram-context";
 import type { TodayChallenges, PendingContestReward } from "@/types";
-export type LiveState = { chatSync?: boolean; chatTyping?: { conversationId: string; expiresAt: number }; chat?: { conversationId: string }; raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
+export type LiveState = { chatRead?: import("./chat-notification-sync").ChatReadReceipt; chatSync?: boolean; chatTyping?: { conversationId: string; expiresAt: number }; chat?: { conversationId: string }; raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
 
 type Connection = {
   watchChatId?: string | null;

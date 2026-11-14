@@ -1,6 +1,6 @@
 import { useUiCopy , CopyTextInput as TextInput } from "@/components/localized-native";
 import { useEffect, useState } from "react";
-import { View, StyleSheet } from "react-native";
+import {View, StyleSheet} from "react-native";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppText } from "@/components/app-text";

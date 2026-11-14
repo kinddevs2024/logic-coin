@@ -7783,5 +7783,120 @@
     "ru": "Добавить реквизиты карты",
     "uz": "Karta rekvizitlarini qo‘shish",
     "en": "Add card details"
+  },
+  "Карта для вывода": {
+    "ru": "Карта для вывода",
+    "uz": "Yechib olish kartasi",
+    "en": "Withdrawal card"
+  },
+  "Сохраним платёжную систему и последние 4 цифры": {
+    "ru": "Сохраним платёжную систему и последние 4 цифры",
+    "uz": "To‘lov tizimi va oxirgi 4 raqamni saqlaymiz",
+    "en": "We’ll remember the card network and last 4 digits"
+  },
+  "Проверьте 16-значный номер карты.": {
+    "ru": "Проверьте 16-значный номер карты.",
+    "uz": "16 xonali karta raqamini tekshiring.",
+    "en": "Check the 16-digit card number."
+  },
+  "Подтвердить принадлежность карты и согласие с условиями выплаты": {
+    "ru": "Подтвердить принадлежность карты и согласие с условиями выплаты",
+    "uz": "Karta sizga tegishli ekanini va to‘lov shartlariga rozilikni tasdiqlash",
+    "en": "Confirm card ownership and accept payout terms"
+  },
+  "Минимальная сумма вывода — $5": {
+    "ru": "Минимальная сумма вывода — $5",
+    "uz": "Minimal yechish miqdori — $5",
+    "en": "Minimum withdrawal is $5"
+  },
+  "Какие данные нужны для выплаты": {
+    "ru": "Какие данные нужны для выплаты",
+    "en": "What information is needed for a payout",
+    "uz": "Pul yechish uchun qanday maʼlumotlar kerak"
+  },
+  "Для перевода нужен только номер карты из 16 цифр. Он передаётся администрации для выплаты и хранится на сервере в зашифрованном виде. Название и срок действия необязательны: они сохраняются только на этом устройстве, если вы выберете «Запомнить мою карту», и не передаются с заявкой. CVV и PIN не нужны.": {
+    "ru": "Для перевода нужен только номер карты из 16 цифр. Он передаётся администрации для выплаты и хранится на сервере в зашифрованном виде. Название и срок действия необязательны: они сохраняются только на этом устройстве, если вы выберете «Запомнить мою карту», и не передаются с заявкой. CVV и PIN не нужны.",
+    "en": "Only the 16-digit card number is needed for the transfer. It is sent to the administrators for the payout and stored encrypted on the server. The label and expiry date are optional: they stay on this device if you select “Remember my card” and are not sent with the request. CVV and PIN are not needed.",
+    "uz": "Oʻtkazma uchun faqat 16 xonali karta raqami kerak. U toʻlov uchun maʼmuriyatga yuboriladi va serverda shifrlangan holda saqlanadi. Nom va amal qilish muddati ixtiyoriy: “Kartamni eslab qolish” tanlansa, ular faqat shu qurilmada saqlanadi va ariza bilan yuborilmaydi. CVV va PIN kerak emas."
+  },
+  "Номер карты": {
+    "ru": "Номер карты",
+    "en": "Card number",
+    "uz": "Karta raqami"
+  },
+  "Введите 16 цифр": {
+    "ru": "Введите 16 цифр",
+    "en": "Enter 16 digits",
+    "uz": "16 ta raqam kiriting"
+  },
+  "Проверьте номер: нужны 16 цифр действующей карты": {
+    "ru": "Проверьте номер: нужны 16 цифр действующей карты",
+    "en": "Check the number: enter a valid 16-digit card number",
+    "uz": "Raqamni tekshiring: amaldagi kartaning 16 xonali raqami kerak"
+  },
+  "Введите 16 цифр · система определится автоматически": {
+    "ru": "Введите 16 цифр · система определится автоматически",
+    "en": "Enter 16 digits · card network detected automatically",
+    "uz": "16 ta raqam kiriting · toʻlov tizimi avtomatik aniqlanadi"
+  },
+  "Сохранённая карта": {
+    "ru": "Сохранённая карта",
+    "en": "Saved card",
+    "uz": "Saqlangan karta"
+  },
+  "Название и срок действия": {
+    "ru": "Название и срок действия",
+    "en": "Label and expiry date",
+    "uz": "Nom va amal qilish muddati"
+  },
+  "Необязательно": {
+    "ru": "Необязательно",
+    "en": "Optional",
+    "uz": "Ixtiyoriy"
+  },
+  "Название карты для себя": {
+    "ru": "Название карты для себя",
+    "en": "Your private card label",
+    "uz": "Kartani oʻzingiz uchun nomlang"
+  },
+  "Например, моя основная карта": {
+    "ru": "Например, моя основная карта",
+    "en": "For example, my main card",
+    "uz": "Masalan, asosiy kartam"
+  },
+  "Срок действия · необязательно": {
+    "ru": "Срок действия · необязательно",
+    "en": "Expiry date · optional",
+    "uz": "Amal qilish muddati · ixtiyoriy"
+  },
+  "Укажите действующий срок в формате MM/YY или оставьте поле пустым": {
+    "ru": "Укажите действующий срок в формате MM/YY или оставьте поле пустым",
+    "en": "Enter a valid expiry date as MM/YY or leave it blank",
+    "uz": "Amaldagi muddatni MM/YY shaklida kiriting yoki boʻsh qoldiring"
+  },
+  "Только для вас — эти данные не передаются с заявкой.": {
+    "ru": "Только для вас — эти данные не передаются с заявкой.",
+    "en": "Just for you — these details are not sent with the request.",
+    "uz": "Faqat siz uchun — bu maʼlumotlar ariza bilan yuborilmaydi."
+  },
+  "Проверьте номер карты. Срок действия можно не заполнять.": {
+    "ru": "Проверьте номер карты. Срок действия можно не заполнять.",
+    "en": "Check the card number. You may leave the expiry date blank.",
+    "uz": "Karta raqamini tekshiring. Amal qilish muddatini boʻsh qoldirish mumkin."
+  },
+  "Для выплаты нужен только номер карты": {
+    "ru": "Для выплаты нужен только номер карты",
+    "en": "Only the card number is needed for a payout",
+    "uz": "Pul yechish uchun faqat karta raqami kerak"
+  },
+  "На устройстве останутся название, срок, бренд и последние 4 цифры": {
+    "ru": "На устройстве останутся название, срок, бренд и последние 4 цифры",
+    "en": "The label, expiry date, network and last 4 digits stay on this device",
+    "uz": "Qurilmada nom, muddat, toʻlov tizimi va oxirgi 4 raqam saqlanadi"
+  },
+  "Для выплаты нужен только номер карты. Он хранится на сервере в зашифрованном виде. Название и срок действия необязательны, сохраняются только на вашем устройстве при выборе «Запомнить мою карту» и не передаются с заявкой. CVV и PIN не запрашиваются.": {
+    "ru": "Для выплаты нужен только номер карты. Он хранится на сервере в зашифрованном виде. Название и срок действия необязательны, сохраняются только на вашем устройстве при выборе «Запомнить мою карту» и не передаются с заявкой. CVV и PIN не запрашиваются.",
+    "en": "Only the card number is needed for a payout. It is stored encrypted on the server. The label and expiry date are optional, stay on your device when you select “Remember my card”, and are not sent with the request. CVV and PIN are never requested.",
+    "uz": "Pul yechish uchun faqat karta raqami kerak. U serverda shifrlangan holda saqlanadi. Nom va amal qilish muddati ixtiyoriy, “Kartamni eslab qolish” tanlansa, faqat qurilmangizda saqlanadi va ariza bilan yuborilmaydi. CVV va PIN soʻralmaydi."
   }
 }

@@ -23,6 +23,7 @@ export type CoinWallet = {
 };
 
 export type UserPreferences = {
+  homeIntroSeen?: boolean;
   language: Language;
   theme: ThemePreference;
   customTheme?: {wallpaperUrl: string; accent: string; dark: boolean};
@@ -34,7 +35,7 @@ export type UserPreferences = {
 
 export type User = {
   id?: string;
-  role?: "user" | "admin";
+  role?: "user" | "manager" | "admin" | "owner";
   name: string;
   email?: string;
   avatarUrl?: string | null;
@@ -131,7 +132,7 @@ export type Withdrawal = {
   amountUnits: number;
   method: "sandbox" | "bank_card";
   accountLabel?: string | null;
-  cardBrand?: "visa" | "mastercard" | "other" | null;
+  cardBrand?: "visa" | "mastercard" | "uzcard" | "humo" | "other" | null;
   cardLast4?: string | null;
   status: string;
   requestedAt: string;
@@ -199,6 +200,7 @@ export type TodayChallenges = {
   available: boolean;
   dayKey: string;
   nextChallengeAt: string | null;
+  startsAt?: string | null;
   endsAt?: string | null;
   revision?: string | null;
   totalCount: number;

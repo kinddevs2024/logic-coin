@@ -1,3 +1,6 @@
+import { payoutCardDetails } from "./payment-card";
+import { nativeDataCache, dataCacheScope } from "./native-data-cache";
+import { cacheableRead, revalidatedBody } from "./incremental-cache";
 import { withNetworkDeadline, NetworkTimeoutError } from "./network-deadline";
 import { localizeBuiltIn } from "./localize-built-in";
 import { telegramChallengeInitData } from "./telegram-context";
@@ -89,7 +92,7 @@ export async function request<T>(
   headers.set("X-Appearance-Version", "2");
   headers.set("X-Auth-Flow-Version", "2");
   headers.set("Accept-Language", useAppStore.getState().language ?? "uz");
-  const telegramInitData = Platform.OS === "web" && /\/challenges\/[^/]+\/start$/.test(path) ? telegramChallengeInitData() : undefined;
+  const telegramInitData = Platform.OS === "web" && /^\/challenges(?:\/|$)/.test(path) ? telegramChallengeInitData() : undefined;
   if (telegramInitData) headers.set("X-Telegram-Init-Data", telegramInitData);
   if (fetchOptions.body) {
     headers.set("Content-Type", "application/json");
@@ -98,15 +101,44 @@ export async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  const account = useAppStore.getState();
+  const scoped = account.user.id ? dataCacheScope(API_URL, account.user.id, account.language ?? "uz") : null;
+  const cachedRead = Platform.OS !== "web" && token === account.accessToken && Boolean(token) &&
+    (fetchOptions.method ?? "GET").toUpperCase() === "GET" && cacheableRead(path) &&
+    nativeDataCache.ready && scoped !== null && nativeDataCache.scope === scoped;
+  const generation = nativeDataCache.generation;
+  const cached = cachedRead ? nativeDataCache.get(path) : undefined;
+  if (cachedRead) {
+    headers.set("X-Data-Cache-Version", "1");
+    if (cached) headers.set("If-None-Match", cached.etag);
+  }
   let response: Response;
   let payload: {data?:T}|ApiErrorBody;
+  let revalidated = false;
   try {
     const result=await withNetworkDeadline(async signal=>{
-      const response=await fetch(`${API_URL}${path}`,{...fetchOptions,headers,signal});
+      let response=await fetch(`${API_URL}${path}`,{...fetchOptions,headers,signal});
+      if (response.status === 304 && !cached) {
+        headers.delete("If-None-Match");
+        headers.set("Cache-Control", "no-cache");
+        response=await fetch(`${API_URL}${path}`,{...fetchOptions,headers,signal});
+      }
+      if (cachedRead && generation !== nativeDataCache.generation) {
+        const aborted = new Error("Account changed during request"); aborted.name = "AbortError"; throw aborted;
+      }
+      if (response.status === 304 && cached && response.headers.get("X-Data-Cache-Version") === "1") {
+        const payload = revalidatedBody(cached.body, response.headers.get("X-Server-Time"));
+        nativeDataCache.put(path, { ...cached, body: payload, savedAt: Date.now() }, generation);
+        return { response, payload, revalidated: true };
+      }
       const payload=await response.json().catch(()=>{if(response.ok&&response.status!==204)throw new ApiError("Invalid server response",502,"invalid_response");return {};});
-      return {response,payload};
+      const etag = response.headers.get("ETag");
+      if (cachedRead && response.status === 200 && etag && response.headers.get("X-Data-Cache-Version") === "1") {
+        nativeDataCache.put(path, { body: payload, etag, savedAt: Date.now() }, generation);
+      }
+      return {response,payload,revalidated: false};
     },fetchOptions.signal);
-    response=result.response;payload=result.payload;
+    response=result.response;payload=result.payload as typeof payload;revalidated=result.revalidated;
   } catch(error) {
     if(error instanceof ApiError)throw error;
     if(error instanceof NetworkTimeoutError)throw new ApiError(localizeBuiltIn("Сервер не ответил. Проверьте соединение и результат операции.",useAppStore.getState().language??"uz"),0,"request_timeout");
@@ -123,7 +155,7 @@ export async function request<T>(
     });
   }
 
-  if (!response.ok) {
+  if (!response.ok && !revalidated) {
     const body = payload as ApiErrorBody;
     throw new ApiError(
       localizeBuiltIn(body.error?.message || body.message || "Request failed", useAppStore.getState().language ?? "uz"),
@@ -434,7 +466,7 @@ export type ChallengeStartResult = {
 export const challengesApi = {
   rules(token: string, day?: string) {
     return request<{
-      dayKey: string; source: "automatic" | "manual" | "saved"; final: boolean;
+      dayKey: string; payoutPolicy?: string | null; source: "automatic" | "manual" | "saved"; final: boolean;
       poolUnits: number; participantCount: number; cashWinnerCount: number; otherMaxCashUnits: number;
       cashPrizeLimitUnits?: number | null; unallocatedUnits?: number;
       podium: { rank: number; cashUnits: number | null }[];
@@ -808,7 +840,16 @@ export type AdminWithdrawal = {
 };
 export type AdminWithdrawalPage = { withdrawals: AdminWithdrawal[]; nextCursor: string | null; summary: { status: string; count: number; amountCents: number }[] };
 
+export const profileRolesApi = () => request<{roles: Record<string, string>}>("/profile/roles");
+export const ownerApi = {
+ overview: (dayKey: string, token: string) => request<AdminOverview>(`/owner/overview?dayKey=${encodeURIComponent(dayKey)}`, {token}),
+ analytics: (dayKey: string, token: string) => request<AdminOverview & {recipients: {userId:string;name:string;rank:number;totalCoins:number;cashUnits:number}[]}>(`/owner/analytics?dayKey=${encodeURIComponent(dayKey)}`, {token}),
+ budget: (days: number, token: string) => request<AdminBudget>(`/owner/budget?days=${days}`, {token}),
+ challenges: (from:string,to:string,token:string) => request<{challenges:AdminChallenge[]}>(`/owner/daily-challenges?from=${from}&to=${to}`,{token}),
+ withdrawals: (token:string) => request<{totals:{_id:string;count:number;amountUnits:number}[]}>("/owner/withdrawals",{token}),
+};
 export const adminApi = {
+ changeRole(id:string,input:{role:string;expectedRole:string;reason:string},token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}/role`,{method:"PATCH",token,body:JSON.stringify(input)});},
  telegramContact(id:string,token:string){return request<{contact:{telegramId:string;chatId:string;firstName?:string;lastName?:string;username?:string;phoneNumber?:string;phoneVerifiedAt?:string;subscriptionCheckedAt?:string}|null}>(`/admin/users/${encodeURIComponent(id)}/telegram-contact`,{token});},
  users(q:string,page:number,token:string){return request<{users:any[];total:number}>(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`,{token});},
  editUser(id:string,input:any,token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}`,{method:"PATCH",token,body:JSON.stringify(input)});},
@@ -1043,6 +1084,9 @@ export const publicProfileApi = {
 };
 
 export const withdrawalsApi = {
+  scanCard(base64: string, token: string, signal?: AbortSignal) {
+    return request<{ number: string }>("/withdrawals/scan-card", { method: "POST", token, signal, body: JSON.stringify({ base64 }) });
+  },
   addCard(id:string,number:string,token:string){return request<{ok:true}>(`/withdrawals/${encodeURIComponent(id)}/card`,{method:"PATCH",token,body:JSON.stringify({number})});},
   overview(token: string) {
     return request<WithdrawalOverview>("/withdrawals", { token });
@@ -1051,12 +1095,12 @@ export const withdrawalsApi = {
     input: {
       amountCents: number;
       card: {
-        brand: "visa" | "mastercard" | "other";
+        brand: "visa" | "mastercard" | "uzcard" | "humo" | "other";
         number?: string;
         savedWithdrawalId?: string;
         last4: string;
-        holderName: string;
-        expiration: string;
+        holderName?: string;
+        expiration?: string;
       };
       agreementAccepted: true;
     },
@@ -1077,7 +1121,7 @@ export const withdrawalsApi = {
       body: JSON.stringify({
         amountCents: input.amountCents,
         method: "bank_card",
-        card: input.card,
+        card: payoutCardDetails(input.card),
         agreementAccepted: input.agreementAccepted,
         agreementVersion: "2026-08-23",
         idempotencyKey,
@@ -1129,6 +1173,7 @@ export const meApi = {
       theme?: ThemePreference;
       notificationsEnabled?: boolean;
       dailyReminderEnabled?: boolean;
+      homeIntroSeen?: true;
       timezone?: string;
     },
     token: string,
@@ -1153,6 +1198,7 @@ export const devicesApi = {
     deviceId: string,
     input: {
       platform: "android" | "ios" | "web";
+      notificationSyncVersion?: number;
       fcmToken?: string | null;
       pushToken?: string | null;
       webPush?: { endpoint: string; keys: { p256dh: string; auth: string } } | null;

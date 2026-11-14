@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useUiCopy } from "@/components/localized-native";
 import { useQuery } from "@tanstack/react-query";
 import { meApi } from "@/lib/api";
@@ -44,6 +45,7 @@ export function ProfileDrawer({
   onInvite: () => void;
 }) {
   const { copyText, copyContent } = useUiCopy();
+  const router = useRouter();
   const theme = useAppTheme();
   const blurTarget = useModalBlurTarget();
   const { t, language } = useTranslation();
@@ -235,6 +237,7 @@ export function ProfileDrawer({
                 </View>
               </LinearGradient>
 
+              {user.role === "owner" || user.role === "admin" ? <Pressable accessibilityRole="link" onPress={()=>{onClose();router.push((user.role==="owner"?"/owner":"/admin") as never);}} style={{padding:16}}><AppText variant="label">{user.role==="owner"?"Owner · Статистика и финансы":"Admin · Управление платформой"}</AppText></Pressable> : null}
               <View style={styles.stats}>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>

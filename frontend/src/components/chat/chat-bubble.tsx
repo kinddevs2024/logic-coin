@@ -1,3 +1,7 @@
+import { MessagePressable } from "./message-pressable";
+import { SystemMessageReactions } from "./system-message-reactions";
+import { RaffleWinnerSystemMessage } from "./raffle-winner-system-message";
+import { WithdrawalSystemMessage } from "./withdrawal-system-message";
 import { VideoPlayer } from "./video-player";
 import { isChatVideo } from "@/lib/chat-video";
 import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
@@ -6,6 +10,7 @@ import { memo } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { AppText } from "@/components/app-text";
+import { LogoMark } from "@/components/logo";
 import { Avatar } from "@/components/avatar";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import {
@@ -28,45 +33,55 @@ export const ChatBubble = memo(function ChatBubble({
   onProfile,
   onPhoto,
   onListened,
+  onReplyPress,
+  highlighted,
+  showAvatar = true,
 }: {
   item: ChatItem;
   room: ChatRoom;
   onActions: (item: ChatItem, anchor?: ChatAnchor) => void;
   onProfile: (id: string) => void;
   onPhoto: (file: ChatFile) => void;
+  onReplyPress?: (id: string) => void;
+  highlighted?: boolean;
+  showAvatar?: boolean;
   onListened?: (item: ChatItem) => void;
 }) {
   const theme = useAppTheme(),
     c = useChatCopy();
+  if (item.system?.kind === "raffle_winner" && !item.deleted) return <View nativeID={`chat-seq-${item.seq}`} style={{width:"100%",backgroundColor:highlighted?theme.primarySoft:undefined,borderRadius:16}}><RaffleWinnerSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} /><SystemMessageReactions item={item} onActions={onActions} /></View>;
+  if (item.system?.kind === "withdrawal_approved" && !item.deleted) return <View nativeID={`chat-seq-${item.seq}`} style={{width:"100%",backgroundColor:highlighted?theme.primarySoft:undefined,borderRadius:16}}><WithdrawalSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} /><SystemMessageReactions item={item} onActions={onActions} /></View>;
   const hasVoice = !item.deleted && item.attachments.some(file => file.kind === "voice");
   const voiceOnly = hasVoice && item.attachments.length === 1 && !item.text;
   const inlineTime = Boolean(item.text) && !item.deleted && !item.attachments.length && !item.reactions.length && !item.edited && !item.pinned;
   const time = new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).replace(/\s/g, "\u00a0");
   return (
     <Animated.View entering={reactionEntering} layout={reactionLayout}
-      style={[styles.row, item.own && { justifyContent: "flex-end" }]}
+      style={[styles.row, highlighted && { backgroundColor: theme.primarySoft, borderRadius: 16 }, item.own && { justifyContent: "flex-end" }]}
     >
-      {!item.own ? (
+      {!item.own && !showAvatar ? <View style={{width: 30}} /> : null}
+      {!item.own && showAvatar ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${c.profile}: ${item.sender.name}`}
+          disabled={item.sender.isSupportTeam}
           onPress={(event) => {
             event.stopPropagation();
             onProfile(item.sender.id);
           }}
           style={{ alignSelf: "flex-end" }}
         >
-          <Avatar userId={item.sender.id}
+          <>{item.sender.isSupportTeam ? <LogoMark size={30} /> : <Avatar userId={item.sender.id}
             name={item.sender.name}
             avatarUrl={item.sender.avatarUrl}
             size={30}
-          />
+          />}</>
         </Pressable>
       ) : null}
-      <Pressable
+      <MessagePressable
         nativeID={`chat-seq-${item.seq}`}
         accessibilityLabel={c.messageActions}
-        onPress={event => onActions(item, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
+        onActions={anchor => onActions(item, anchor)}
         style={[
           styles.bubble,
           {
@@ -79,8 +94,8 @@ export const ChatBubble = memo(function ChatBubble({
           },
         ]}
       >
-        {!item.own && ["group", "channel"].includes(room.kind) ? (
-          <Pressable
+        {!item.own && (["group", "channel"].includes(room.kind) || item.sender.isSupportTeam) ? (
+          <Pressable disabled={item.sender.isSupportTeam}
             onPress={(event) => {
               event.stopPropagation();
               onProfile(item.sender.id);
@@ -97,14 +112,14 @@ export const ChatBubble = memo(function ChatBubble({
           </AppText>
         ) : null}
         {item.reply ? (
-          <View style={[styles.quote, { borderLeftColor: theme.primary }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={c.viewOriginal} onPress={event=>{event.stopPropagation();onReplyPress?.(item.reply!.id);}} style={[styles.quote, { borderLeftColor: theme.primary }]}>
             <AppText variant="caption" color={String(theme.primary)}>
               {item.reply.sender}
             </AppText>
             <AppText numberOfLines={2} variant="caption" muted>
               {item.reply.text || c.attach}
             </AppText>
-          </View>
+          </Pressable>
         ) : null}
         {item.deleted ? (
           <AppText muted>{c.deleted}</AppText>
@@ -151,7 +166,6 @@ export const ChatBubble = memo(function ChatBubble({
               <AppText
                 color={String(theme.text)}
                 selectable
-                onLongPress={() => onActions(item)}
                 style={{ lineHeight: 22, flexShrink: 1, maxWidth: "100%" }}
               >
                 {item.text}
@@ -216,7 +230,7 @@ export const ChatBubble = memo(function ChatBubble({
           ) : null}
         </View>
         </View> : null}
-      </Pressable>
+      </MessagePressable>
     </Animated.View>
   );
 });

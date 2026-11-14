@@ -1,5 +1,12 @@
 import { useAppStore } from "@/store/app-store";
 const ru = {
+  roomType: "Тип чата",
+  publicShort: "Открытый",
+  privateShort: "Закрытый",
+
+  comments: "Комментарии",
+  viewOriginal: "Показать исходное сообщение",
+  originalUnavailable: "Сообщение удалено или недоступно",
   title: "Сообщения",
   chooseUsername: "Выберите никнейм",
   addFriends: "Добавить друзей",
@@ -88,7 +95,7 @@ const ru = {
   retry: "Повторить",
   error: "Не удалось выполнить действие. Попробуйте ещё раз.",
   readOnly: "Публиковать могут только администраторы",
-  members: "Участники",
+  members: "Участники", loadMoreMembers: "Показать ещё",
   invite: "Пригласить по ссылке",
   mute: "Отключить уведомления",
   unmute: "Включить уведомления",
@@ -129,6 +136,11 @@ const ru = {
 };
 type Copy = typeof ru;
 const en: Copy = {
+  roomType: "Chat type",
+  publicShort: "Public",
+  privateShort: "Private",
+
+  comments: "Comments", viewOriginal: "Show original message", originalUnavailable: "Message deleted or unavailable",
   deleteMessage: "Delete message",
   deleteForBoth: "Delete for me and",
   removeAttachment: "Remove attachment",
@@ -217,7 +229,7 @@ const en: Copy = {
   retry: "Retry",
   error: "Could not complete the action. Please try again.",
   readOnly: "Only administrators can post",
-  members: "Members",
+  members: "Members", loadMoreMembers: "Load more",
   invite: "Share invite link",
   mute: "Mute notifications",
   unmute: "Enable notifications",
@@ -257,6 +269,11 @@ const en: Copy = {
   ready: "Done",
 };
 const uz: Copy = {
+  roomType: "Chat turi",
+  publicShort: "Ochiq",
+  privateShort: "Yopiq",
+
+  comments: "Izohlar", viewOriginal: "Asl xabarni ko‘rsatish", originalUnavailable: "Xabar o‘chirilgan yoki mavjud emas",
   deleteMessage: "Xabarni o‘chirish",
   deleteForBoth: "Men va bu suhbatdosh uchun o‘chirish:",
   removeAttachment: "Ilovani olib tashlash",
@@ -345,7 +362,7 @@ const uz: Copy = {
   retry: "Qayta urinish",
   error: "Amal bajarilmadi. Qayta urinib ko‘ring.",
   readOnly: "Faqat administratorlar yoza oladi",
-  members: "A’zolar",
+  members: "A’zolar", loadMoreMembers: "Yana ko‘rsatish",
   invite: "Taklif havolasini ulashish",
   mute: "Bildirishnomalarni o‘chirish",
   unmute: "Bildirishnomalarni yoqish",

@@ -1,9 +1,12 @@
+import {AdminMaterialContext} from "./material-context";
+import {AppThemeOverride} from "@/hooks/use-app-theme";
+import { AdminPressable as Pressable } from "@/components/admin/admin-primitives";
 import { useUiCopy } from "@/components/localized-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { usePathname, useRouter } from "expo-router";
 import type { PropsWithChildren } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {ScrollView, StyleSheet, View} from "react-native";
 
 import { AppFrame } from "@/components/app-frame";
 import { AppText } from "@/components/app-text";
@@ -14,20 +17,21 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
-const NAV_ITEMS: { href: "/admin/chats" | "/admin/raffle" | "/admin/games" | "/admin/users" | "/admin" | "/admin/challenges" | "/admin/budget" | "/admin/blocked" | "/admin/notifications" | "/admin/withdrawals"; label: string; icon: IconName }[] = [
+const NAV_ITEMS: { href: "/admin/winners" | "/admin/chats" | "/admin/raffle" | "/admin/games" | "/admin/users" | "/admin" | "/admin/challenges" | "/admin/budget" | "/admin/blocked" | "/admin/notifications" | "/admin/withdrawals"; label: string; icon: IconName }[] = [
   { href: "/admin/users", label: "Пользователи", icon: "people-outline" },
   { href: "/admin", label: "Главная", icon: "grid-outline" },
   { href: "/admin/challenges", label: "Челленджи", icon: "game-controller-outline" },
+  { href: "/admin/winners", label: "Объявить победителя", icon: "trophy-outline" },
   { href: "/admin/raffle", label: "Розыгрыши", icon: "sparkles-outline" },
   { href: "/admin/games", label: "Игры", icon: "apps-outline" },
   { href: "/admin/chats", label: "Сообщения и жалобы", icon: "chatbubbles-outline" },
-  { href: "/admin/notifications", label: "Уведомления", icon: "notifications-outline" },
+  { href: "/admin/notifications", label: "Системные сообщения", icon: "notifications-outline" },
   { href: "/admin/budget", label: "Бюджет", icon: "wallet-outline" },
   { href: "/admin/withdrawals", label: "Выводы", icon: "cash-outline" },
   { href: "/admin/blocked", label: "Блокировки", icon: "ban-outline" },
 ];
 
-export function AdminShell({ children }: PropsWithChildren) {
+function NativeAdminShell({ children }: PropsWithChildren) {
   const { copyText, copyContent } = useUiCopy();
   const theme = useAppTheme();
   const router = useRouter();
@@ -116,3 +120,5 @@ const styles = StyleSheet.create({
   contentDesktop: { flex: 1 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
 });
+
+export function AdminShell({children}:PropsWithChildren){const base=useAppTheme();const theme={...base,mode:'light' as const,background:'#f6f8fb',backgroundStart:'#f6f8fb',backgroundMiddle:'#f6f8fb',backgroundEnd:'#f6f8fb',surface:'#fff',surfaceRaised:'#fff',surfaceMuted:'#f1f5f9',primary:'#2563eb',primarySoft:'#eff6ff',primaryDark:'#1d4ed8',text:'#172b3a',textMuted:'#687783',border:'#e2e8f0',orbOne:'transparent',orbTwo:'transparent'};return <AdminMaterialContext.Provider value><AppThemeOverride.Provider value={theme}><NativeAdminShell>{children}</NativeAdminShell></AppThemeOverride.Provider></AdminMaterialContext.Provider>;}

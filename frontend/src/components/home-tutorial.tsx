@@ -1,5 +1,7 @@
+import {seenHomeTours,shouldShowHomeTour} from "@/lib/home-tour-state";
 import { useUiCopy } from "@/components/localized-native";
 
+import { meApi } from "@/lib/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState, type RefObject } from "react";
 import { AccessibilityInfo, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
@@ -11,17 +13,17 @@ import { useAppStore } from "@/store/app-store";
 
 const copy = {
   ru: { label: "Знакомство с Logic Coin", next: "Далее", back: "Назад", skip: "Пропустить", done: "Готово", steps: [
-    ["Твоя банка", "Здесь видны твои накопления и прогресс к цели. Кнопки под банкой ведут к заработку и выводу средств."],
+    ["Играйте в Logic Coin", "На главной странице собраны игры на сегодня. Проходите все 6 игр дня, чтобы день засчитался в недельном и месячном активе. В банке видны ваши накопления."],
     ["Ежедневные челленджи", "Здесь появляются задания на сегодня и твой прогресс. Открой все челленджи, чтобы увидеть задания и условия наград."],
     ["Твой рейтинг", "Нажми на этот блок, чтобы открыть таблицу лидеров и сравнить свои результаты с другими участниками."]
   ] },
   en: { label: "Welcome to Logic Coin", next: "Next", back: "Back", skip: "Skip", done: "Done", steps: [
-    ["Your savings jar", "See your savings and progress toward your goal. The buttons below lead to earning and withdrawals."],
+    ["Play with Logic Coin", "This home page brings together today’s games. Complete all 6 daily games for the day to count toward weekly and monthly activity. Your jar shows your savings."],
     ["Daily challenges", "Find today's challenges and your progress here. Open all challenges to see tasks and reward conditions."],
     ["Your ranking", "Tap this block to open the leaderboard and compare your results with other participants."]
   ] },
   uz: { label: "Logic Coin bilan tanishuv", next: "Keyingi", back: "Orqaga", skip: "O‘tkazib yuborish", done: "Tayyor", steps: [
-    ["Sening jamg‘armang", "Bu yerda jamg‘armang va maqsading sari natijang ko‘rinadi. Pastdagi tugmalar pul ishlash va yechib olishga olib boradi."],
+    ["Logic Coin bilan o‘ynang", "Bosh sahifada bugungi o‘yinlar jamlangan. Kun haftalik va oylik faollikka qo‘shilishi uchun barcha 6 o‘yinni yakunlang. Bankada jamg‘armangiz ko‘rinadi."],
     ["Kundalik sinovlar", "Bu yerda bugungi topshiriqlar va natijang ko‘rinadi. Topshiriqlar va mukofot shartlarini ko‘rish uchun barcha sinovlarni och."],
     ["Sening reytinging", "Yetakchilar jadvalini ochish va natijangni boshqa ishtirokchilar bilan solishtirish uchun shu blokni bos."]
   ] }
@@ -36,7 +38,7 @@ export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
   const userId = useAppStore(s => s.user.id);
   const auth = useAppStore(s => s.authMode);
   const focused = useIsFocused();
-  const key = auth === "authenticated" && userId ? `logic-coin:home-tour:v1:${userId}` : auth === "guest" ? "logic-coin:home-tour:v1:guest" : null;
+  const key = auth === "authenticated" && userId ? `logic-coin:home-tour:v2:${userId}` : auth === "guest" ? "logic-coin:home-tour:v2:guest" : null;
   const c = copy[language];
   const [checkedKey, setCheckedKey] = useState<string | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -50,11 +52,39 @@ export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
   const [bounds] = useState(() => ({ x: new Animated.Value(0), y: new Animated.Value(0), w: new Animated.Value(0), h: new Animated.Value(0) }));
   const [opacity] = useState(() => new Animated.Value(0));
   const active = focused && activeKey === key && key !== null;
-  useEffect(() => {
-    let cancelled = false;
-    if (key) void AsyncStorage.getItem(key).then(value => { if (!cancelled) { setStep(0); setReady(false); setCheckedKey(key); if (value !== "done") setActiveKey(key); } }).catch(() => { if (!cancelled) setCheckedKey(key); });
-    return () => { cancelled = true; };
-  }, [key]);
+  function rememberOnAccount() {
+    const state=useAppStore.getState();
+    if(!key||!userId)return;
+    seenHomeTours.add(key);
+    if(state.user.id===userId&&state.user.preferences)useAppStore.setState(current=>({user:{...current.user,preferences:{...current.user.preferences!,homeIntroSeen:true}}}));
+    if(!state.accessToken||state.authMode!=="authenticated"||state.user.id!==userId)return;
+    void meApi.updatePreferences({homeIntroSeen:true},state.accessToken).then(preferences=>{
+      if(useAppStore.getState().user.id===userId)useAppStore.setState(current=>({user:{...current.user,preferences:{...current.user.preferences,...preferences,homeIntroSeen:true}}}));
+    }).catch(()=>{});
+  }
+  useEffect(()=>{
+    let cancelled=false;
+    if(key)void(async()=>{
+      const localDone=await AsyncStorage.getItem(key).catch(()=>null);
+      const state=useAppStore.getState();
+      const cached=state.user.id===userId?state.user.preferences?.homeIntroSeen:undefined;
+      const alreadySeen=seenHomeTours.has(key)||localDone==="done"||cached===true;
+      const preferences=!alreadySeen&&state.accessToken&&auth==="authenticated"?await meApi.preferences(state.accessToken).catch(()=>null):null;
+      if(cancelled)return;
+      setStep(0);setReady(false);setCheckedKey(key);
+      const show=!alreadySeen&&shouldShowHomeTour({local:localDone,cached,remote:preferences?.homeIntroSeen,guest:auth==="guest"});
+      setActiveKey(show?key:null);
+      // Seen means shown once, not only finishing the last step. Closing/reopening
+      // the app halfway through must not restart the tour at every sign-in.
+      if(show||alreadySeen||preferences?.homeIntroSeen){
+        seenHomeTours.add(key);void AsyncStorage.setItem(key,"done").catch(()=>{});
+        if(!preferences?.homeIntroSeen)rememberOnAccount();
+      }
+    })();
+    return()=>{cancelled=true;};
+  // Access token refresh must not reset a tutorial already on screen.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[key]);
   useEffect(() => { onActiveChange(active || Boolean(key && checkedKey !== key)); return () => onActiveChange(false); }, [active, key, checkedKey, onActiveChange]);
   useEffect(() => {
     if (!active) return;
@@ -88,6 +118,7 @@ export function HomeTutorial({ targets, scrollRef, scrollY, onActiveChange }: {
   }, [active, step, width, height, reduced, language, cardHeight]);
   const finish = () => {
     if (key) void AsyncStorage.setItem(key, "done").catch(() => {});
+    rememberOnAccount();
     setActiveKey(null); setReady(false); scrollRef.current?.scrollTo({ y: 0, animated: !reduced });
   };
   return <Modal visible={active} transparent animationType={reduced ? "none" : "fade"} onRequestClose={finish} statusBarTranslucent>

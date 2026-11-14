@@ -455,7 +455,7 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
                     : selfDock === "top" ? { top: 10 } : { bottom: 0 },
                   { backgroundColor: "transparent" }]}>
                   <View style={[styles.row, styles.meRow, { backgroundColor: theme.primarySoft, borderColor: "transparent" }, Platform.OS !== "web" && nativeSelfLayout ? { minHeight: nativeSelfLayout.height } : null]}>
-                    <AppText style={[styles.rank, { color: theme.textMuted }]}>{copyContent(self.rank)}</AppText>
+                    <AppText style={[styles.rank, { color: theme.textMuted }]}>{copyContent(self.rank > 0 ? self.rank : "—")}</AppText>
                     <Avatar userId={self.userId} name={self.name} avatarUrl={self.avatarUrl} size={38} />
                     <View style={styles.nameBlock}><AppText onPress={() => { close(); router.push(`/player/${self.userId}` as never); }} style={[styles.name, { color: theme.text }]} numberOfLines={1}>{copyContent(language === "ru" ? "Я" : language === "uz" ? "Men" : "Me")}: {self.name}</AppText>{self.countryCode ? <CountryFlagBadge countryCode={self.countryCode} size={15} /> : null}</View>
                     <EntryValue entry={self} />

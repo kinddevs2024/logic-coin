@@ -1,3 +1,5 @@
+import { chatNotificationSyncVersion, configureChatNotificationAccount } from "./chat-notification-sync";
+import { useAppStore } from "@/store/app-store";
 import { devicesApi } from "@/lib/api";
 import { getDeviceId } from "@/lib/device-id";
 import { setPushStatus } from "@/lib/push-status";
@@ -37,6 +39,8 @@ export async function syncPushNotifications(input: { accessToken: string; enable
       navigator.serviceWorker.ready,
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error("worker_timeout")), 12000))
     ]);
+    await registration.update().catch(() => {});
+    await configureChatNotificationAccount(useAppStore.getState().user.id ?? null);
     const applicationServerKey = Uint8Array.from(atob(publicKey.replace(/-/g, "+").replace(/_/g, "/")), character => character.charCodeAt(0));
     let subscription = await registration.pushManager.getSubscription();
     // VAPID key rotation should not leave a permanently unusable subscription.
@@ -47,7 +51,7 @@ export async function syncPushNotifications(input: { accessToken: string; enable
     subscription ??= await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error("invalid_subscription");
-    await devicesApi.updatePreferences(deviceId, { ...preferences, webPush: { endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } } }, input.accessToken);
+    await devicesApi.updatePreferences(deviceId, { ...preferences, notificationSyncVersion: chatNotificationSyncVersion(), webPush: { endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } } }, input.accessToken);
     setPushStatus("ready"); return true;
   } catch { setPushStatus("error"); return false; }
 }

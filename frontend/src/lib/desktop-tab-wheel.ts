@@ -1,4 +1,6 @@
-export const desktopTabRoutes = ["/", "/challenges", "/games", "/profile"] as const;
+import { swipeRoutes } from "./tab-swipe";
+
+export const desktopTabRoutes = swipeRoutes;
 export type DesktopTabRoute = (typeof desktopTabRoutes)[number];
 
 export function adjacentDesktopTab(path: string, direction: number): DesktopTabRoute | null {

@@ -1,3 +1,5 @@
+import { CardScanner } from "@/components/card-scanner";
+import { cardScannerCopy } from "@/lib/card-scanner-copy";
 import { useUiCopy , Alert } from "@/components/localized-native";
 import { useAppStore as localeStore , useAppStore } from "@/store/app-store";
 
@@ -5,7 +7,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Modal, TextInput, Pressable, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, Modal, TextInput, Pressable, StyleSheet, View } from "react-native";
 
 
 import { AppFrame } from "@/components/app-frame";
@@ -21,11 +23,11 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
 import { withdrawalsApi } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
-import { detectCardBrand, digitsOnly, isValidCardNumber, isValidExpiration } from "@/lib/payment-card";
+import { detectCardBrand, digitsOnly, formatCardNumber, isValidCardNumber, isValidExpiration, payoutCardDetails } from "@/lib/payment-card";
 
 import type { Withdrawal } from "@/types";
 
-const MINIMUM = 1_000;
+const MINIMUM = 500;
 
 function statusLabel(status: string) {
   if (status === "pending_review" || status === "sandbox_pending") return "На проверке";
@@ -50,7 +52,9 @@ export default function WithdrawScreen() {
   const { copyText, copyContent } = useUiCopy();
   const router = useRouter();
   const theme = useAppTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const [scanOpen, setScanOpen] = useState(false);
+  const [cardInfoOpen, setCardInfoOpen] = useState(false);
   const queryClient = useQueryClient();
   const localBalance = useAppStore((state) => state.balanceUnits);
   const setBalance = useAppStore((state) => state.setBalance);
@@ -74,8 +78,11 @@ export default function WithdrawScreen() {
   const [cardNumber, setCardNumber] = useState("");
   const [holderName, setHolderName] = useState(rememberedCard?.holderName ?? "");
   const [expiration, setExpiration] = useState(rememberedCard?.expiration ?? "");
-  const [useSavedCard, setUseSavedCard] = useState(Boolean(rememberedCard?.withdrawalId));
-  const [rememberCard, setRememberCard] = useState(Boolean(rememberedCard));
+  // A null choice follows asynchronously hydrated storage until the user acts.
+  const [savedCardChoice, setUseSavedCard] = useState<boolean | null>(null);
+  const useSavedCard = savedCardChoice ?? Boolean(rememberedCard?.withdrawalId);
+  const [rememberCardChoice, setRememberCard] = useState<boolean | null>(null);
+  const rememberCard = rememberCardChoice ?? Boolean(rememberedCard);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
 
   const selectedCard = useMemo(() => {
@@ -83,12 +90,13 @@ export default function WithdrawScreen() {
     const digits = digitsOnly(cardNumber);
     return { number:digits,brand: detectCardBrand(digits), last4: digits.slice(-4), holderName: holderName.trim(), expiration };
   }, [cardNumber, expiration, holderName, rememberedCard, useSavedCard]);
-  const validCard = useSavedCard && rememberedCard?.withdrawalId ? true : isValidCardNumber(cardNumber) && holderName.trim().length >= 2 && isValidExpiration(expiration);
+  const validCard = useSavedCard && rememberedCard?.withdrawalId ? true : isValidCardNumber(cardNumber) && (!expiration || isValidExpiration(expiration));
 
   const createWithdrawal = useMutation({
-    mutationFn: (amountCents: number) => withdrawalsApi.create({ amountCents, card: selectedCard, agreementAccepted: true }, accessToken!),
+    mutationFn: (amountCents: number) => withdrawalsApi.create({ amountCents, card: payoutCardDetails(selectedCard), agreementAccepted: true }, accessToken!),
     onSuccess: (result) => {
       setRememberedCard(rememberCard ? {brand:selectedCard.brand,last4:selectedCard.last4,holderName:selectedCard.holderName,expiration:selectedCard.expiration,withdrawalId:result.withdrawal.id} : null);
+      setUseSavedCard(rememberCard);
       setCardNumber("");
       setBalance(result.wallet.availableUnits);
       void queryClient.invalidateQueries({ queryKey: ["withdrawals"] });
@@ -101,7 +109,7 @@ export default function WithdrawScreen() {
   const submit = () => {
     const cents = Math.round(Number(amount) * 100);
     if (!Number.isFinite(cents) || cents < minimum || cents > balance) { Alert.alert(t("withdraw.title"), t("withdraw.minimum")); return; }
-    if (!validCard) { Alert.alert(t("withdraw.title"), "Проверьте номер карты, имя владельца и срок действия."); return; }
+    if (!validCard) { Alert.alert(t("withdraw.title"), "Проверьте номер карты. Срок действия можно не заполнять."); return; }
     if (!agreementAccepted) { Alert.alert(t("withdraw.title"), "Подтвердите согласие с условиями выплаты."); return; }
     if (authenticated) { createWithdrawal.mutate(cents); return; }
     setRememberedCard(rememberCard ? {brand:selectedCard.brand,last4:selectedCard.last4,holderName:selectedCard.holderName,expiration:selectedCard.expiration} : null);
@@ -123,12 +131,16 @@ export default function WithdrawScreen() {
       <Modal visible={Boolean(cardRequest)} transparent onRequestClose={()=>{if(!cardBusy){setCardRequest(null);setPayoutNumber("");}}}>
         <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.6)",justifyContent:"center",padding:20}}><View style={{backgroundColor:theme.surfaceRaised,borderRadius:24,padding:20,gap:14}}>
           <AppText variant="heading">{copyText("Реквизиты для выплаты")}</AppText><AppText>{copyText("Введите полный номер карты")} · •••• {cardRequest?.cardLast4}</AppText>
-          <TextInput accessibilityLabel={copyText("Полный номер карты")} keyboardType="number-pad" value={payoutNumber} onChangeText={v=>setPayoutNumber(v.replace(/[^\d ]/g,"").slice(0,24))} style={{borderWidth:1,borderColor:theme.border,borderRadius:14,padding:14,color:theme.text}} editable={!cardBusy}/>
+          <TextInput accessibilityLabel={copyText("Полный номер карты")} keyboardType="number-pad" value={payoutNumber} maxLength={19} onChangeText={v=>setPayoutNumber(formatCardNumber(v))} style={{borderWidth:1,borderColor:theme.border,borderRadius:14,padding:14,color:theme.text}} editable={!cardBusy}/>
           <AppText variant="caption" muted>{copyText("Номер хранится в зашифрованном виде и доступен только администрации для выплаты.")}</AppText>
           <AppButton loading={cardBusy} disabled={cardBusy||!isValidCardNumber(payoutNumber)} onPress={()=>void savePayoutNumber()}>{copyText("Сохранить реквизиты")}</AppButton>
           <AppButton variant="ghost" disabled={cardBusy} onPress={()=>{setCardRequest(null);setPayoutNumber("");}}>{copyText("Отмена")}</AppButton>
         </View></View>
       </Modal>
+      <CardScanner visible={scanOpen} token={accessToken} onClose={() => setScanOpen(false)} onScanned={number => {
+        setUseSavedCard(false); setCardNumber(formatCardNumber(number)); setHolderName(""); setExpiration(""); setScanOpen(false);
+        AccessibilityInfo.announceForAccessibility(cardScannerCopy[language].check);
+      }} />
       <ScreenHeader title={t("withdraw.title")} onBack={() => router.back()} />
       <GlassSurface intensity={84} variant="strong" style={styles.balanceCard}>
         <View style={[styles.walletIcon, { backgroundColor: eligible ? theme.success : theme.primary }]}><Ionicons name="wallet" size={27} color={String(theme.onPrimary)} /></View>
@@ -145,16 +157,30 @@ export default function WithdrawScreen() {
         </GlassSurface>
       ) : (
         <GlassSurface intensity={72} style={styles.card}>
-          <View style={styles.formIntro}><View><AppText variant="heading">{copyText("Карта для выплаты")}</AppText><AppText variant="caption" muted>{copyText("Заполните данные прямо на карте")}</AppText></View><View style={[styles.timePill, { backgroundColor: theme.primarySoft }]}><Ionicons name="time-outline" size={16} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.primary)}>{copyText("до ")}{copyContent(processingHours)} {copyText(" ч")}</AppText></View></View>
-          {rememberedCard ? <View style={[styles.savedRow, { borderColor: theme.border }]}><Pressable accessibilityRole="button" onPress={() => {setUseSavedCard(Boolean(rememberedCard.withdrawalId));if(!rememberedCard.withdrawalId)Alert.alert(t("withdraw.title"),"Введите полный номер сохранённой карты заново для ручной выплаты.");}} style={[styles.savedChoice, useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="card-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">•••• {copyContent(rememberedCard.last4)}</AppText></Pressable><Pressable accessibilityRole="button" onPress={() => { setUseSavedCard(false); setCardNumber(""); }} style={[styles.savedChoice, !useSavedCard && { backgroundColor: theme.primarySoft }]}><Ionicons name="add-outline" size={18} color={String(theme.primary)} /><AppText variant="caption">{copyText("Другая карта")}</AppText></Pressable><Pressable accessibilityRole="button" accessibilityLabel={copyText("Удалить сохранённую карту")} onPress={() => { setRememberedCard(null); setUseSavedCard(false); setRememberCard(false); }} style={styles.forgetButton}><Ionicons name="trash-outline" size={18} color={String(theme.danger)} /></Pressable></View> : null}
+          <View style={styles.formIntro}>
+            <View style={[styles.introCopy, { flexDirection: "row", alignItems: "center", gap: 4 }]}><AppText variant="heading" style={{ flexShrink: 1 }}>{copyText("Карта для выплаты")}</AppText>
+              <Pressable accessibilityRole="button" accessibilityLabel={copyText("Какие данные нужны для выплаты")} accessibilityState={{ expanded: cardInfoOpen }} onPress={() => setCardInfoOpen(value => !value)} style={styles.scanButton}><Ionicons name="information-circle-outline" size={22} color={String(theme.primary)} /></Pressable>
+            </View>
+            <View style={[styles.timePill, { backgroundColor: theme.primarySoft }]}><Ionicons name="time-outline" size={16} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.primary)}>{copyText("до ")}{copyContent(processingHours)} {copyText(" ч")}</AppText></View>
+          </View>
+          {cardInfoOpen ? <View style={{ padding: 14, borderRadius: 14, backgroundColor: theme.primarySoft }}><AppText variant="caption">{copyText("Для перевода нужен только номер карты из 16 цифр. Он передаётся администрации для выплаты и хранится на сервере в зашифрованном виде. Название и срок действия необязательны: они сохраняются только на этом устройстве, если вы выберете «Запомнить мою карту», и не передаются с заявкой. CVV и PIN не нужны.")}</AppText></View> : null}
+          <View style={[styles.savedRow, { borderColor: theme.border }]}>
+            {rememberedCard ? <Pressable accessibilityRole="button" onPress={() => {setUseSavedCard(Boolean(rememberedCard.withdrawalId));if(!rememberedCard.withdrawalId)Alert.alert(t("withdraw.title"),"Введите полный номер сохранённой карты заново для ручной выплаты.");}} style={[styles.savedChoice, useSavedCard && { backgroundColor: theme.primarySoft }]}><AppText variant="caption" numberOfLines={1} style={styles.savedLabel}>•••• {rememberedCard.last4}</AppText></Pressable> : null}
+            <Pressable accessibilityRole="button" onPress={() => { setUseSavedCard(false); setCardNumber(""); setHolderName(""); setExpiration(""); }} style={[styles.savedChoice, !useSavedCard && { backgroundColor: theme.primarySoft }]}>{!rememberedCard ? <Ionicons name="add-outline" size={18} color={String(theme.primary)} /> : null}<AppText variant="caption" numberOfLines={1} style={styles.savedLabel}>{rememberedCard ? (language === "uz" ? "Boshqa" : language === "en" ? "Other" : "Другая") : copyText("Добавить карту")}</AppText></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={cardScannerCopy[language].title} onPress={() => { if (!authenticated) { Alert.alert(t("withdraw.title"), cardScannerCopy[language].login); return; } setScanOpen(true); }} style={[styles.scanButton, { backgroundColor: theme.primarySoft, borderRadius: 14 }]}><Ionicons name="scan-outline" size={23} color={String(theme.primary)} /></Pressable>
+            {rememberedCard ? <Pressable accessibilityRole="button" accessibilityLabel={copyText("Удалить сохранённую карту")} onPress={() => { setRememberedCard(null); setUseSavedCard(false); setRememberCard(false); setCardNumber(""); setHolderName(""); setExpiration(""); }} style={styles.forgetButton}><Ionicons name="trash-outline" size={18} color={String(theme.danger)} /></Pressable> : null}
+          </View>
           <PaymentCard cardNumber={cardNumber} holderName={useSavedCard && rememberedCard ? rememberedCard.holderName : holderName} expiration={useSavedCard && rememberedCard ? rememberedCard.expiration : expiration} savedLast4={useSavedCard ? rememberedCard?.last4 : undefined} savedBrand={useSavedCard ? rememberedCard?.brand : undefined} readOnly={useSavedCard && Boolean(rememberedCard)} onCardNumberChange={setCardNumber} onHolderNameChange={setHolderName} onExpirationChange={setExpiration} />
           <FormField label={`${t("withdraw.amount")} · USD`} icon="cash-outline" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder={copyText("2.00")} />
           <View style={styles.checks}>
-            <CheckRow checked={rememberCard} onPress={() => setRememberCard((value) => !value)} label="Запомнить мою карту" detail="Сохраним только бренд, имя, срок и последние 4 цифры" />
-            <View style={styles.agreementRow}><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: agreementAccepted }} onPress={() => setAgreementAccepted((value) => !value)} style={({ pressed }) => [styles.agreementCheck, pressed && styles.pressed]}><Ionicons name={agreementAccepted ? "checkbox" : "square-outline"} size={23} color={String(agreementAccepted ? theme.primary : theme.textMuted)} /></Pressable><AppText variant="caption" style={styles.agreementCopy}>{copyText("Я подтверждаю, что карта принадлежит мне, и принимаю ")}</AppText><Pressable accessibilityRole="link" onPress={() => router.push("/withdrawal-agreement" as never)}><AppText variant="caption" color={String(theme.primary)} style={styles.agreementLink}>{copyText("условия выплаты")}</AppText></Pressable></View>
+            <CheckRow checked={rememberCard} onPress={() => setRememberCard(!rememberCard)} label="Запомнить мою карту" />
+            <View style={styles.agreementRow}>
+              <Pressable accessibilityRole="checkbox" accessibilityLabel={copyText("Подтвердить принадлежность карты и согласие с условиями выплаты")} accessibilityState={{ checked: agreementAccepted }} onPress={() => setAgreementAccepted(value => !value)} style={({ pressed }) => [styles.agreementCheck, pressed && styles.pressed]}><Ionicons name={agreementAccepted ? "checkbox" : "square-outline"} size={23} color={String(agreementAccepted ? theme.primary : theme.textMuted)} /></Pressable>
+              <View style={styles.agreementText}><AppText variant="caption" style={styles.agreementCopy}>{copyText("Я подтверждаю, что карта принадлежит мне, и принимаю ")}</AppText><Pressable accessibilityRole="link" onPress={() => router.push("/withdrawal-agreement" as never)}><AppText variant="caption" color={String(theme.primary)} style={styles.agreementLink}>{copyText("условия выплаты")}</AppText></Pressable></View>
+            </View>
           </View>
           <AppButton icon="send-outline" glow onPress={submit} loading={createWithdrawal.isPending} disabled={!eligible || !validCard || !agreementAccepted}>{copyContent(t("withdraw.submit"))}</AppButton>
-          <View style={[styles.securityNote, { backgroundColor: theme.primarySoft }]}><Ionicons name="shield-checkmark-outline" size={18} color={String(theme.primary)} /><AppText variant="caption" color={String(theme.textMuted)} style={styles.flex}>{copyText("Номер карты передаётся администрации для выплаты и хранится на сервере в зашифрованном виде. CVV и PIN не запрашиваются.")}</AppText></View>
+
         </GlassSurface>
       )}
 
@@ -176,15 +202,19 @@ const styles = StyleSheet.create({
   lockRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   lockIcon: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   formIntro: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  timePill: { minHeight: 34, borderRadius: 17, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5 },
+  introCopy: { flex: 1, minWidth: 0 },
+  savedLabel: { flexShrink: 1 },
+  timePill: { flexShrink: 0, minHeight: 34, borderRadius: 17, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5 },
   savedRow: { minHeight: 46, borderRadius: 17, borderWidth: 1, padding: 3, flexDirection: "row", alignItems: "center", gap: 3 },
-  savedChoice: { flex: 1, minHeight: 38, borderRadius: 14, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  savedChoice: { flex: 1, minWidth: 0, minHeight: 44, borderRadius: 14, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  scanButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   forgetButton: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   checks: { gap: 13 },
   checkRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  checkCopy: { flex: 1, gap: 2 },
-  agreementRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
-  agreementCheck: { marginRight: 10 },
+  checkCopy: { flex: 1, minWidth: 0, gap: 2 },
+  agreementRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  agreementCheck: { flexShrink: 0, paddingVertical: 2 },
+  agreementText: { flex: 1, minWidth: 0, gap: 2 },
   agreementCopy: { lineHeight: 19 },
   agreementLink: { lineHeight: 19, fontWeight: "800" },
   securityNote: { borderRadius: 16, padding: 11, flexDirection: "row", alignItems: "center", gap: 8 },

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { View } from "react-native";
+import {View} from "react-native";
 import { AppText } from "@/components/app-text";
 import { useAdminSession } from "@/components/admin/admin-session";
 import { inboxApi } from "@/lib/api";

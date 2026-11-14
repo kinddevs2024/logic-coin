@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View } from "react-native";
+import {View} from "react-native";
 import { useRouter } from "expo-router";
 import { AppText } from "@/components/app-text";
 import { AdminPageHeader } from "@/components/admin/admin-ui";

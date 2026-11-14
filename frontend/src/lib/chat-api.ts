@@ -1,6 +1,8 @@
 import { uploadChatBinary } from "./chat-upload";
 import { API_URL, authenticatedRequest as request } from "./api";
 export type ChatPerson = {
+  isSupportTeam?: boolean;
+  platformRole?: "user" | "manager" | "admin" | "owner";
   id: string;
   name: string;
   username?: string | null;
@@ -43,7 +45,12 @@ export type ChatFile = {
   size: number;
   url: string;
 };
+export type WithdrawalSystemEvent = { kind: "withdrawal_approved"; recipientId: string; recipientName: string; amountCents: number };
+export type RaffleWinnerSystemEvent = { kind: "raffle_winner"; recipientId: string; recipientName: string; raffleTitle: string; amountCents?: number; prizeText?: string };
+export type ChatCommentItem = {id:string;sender:ChatPerson;text:string;deleted:boolean;own:boolean;createdAt:string;reply:{id:string;sender:ChatPerson;text:string;deleted:boolean}|null};
 export type ChatItem = {
+  commentCount?: number;
+  system?: WithdrawalSystemEvent | RaffleWinnerSystemEvent;
   id: string;
   seq: number;
   sender: ChatPerson;
@@ -80,6 +87,9 @@ const call = <T>(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 export const chatApi = {
+  comments:(token:string,id:string,messageId:string,before?:string)=>call<{items:ChatCommentItem[];before:string|null;total:number}>(token,`/${id}/messages/${messageId}/comments${before?`?before=${encodeURIComponent(before)}`:""}`),
+  comment:(token:string,id:string,messageId:string,input:{clientId:string;text:string;replyTo?:string})=>call<{id:string}>(token,`/${id}/messages/${messageId}/comments`,"POST",input),
+  removeComment:(token:string,id:string,messageId:string,commentId:string)=>call<{ok:boolean}>(token,`/${id}/messages/${messageId}/comments/${commentId}`,"DELETE"),
   directory: (token:string,q="",cursor="")=>call<{users:(ChatPerson & {friendship:string})[];next:string|null}>(token,`/directory?q=${encodeURIComponent(q)}${cursor?`&cursor=${cursor}`:""}`),
   theme: (token: string, id: string, preset: NonNullable<ChatRoom["chatTheme"]>["preset"], wallpaperAttachmentId?: string) => call<{ok: boolean}>(token, `/${id}/theme`, "PATCH", {preset, ...(wallpaperAttachmentId ? {wallpaperAttachmentId} : {})}),
   list: (token: string) => call<{ chats: ChatRoom[] }>(token, "/"),
@@ -103,6 +113,7 @@ export const chatApi = {
         coinBalance: number;
         balanceUnits: number;
         blocked: boolean;
+        canMessage?: boolean;
         friendship: "self" | "none" | "incoming" | "outgoing" | "friends";
       }
     >(token, `/users/${id}`),
@@ -174,7 +185,7 @@ export const chatApi = {
       remove?: boolean;
     },
   ) =>
-    call<{ ok: boolean; readIds?: string[] }>(
+    call<{ ok: boolean; readSeq?: number; readIds?: string[] }>(
       token,
       `/${id}/member`,
       "PATCH",
@@ -182,11 +193,12 @@ export const chatApi = {
     ),
   addMember: (token: string, id: string, userId: string) =>
     call<{ ok: boolean }>(token, `/${id}/members`, "POST", { userId }),
-  members: (token: string, id: string) =>
+  members: (token: string, id: string, after?: string) =>
     call<{
       count: number;
+      nextCursor: string | null;
       members: (ChatPerson & { role: string; canEditInfo: boolean })[];
-    }>(token, `/${id}/members`),
+    }>(token, `/${id}/members?limit=6${after ? `&after=${encodeURIComponent(after)}` : ""}`),
   upload: (token: string, file: ChatDraftFile) => file.uri || file.blob
     ? uploadChatBinary(token, file)
     : call<{ id: string; name: string; kind: string; size: number }>(token, "/attachments", "POST", { name: file.name, mime: file.mime, kind: file.kind, base64: file.base64 }),

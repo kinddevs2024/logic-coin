@@ -1,3 +1,6 @@
+import { configureChatNotificationAccount } from "@/lib/chat-notification-sync";
+import { notificationChatRoute } from "@/lib/notification-chat-route";
+import { NativeDataCacheBoundary } from "@/components/native-data-cache-boundary";
 import { ChatRuntime } from "@/components/chat/chat-runtime";
 import { localizeBuiltIn } from "@/lib/localize-built-in";
 import "react-native-reanimated";
@@ -5,7 +8,7 @@ import "../global.css";
 import "@/lib/referral-attribution";
 
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, router } from "expo-router";
+import { Stack, router, useRootNavigationState, usePathname, useGlobalSearchParams } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -57,10 +60,12 @@ export default function RootLayout() {
   const notificationTime = useAppStore((state) => state.notificationTime);
   const language = useAppStore((state) => state.language) ?? "uz";
   const [pushInbox, setPushInbox] = useState(false);
+  const [pendingChat, setPendingChat] = useState<{ id: string; account: string } | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
     if (authMode !== "authenticated") {
+      void configureChatNotificationAccount(null).catch(() => {});
       void dismissInboxNotifications().catch(() => {});
       return;
     }
@@ -85,10 +90,16 @@ export default function RootLayout() {
       });
     }
     let cleanup: (() => void) | undefined;
-    void installNotificationHandlers(async (ids, conversationId) => {
+    void installNotificationHandlers(async (ids, conversationId, recipientId) => {
       const state = useAppStore.getState();
-      if (conversationId) router.push({ pathname: "/messages", params: { chat: conversationId } } as never);
-      else setPushInbox(true);
+      if (recipientId && recipientId !== state.user.id) return;
+      if (conversationId && state.user.id) {
+        setPushInbox(false);
+        setPendingChat({ id: conversationId, account: state.user.id });
+        void dismissInboxNotifications(ids).catch(() => {});
+        return; // The conversation marks messages read only after they are visible.
+      }
+      setPushInbox(true);
       if (state.accessToken && ids.length) {
         await inboxApi.read(state.accessToken, ids);
         await dismissInboxNotifications(ids);
@@ -272,10 +283,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        <NativeDataCacheBoundary client={queryClient}>
         <QueryClientProvider client={queryClient}>
           <AuthErrorProvider>
           <RaffleProvider>
-          <StatusBar style={theme.mode === "dark" ? "light" : "dark"} />
+          <StatusBar hidden={Platform.OS === "android"} style={theme.mode === "dark" ? "light" : "dark"} />
           <Stack
             screenOptions={{
               title: "Logic Coin",
@@ -288,6 +300,7 @@ export default function RootLayout() {
           <AdRuntime />
           <AppliedUpdateNotice />
           <ChatRuntime />
+          <NotificationChatNavigation pending={pendingChat} onOpened={() => setPendingChat(null)} />
           <RewardBurst />
           <ContestRewardModal />
           <WithdrawalApprovedModal />
@@ -298,7 +311,41 @@ export default function RootLayout() {
           </RaffleProvider>
           </AuthErrorProvider>
         </QueryClientProvider>
+        </NativeDataCacheBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+// Mount inside the cache boundary: neither cold-start notification replay nor
+// a background tap may navigate before the restored account and Stack exist.
+function NotificationChatNavigation({ pending, onOpened }: {
+  pending: { id: string; account: string } | null;
+  onOpened: () => void;
+}) {
+  const navigation = useRootNavigationState();
+  const pathname = usePathname();
+  const params = useGlobalSearchParams<{ chat?: string }>();
+  const account = useAppStore(state => state.user.id);
+  const country = useAppStore(state => state.user.countryCode);
+  const token = useAppStore(state => state.accessToken);
+  const auth = useAppStore(state => state.authMode);
+  const [active, setActive] = useState(AppState.currentState !== "background" && AppState.currentState !== "inactive");
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", state => setActive(state === "active"));
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (pending && pending.account !== account) { onOpened(); return; }
+    const destination = notificationChatRoute(pending, { ready: Boolean(navigation?.key && country), active, authenticated: auth === "authenticated", account, token });
+    if (!destination) return;
+    if (pathname === "/messages" && params.chat === pending?.id) { onOpened(); return; }
+    void queryClient.invalidateQueries({ queryKey: ["chat-list", token] });
+    const frame = requestAnimationFrame(() => router.navigate(destination as never));
+    // Auth/cache restoration may redirect the first navigation. Retain the
+    // request until the destination confirms its actual route and parameters.
+    const retry = setTimeout(() => router.navigate(destination as never), 700);
+    return () => { cancelAnimationFrame(frame); clearTimeout(retry); };
+  }, [pending, navigation?.key, country, active, auth, token, account, pathname, params.chat, onOpened]);
+  return null;
 }

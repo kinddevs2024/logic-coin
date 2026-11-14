@@ -1,3 +1,4 @@
+import { applyChatReadReceipt } from "@/lib/chat-notification-sync";
 import { createSerialChatRefresh } from "@/lib/chat-sync";
 import { useEffect } from "react";
 import { usePathname } from "expo-router";
@@ -25,6 +26,10 @@ export function ChatRuntime() {
       void run().catch(() => {});
     };
     const unsubscribe = subscribeToChallengeUpdates(token, (state) => {
+      if (state.chatRead) {
+        void applyChatReadReceipt(state.chatRead).catch(() => {});
+        for (const key of ["chat-list", "inbox", "unread-count"]) void client.invalidateQueries({ queryKey: [key, token] }, { cancelRefetch: false });
+      }
       if (state.chatSync) {
         refresh("*");
         void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });

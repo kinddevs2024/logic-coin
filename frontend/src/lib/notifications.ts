@@ -1,3 +1,6 @@
+import { notificationPayload } from "./notification-payload";
+import { chatNotificationSyncVersion, configureChatNotificationAccount } from "./chat-notification-sync";
+import { useAppStore } from "@/store/app-store";
 import { AppState, Linking, Platform } from "react-native";
 
 import { devicesApi, inboxApi, type InboxNotification } from "@/lib/api";
@@ -116,6 +119,7 @@ export async function syncPushNotifications(input: {
     return false;
   }
 
+  await configureChatNotificationAccount(useAppStore.getState().user.id ?? null);
   const deviceId = await getDeviceId();
   const Notifications = await import("expo-notifications");
   // Undefined preserves an existing token on transient network/provider failure.
@@ -186,6 +190,7 @@ export async function syncPushNotifications(input: {
       deviceId,
       {
         platform: platformForDevice(),
+        notificationSyncVersion: chatNotificationSyncVersion(),
         pushToken,
         fcmToken,
         notificationsEnabled: input.enabled && permitted,
@@ -244,12 +249,11 @@ export async function dismissInboxNotifications(ids?: string[], before?: string)
 }
 
 function configureNotificationPresentation(Notifications: typeof import("expo-notifications")) {
-  Notifications.setNotificationHandler({ handleNotification: async notification => ({
-    shouldShowBanner: !notification.request.content.data?.silent,
-    shouldShowList: true,
-    shouldPlaySound: !notification.request.content.data?.silent && !notification.request.content.data?.logicUpdate,
-    shouldSetBadge: false,
-  }) });
+  Notifications.setNotificationHandler({ handleNotification: async notification => {
+    const data = notificationPayload(notification.request.content.data);
+    const read = data.type === "chat_read" || inboxNotificationIds(data, notification.request.identifier).some(id => locallyReadIds.has(id));
+    return { shouldShowBanner: !read && !data.silent, shouldShowList: !read, shouldPlaySound: !read && !data.silent && !data.logicUpdate, shouldSetBadge: false };
+  } });
 }
 
 /** Local device notice only after the native updater confirms completion. */
@@ -274,20 +278,25 @@ export async function notifyUpdateState(message: UpdateMessage, language: Langua
   return true;
 }
 
-export async function installNotificationHandlers(onOpen: (ids: string[], conversationId?: string) => void | Promise<void>, onTokenChange: () => void) {
+export async function installNotificationHandlers(onOpen: (ids: string[], conversationId?: string, recipientId?: string) => void | Promise<void>, onTokenChange: () => void) {
   if (Platform.OS === "web" || isExpoGo) return () => {};
   const Notifications = await import("expo-notifications");
   configureNotificationPresentation(Notifications);
+  const handled = new Set<string>();
   const respond = async (response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>) => {
     if (response) {
-      if (!response.notification.request.content.data?.logicUpdate) {
-        const data = response.notification.request.content.data ?? {};
+      const identity = `${response.notification.request.identifier}:${response.notification.date}`;
+      if (handled.has(identity)) return;
+      handled.add(identity);
+      // Consume the OS replay before any network request or deferred navigation.
+      await Notifications.clearLastNotificationResponseAsync();
+      const data = notificationPayload(response.notification.request.content.data);
+      if (!data.logicUpdate && data.type !== "chat_read") {
         const conversationId = typeof data.conversationId === "string" && /^[a-f\d]{24}$/i.test(data.conversationId) ? data.conversationId : undefined;
         const ids = inboxNotificationIds(data, response.notification.request.identifier);
-        if (conversationId) await onOpen(ids, conversationId);
+        if (conversationId) await onOpen(ids, conversationId, typeof data.recipientId === "string" ? data.recipientId : undefined);
         else await onOpen(ids);
       }
-      await Notifications.clearLastNotificationResponseAsync();
     }
   };
   const response = Notifications.addNotificationResponseReceivedListener(value => { void respond(value).catch(() => {}); });

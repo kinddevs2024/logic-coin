@@ -1,0 +1,10 @@
+import {it,expect,afterEach} from 'vitest';
+import {challengeElapsed} from '../src/lib/challenge-time';
+import {shouldShowHomeTour,seenHomeTours} from '../src/lib/home-tour-state';
+const start='2026-11-13T00:00:00.000Z',end='2026-11-14T00:00:00.000Z';
+afterEach(()=>seenHomeTours.clear());
+it('fills the daily water by elapsed time, independent of games played',()=>{expect(challengeElapsed(start,end,Date.parse(start))).toBe(0);expect(challengeElapsed(start,end,Date.parse('2026-11-13T12:00:00Z'))).toBe(.5);expect(challengeElapsed(start,end,Date.parse(end))).toBe(1);});
+it('clamps before/after the challenge and uses its real day boundaries',()=>{expect(challengeElapsed(start,end,Date.parse(start)-1)).toBe(0);expect(challengeElapsed(start,end,Date.parse(end)+1)).toBe(1);expect(challengeElapsed('2026-11-13T00:00:00Z','2026-11-13T23:00:00Z',Date.parse('2026-11-13T11:30:00Z'))).toBe(.5);expect(challengeElapsed(null,null,Date.now())).toBe(0);});
+it('never automatically repeats a locally or account-marked introduction',()=>{expect(shouldShowHomeTour({local:'done',cached:false,remote:false,guest:false})).toBe(false);expect(shouldShowHomeTour({local:null,cached:true,remote:false,guest:false})).toBe(false);expect(shouldShowHomeTour({local:null,remote:true,guest:false})).toBe(false);});
+it('does not treat a failed preference read as a new account',()=>{expect(shouldShowHomeTour({local:null,guest:false})).toBe(false);expect(shouldShowHomeTour({local:null,remote:false,guest:false})).toBe(true);expect(shouldShowHomeTour({local:null,guest:true})).toBe(true);});
+it('keeps seen state scoped to each account for transient storage failures',()=>{seenHomeTours.add('account-1');expect(seenHomeTours.has('account-1')).toBe(true);expect(seenHomeTours.has('account-2')).toBe(false);});

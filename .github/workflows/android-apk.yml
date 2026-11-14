@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_only:
-        description: 'Build test APK without lint/tests (not a verified release)'
+        description: 'Skip broad legacy checks; focused notification checks always run'
         type: boolean
         required: false
         default: false
@@ -109,6 +109,13 @@ jobs:
           npm run typecheck --workspace frontend
           npm test --workspace frontend
 
+      - name: Verify chat notification routing and cache recovery
+        run: |
+          npm run typecheck --workspace frontend
+          cd frontend
+          npx eslint src/lib/chat-notification-sync.ts src/lib/chat-notification-sync.web.ts src/lib/notification-payload.ts src/lib/cache-boot.ts src/lib/notifications.ts src/lib/notifications.web.ts src/components/native-data-cache-boundary.tsx src/components/chat/chat-runtime.tsx src/components/chat/conversation-pane.tsx src/app/_layout.tsx
+          npx vitest run tests/chat-notification-read.test.ts
+
       - name: Verify Android JavaScript bundle
         working-directory: frontend
         run: npx expo export --platform android --output-dir ../artifacts/android-js-check
@@ -128,12 +135,21 @@ jobs:
           assert metadata['expo.modules.updates.EXPO_UPDATE_URL']=='https://logic-coin.online/updates'
           assert metadata.get('expo.modules.updates.DISABLE_ANTI_BRICKING_MEASURES','false')=='false'
           cfg=json.loads(pathlib.Path('frontend/app.json').read_text())['expo']
-          assert cfg['android']['versionCode']==20
+          assert cfg['android']['versionCode']==21
+          assert (root/'java/com/kinddevs/logiccoin/chatnotify/ReadFirebaseMessagingService.kt').exists()
+          assert any(x.get(ns+'name')=='com.kinddevs.logiccoin.chatnotify.ReadFirebaseMessagingService' for x in app.findall('service'))
+          assert any(x.get(ns+'name')=='com.kinddevs.logiccoin.chatnotify.ReadNotificationsReceiver' for x in app.findall('receiver'))
           pathlib.Path('artifacts/unsigned').mkdir(parents=True,exist_ok=True)
           (pathlib.Path('artifacts/unsigned')/'native-strings.xml').write_bytes((root/'res/values/strings.xml').read_bytes())
           (pathlib.Path('artifacts/unsigned')/'native-update-config.json').write_text(json.dumps(metadata,indent=2))
-          print('Independent update URL, version code 16 and update safety verified.')
+          print('Independent update URL, version code 21 and update safety verified.')
           PY
+
+      - name: Test native notification cancellation and delivery ordering
+        working-directory: frontend/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:testReleaseUnitTest --tests 'com.kinddevs.logiccoin.chatnotify.ChatReadStateTest' -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --build-cache --no-daemon --stacktrace
 
       - name: Build release APK and Play Store bundle
         working-directory: frontend/android

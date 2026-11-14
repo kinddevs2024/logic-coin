@@ -1,3 +1,5 @@
+import { applyChatReadReceipt } from "@/lib/chat-notification-sync";
+import { ChannelComments } from "./channel-comments";
 import { FeedAd } from "@/components/feed-ad";
 import { catchUpChatHead } from "@/lib/chat-sync";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,7 +12,6 @@ import {
   subscribeToChallengeUpdates,
   sendChatTyping,
 } from "@/lib/challenge-live-updates";
-import { dismissInboxNotifications } from "@/lib/notifications";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { ChatThemeProvider } from "./chat-theme";
 import { ChatThemePreview } from "./chat-theme-preview";
@@ -51,6 +52,7 @@ import {
   type ChatFile,
 } from "@/lib/chat-api";
 import { useChatCopy } from "@/lib/chat-copy";
+import { useTranslation } from "@/hooks/use-translation";
 import { useChatOutbox } from "@/lib/chat-outbox";
 import { pickChatPhoto, pickChatFile, shareChatFile } from "@/lib/chat-media";
 import { ChatAction, ChatSheet } from "./chat-sheet";
@@ -86,6 +88,7 @@ function ConversationPaneContent({
   onProfile: (id: string) => void;
   onInfo: () => void;
 }) {
+  const { language } = useTranslation();
   const composerRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -95,7 +98,7 @@ function ConversationPaneContent({
     return () => { show.remove(); hide.remove(); };
   }, []);
   const peer = useQuery({queryKey:["chat-profile",token,room.peer?.id],enabled:room.kind === "direct" && Boolean(room.peer?.id),queryFn:()=>chatApi.profile(token,room.peer!.id),refetchInterval:15_000});
-  const needsFriend = room.kind === "direct" && peer.data?.friendship !== "friends";
+  const needsFriend = room.kind === "direct" && !peer.data?.canMessage && peer.data?.friendship !== "friends";
   const [inputHeight, setInputHeight] = useState(44);
   const [chatMenu, setChatMenu] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
@@ -150,6 +153,7 @@ function ConversationPaneContent({
     const timer = setTimeout(() => setSearch(searchDraft.trim()), 350);
     return () => clearTimeout(timer);
   }, [searchDraft]);
+  const [commentPost, setCommentPost] = useState<ChatItem | null>(null);
   const [reply, setReply] = useState<ChatItem | null>(null),
     [editing, setEditing] = useState<ChatItem | null>(null),
     [action, setAction] = useState<ChatItem | null>(null);
@@ -179,6 +183,12 @@ function ConversationPaneContent({
     previewUrls.current = next;
   }, [attachments]);
   useEffect(() => () => { for (const uri of previewUrls.current) URL.revokeObjectURL(uri); }, []);
+  const scrollRetry=useRef<ReturnType<typeof setTimeout>|null>(null),scrollAttempts=useRef(0);
+  useEffect(()=>()=>{if(scrollRetry.current)clearTimeout(scrollRetry.current);},[]);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const previousScrollOffset = useRef(0);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset this per-chat control when switching conversations.
+  useEffect(() => { setShowScrollBottom(false); previousScrollOffset.current = 0; }, [room.id]);
   const list = useRef<FlatList<ChatItem>>(null),
     autoScroll = useRef(true),
     readSeq = useRef(0);
@@ -200,12 +210,14 @@ function ConversationPaneContent({
     const map = new Map<string, ChatItem>();
     for (const page of [...(query.data?.pages ?? [])].reverse())
       for (const item of page.items) map.set(item.id, item);
-    return [...map.values()].map(item => reactionOverrides[item.id] ? { ...item, reactions: reactionOverrides[item.id] } : item).sort((a, b) => a.seq - b.seq);
+    return [...map.values()].filter(item => !item.deleted).map(item => reactionOverrides[item.id] ? { ...item, reactions: reactionOverrides[item.id] } : item).sort((a, b) => a.seq - b.seq);
   }, [query.data, reactionOverrides]);
   const displayItems = useMemo(() => [...items].reverse(), [items]);
   const pinnedMessages = query.data?.pages[0]?.pinned ?? items.filter(item => item.pinned && !item.deleted).slice().reverse();
   const [pinIndex, setPinIndex] = useState(0);
   const pinnedMessage = pinnedMessages[pinIndex % Math.max(1, pinnedMessages.length)];
+  const [highlightedMessage, setHighlightedMessage] = useState<string | null>(null);
+  useEffect(()=>{if(!highlightedMessage)return;const timer=setTimeout(()=>setHighlightedMessage(null),3000);return()=>clearTimeout(timer);},[highlightedMessage]);
   const [jumpToPin, setJumpToPin] = useState<string | null>(null);
   const { isFetching, hasNextPage, fetchNextPage } = query;
   const historyLaidOut = useRef(false);
@@ -222,14 +234,17 @@ function ConversationPaneContent({
       const frame = requestAnimationFrame(() => {
         if (index >= 0) {
           autoScroll.current = false;
+          setHighlightedMessage(jumpToPin);
+          scrollAttempts.current=0;
           list.current?.scrollToIndex({ index, animated: !reducedMotion, viewPosition: 0.3 });
         }
+        if(index < 0) setError(c.originalUnavailable);
         setJumpToPin(null);
       });
       return () => cancelAnimationFrame(frame);
     }
     void fetchNextPage();
-  }, [jumpToPin, displayItems, isFetching, hasNextPage, fetchNextPage, reducedMotion]);
+  }, [jumpToPin, displayItems, isFetching, hasNextPage, fetchNextPage, reducedMotion, c.originalUnavailable]);
   const refresh = useCallback(() => {
     void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
     return client.invalidateQueries({
@@ -360,8 +375,7 @@ function ConversationPaneContent({
       void chatApi
         .member(token, room.id, { readSeq: seq })
         .then(async (result) => {
-          if (result.readIds?.length)
-            await dismissInboxNotifications(result.readIds);
+          await applyChatReadReceipt({ recipientId: accountId, conversationId: room.id, readSeq: result.readSeq ?? seq, ids: result.readIds ?? [] }).catch(() => {});
           await Promise.all([
             client.invalidateQueries({ queryKey: ["chat-list", token] }),
             client.invalidateQueries({ queryKey: ["inbox", token] }),
@@ -372,7 +386,7 @@ function ConversationPaneContent({
           readSeq.current = 0;
         });
     },
-    [token, room.id, search, client],
+    [token, room.id, accountId, search, client],
   );
   useVisibleChatSeq(!search, markRead);
   const visible = useCallback(
@@ -556,6 +570,7 @@ function ConversationPaneContent({
             icon="refresh"
           />
         ) : null}
+        <View style={{flex: 1, minHeight: 0, position: "relative"}}>
         <FlatList
           ref={list}
           inverted
@@ -572,10 +587,20 @@ function ConversationPaneContent({
           windowSize={7}
           onViewableItemsChanged={onVisible}
           viewabilityConfig={visibilityConfig}
+          onEndReachedThreshold={0.25}
+          onEndReached={() => {
+            if (!hasNextPage) return;
+            if (isFetching) olderHistoryRequested.current = true;
+            else void fetchNextPage({ cancelRefetch: false }).catch(() => {});
+          }}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           onScroll={(event) => {
             const e = event.nativeEvent;
-            autoScroll.current = e.contentOffset.y < 140;
+            const offset = Math.max(0, e.contentOffset.y);
+            if (offset < 140) setShowScrollBottom(false);
+            else if (offset > 280 && offset < previousScrollOffset.current - 1) setShowScrollBottom(true);
+            previousScrollOffset.current = offset;
+            autoScroll.current = offset < 140;
             const distanceToHistory = e.contentSize.height - e.layoutMeasurement.height - e.contentOffset.y;
             if (e.contentOffset.y > 30 && distanceToHistory < 250 && hasNextPage) {
               if (isFetching) olderHistoryRequested.current = true;
@@ -583,7 +608,8 @@ function ConversationPaneContent({
             } else olderHistoryRequested.current = false;
           }}
           onScrollToIndexFailed={({index, averageItemLength}) => {
-            list.current?.scrollToOffset({offset: index * averageItemLength, animated: !reducedMotion});
+            list.current?.scrollToOffset({offset: index * averageItemLength, animated: false});
+            if(scrollAttempts.current++<3){if(scrollRetry.current)clearTimeout(scrollRetry.current);scrollRetry.current=setTimeout(()=>list.current?.scrollToIndex({index,animated:!reducedMotion,viewPosition:0.3}),180);}
           }}
           scrollEventThrottle={100}
           onContentSizeChange={() => {
@@ -606,10 +632,13 @@ function ConversationPaneContent({
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <ChatBubble
+          renderItem={({ item, index }) => (
+            <View><ChatBubble
+              showAvatar={!(index > 0 && !item.system && !displayItems[index - 1]?.system && item.sender.id === displayItems[index - 1]?.sender.id && item.own === displayItems[index - 1]?.own)}
               item={item}
               room={room}
+              highlighted={item.id === highlightedMessage}
+              onReplyPress={id=>{autoScroll.current=false;setShowSearch(false);setSearchDraft("");setSearch("");setJumpToPin(id);}}
               onActions={(message, anchor) => {
                 setActionAnchor(anchor ?? {x: 180, y: 180});
                 setAction(message);
@@ -623,6 +652,8 @@ function ConversationPaneContent({
                 }).catch(showError);
               }}
             />
+            {room.kind === "channel" && !item.deleted ? <Pressable accessibilityRole="button" accessibilityLabel={`${c.comments}: ${item.commentCount??0}`} onPress={()=>setCommentPost(item)} style={{alignSelf:"center",paddingVertical:10,paddingHorizontal:16,borderWidth:1,borderColor:theme.border,borderRadius:99,marginBottom:10}}><AppText variant="caption" color={String(theme.primary)}>{c.comments} · {item.commentCount??0}</AppText></Pressable>:null}
+            </View>
           )}
           ListHeaderComponent={
             <>
@@ -653,6 +684,8 @@ function ConversationPaneContent({
             </>
           }
         />
+        {showScrollBottom ? <Pressable accessibilityRole="button" accessibilityLabel={language === "uz" ? "Oxirgi xabarlarga o‘tish" : language === "en" ? "Jump to latest messages" : "Перейти к последним сообщениям"} onPress={() => { setShowScrollBottom(false); autoScroll.current = true; list.current?.scrollToOffset({offset: 0, animated: !reducedMotion}); }} style={{position:"absolute",right:18,bottom:12,width:44,height:44,borderRadius:22,alignItems:"center",justifyContent:"center",backgroundColor:theme.surfaceRaised,borderWidth:1,borderColor:theme.border,elevation:5,zIndex:5}}><Ionicons name="arrow-down" size={23} color={String(theme.text)} /></Pressable> : null}
+        </View>
         {typingUntil > 0 ? (
           <AppText variant="caption" muted style={{ paddingLeft: 16 }}>
             {c.typing}
@@ -863,6 +896,7 @@ function ConversationPaneContent({
             />
           </ChatSheet>
         ) : null}
+        {commentPost ? <ChannelComments room={room} item={commentPost} token={token} onClose={()=>setCommentPost(null)} onProfile={onProfile} onChanged={()=>{void query.refetch();}}/> : null}
         {action ? (
           <ChatPopover anchor={actionAnchor} onClose={() => setAction(null)}>
             {!action.deleted ? (
@@ -881,9 +915,9 @@ function ConversationPaneContent({
                     onPress={() => {
                       void reactToMessage(action, emoji);
                     }}
-                    style={styles.icon}
+                    style={{ flex: 1, minWidth: 0, minHeight: 48, paddingVertical: 6, alignItems: "center", justifyContent: "center" }}
                   >
-                    <AppText style={{ fontSize: 25 }}>{emoji}</AppText>
+                    <AppText style={{ fontSize: 25, lineHeight: 34, includeFontPadding: true, flexShrink: 0 }}>{emoji}</AppText>
                   </Pressable>
                 ))}
               </View>
@@ -900,7 +934,7 @@ function ConversationPaneContent({
                 }}
               />
             ) : null}
-            {!action.deleted ? (
+            {!action.deleted && !action.system ? (
               <ChatAction
                 title={c.forward}
                 icon="arrow-redo-outline"

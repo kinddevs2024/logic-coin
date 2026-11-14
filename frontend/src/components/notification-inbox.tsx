@@ -26,7 +26,7 @@ const copy = {
   uz: { system: "Tizim", messages: "Xabarlar", empty: "Hozircha xabarlar yo‘q", readAll: "Barchasini o‘qish", busy: "Belgilanmoqda…", retry: "Bildirishnomalar belgilanmadi. Qayta urining." },
 };
 
-export function NotificationInbox({ onClose, anchor }: { onClose: () => void; anchor?: { x: number; y: number; width: number; height: number } }) {
+export function NotificationInbox({ onClose, anchor, anchorRef }: { onClose: () => void; anchor?: { x: number; y: number; width: number; height: number }; anchorRef?: React.RefObject<View | null> }) {
   const { copyText, copyContent } = useUiCopy();
   const closeAction = useRef(onClose);
   useEffect(() => { closeAction.current = onClose; }, [onClose]);
@@ -43,6 +43,15 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
   }, []);
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const [measuredAnchor, setMeasuredAnchor] = useState(anchor);
+  useEffect(() => {
+    if (!anchorRef) return;
+    const frame = requestAnimationFrame(() => anchorRef.current?.measureInWindow((x, y, w, h) => {
+      if (w > 0 && h > 0) setMeasuredAnchor({ x, y, width: w, height: h });
+    }));
+    return () => cancelAnimationFrame(frame);
+  }, [anchorRef, width, height]);
+  const currentAnchor = anchorRef ? measuredAnchor : anchor;
   const [closing, setClosing] = useState(false);
   const close = useCallback(() => setClosing(true), []);
   const reduced = useReducedMotion();
@@ -103,7 +112,8 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     if (!ready.current || closingRef.current || sectionRef.current !== "system" || (AppState.currentState && AppState.currentState !== "active") || (Platform.OS === "web" && document.visibilityState === "hidden")) return;
     read(viewableItems.filter(v => v.isViewable && !v.item.read && !seen.current.has(v.item.id)).map(v => v.item.id));
   }, [read]);
-  const items = query.data?.pages.flatMap(page => page.items) ?? [];
+  const items = (query.data?.pages.flatMap(page => page.items) ?? [])
+    .filter(item => item.kind !== "chat_message" && !item.conversationId);
   const checkVisible = useCallback(() => {
     if (!ready.current || closingRef.current || sectionRef.current !== "system" || (AppState.currentState && AppState.currentState !== "active") || (Platform.OS === "web" && document.visibilityState === "hidden")) return;
     viewport.current?.measureInWindow((_x, top, _w, height) => {
@@ -149,17 +159,17 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
     return () => clearTimeout(timer);
   }, [closing, reduced, section, items.length, checkVisible]);
   // The bell anchor and the translucent modal use the same window coordinates.
-  const anchorTop = anchor ? anchor.y : Math.max(insets.top, 12);
+  const anchorTop = currentAnchor ? currentAnchor.y : Math.max(insets.top, 12);
   return <Modal transparent visible hardwareAccelerated={Platform.OS === "android"} animationType="none" onRequestClose={close} statusBarTranslucent>
-    <View style={[styles.overlay, { paddingTop: anchorTop + (anchor?.height ?? 48) + 12 }]}>
+    <View style={[styles.overlay, { backgroundColor: theme.mode === "dark" ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.45)", paddingTop: anchorTop + (currentAnchor?.height ?? 48) + 12 }]}>
       <Pressable accessibilityLabel={copyText("Закрыть уведомления")} accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
-      {token ? <View style={[styles.readAllPosition, { top: anchorTop, right: Math.max(16, width - (anchor?.x ?? width - 68) + 8), minHeight: Math.max(anchor?.height ?? 48, 48) }]}>
+      {token ? <View style={[styles.readAllPosition, { top: anchorTop, right: Math.max(16, width - (currentAnchor?.x ?? width - 68) + 8), minHeight: Math.max(currentAnchor?.height ?? 48, 48) }]}>
         <View onLayout={e => setFilterWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={[styles.readAllButton, { backgroundColor: theme.surface, borderColor: theme.border, flexDirection: "row", gap: 4, padding: 4, width: "100%", minHeight: 46 }]}>
           {filterWidth > 0 ? <Animated.View pointerEvents="none" style={{ position: "absolute", top: 4, bottom: 4, left: 4, width: (filterWidth - 12) / 2, borderRadius: 20, backgroundColor: theme.primarySoft, transform: [{ translateX: selection.interpolate({ inputRange: [0, 1], outputRange: [0, (filterWidth - 4) / 2] }) }] }} /> : null}
           {(["system", "messages"] as const).map(key => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: section === key }} onPress={() => setSection(key)} style={{ flex: 1, alignItems: "center", justifyContent: "center", minHeight: 36, paddingHorizontal: 6, paddingVertical: 7, borderRadius: 20 }}><AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} variant="caption" style={{ fontWeight: "700", lineHeight: 20, includeFontPadding: false, textAlignVertical: "center" }}>{copyContent(c[key])}</AppText></Pressable>)}
         </View>
       </View> : null}
-      <View style={[styles.close, anchor ? { position: "absolute", left: anchor.x, top: anchorTop, width: anchor.width, height: anchor.height } : { position: "absolute", right: 20, top: anchorTop }]}>
+      <View style={[styles.close, currentAnchor ? { position: "absolute", left: currentAnchor.x, top: anchorTop, width: currentAnchor.width, height: currentAnchor.height } : { position: "absolute", right: 20, top: anchorTop }]}>
         <IconButton name="close" label="Закрыть" onPress={close} />
       </View>
       <Animated.View accessibilityViewIsModal style={[styles.panel, { transform: [{ translateY: offset }] }]}>
@@ -194,7 +204,7 @@ export function NotificationInbox({ onClose, anchor }: { onClose: () => void; an
   </Modal>;
 }
 const styles = StyleSheet.create({
-  overlay: { flex: 1, alignItems: "center", backgroundColor: "rgba(16,37,27,0.5)", paddingHorizontal: 18 },
+  overlay: { flex: 1, alignItems: "center", paddingHorizontal: 18 },
   panel: { flex: 1, minHeight: 0, width: "100%", maxWidth: 560, gap: 12 },
   close: { alignSelf: "flex-end", zIndex: 10, elevation: 10 },
   readAllPosition: { position: "absolute", left: 16, alignItems: "flex-end", justifyContent: "center", zIndex: 10, elevation: 10 },

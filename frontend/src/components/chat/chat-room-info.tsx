@@ -1,7 +1,8 @@
+import {playerProfileRoute} from "@/lib/player-profile-navigation";
 import { pickChatPhoto } from "@/lib/chat-media";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   Pressable,
@@ -35,6 +36,7 @@ export function ChatRoomInfo({
   const theme = useAppTheme();
   const [title, setTitle] = useState(room.title),
     [description, setDescription] = useState(room.description);
+  const [editor, setEditor] = useState<"name" | "description" | "roomUsername" | "roomType" | null>(null);
   const [username, setUsername] = useState(room.username ?? "");
   const [visibility, setVisibility] = useState(room.visibility ?? "invite");
   const c = useChatCopy(),
@@ -42,9 +44,11 @@ export function ChatRoomInfo({
     client = useQueryClient();
   const [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
-  const query = useQuery({
-    queryKey: ["chat-members", token, room.id],
-    queryFn: () => chatApi.members(token, room.id),
+  const query = useInfiniteQuery({
+    queryKey: ["chat-members-paged", token, room.id],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => chatApi.members(token, room.id, pageParam),
+    getNextPageParam: page => page.nextCursor ?? undefined,
     staleTime: 10_000,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -61,7 +65,8 @@ export function ChatRoomInfo({
     enabled: addOpen,
     staleTime: 10000,
   });
-  const selected = query.data?.members.find((p) => p.id === selectedId);
+  const members = query.data?.pages.flatMap(page => page.members) ?? [];
+  const selected = members.find((p) => p.id === selectedId);
   const canManageMembers =
     room.canManage &&
     !room.systemKey &&
@@ -69,7 +74,7 @@ export function ChatRoomInfo({
   const people =
     candidates.data?.users.filter(
       (p) =>
-        p.id !== accountId && !query.data?.members.some((m) => m.id === p.id),
+        p.id !== accountId && !members.some((m) => m.id === p.id),
     ) ?? [];
   const roleLabel = (role: string) =>
     role === "owner" ? c.owner : role === "admin" ? c.admin : c.member;
@@ -91,9 +96,43 @@ export function ChatRoomInfo({
       setBusy(false);
     }
   };
+  function openEditor(field: NonNullable<typeof editor>) {
+    setTitle(room.title); setDescription(room.description); setUsername(room.username ?? "");
+    setVisibility(room.visibility ?? "invite"); setError(null); setEditor(field);
+  }
+  function settingRow(field: NonNullable<typeof editor>, value: string, icon: React.ComponentProps<typeof Ionicons>["name"]) {
+    return <Pressable key={field} accessibilityRole="button" accessibilityLabel={`${c[field]}: ${value || "—"}`} disabled={busy} onPress={() => openEditor(field)}
+      style={({ pressed }) => ({ minHeight: 58, paddingHorizontal: 12, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: theme.border, backgroundColor: pressed ? theme.primarySoft : "transparent" })}>
+      <Ionicons name={icon} size={21} color={String(theme.primary)} />
+      <View style={{ flex: 1, minWidth: 0 }}><AppText variant="label">{c[field]}</AppText><AppText variant="caption" muted numberOfLines={1}>{value || "—"}</AppText></View>
+      <Ionicons name="chevron-forward" size={17} color={String(theme.textMuted)} />
+    </Pressable>;
+  }
+  if (editor) return <ChatSheet key={`editor:${editor}`} title={c[editor]} onClose={() => setEditor(null)} onEscape={onClose}>
+    {editor === "roomType" ? <View style={{ gap: 4 }}>
+      {(["public", "invite"] as const).map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: visibility === value }}
+        onPress={() => setVisibility(value)} style={{ minHeight: 52, padding: 12, borderRadius: 14, backgroundColor: theme.surfaceRaised, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <AppText>{value === "public" ? c.publicShort : c.privateShort}</AppText>
+        <Ionicons name={visibility === value ? "checkmark-circle" : "ellipse-outline"} size={23} color={String(visibility === value ? theme.primary : theme.textMuted)} />
+      </Pressable>)}
+    </View> : <TextInput accessibilityLabel={c[editor]} placeholder={c[editor]} placeholderTextColor={String(theme.textMuted)} autoFocus
+      value={editor === "name" ? title : editor === "description" ? description : username}
+      onChangeText={editor === "name" ? setTitle : editor === "description" ? setDescription : setUsername}
+      autoCapitalize={editor === "roomUsername" ? "none" : "sentences"} multiline={editor === "description"} maxLength={editor === "name" ? 100 : editor === "description" ? 1000 : 25}
+      style={{ padding: 14, minHeight: editor === "description" ? 110 : 50, textAlignVertical: "top", borderRadius: 16, color: theme.text, backgroundColor: theme.surfaceRaised }} />}
+    <ChatAction title={c.save} icon="checkmark" disabled={busy || (editor === "name" && !title.trim())} onPress={() => {
+      void (async () => { if (await run(() => chatApi.updateRoom(token, room.id, {
+        title: editor === "name" ? title.trim() : room.title,
+        description: editor === "description" ? description : room.description,
+        ...(editor === "roomUsername" ? { username } : {}),
+        ...(editor === "roomType" ? { visibility } : {}),
+      }))) setEditor(null); })();
+    }} />
+    {error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{error}</AppText> : null}
+  </ChatSheet>;
   if (selected)
     return (
-      <ChatSheet
+      <ChatSheet key={`member:${selected.id}`}
         title={`${c.memberSettings} · ${selected.name}`}
         onClose={onClose}
       >
@@ -170,95 +209,39 @@ export function ChatRoomInfo({
       </ChatSheet>
     );
   return (
-    <ChatSheet title={room.title} onClose={onClose}>
+    <ChatSheet key="room-info" title={room.title} onClose={onClose}>
       <View style={{ alignItems: "center", gap: 8, paddingBottom: 14 }}>
         {room.username ? <AppText muted>@{room.username}</AppText> : null}
-        {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && !room.isOwner)) ? <LogoMark size={86} /> : (
+        {room.isOfficial ?? Boolean(room.systemKey || (room.kind === "support" && !room.isOwner)) ? <LogoMark size={64} /> : (
         <Avatar userId={room.peer?.id ?? room.id}
           name={room.title}
           avatarUrl={room.avatarUrl ? chatMediaUrl(room.avatarUrl) : null}
-          size={86}
+          size={64}
         />
         )}
-        {!room.canManage && room.description ? (
+        {!(room.canEditInfo ?? room.canManage) && room.description ? (
           <AppText muted>{room.description}</AppText>
         ) : null}
       </View>
       {(room.canEditInfo ?? room.canManage) &&
       ["group", "channel"].includes(room.kind) ? (
-        <View style={{ gap: 8 }}>
-          <AppText variant="label">{c.settings}</AppText>
+        <View style={{ borderRadius: 18, overflow: "hidden", backgroundColor: theme.surfaceRaised }} testID="chat-info-settings">
+          {settingRow("name", room.title, "create-outline")}
+          {settingRow("description", room.description, "document-text-outline")}
           {room.canManage ? <>
-            <TextInput accessibilityLabel={c.roomUsername} placeholder={c.roomUsername} value={username} onChangeText={setUsername} autoCapitalize="none" maxLength={25} style={{ padding: 12, borderRadius: 15, color: theme.text, backgroundColor: theme.surfaceRaised }} />
-            <ChatAction title={`${visibility === "public" ? "●" : "○"} ${c.publicRoom}`} onPress={() => setVisibility("public")} />
-            <ChatAction title={`${visibility === "invite" ? "●" : "○"} ${c.privateRoom}`} onPress={() => setVisibility("invite")} />
+            {settingRow("roomType", room.visibility === "public" ? c.publicShort : c.privateShort, "lock-closed-outline")}
+            {settingRow("roomUsername", room.username ? `@${room.username}` : "", "at-outline")}
           </> : null}
-          <AppText variant="caption" muted>
-            {c.name}
-          </AppText>
-          <TextInput
-            accessibilityLabel={c.name}
-            value={title}
-            onChangeText={setTitle}
-            maxLength={100}
-            style={{
-              padding: 12,
-              borderRadius: 15,
-              color: theme.text,
-              backgroundColor: theme.surfaceRaised,
-            }}
-          />
-          <AppText variant="caption" muted>
-            {c.description}
-          </AppText>
-          <TextInput
-            accessibilityLabel={c.description}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            maxLength={1000}
-            style={{
-              padding: 12,
-              borderRadius: 15,
-              color: theme.text,
-              backgroundColor: theme.surfaceRaised,
-            }}
-          />
-          <ChatAction
-            title={c.save}
-            disabled={busy || !title.trim()}
-            icon="checkmark"
-            onPress={() => {
-              void run(() =>
-                chatApi.updateRoom(token, room.id, {
-                  title: title.trim(),
-                  description,
-                  ...(room.canManage ? { username, visibility } : {}),
-                }),
-              );
-            }}
-          />
-          <ChatAction
-            title={c.photo}
-            icon="camera-outline"
-            disabled={busy}
-            onPress={() => {
-              void run(async () => {
-                const file = await pickChatPhoto();
-                if (file) {
-                  const saved = await chatApi.upload(token, file);
-                  await chatApi.updateRoom(token, room.id, {
-                    title: title.trim(),
-                    description,
-                    avatarAttachmentId: saved.id,
-                  });
-                }
-              });
-            }}
-          />
+          <ChatAction title={c.photo} icon="camera-outline" disabled={busy} onPress={() => {
+            void run(async () => {
+              const file = await pickChatPhoto();
+              if (file) {
+                const saved = await chatApi.upload(token, file);
+                await chatApi.updateRoom(token, room.id, { title: room.title, description: room.description, avatarAttachmentId: saved.id });
+              }
+            });
+          }} />
         </View>
-      ) : room.description ? (
-        <AppText muted>{room.description}</AppText>
       ) : null}
       <ChatAction
         title={room.muted ? c.unmute : c.mute}
@@ -299,14 +282,14 @@ export function ChatRoomInfo({
           icon="person-outline"
           onPress={() => {
             onClose();
-            router.push(`/player/${room.peer!.id}` as never);
+            router.push(playerProfileRoute(room.peer!.id, room.id) as never);
           }}
         />
       ) : null}
       <AppText variant="heading">
-        {c.members} · {query.data?.count ?? "…"}
+        {c.members} · {query.data?.pages[0]?.count ?? "…"}
       </AppText>
-      {query.data?.members.map((person) => (
+      {members.map((person) => (
         <View
           key={person.id}
           style={{
@@ -321,7 +304,7 @@ export function ChatRoomInfo({
             accessibilityLabel={`${c.profile}: ${person.name}`}
             onPress={() => {
               onClose();
-              router.push(`/player/${person.id}` as never);
+              router.push(playerProfileRoute(person.id, room.id) as never);
             }}
             style={{
               flex: 1,
@@ -373,6 +356,8 @@ export function ChatRoomInfo({
           ) : null}
         </View>
       ))}
+      {query.isPending || query.isFetchingNextPage ? <ActivityIndicator color={String(theme.primary)} /> : null}
+      {query.isError ? <ChatAction title={c.retry} onPress={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())} /> : query.hasNextPage ? <ChatAction title={c.loadMoreMembers} icon="chevron-down" disabled={query.isFetchingNextPage} onPress={() => void query.fetchNextPage()} /> : null}
       {canManageMembers ? (
         <>
           <ChatAction
