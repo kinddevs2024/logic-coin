@@ -35,7 +35,6 @@ function createReceiptId(placement: RewardedAdPlacement) {
 
 function waitForLoaded(type: AppodealAdType, loadedEvent: string, failedEvent: string) {
   if (Appodeal.isLoaded(type)) return Promise.resolve(true);
-  Appodeal.cache(type);
   return new Promise<boolean>((resolve) => {
     const subscriptions: Subscription[] = [];
     let settled = false;
@@ -50,6 +49,11 @@ function waitForLoaded(type: AppodealAdType, loadedEvent: string, failedEvent: s
     subscriptions.push(Appodeal.addEventListener(loadedEvent, () => finish(true)));
     subscriptions.push(Appodeal.addEventListener(failedEvent, () => finish(false)));
     timeout = setTimeout(() => finish(false), LOAD_TIMEOUT_MS);
+    if (Appodeal.isLoaded(type)) finish(true);
+    else {
+      Appodeal.cache(type);
+      if (Appodeal.isLoaded(type)) finish(true);
+    }
   });
 }
 
@@ -108,7 +112,7 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
 
   async show(placement: RewardedAdPlacement): Promise<RewardedAdReceipt> {
     const yandexReceipt = await yandexRewardedAds.show(placement);
-    if (yandexReceipt.completed) return yandexReceipt;
+    if (yandexReceipt.completed || yandexReceipt.reason === "dismissed") return yandexReceipt;
     if (!(await this.initializeAppodeal())) {
       console.warn("[Ads] No rewarded provider initialized", { placement, reason: yandexReceipt.reason });
       return yandexReceipt;

@@ -25,6 +25,7 @@ export type RememberedWithdrawalCard = {
 type AppState = {
   hydrated: boolean;
   language: Language | null;
+  timeFormat: "12" | "24";
   postAuthLanguageUserId: string | null;
   onboardingDone: boolean;
   authMode: AuthMode;
@@ -56,6 +57,7 @@ type AppState = {
   latestReward: { amount: number; id: number } | null;
   setHydrated: (hydrated: boolean) => void;
   setLanguage: (language: Language) => void;
+  setTimeFormat: (format: "12" | "24") => void;
   setPostAuthLanguageUserId: (userId: string | null) => void;
   finishOnboarding: () => void;
   setPendingRegistrationToken: (token: string | null) => void;
@@ -114,6 +116,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       hydrated: false,
       language: null,
+      timeFormat: "12",
       postAuthLanguageUserId: null,
       onboardingDone: false,
       authMode: null,
@@ -147,6 +150,7 @@ export const useAppStore = create<AppState>()(
       latestReward: null,
       setHydrated: (hydrated) => set({ hydrated }),
       setLanguage: (language) => set({ language }),
+      setTimeFormat: (timeFormat) => set({ timeFormat }),
       setPostAuthLanguageUserId: (postAuthLanguageUserId) => set({ postAuthLanguageUserId }),
       finishOnboarding: () => set({ onboardingDone: true }),
       setPendingRegistrationToken: (pendingRegistrationToken) =>

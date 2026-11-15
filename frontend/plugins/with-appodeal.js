@@ -18,11 +18,10 @@ const ANDROID_RELEASE_PROPERTIES = [
   ["org.gradle.jvmargs", "-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"],
   ["org.gradle.workers.max", "2"],
   ["reactNativeArchitectures", "armeabi-v7a,arm64-v8a"],
-  // expo-image-manipulator currently references Kotlin classes that R8 removes
-  // in this Expo 57 setup. Keep release builds unminified until the native
-  // dependency graph is upgraded as one compatible set.
-  ["android.enableMinifyInReleaseBuilds", "false"],
-  ["android.enableShrinkResourcesInReleaseBuilds", "false"],
+  // Trial R8 in the isolated release candidate; validate native startup and ads
+  // before this configuration is used for distribution.
+  ["android.enableMinifyInReleaseBuilds", "true"],
+  ["android.enableShrinkResourcesInReleaseBuilds", "true"],
   ["expo.gif.enabled", "false"],
   ["expo.useLegacyPackaging", "true"],
 ];

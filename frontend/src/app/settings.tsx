@@ -64,6 +64,8 @@ export default function SettingsScreen() {
   const mode = useAppStore((state) => state.theme);
   const setTheme = useAppStore((state) => state.setTheme);
   const setLanguage = useAppStore((state) => state.setLanguage);
+  const timeFormat = useAppStore((state) => state.timeFormat);
+  const setTimeFormat = useAppStore((state) => state.setTimeFormat);
   const setGoal = useAppStore((state) => state.setGoal);
   const goal = useAppStore((state) => state.goalUnits);
   const authMode = useAppStore((state) => state.authMode);
@@ -306,6 +308,10 @@ export default function SettingsScreen() {
         </View>
         </GlassSurface>
 
+        <GlassSurface testID="settings-time-format" intensity={56} variant="strong" style={[styles.section, isDesktop && styles.settingsCardDesktop, {borderColor: theme.glassBorder}]}>
+          <View style={styles.sectionTitle}><Ionicons name="time-outline" size={20} color={String(theme.primary)}/><AppText variant="heading">{language === "uz" ? "Vaqt formati" : language === "en" ? "Time format" : "Формат времени"}</AppText></View>
+          <View style={styles.chips}><ChoiceChip label="24 h" selected={timeFormat === "24"} onPress={() => setTimeFormat("24")}/><ChoiceChip label="12 h · AM/PM" selected={timeFormat === "12"} onPress={() => setTimeFormat("12")}/></View>
+        </GlassSurface>
         <GlassSurface
           testID="settings-goal"
           intensity={56}

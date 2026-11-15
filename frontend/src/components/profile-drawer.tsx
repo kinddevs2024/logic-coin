@@ -237,7 +237,7 @@ export function ProfileDrawer({
                 </View>
               </LinearGradient>
 
-              {user.role === "owner" || user.role === "admin" ? <Pressable accessibilityRole="link" onPress={()=>{onClose();router.push((user.role==="owner"?"/owner":"/admin") as never);}} style={{padding:16}}><AppText variant="label">{user.role==="owner"?"Owner · Статистика и финансы":"Admin · Управление платформой"}</AppText></Pressable> : null}
+              {user.role === "owner" || (user.role === "admin" && Platform.OS === "web") ? <Pressable accessibilityRole="link" onPress={()=>{onClose();router.push((user.role==="owner"?"/owner":"/admin") as never);}} style={{padding:16}}><AppText variant="label">{user.role==="owner"?"Owner · Статистика и финансы":"Admin · Управление платформой"}</AppText></Pressable> : null}
               <View style={styles.stats}>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>

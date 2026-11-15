@@ -257,6 +257,12 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
     { $group: { _id: "$conversationId", message: { $first: "$$ROOT" } } },
     { $project: { _id: 1, "message.senderId": 1, "message.text": 1, "message.seq": 1, "message.createdAt": 1, "message.attachmentIds": 1 } },
   ]) : [];
+  const outgoingRows = rooms.length ? await ChatMessage.aggregate([
+    { $match: { conversationId: { $in: rooms.map(c => c._id) }, senderId: userId, hiddenFor: { $ne: userId }, deletedAt: { $exists: false } } },
+    { $sort: { conversationId: 1, seq: -1 } },
+    { $group: { _id: "$conversationId", message: { $first: "$$ROOT" } } },
+    { $project: { _id: 1, "message.text": 1, "message.attachmentIds": 1 } },
+  ]) : [];
   const unreadRows = rooms.length
     ? await ChatMessage.aggregate<{ _id: Types.ObjectId; count: number }>([
         {
@@ -328,6 +334,7 @@ export async function listChats(userId: Types.ObjectId, sessionId: string) {
         const message = incomingRows.find(row => String(row._id) === String(c._id))?.message;
         return message ? { senderId: String(message.senderId), preview: message.text ?? "", hasAttachment: Boolean(message.attachmentIds?.length), at: new Date(message.createdAt).toISOString(), seq: message.seq } : null;
       })(),
+      lastOutgoing: (() => { const message = outgoingRows.find(row => String(row._id) === String(c._id))?.message; return message ? {preview:message.text ?? "",hasAttachment:Boolean(message.attachmentIds?.length)} : null; })(),
       preview: last?.deletedAt ? "" : (last?.text ?? ""),
       hasAttachment: Boolean(last?.attachmentIds.length),
       muted: member.muted,
@@ -690,6 +697,9 @@ export async function listMessages(
       return {
         id: String(m._id),
         seq: m.seq,
+        ...(!m.system && String(m.senderId) === String(userId) ? { clientId: m.clientId } : {}),
+        ...(["group", "channel"].includes(c.kind) ? { viewCount: m.viewedBy?.length ?? 0 } : {}),
+        ...(m.poll && !m.deletedAt ? {poll: {question:m.poll.question,options:m.poll.options.map((text,index)=>({text,votes:Object.values(m.poll!.votes ?? {}).filter(value=>value===index).length})),myVote:(m.poll.votes as unknown as Record<string,number>)?.[String(userId)] ?? null}} : {}),
         ...(c.kind === "channel" ? {commentCount:commentCounts.find(row=>String(row._id)===String(m._id))?.count??0} : {}),
         sender: c.kind === "support" && String(m.senderId) !== supportCustomer(c)
           ? { id: String(m.senderId), name: "Logic Coin Support", avatarUrl: null, isSupportTeam: true }
@@ -742,6 +752,7 @@ export async function sendChatMessage(
     attachmentIds: string[];
     replyTo?: string;
     forwardId?: string;
+    poll?: {question:string;options:string[]};
   },
 ) {
   const { c } = await chatAccess(userId, id, true);
@@ -753,7 +764,9 @@ export async function sendChatMessage(
     .select("_id seq")
     .lean();
   if (previous) return { id: String(previous._id), seq: previous.seq };
-  let text = input.text,
+  if (input.poll && input.forwardId) return fail(400,"invalid_poll","A forwarded message cannot include a new poll");
+  if (input.poll && (c.kind !== "group" && c.kind !== "channel")) return fail(400,"invalid_poll","Polls require a group or channel");
+  let text = input.poll?.question ?? input.text,
     attachmentIds = input.attachmentIds.map(oid),
     forwardedFrom: string | undefined;
   if (input.forwardId) {
@@ -804,6 +817,7 @@ export async function sendChatMessage(
       attachmentIds,
       replyTo: input.replyTo,
       forwardedFrom,
+      ...(input.poll ? {poll:{question:input.poll.question,options:input.poll.options,votes:{}}} : {}),
     });
   } catch (error) {
     if ((error as { code?: number }).code !== 11000) throw error;

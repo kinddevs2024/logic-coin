@@ -32,6 +32,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useAppStore } from "@/store/app-store";
 import { chatApi, chatMediaUrl, type ChatRoom } from "@/lib/chat-api";
+import { compareChatRooms } from "@/lib/chat-order";
 import { useChatCopy } from "@/lib/chat-copy";
 import { ConversationPane } from "./conversation-pane";
 import { ChatAction, ChatSheet } from "./chat-sheet";
@@ -243,14 +244,7 @@ export function MessagesScreen() {
     staleTime: 15_000,
   });
   const chats = useMemo(
-    () =>
-      [...(query.data?.chats ?? [])].sort(
-        (a, b) =>
-          Number(b.pinned) - Number(a.pinned) ||
-          Number(Boolean(b.isOfficial)) -
-            Number(Boolean(a.isOfficial)) ||
-          Date.parse(b.lastMessageAt) - Date.parse(a.lastMessageAt),
-      ),
+    () => [...(query.data?.chats ?? [])].sort(compareChatRooms),
     [query.data],
   );
   const listedRoom = chats.find((room) => room.id === params.chat);

@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { Platform } from "react-native";
 import { useRouter } from "expo-router";
 import type { SocialAuthResult } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
@@ -19,7 +20,7 @@ export function useSignInCompletion(onAuthenticated?: (result: SocialAuthResult)
       refreshToken: result.tokens.refreshToken,
       balanceUnits: result.user.wallet?.availableUnits,
     });
-    const destination = result.user.role === "owner" ? "/owner" : result.user.role === "admin" ? "/admin"
+    const destination = result.user.role === "owner" ? "/owner" : result.user.role === "admin" ? Platform.OS === "web" ? "/admin" : "/(tabs)"
       : !result.user.countryCode
         ? state.postAuthLanguageUserId === result.user.id ? "/country" : "/language"
         : "/(tabs)";

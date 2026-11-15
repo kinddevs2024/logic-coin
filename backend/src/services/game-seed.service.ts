@@ -42,7 +42,6 @@ const importedGames: SeedGame[] = [
   { key: "find-letter", icon: "text", color: "#0866FF", difficulty: "easy", title: { en: "Find the Letter", ru: "Найди букву", uz: "Harfni toping" } },
   { key: "volt-match", icon: "grid", color: "#7A5AF8", difficulty: "medium", title: { en: "VOLT Match", ru: "VOLT Матч", uz: "VOLT Match" } },
   { key: "geography-quiz", icon: "earth", color: "#0F9F6E", difficulty: "medium", title: { en: "Geography Quiz", ru: "География", uz: "Geografiya" } },
-  { key: "fact", icon: "pulse", color: "#F43F5E", difficulty: "hard", title: { en: "Fact", ru: "Факт", uz: "Fakt" } },
   { key: "volt-numbers", icon: "keypad", color: "#8B5CF6", difficulty: "medium", title: { en: "VOLT Numbers", ru: "VOLT Числа", uz: "VOLT Raqamlari" } },
   { key: "math-quiz", icon: "calculator", color: "#16A34A", difficulty: "medium", title: { en: "Math Quiz", ru: "Математическая викторина", uz: "Matematik viktorina" } },
   { key: "shadow", icon: "shapes", color: "#64748B", difficulty: "medium", title: { en: "Shadows", ru: "Тени", uz: "Soyalar" } }
@@ -59,6 +58,7 @@ const importedGames: SeedGame[] = [
 
 export const DEFAULT_GAMES = [...nativeGames, ...importedGames] as const;
 const REMOVED_GAME_KEYS = [
+  "fact",
   "gold-rush-2048",
   "tetris",
   "chess",

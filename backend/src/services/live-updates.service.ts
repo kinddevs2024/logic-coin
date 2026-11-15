@@ -10,8 +10,15 @@ const AUTH_TIMEOUT_MS = 10_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const clients = new Set<WebSocket>();
 const chatWatches = new Map<WebSocket, string>();
-const identities = new Map<WebSocket, { userId: Types.ObjectId; token: string }>();
+const identities = new Map<WebSocket, { userId: Types.ObjectId; token: string; active: boolean }>();
 const limits = new Map<string, { start: number; count: number }>();
+
+/** Connected accounts, deduplicated across tabs and devices. */
+export function connectedChatUserIds(): Types.ObjectId[] {
+  const users = new Map<string, Types.ObjectId>();
+  for (const [socket, identity] of identities) if (identity.active && socket.readyState === WebSocket.OPEN) users.set(String(identity.userId), identity.userId);
+  return [...users.values()];
+}
 
 async function snapshot(userId: Types.ObjectId) {
   const { executeLiveCommand } = await import("./live-command.service.js");
@@ -72,6 +79,7 @@ export function attachLiveUpdates(server: Server): () => void {
           let id: string | undefined;
           try {
             const message = JSON.parse(textFromRawData(raw));
+            if (message.type === "presence" && typeof message.active === "boolean") { identities.get(websocket)!.active = message.active; return; }
             if (typeof message.id !== "string" || message.id.length > 100 || typeof message.method !== "string") return;
             id = message.id;
             const identity = identities.get(websocket)!;
@@ -144,7 +152,7 @@ export function attachLiveUpdates(server: Server): () => void {
           authenticated = true;
           clearTimeout(authTimeout);
           clients.add(websocket);
-          identities.set(websocket, { userId: new Types.ObjectId(payload.sub), token: message.token as string });
+          identities.set(websocket, { userId: new Types.ObjectId(payload.sub), token: message.token as string, active: true });
           send(websocket, { type: "authenticated" });
         } catch {
           websocket.close(4401, "Invalid access token");

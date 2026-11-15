@@ -2,15 +2,16 @@ import { useEffect } from "react";
 
 // Browser layout can place a short history at the bottom of a flex container.
 // Observe the actual message rectangles instead of relying on virtual row offsets.
-export function useVisibleChatSeq(enabled: boolean, onRead: (seq: number) => void) {
+export function useVisibleChatSeq(enabled: boolean, onRead: (seq: number, visible: number[]) => void) {
   useEffect(() => {
     if (!enabled) return;
     const observed = new Set<Element>();
     const observer = new IntersectionObserver(entries => {
       if (document.visibilityState !== "visible") return;
-      const seq = Math.max(0, ...entries.filter(entry => entry.isIntersecting && entry.intersectionRatio >= 0.5)
-        .map(entry => Number(entry.target.id.slice("chat-seq-".length))));
-      if (seq) onRead(seq);
+      const visible = entries.filter(entry => entry.isIntersecting && entry.intersectionRatio >= 0.5)
+        .map(entry => Number(entry.target.id.slice("chat-seq-".length))).filter(Number.isFinite);
+      const seq = Math.max(0, ...visible);
+      if (seq) onRead(seq, visible);
     }, { threshold: 0.5 });
     const scan = () => document.querySelectorAll('[id^="chat-seq-"]').forEach(node => {
       if (!observed.has(node)) { observed.add(node); observer.observe(node); }

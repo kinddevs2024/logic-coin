@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { Platform, Pressable, StyleSheet } from "react-native";
 
 import { AuthScaffold } from "@/components/auth-scaffold";
 import { AppText } from "@/components/app-text";
@@ -42,7 +42,7 @@ export default function SetPasswordScreen() {
       });
       const setupUserId = useAppStore.getState().postAuthLanguageUserId;
       const destination = result.user.role === "owner" ? "/owner" : result.user.role === "admin"
-        ? "/admin"
+        ? Platform.OS === "web" ? "/admin" : "/(tabs)"
         : !result.user.countryCode
           ? setupUserId === result.user.id ? "/country" : "/language"
           : "/(tabs)";

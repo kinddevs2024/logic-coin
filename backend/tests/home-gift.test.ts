@@ -21,15 +21,15 @@ describe("home gift guards", () => {
     await expect(finishHomeGiftTelegramLink(userId, "flow", "secret")).rejects.toThrow();
     expect(find.mock.calls[0]?.[0]).toMatchObject({ linkUserId: userId, expiresAt: { $gt: expect.any(Date) } });
   });
-  it("requires two owned verified receipts, not one", async () => {
+  it("requires an owned verified receipt", async () => {
     const userId = new Types.ObjectId();
     const state = { cycleId: "cycle", cycleDayKey: "2026-10-08", cycleExpiresAt: new Date(Date.now() + 60000), availableAt: new Date(0), rewardDayKey: bonusDay(new Date()).dayKey, dailyClaimCount: 0 };
     vi.spyOn(mongoose, "startSession").mockResolvedValue({ withTransaction: async (callback: () => Promise<void>) => callback(), endSession: async () => {} } as never);
     vi.spyOn(HomeGiftState, "findOne").mockReturnValue({ session: async () => state } as never);
     vi.spyOn(DailyChallengeSet, "findOne").mockReturnValue({ session: async () => ({ dayKey: state.cycleDayKey }) } as never);
-    const find = vi.spyOn(RewardedAdSession, "find").mockReturnValue({ sort: () => ({ limit: () => ({ session: async () => [{ _id: new Types.ObjectId() }] }) }) } as never);
+    const find = vi.spyOn(RewardedAdSession, "find").mockReturnValue({ sort: () => ({ limit: () => ({ session: async () => [] }) }) } as never);
     const credit = vi.spyOn(ChallengeAdReward, "create");
-    await expect(claimHomeGiftAds(userId, "cycle")).rejects.toThrow("две рекламы");
+    await expect(claimHomeGiftAds(userId, "cycle")).rejects.toThrow("посмотреть рекламу");
     expect((find.mock.calls as unknown[][])[0]?.[0]).toMatchObject({ userId, placement: "home-gift", homeGiftCycleId: "cycle", status: "completed" });
     expect(credit).not.toHaveBeenCalled();
   });
@@ -39,5 +39,20 @@ describe("home gift guards", () => {
     const credit = vi.spyOn(ChallengeAdReward, "create");
     expect(await claimHomeGiftAds(new Types.ObjectId(), "same")).toEqual({ credited: 0, alreadyClaimed: true });
     expect(credit).not.toHaveBeenCalled();
+  });
+  it("credits 75 coins exactly once after one verified ad", async () => {
+    const userId = new Types.ObjectId(), adId = new Types.ObjectId();
+    const state = { cycleId: "cycle", cycleDayKey: "2026-10-08", cycleExpiresAt: new Date(Date.now()+60000), availableAt: new Date(0), rewardDayKey: bonusDay(new Date()).dayKey, dailyClaimCount: 0, lastClaimedCycle: undefined as string | undefined, set: vi.fn(), save: vi.fn() };
+    vi.spyOn(mongoose,"startSession").mockResolvedValue({withTransaction:async (callback:()=>Promise<void>)=>callback(),endSession:async()=>{}} as never);
+    vi.spyOn(HomeGiftState,"findOne").mockReturnValue({session:async()=>state} as never);
+    vi.spyOn(DailyChallengeSet,"findOne").mockReturnValue({session:async()=>({dayKey:state.cycleDayKey})} as never);
+    vi.spyOn(RewardedAdSession,"find").mockReturnValue({sort:()=>({limit:()=>({session:async()=>[{_id:adId}]})})} as never);
+    const consume=vi.spyOn(RewardedAdSession,"updateMany").mockResolvedValue({modifiedCount:1} as never);
+    const credit=vi.spyOn(ChallengeAdReward,"create").mockResolvedValue([] as never);
+    expect(await claimHomeGiftAds(userId,"cycle")).toEqual({credited:75,alreadyClaimed:false});
+    expect(consume).toHaveBeenCalledWith(expect.objectContaining({_id:{$in:[adId]},status:"completed"}),expect.anything(),expect.anything());
+    expect(credit).toHaveBeenCalledWith([expect.objectContaining({userId,amount:75})],expect.anything());
+    expect(await claimHomeGiftAds(userId,"cycle")).toEqual({credited:0,alreadyClaimed:true});
+    expect(credit).toHaveBeenCalledTimes(1);
   });
 });

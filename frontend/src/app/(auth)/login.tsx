@@ -60,7 +60,7 @@ export default function LoginScreen() {
     redirectedAuthenticatedUser.current = true;
     const next = params.next;
     const destination = user.role === "owner" ? "/owner" : user.role === "admin"
-      ? "/admin"
+      ? Platform.OS === "web" ? "/admin" : "/(tabs)"
       : !user.countryCode
         ? postAuthLanguageUserId === user.id ? "/country" : "/language"
         : next && next.startsWith("/") && next !== "/login" ? next : "/(tabs)";

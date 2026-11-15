@@ -12,6 +12,10 @@ export function ChatRuntime() {
   useEffect(() => {
     if (!token) return;
     let listTimer: ReturnType<typeof setTimeout> | undefined;
+    const refreshList = createSerialChatRefresh(() => client.invalidateQueries({
+      queryKey: ["chat-list", token],
+      refetchType: "active",
+    }, { cancelRefetch: false }));
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
     const refreshers = new Map<string, () => Promise<void>>();
     const refresh = (id: string) => {
@@ -32,7 +36,7 @@ export function ChatRuntime() {
       }
       if (state.chatSync) {
         refresh("*");
-        void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
+        void refreshList().catch(() => {});
       }
       if (!state.chat) return;
       const id = state.chat.conversationId;
@@ -52,10 +56,7 @@ export function ChatRuntime() {
       if (!listTimer)
         listTimer = setTimeout(() => {
           listTimer = undefined;
-          void client.invalidateQueries({
-            queryKey: ["chat-list", token],
-            refetchType: "active",
-          }, { cancelRefetch: false });
+          void refreshList().catch(() => {});
         }, 800);
     });
     return () => {

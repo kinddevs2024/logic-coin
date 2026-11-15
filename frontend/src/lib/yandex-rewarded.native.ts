@@ -116,7 +116,16 @@ class YandexRewardedAds {
         subscription.remove();
         resolve(false);
       }, LOAD_TIMEOUT_MS);
-      void nativeAds.loadRewarded().catch(() => {
+      // Loading may finish between the first readiness check and subscribing
+      // to events. Recheck after subscribing so that event cannot be missed.
+      void nativeAds.isRewardedLoaded().then(async ready => {
+        if (ready) {
+          if (!settled) { settled = true; subscription.remove(); clearTimeout(timeout); resolve(true); }
+          return;
+        }
+        await nativeAds.loadRewarded();
+        if (await nativeAds.isRewardedLoaded() && !settled) { settled = true; subscription.remove(); clearTimeout(timeout); resolve(true); }
+      }).catch(() => {
         if (settled) return;
         settled = true;
         subscription.remove();

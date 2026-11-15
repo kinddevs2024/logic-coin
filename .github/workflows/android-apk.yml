@@ -142,7 +142,7 @@ jobs:
           assert metadata['expo.modules.updates.EXPO_UPDATE_URL']=='https://logic-coin.online/updates'
           assert metadata.get('expo.modules.updates.DISABLE_ANTI_BRICKING_MEASURES','false')=='false'
           cfg=json.loads(pathlib.Path('frontend/app.json').read_text())['expo']
-          assert cfg['android']['versionCode']==21
+          assert cfg['android']['versionCode']==22
           assert (root/'java/com/kinddevs/logiccoin/chatnotify/ReadFirebaseMessagingService.kt').exists()
           assert any(x.get(ns+'name')=='com.kinddevs.logiccoin.chatnotify.ReadFirebaseMessagingService' for x in app.findall('service'))
           assert any(x.get(ns+'name')=='com.kinddevs.logiccoin.chatnotify.ReadNotificationsReceiver' for x in app.findall('receiver'))

@@ -103,6 +103,8 @@ const messageSchema = new Schema(
     editedAt: Date,
     deletedAt: Date,
     hiddenFor: [{ type: Schema.Types.ObjectId }],
+    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    poll: { type: new Schema({ question: {type:String,required:true,maxlength:200}, options: [{type:String,maxlength:100}], votes: {type:Map,of:Number,default:{}} }, {_id:false}), default:undefined },
     pinned: { type: Boolean, default: false },
   },
   { timestamps: true, versionKey: false },

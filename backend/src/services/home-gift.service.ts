@@ -161,6 +161,8 @@ export async function startHomeGiftAds(userId: Types.ObjectId) {
   active ??= await HomeGiftState.findOne({ userId, cycleDayKey: set.dayKey, cycleExpiresAt: { $gt: now }, availableAt: { $lte: now } });
   if (!active?.cycleId) throw new ApiError(409, "home_gift_cycle_unavailable", "Обновите задание.");
   const completedAds = await RewardedAdSession.countDocuments({ userId, placement: "home-gift", homeGiftCycleId: active.cycleId, status: "completed", expiresAt: { $gt: now } });
+  // Older app versions still request two ads; report both completed views so
+  // they do not show an unnecessary third ad while updates roll out.
   return { cycleId: active.cycleId, completedAds: Math.min(2, completedAds) };
 }
 export async function requireHomeGiftAdFlow(userId: Types.ObjectId) {
@@ -176,10 +178,10 @@ export async function claimHomeGiftAds(userId: Types.ObjectId, cycleId: string) 
     if (!state || state.cycleId !== cycleId || !state.cycleExpiresAt || state.cycleExpiresAt < new Date() || state.availableAt > new Date()) throw new ApiError(409, "home_gift_cycle_unavailable", "Задание истекло. Откройте подарок заново.");
     if (state.rewardDayKey !== bonusDay(new Date()).dayKey || state.dailyClaimCount >= DAILY_BONUS_LIMIT) throw new ApiError(409, "home_gift_daily_limit", "Подарки этого дня закончились. Откройте задание заново.");
     const set = await requireCurrentChallenge(state.cycleDayKey ?? undefined, session); rewardDay = set.dayKey;
-    const ads = await RewardedAdSession.find({ userId, placement: "home-gift", homeGiftCycleId: cycleId, status: "completed", expiresAt: { $gt: new Date() } }).sort({ completedAt: 1 }).limit(2).session(session);
-    if (ads.length !== 2) throw new ApiError(409, "home_gift_two_ads_required", "Нужно полностью посмотреть две рекламы.");
+    const ads = await RewardedAdSession.find({ userId, placement: "home-gift", homeGiftCycleId: cycleId, status: "completed", expiresAt: { $gt: new Date() } }).sort({ completedAt: 1 }).limit(1).session(session);
+    if (ads.length !== 1) throw new ApiError(409, "home_gift_ad_required", "Нужно полностью посмотреть рекламу.");
     const consumed = await RewardedAdSession.updateMany({ _id: { $in: ads.map(ad => ad._id) }, status: "completed" }, { $set: { status: "claimed", claimedAt: new Date() } }, { session });
-    if (consumed.modifiedCount !== 2) throw new ApiError(409, "home_gift_ad_already_used", "Эти просмотры уже использованы.");
+    if (consumed.modifiedCount !== 1) throw new ApiError(409, "home_gift_ad_already_used", "Этот просмотр уже использован.");
     await ChallengeAdReward.create([{ userId, sessionId: `home-gift:ads:${cycleId}`, dayKey: set.dayKey, amount: 75 }], { session });
     state.dailyClaimCount += 1;
     state.lastClaimedCycle = cycleId; state.availableAt = nextBonusDeadline(new Date(), state.dailyClaimCount); state.set("cycleId", undefined); state.set("cycleDayKey", undefined); state.set("cycleExpiresAt", undefined);

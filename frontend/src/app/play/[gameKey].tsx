@@ -77,8 +77,6 @@ const GAME_A_ALIASES: Partial<Record<string, ArcadeGameAId>> = {
 const GAME_B_ALIASES: Partial<Record<string, GameBId>> = {
   "geography-quiz": "geo-master",
   "geo-master": "geo-master",
-  fact: "pulse",
-  facts: "pulse",
   "volt-numbers": "volt-numbers",
   "math-quiz": "math-quiz",
   "math-duel": "math-duel",
@@ -99,8 +97,6 @@ const PROGRESS_KEY_ALIASES: Partial<Record<string, GameId>> = {
   "geography-quiz": "geography-quiz",
   "shadow-match": "shadow",
   shadow: "shadow",
-  fact: "pulse",
-  facts: "pulse",
 };
 
 const CLASSIC_GAMES: Partial<Record<GameId, ComponentType>> = {
@@ -115,6 +111,7 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
 
 export default function DynamicGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
+  if (["fact", "facts"].includes(firstParam(params.gameKey) ?? "")) return <Redirect href="/games" />;
   if (Platform.OS === "web" && !isTelegramMiniApp() && firstParam(params.mode) === "challenge") return <AppFrame><ChallengeAppRequired /></AppFrame>;
   if (!isGameVisible(firstParam(params.gameKey) ?? "") && firstParam(params.mode) !== "challenge") return <Redirect href="/games" />;
   // A replacement of the same dynamic route must get a fresh host, not only

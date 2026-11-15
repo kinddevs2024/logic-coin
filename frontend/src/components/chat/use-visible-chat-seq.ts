@@ -1,1 +1,1 @@
-export function useVisibleChatSeq(_enabled: boolean, _onRead: (seq: number) => void) {}
+export function useVisibleChatSeq(_enabled: boolean, _onRead: (seq: number, visible: number[]) => void) {}

@@ -1,5 +1,6 @@
 import {afterEach,expect,it,vi} from "vitest";
 const api=vi.hoisted(()=>({refresh:vi.fn()}));vi.mock("../src/lib/api",()=>({API_URL:"https://unit.test/api/v1",refreshAccessToken:api.refresh}));vi.mock("../src/lib/telegram-context",()=>({telegramChallengeInitData:()=>undefined}));
+vi.mock("react-native",()=>({AppState:{currentState:"active",addEventListener:()=>({remove:()=>{}})},Platform:{OS:"android"}}));
 class Socket{static OPEN=1;readyState=1;onopen:(()=>void)|null=null;onmessage:((event:{data:string})=>void)|null=null;onclose:((event:{code:number})=>void)|null=null;onerror:(()=>void)|null=null;static instances:Socket[]=[];constructor(){Socket.instances.push(this);}send=vi.fn();close(code=1000){this.readyState=3;this.onclose?.({code});}}
 afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
 it("reconnects after an expired session when token refresh temporarily fails",async()=>{

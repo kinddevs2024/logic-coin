@@ -30,11 +30,13 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   Share,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
   type ViewToken,
 } from "react-native";
@@ -54,10 +56,12 @@ import {
 import { useChatCopy } from "@/lib/chat-copy";
 import { useTranslation } from "@/hooks/use-translation";
 import { useChatOutbox } from "@/lib/chat-outbox";
+import { mergeOutgoingMessages } from "@/lib/chat-optimistic";
 import { pickChatPhoto, pickChatFile, shareChatFile } from "@/lib/chat-media";
 import { ChatAction, ChatSheet } from "./chat-sheet";
 import { ChatBubble } from "./chat-bubble";
 import { VoiceRecorder } from "./voice-recorder";
+import emojis from "../../assets/emoji/ordered.json";
 
 const ChatWallpaper = memo(function ChatWallpaper({ uri }: { uri: string }) {
   const source = useMemo(() => ({ uri }), [uri]);
@@ -89,7 +93,21 @@ function ConversationPaneContent({
   onInfo: () => void;
 }) {
   const { language } = useTranslation();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxComposerHeight = Math.max(124, Math.min(360, Math.floor(windowHeight * 0.4)));
   const composerRef = useRef<TextInput>(null);
+  const selection = useRef({ start: 0, end: 0 });
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [profileAttachOpen, setProfileAttachOpen] = useState(false);
+  const [profileSearch, setProfileSearch] = useState("");
+  const [emojiCount, setEmojiCount] = useState(96);
+  const [pollOpen, setPollOpen] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const pollClientId = useRef<string | null>(null);
   const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   useEffect(() => {
@@ -98,6 +116,7 @@ function ConversationPaneContent({
     return () => { show.remove(); hide.remove(); };
   }, []);
   const peer = useQuery({queryKey:["chat-profile",token,room.peer?.id],enabled:room.kind === "direct" && Boolean(room.peer?.id),queryFn:()=>chatApi.profile(token,room.peer!.id),refetchInterval:15_000});
+  const stats = useQuery({queryKey:["chat-stats",token,room.id],enabled:room.kind === "group" || room.kind === "channel",queryFn:()=>chatApi.stats(token,room.id),staleTime:20_000,refetchInterval:30_000});
   const needsFriend = room.kind === "direct" && !peer.data?.canMessage && peer.data?.friendship !== "friends";
   const [inputHeight, setInputHeight] = useState(44);
   const [chatMenu, setChatMenu] = useState(false);
@@ -154,6 +173,8 @@ function ConversationPaneContent({
     return () => clearTimeout(timer);
   }, [searchDraft]);
   const [commentPost, setCommentPost] = useState<ChatItem | null>(null);
+  const [viewedMessage, setViewedMessage] = useState<ChatItem | null>(null);
+  const viewers = useQuery({queryKey:["chat-viewers",token,room.id,viewedMessage?.id],enabled:Boolean(viewedMessage?.own),queryFn:()=>chatApi.viewers(token,room.id,viewedMessage!.id)});
   const [reply, setReply] = useState<ChatItem | null>(null),
     [editing, setEditing] = useState<ChatItem | null>(null),
     [action, setAction] = useState<ChatItem | null>(null);
@@ -170,6 +191,11 @@ function ConversationPaneContent({
   const [report, setReport] = useState<ChatItem | null>(null),
     [reason, setReason] = useState(""),
     [photo, setPhoto] = useState<ChatFile | null>(null);
+  useEffect(() => {
+    if (!photo || Platform.OS !== "web") return;
+    const close = (event:KeyboardEvent) => { if(event.key === "Escape") {event.preventDefault();event.stopPropagation();setPhoto(null);} };
+    document.addEventListener("keydown",close,true);return()=>document.removeEventListener("keydown",close,true);
+  }, [photo]);
   const [attachments, setAttachments] = useState<
       { id: string; name: string; previewUri?: string }[]
     >([]),
@@ -204,14 +230,24 @@ function ConversationPaneContent({
     refetchInterval: 5000,
     staleTime: 3000,
   });
+  const refresh = useCallback(() => {
+    void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
+    return client.invalidateQueries({ queryKey: ["chat-messages", token, room.id] }, { cancelRefetch: false });
+  }, [client, token, room.id]);
+  const confirmSent = useCallback(async () => {
+    await refresh();
+    await client.invalidateQueries({ queryKey: ["chat-messages", token, room.id] }, { cancelRefetch: false, throwOnError: true });
+  }, [client, token, room.id, refresh]);
+  const outbox = useChatOutbox(token, accountId, room.id, confirmSent);
   const [reactionOverrides, setReactionOverrides] = useState<Record<string, ChatItem["reactions"]>>({});
   const reacting = useRef(false);
   const items = useMemo(() => {
     const map = new Map<string, ChatItem>();
     for (const page of [...(query.data?.pages ?? [])].reverse())
       for (const item of page.items) map.set(item.id, item);
-    return [...map.values()].filter(item => !item.deleted).map(item => reactionOverrides[item.id] ? { ...item, reactions: reactionOverrides[item.id] } : item).sort((a, b) => a.seq - b.seq);
-  }, [query.data, reactionOverrides]);
+    const messages = [...map.values()].filter(item => !item.deleted).map(item => reactionOverrides[item.id] ? { ...item, reactions: reactionOverrides[item.id] } : item).sort((a, b) => a.seq - b.seq);
+    return search ? messages : mergeOutgoingMessages(messages,outbox.items,accountId,c.attach);
+  }, [query.data, reactionOverrides, search, outbox.items, accountId, c.attach]);
   const displayItems = useMemo(() => [...items].reverse(), [items]);
   const pinnedMessages = query.data?.pages[0]?.pinned ?? items.filter(item => item.pinned && !item.deleted).slice().reverse();
   const [pinIndex, setPinIndex] = useState(0);
@@ -245,25 +281,14 @@ function ConversationPaneContent({
     }
     void fetchNextPage();
   }, [jumpToPin, displayItems, isFetching, hasNextPage, fetchNextPage, reducedMotion, c.originalUnavailable]);
-  const refresh = useCallback(() => {
-    void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
-    return client.invalidateQueries({
-      queryKey: ["chat-messages", token, room.id],
-    }, { cancelRefetch: false });
-  }, [client, token, room.id]);
-  const confirmSent = useCallback(async () => {
-    // A running request may have started before send was acknowledged. Finish
-    // it first, then fetch a post-ack snapshot before removing the local bubble.
-    await refresh();
-    await client.invalidateQueries({ queryKey: ["chat-messages", token, room.id] }, { cancelRefetch: false, throwOnError: true });
-  }, [client, token, room.id, refresh]);
-  const outbox = useChatOutbox(token, accountId, room.id, confirmSent);
   const forwardResults = useQuery({
     queryKey: ["chat-search", token, forwardSearch],
     enabled: Boolean(forward && forwardSearch.trim().length >= 2),
     queryFn: () => chatApi.search(token, forwardSearch),
     staleTime: 15_000,
   });
+  const profileResults = useQuery({queryKey:["chat-search",token,profileSearch],enabled:profileAttachOpen && profileSearch.trim().length>=2,queryFn:()=>chatApi.search(token,profileSearch.trim()),staleTime:15_000});
+  const insertAttachmentText = (value:string) => {setText(current => `${current}${current ? "\n" : ""}${value}`.slice(0,4000));setTimeout(()=>composerRef.current?.focus(),150);};
   const showError = (err: unknown) =>
     setError(err instanceof Error ? err.message : c.error);
   const run = async (operation: () => Promise<unknown>) => {
@@ -388,12 +413,31 @@ function ConversationPaneContent({
     },
     [token, room.id, accountId, search, client],
   );
-  useVisibleChatSeq(!search, markRead);
+  const viewed = useRef(new Set<string>());
+  const viewQueue = useRef(new Set<string>());
+  const viewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { viewed.current.clear(); viewQueue.current.clear(); return () => { if(viewTimer.current) clearTimeout(viewTimer.current); viewTimer.current=null; }; }, [room.id]);
+  const readVisible = useCallback((_seq:number, seqs:number[]) => {
+    const confirmed = new Set(items.filter(item => !item.pending).map(item => item.seq));
+    markRead(Math.max(0,...seqs.filter(value => confirmed.has(value))));
+    if (search || !["group","channel"].includes(room.kind) || (Platform.OS !== "web" && AppState.currentState !== "active")) return;
+    const visibleSet = new Set(seqs);
+    for (const item of items) if (visibleSet.has(item.seq) && !item.own && !item.system && !viewed.current.has(item.id)) { viewed.current.add(item.id); viewQueue.current.add(item.id); }
+    if (!viewQueue.current.size || viewTimer.current) return;
+    viewTimer.current=setTimeout(() => {
+      viewTimer.current=null;
+      const batch=[...viewQueue.current].slice(0,50);
+      for(const id of batch) viewQueue.current.delete(id);
+      void chatApi.markViews(token,room.id,batch).catch(() => { for(const id of batch) viewed.current.delete(id); });
+    },800);
+  }, [markRead,search,room.id,room.kind,items,token]);
+  useVisibleChatSeq(!search, readVisible);
   const visible = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<ChatItem>[] }) => {
       if (Platform.OS === "web") return;
-      markRead(Math.max(0, ...viewableItems.filter(v => v.isViewable).map(v => v.item.seq)));
-    }, [markRead],
+      const seqs=viewableItems.filter(v => v.isViewable).map(v => v.item.seq);
+      readVisible(Math.max(0,...seqs),seqs);
+    }, [readVisible],
   );
   const visibleHandler = useRef(visible);
   useEffect(() => {
@@ -482,9 +526,9 @@ function ConversationPaneContent({
               </View>
               <AppText variant="caption" muted>
                 {room.kind === "channel"
-                  ? c.channels
+                  ? (stats.data ? `${stats.data.members} ${language === "uz" ? "obunachi" : language === "en" ? "subscribers" : "подписчиков"}` : c.channels)
                   : room.kind === "group"
-                    ? c.groups
+                    ? (stats.data ? `${stats.data.members} ${language === "uz" ? "a’zo" : language === "en" ? "members" : "участников"} · ${stats.data.online ?? 0} online` : c.groups)
                     : room.peer?.username
                       ? `@${room.peer.username}`
                       : c.direct}
@@ -575,7 +619,7 @@ function ConversationPaneContent({
           ref={list}
           inverted
           data={displayItems}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.clientId ?? item.id}
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
@@ -639,7 +683,11 @@ function ConversationPaneContent({
               room={room}
               highlighted={item.id === highlightedMessage}
               onReplyPress={id=>{autoScroll.current=false;setShowSearch(false);setSearchDraft("");setSearch("");setJumpToPin(id);}}
+              onComments={() => setCommentPost(item)}
+              onViewers={item.own ? () => setViewedMessage(item) : undefined}
+              onVote={item.poll ? option => { void chatApi.vote(token,room.id,item.id,option).then(() => refresh()).catch(showError); } : undefined}
               onActions={(message, anchor) => {
+                if (message.pending) return;
                 setActionAnchor(anchor ?? {x: 180, y: 180});
                 setAction(message);
               }}
@@ -652,26 +700,11 @@ function ConversationPaneContent({
                 }).catch(showError);
               }}
             />
-            {room.kind === "channel" && !item.deleted ? <Pressable accessibilityRole="button" accessibilityLabel={`${c.comments}: ${item.commentCount??0}`} onPress={()=>setCommentPost(item)} style={{alignSelf:"center",paddingVertical:10,paddingHorizontal:16,borderWidth:1,borderColor:theme.border,borderRadius:99,marginBottom:10}}><AppText variant="caption" color={String(theme.primary)}>{c.comments} · {item.commentCount??0}</AppText></Pressable>:null}
             </View>
           )}
           ListHeaderComponent={
             <>
               {room.systemKey === "news" ? <FeedAd placement="official-news"/> : null}
-              {outbox.items.map((item) => (
-                <View
-                  key={item.clientId}
-                  style={[
-                    styles.pending,
-                    { backgroundColor: theme.primarySoft },
-                  ]}
-                >
-                  <AppText>{item.text || c.attach}</AppText>
-                  <AppText variant="caption" muted>
-                    {outbox.failed ? c.failed : c.pending}
-                  </AppText>
-                </View>
-              ))}
               {outbox.failed ? (
                 <ChatAction
                   title={c.retry}
@@ -743,7 +776,7 @@ function ConversationPaneContent({
                 </Pressable>
               </View>)}
             </View> : null}
-            <View style={styles.composeLine}>
+            <View style={[styles.composeLine, Boolean(text) && { paddingBottom: 50 }]}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={c.attach}
@@ -754,7 +787,7 @@ function ConversationPaneContent({
                   Boolean(editing)
                 }
                 onPress={() => setAttachMenu(true)}
-                style={styles.icon}
+                style={[styles.icon, Boolean(text) && { position: "absolute", bottom: 0, left: 0 }]}
               >
                 {uploading ? (
                   <ActivityIndicator color={String(theme.primary)} />
@@ -791,12 +824,23 @@ function ConversationPaneContent({
                 }}
                 blurOnSubmit={false}
                 numberOfLines={1}
+                onChange={Platform.OS === "web" ? event => {
+                  const target = (event.nativeEvent as unknown as { target?: HTMLTextAreaElement }).target;
+                  if (!target || typeof target.scrollHeight !== "number") return;
+                  requestAnimationFrame(() => {
+                    const previous = target.style.height;
+                    target.style.height = "44px";
+                    const height = Math.min(maxComposerHeight, Math.max(44, target.scrollHeight));
+                    target.style.height = previous;
+                    setInputHeight(current => current === height ? current : height);
+                  });
+                } : undefined}
                 onContentSizeChange={
                   Platform.OS === "web"
                     ? undefined
                     : (event) => {
                         const height = Math.min(
-                          124,
+                          maxComposerHeight,
                           Math.max(
                             44,
                             Math.ceil(event.nativeEvent.contentSize.height),
@@ -809,12 +853,13 @@ function ConversationPaneContent({
                 }
                 maxLength={4000}
                 value={text}
+                onSelectionChange={event => { selection.current = event.nativeEvent.selection; }}
                 onChangeText={(value) => {
                   setText(value);
                   if (Platform.OS === "web")
                     setInputHeight(
                       Math.min(
-                        124,
+                        maxComposerHeight,
                         Math.max(44, 24 + value.split("\n").length * 20),
                       ),
                     );
@@ -831,7 +876,7 @@ function ConversationPaneContent({
                     display: voiceActive ? "none" : "flex",
                     flex: 1,
                     height: text ? inputHeight : 44,
-                    maxHeight: 124,
+                    maxHeight: maxComposerHeight,
                     minHeight: 44,
                     lineHeight: 20,
                     paddingVertical: 10,
@@ -839,6 +884,7 @@ function ConversationPaneContent({
                   },
                 ]}
               />
+              {!voiceActive ? <Pressable accessibilityRole="button" accessibilityLabel={language === "uz" ? "Emoji" : language === "en" ? "Emoji" : "Эмодзи"} onPress={() => { setEmojiCount(96); setEmojiOpen(true); }} style={[styles.icon, Boolean(text) && {position:"absolute",bottom:0,left:48}]}><Ionicons name="happy-outline" size={24} color={String(theme.primary)}/></Pressable> : null}
               {!text.trim() && !attachments.length && !editing ? (
                 <VoiceRecorder
                   onActiveChange={setVoiceActive}
@@ -858,7 +904,7 @@ function ConversationPaneContent({
                   onPress={() => {
                     void send();
                   }}
-                  style={[styles.send, { backgroundColor: theme.primary }]}
+                  style={[styles.send, { backgroundColor: theme.primary }, Boolean(text) && { position: "absolute", bottom: 0, right: 0 }]}
                 >
                   {busy ? (
                     <ActivityIndicator color={String(theme.onPrimary)} />
@@ -878,8 +924,16 @@ function ConversationPaneContent({
             {needsFriend ? <><AppText muted>{c.friendsOnly}</AppText><ChatAction title={c.profile} icon="person-outline" onPress={()=>room.peer && onProfile(room.peer.id)} /></> : <AppText muted>{c.readOnly}</AppText>}
           </View>
         )}
+        {viewedMessage ? <ChatSheet title={language === "uz" ? "Ko‘rganlar" : language === "en" ? "Viewed by" : "Просмотрели"} onClose={() => setViewedMessage(null)}>{viewers.isPending ? <ActivityIndicator/> : viewers.isError ? <AppText muted>{c.error}</AppText> : viewers.data?.users.map(person => <Pressable key={person.id} accessibilityRole="button" onPress={() => {setViewedMessage(null);onProfile(person.id);}} style={{flexDirection:"row",alignItems:"center",gap:10,paddingVertical:6}}><Avatar userId={person.id} name={person.name} avatarUrl={person.avatarUrl} size={36}/><AppText>{person.name}</AppText></Pressable>)}</ChatSheet> : null}
+        {pollOpen ? <ChatSheet title={language === "uz" ? "So‘rovnoma" : language === "en" ? "Poll" : "Опрос"} onClose={() => setPollOpen(false)}><TextInput accessibilityLabel={language === "uz" ? "Savol" : language === "en" ? "Question" : "Вопрос"} value={pollQuestion} onChangeText={value => {pollClientId.current=null;setPollQuestion(value);}} maxLength={200} placeholder={language === "uz" ? "Savol" : language === "en" ? "Question" : "Вопрос"} placeholderTextColor={theme.textMuted} style={inputStyle}/>{pollOptions.map((option,index) => <TextInput key={index} value={option} onChangeText={value => {pollClientId.current=null;setPollOptions(current=>current.map((v,i)=>i===index?value:v));}} maxLength={100} placeholder={`${language === "uz" ? "Variant" : language === "en" ? "Option" : "Вариант"} ${index+1}`} placeholderTextColor={theme.textMuted} style={inputStyle}/>)}{pollOptions.length<10 ? <ChatAction title={language === "uz" ? "Variant qo‘shish" : language === "en" ? "Add option" : "Добавить вариант"} icon="add-outline" onPress={() => setPollOptions(current=>[...current,""])} /> : null}<ChatAction title={c.send} icon="send-outline" disabled={busy || !pollQuestion.trim() || pollOptions.filter(o=>o.trim()).length<2} onPress={() => { void run(async () => {pollClientId.current ??= Crypto.randomUUID();await chatApi.send(token,room.id,{clientId:pollClientId.current,text:"",attachmentIds:[],poll:{question:pollQuestion.trim(),options:pollOptions.map(o=>o.trim()).filter(Boolean)}});pollClientId.current=null;setPollOpen(false);setPollQuestion("");setPollOptions(["",""]);await refresh();}); }} /></ChatSheet> : null}
+        {contactOpen ? <ChatSheet title={language === "uz" ? "Kontakt" : language === "en" ? "Contact" : "Контакт"} onClose={() => setContactOpen(false)}><TextInput value={contactName} onChangeText={setContactName} maxLength={100} placeholder={language === "uz" ? "Ism" : language === "en" ? "Name" : "Имя"} placeholderTextColor={theme.textMuted} style={inputStyle}/><TextInput value={contactPhone} onChangeText={setContactPhone} keyboardType="phone-pad" maxLength={40} placeholder={language === "uz" ? "Telefon" : language === "en" ? "Phone" : "Телефон"} placeholderTextColor={theme.textMuted} style={inputStyle}/><ChatAction title={c.attach} icon="checkmark-outline" disabled={!contactName.trim() || !contactPhone.trim()} onPress={() => {insertAttachmentText(`👤 ${contactName.trim()}\n☎ ${contactPhone.trim()}`);setContactOpen(false);setContactName("");setContactPhone("");}}/></ChatSheet> : null}
+        {profileAttachOpen ? <ChatSheet title={language === "uz" ? "Profil biriktirish" : language === "en" ? "Attach profile" : "Прикрепить профиль"} onClose={() => setProfileAttachOpen(false)}><TextInput value={profileSearch} onChangeText={setProfileSearch} placeholder={c.search} placeholderTextColor={theme.textMuted} style={inputStyle}/>{profileResults.data?.users.map(person => <Pressable key={person.id} accessibilityRole="button" onPress={() => {insertAttachmentText(`👤 ${person.name}\nhttps://logic-coin.online/player/${person.id}`);setProfileAttachOpen(false);setProfileSearch("");}} style={{flexDirection:"row",alignItems:"center",gap:10,paddingVertical:8}}><Avatar userId={person.id} name={person.name} avatarUrl={person.avatarUrl} size={40}/><AppText>{person.name}</AppText></Pressable>)}</ChatSheet> : null}
+        {emojiOpen ? <ChatSheet title="Emoji" onClose={() => setEmojiOpen(false)}><View style={{flexDirection:"row",flexWrap:"wrap"}}>{emojis.slice(0,emojiCount).map(emoji => <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={emoji} onPress={() => { const {start,end}=selection.current; setText(current => current.slice(0,start)+emoji+current.slice(end)); selection.current={start:start+emoji.length,end:start+emoji.length}; setEmojiOpen(false); setTimeout(() => composerRef.current?.focus(), 150); }} style={{width:44,height:44,alignItems:"center",justifyContent:"center"}}><AppText style={{fontSize:27}}>{emoji}</AppText></Pressable>)}</View>{emojiCount < emojis.length ? <ChatAction title={language === "uz" ? "Yana" : language === "en" ? "More" : "Ещё"} onPress={() => setEmojiCount(count => Math.min(count+96,emojis.length))} /> : null}</ChatSheet> : null}
         {attachMenu ? (
           <ChatSheet title={c.attach} onClose={() => setAttachMenu(false)}>
+            <ChatAction title={language === "uz" ? "Kontakt" : language === "en" ? "Contact" : "Контакт"} icon="person-outline" onPress={() => {setAttachMenu(false);setContactOpen(true);}} />
+            <ChatAction title={language === "uz" ? "Profil" : language === "en" ? "Profile" : "Профиль"} icon="person-circle-outline" onPress={() => {setAttachMenu(false);setProfileAttachOpen(true);}} />
+            {["group","channel"].includes(room.kind) ? <ChatAction title={language === "uz" ? "So‘rovnoma" : language === "en" ? "Poll" : "Опрос"} icon="bar-chart-outline" onPress={() => {setAttachMenu(false);setPollOpen(true);}} /> : null}
             <ChatAction
               title={c.photo}
               icon="image-outline"
@@ -1009,10 +1063,12 @@ function ConversationPaneContent({
               style={inputStyle}
             />
             {forwardResults.data?.users.map((person) => (
-              <ChatAction
+              <Pressable
                 key={person.id}
-                title={person.name}
                 disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel={person.name}
+                style={{flexDirection:"row",alignItems:"center",gap:12,paddingVertical:8}}
                 onPress={() => {
                   void run(async () => {
                     const target = await chatApi.direct(token, person.id);
@@ -1023,19 +1079,21 @@ function ConversationPaneContent({
                     setForward(null);
                   });
                 }}
-              />
+              ><Avatar userId={person.id} name={person.name} avatarUrl={person.avatarUrl} size={42}/><AppText>{person.name}</AppText></Pressable>
             ))}
             {chats
               .filter((r) => r.canPost)
               .map((r) => (
-                <ChatAction
+                <Pressable
                   key={r.id}
-                  title={r.title}
                   disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={r.title}
+                  style={{flexDirection:"row",alignItems:"center",gap:12,paddingVertical:8}}
                   onPress={() => {
                     void forwardTo(r.id);
                   }}
-                />
+                ><Avatar userId={r.peer?.id ?? r.id} name={r.title} avatarUrl={r.peer?.avatarUrl ?? (r.avatarUrl ? chatMediaUrl(r.avatarUrl) : null)} size={42}/><View style={{flex:1}}><AppText numberOfLines={1}>{r.title}</AppText><AppText muted variant="caption" numberOfLines={1}>{r.lastOutgoing?.preview || (r.lastOutgoing?.hasAttachment ? c.attach : "")}</AppText></View></Pressable>
               ))}
           </ChatSheet>
         ) : null}
@@ -1161,26 +1219,7 @@ function ConversationPaneContent({
           {error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{error}</AppText> : null}
         </ChatSheet> : null}
         {draftPhoto ? <ChatSheet title={c.photo} onClose={() => setDraftPhoto(null)}><Image source={{uri: draftPhoto}} resizeMode="contain" style={{width: "100%", height: 350}} /></ChatSheet> : null}
-        {photo ? (
-          <ChatSheet title={photo.name} onClose={() => setPhoto(null)}>
-            <Image
-              source={{ uri: chatMediaUrl(photo.url) }}
-              resizeMode="contain"
-              style={{ width: "100%", height: 350 }}
-            />
-            <ChatAction
-              title={c.share}
-              icon="share-outline"
-              onPress={() => {
-                void shareChatFile(
-                  chatMediaUrl(photo.url),
-                  photo.name,
-                  photo.mime,
-                ).catch(showError);
-              }}
-            />
-          </ChatSheet>
-        ) : null}
+        {photo ? <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={() => setPhoto(null)}><View style={{flex:1,backgroundColor:"#000",justifyContent:"center"}}><Image source={{uri:chatMediaUrl(photo.url)}} resizeMode="contain" style={{width:"100%",height:"100%"}}/><View style={{position:"absolute",top:Math.max(insets.top,12),right:12,flexDirection:"row",gap:8}}><Pressable accessibilityRole="button" accessibilityLabel={c.share} onPress={() => {void shareChatFile(chatMediaUrl(photo.url),photo.name,photo.mime).catch(showError);}} style={{width:44,height:44,borderRadius:22,alignItems:"center",justifyContent:"center",backgroundColor:"#0009"}}><Ionicons name="share-outline" size={23} color="#fff"/></Pressable><Pressable accessibilityRole="button" accessibilityLabel={c.close} onPress={() => setPhoto(null)} style={{width:44,height:44,borderRadius:22,alignItems:"center",justifyContent:"center",backgroundColor:"#0009"}}><Ionicons name="close" size={25} color="#fff"/></Pressable></View></View></Modal> : null}
       </KeyboardAvoidingView>
     </MotionEntrance>
   );

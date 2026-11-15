@@ -7,7 +7,7 @@ import { isChatVideo } from "@/lib/chat-video";
 import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
 
 import { memo } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { AppText } from "@/components/app-text";
 import { LogoMark } from "@/components/logo";
@@ -20,6 +20,9 @@ import {
   type ChatFile,
 } from "@/lib/chat-api";
 import { useChatCopy } from "@/lib/chat-copy";
+import { useAppStore } from "@/store/app-store";
+import { splitChatLinks } from "@/lib/chat-links";
+import { ChatPhoto } from "./chat-photo";
 import { VoicePlayer } from "./voice-player";
 import type { ChatAnchor } from "./chat-popover";
 const reactionLayout = LinearTransition.duration(220).reduceMotion(ReduceMotion.System);
@@ -34,6 +37,9 @@ export const ChatBubble = memo(function ChatBubble({
   onPhoto,
   onListened,
   onReplyPress,
+  onComments,
+  onViewers,
+  onVote,
   highlighted,
   showAvatar = true,
 }: {
@@ -43,18 +49,22 @@ export const ChatBubble = memo(function ChatBubble({
   onProfile: (id: string) => void;
   onPhoto: (file: ChatFile) => void;
   onReplyPress?: (id: string) => void;
+  onComments?: () => void;
+  onViewers?: () => void;
+  onVote?: (option:number) => void;
   highlighted?: boolean;
   showAvatar?: boolean;
   onListened?: (item: ChatItem) => void;
 }) {
   const theme = useAppTheme(),
     c = useChatCopy();
+  const timeFormat = useAppStore(state => state.timeFormat);
   if (item.system?.kind === "raffle_winner" && !item.deleted) return <View nativeID={`chat-seq-${item.seq}`} style={{width:"100%",backgroundColor:highlighted?theme.primarySoft:undefined,borderRadius:16}}><RaffleWinnerSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} /><SystemMessageReactions item={item} onActions={onActions} /></View>;
   if (item.system?.kind === "withdrawal_approved" && !item.deleted) return <View nativeID={`chat-seq-${item.seq}`} style={{width:"100%",backgroundColor:highlighted?theme.primarySoft:undefined,borderRadius:16}}><WithdrawalSystemMessage event={item.system} createdAt={item.createdAt} onProfile={onProfile} /><SystemMessageReactions item={item} onActions={onActions} /></View>;
   const hasVoice = !item.deleted && item.attachments.some(file => file.kind === "voice");
   const voiceOnly = hasVoice && item.attachments.length === 1 && !item.text;
-  const inlineTime = Boolean(item.text) && !item.deleted && !item.attachments.length && !item.reactions.length && !item.edited && !item.pinned;
-  const time = new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).replace(/\s/g, "\u00a0");
+  const inlineTime = Boolean(item.text) && !item.pending && !item.deleted && !item.attachments.length && !item.reactions.length && !item.edited && !item.pinned && item.viewCount === undefined;
+  const time = new Date(item.createdAt).toLocaleTimeString(timeFormat === "24" ? "en-GB" : "en-US", { hour: "2-digit", minute: "2-digit", hour12: timeFormat !== "24" }).replace(/\s/g, "\u00a0");
   return (
     <Animated.View entering={reactionEntering} layout={reactionLayout}
       style={[styles.row, highlighted && { backgroundColor: theme.primarySoft, borderRadius: 16 }, item.own && { justifyContent: "flex-end" }]}
@@ -136,11 +146,7 @@ export const ChatBubble = memo(function ChatBubble({
                     onPhoto(file);
                   }}
                 >
-                  <Image
-                    source={{ uri: chatMediaUrl(file.url) }}
-                    resizeMode="cover"
-                    style={styles.photo}
-                  />
+                  <ChatPhoto uri={chatMediaUrl(file.url)} />
                 </Pressable>
               ) : file.kind === "voice" ? (
                 <VoicePlayer key={file.id} url={chatMediaUrl(file.url)} unread={!item.own && !item.voiceListened} onListened={() => onListened?.(item)} />
@@ -168,12 +174,13 @@ export const ChatBubble = memo(function ChatBubble({
                 selectable
                 style={{ lineHeight: 22, flexShrink: 1, maxWidth: "100%" }}
               >
-                {item.text}
+                {splitChatLinks(item.text).map((part, index) => part.url ? <AppText key={index} accessibilityRole="link" color={String(theme.primary)} style={{textDecorationLine:"underline"}} onPress={event => {event.stopPropagation();const link=new URL(part.url!);const profile=/^\/player\/([a-f\d]{24})\/?$/i.exec(link.pathname);if(profile && ["logic-coin.online","www.logic-coin.online"].includes(link.hostname))onProfile(profile[1]!);else void Linking.openURL(part.url!).catch(() => {});}}>{part.text}</AppText> : part.text)}
                 {inlineTime ? <AppText variant="caption" color={String(theme.textMuted)} style={{fontSize:11,lineHeight:16}}>
                   {"   "}{time}{item.own ? "\u00a0" : ""}{item.own ? <Ionicons accessibilityLabel={room.peerReadSeq >= item.seq ? c.read : c.sent} name={room.peerReadSeq >= item.seq ? "checkmark-done" : "checkmark"} size={13} color={room.peerReadSeq >= item.seq ? theme.primary : theme.textMuted} /> : null}
                 </AppText> : null}
               </AppText>
             ) : null}
+            {item.poll ? <View style={{gap:6,minWidth:180,marginTop:6}}>{item.poll.options.map((option,index) => <Pressable key={index} accessibilityRole="button" accessibilityState={{selected:item.poll?.myVote === index}} onPress={event => {event.stopPropagation();onVote?.(index);}} style={{borderWidth:1,borderColor:item.poll?.myVote === index ? theme.primary : theme.border,borderRadius:12,padding:8,flexDirection:"row",alignItems:"center",gap:8}}><Ionicons name={item.poll?.myVote === index ? "radio-button-on" : "radio-button-off"} size={17} color={String(theme.primary)}/><AppText style={{flex:1}}>{option.text}</AppText><AppText variant="caption" muted>{option.votes}</AppText></Pressable>)}</View> : null}
           </>
         )}
         {!inlineTime ? <View style={[styles.footer, voiceOnly && !item.reactions.length && { position: "absolute", right: 10, bottom: 7 }]}>
@@ -199,6 +206,7 @@ export const ChatBubble = memo(function ChatBubble({
           </View>
         ) : null}
         <View style={styles.meta}>
+          {item.viewCount !== undefined ? <Pressable disabled={!onViewers} accessibilityRole="button" accessibilityLabel={`${item.viewCount}`} onPress={event => {event.stopPropagation(); onViewers?.();}} style={{flexDirection:"row",alignItems:"center",gap:3}}><Ionicons name="eye-outline" size={13} color={String(theme.textMuted)}/><AppText variant="caption" muted>{item.viewCount}</AppText></Pressable> : null}
           {item.pinned ? (
             <Ionicons name="pin" size={12} color={String(theme.primary)} />
           ) : null}
@@ -208,13 +216,9 @@ export const ChatBubble = memo(function ChatBubble({
             </AppText>
           ) : null}
           <AppText variant="caption" color={String(theme.textMuted)}>
-            {new Date(item.createdAt).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })}
+            {time}
           </AppText>
-          {item.own ? (
+          {item.pending ? <Ionicons accessibilityLabel={c.pending} name="time-outline" size={15} color={String(theme.textMuted)}/> : item.own ? (
             <Ionicons
               accessibilityLabel={
                 room.peerReadSeq >= item.seq ? c.read : c.sent
@@ -230,6 +234,7 @@ export const ChatBubble = memo(function ChatBubble({
           ) : null}
         </View>
         </View> : null}
+        {room.kind === "channel" && !item.deleted && onComments ? <Pressable accessibilityRole="button" accessibilityLabel={`${c.comments}: ${item.commentCount ?? 0}`} onPress={event => { event.stopPropagation(); onComments(); }} style={{borderTopWidth:1,borderTopColor:theme.border,marginTop:5,paddingTop:8,paddingBottom:3,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:6}}><Ionicons name="chatbubble-outline" size={15} color={String(theme.primary)}/><AppText variant="caption" color={String(theme.primary)}>{c.comments} · {item.commentCount ?? 0}</AppText></Pressable> : null}
       </MessagePressable>
     </Animated.View>
   );
@@ -247,7 +252,6 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   quote: { borderLeftWidth: 3, paddingLeft: 9, gap: 2 },
-  photo: { width: 230, maxWidth: "100%", height: 190, borderRadius: 14 },
   file: {
     flexDirection: "row",
     alignItems: "center",

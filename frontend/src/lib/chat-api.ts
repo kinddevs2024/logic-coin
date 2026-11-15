@@ -26,6 +26,7 @@ export type ChatRoom = {
   peerReadSeq: number;
   lastMessageAt: string;
   incoming?: { senderId: string; preview: string; hasAttachment: boolean; at: string; seq: number } | null;
+  lastOutgoing?: {preview:string;hasAttachment:boolean} | null;
   preview: string;
   hasAttachment: boolean;
   muted: boolean;
@@ -49,6 +50,10 @@ export type WithdrawalSystemEvent = { kind: "withdrawal_approved"; recipientId: 
 export type RaffleWinnerSystemEvent = { kind: "raffle_winner"; recipientId: string; recipientName: string; raffleTitle: string; amountCents?: number; prizeText?: string };
 export type ChatCommentItem = {id:string;sender:ChatPerson;text:string;deleted:boolean;own:boolean;createdAt:string;reply:{id:string;sender:ChatPerson;text:string;deleted:boolean}|null};
 export type ChatItem = {
+  clientId?: string;
+  pending?: boolean;
+  viewCount?: number;
+  poll?: {question:string;options:{text:string;votes:number}[];myVote:number|null};
   commentCount?: number;
   system?: WithdrawalSystemEvent | RaffleWinnerSystemEvent;
   id: string;
@@ -87,6 +92,7 @@ const call = <T>(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 export const chatApi = {
+  stats: (token:string,id:string) => call<{members:number;online?:number}>(token,`/${id}/stats`),
   comments:(token:string,id:string,messageId:string,before?:string)=>call<{items:ChatCommentItem[];before:string|null;total:number}>(token,`/${id}/messages/${messageId}/comments${before?`?before=${encodeURIComponent(before)}`:""}`),
   comment:(token:string,id:string,messageId:string,input:{clientId:string;text:string;replyTo?:string})=>call<{id:string}>(token,`/${id}/messages/${messageId}/comments`,"POST",input),
   removeComment:(token:string,id:string,messageId:string,commentId:string)=>call<{ok:boolean}>(token,`/${id}/messages/${messageId}/comments/${commentId}`,"DELETE"),
@@ -143,6 +149,9 @@ export const chatApi = {
   join: (token: string, code: string) =>
     call<{ id: string }>(token, "/join", "POST", { code }),
   listen: (token: string, id: string) => call<{ok: boolean}>(token, `/messages/${id}/listen`, "POST"),
+  markViews: (token:string,id:string,messageIds:string[]) => call<{ok:boolean}>(token,`/${id}/views`,"POST",{messageIds}),
+  viewers: (token:string,id:string,messageId:string) => call<{users:ChatPerson[]}>(token,`/${id}/messages/${messageId}/viewers`),
+  vote: (token:string,id:string,messageId:string,option:number) => call<{ok:boolean}>(token,`/${id}/messages/${messageId}/vote`,"POST",{option}),
   messages: (token: string, id: string, before?: number, q?: string) =>
     call<{ items: ChatItem[]; before: number | null; pinned?: {id: string; seq: number; text: string; hasAttachments: boolean}[] }>(
       token,
@@ -157,6 +166,7 @@ export const chatApi = {
       attachmentIds?: string[];
       replyTo?: string;
       forwardId?: string;
+      poll?: {question:string;options:string[]};
     },
   ) =>
     call<{ id: string; seq: number }>(token, `/${id}/messages`, "POST", input),

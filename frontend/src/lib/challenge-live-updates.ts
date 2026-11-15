@@ -1,6 +1,7 @@
 import { API_URL, refreshAccessToken } from "@/lib/api";
 import { telegramChallengeInitData } from "./telegram-context";
 import type { TodayChallenges, PendingContestReward } from "@/types";
+import { AppState, Platform } from "react-native";
 export type LiveState = { chatRead?: import("./chat-notification-sync").ChatReadReceipt; chatSync?: boolean; chatTyping?: { conversationId: string; expiresAt: number }; chat?: { conversationId: string }; raffle?: import("./raffle").RaffleState; today?: TodayChallenges; reward?: PendingContestReward | null };
 
 type Connection = {
@@ -12,9 +13,15 @@ type Connection = {
   retryAttempt: number;
   hasConnected: boolean;
   authenticated: boolean;
+  presenceCleanup?: () => void;
 };
 
 const connections = new Map<string, Connection>();
+function sendPresence(connection: Connection): void {
+  if (!connection.authenticated || connection.socket?.readyState !== WebSocket.OPEN) return;
+  const active = Platform.OS === "web" && typeof document !== "undefined" ? document.visibilityState === "visible" : AppState.currentState === "active";
+  connection.socket.send(JSON.stringify({type:"presence",active}));
+}
 
 function websocketUrl(): string {
   const apiUrl = API_URL.replace(/\/+$/, "");
@@ -68,6 +75,7 @@ function connect(token: string, connection: Connection): void {
       const reconnected = connection.hasConnected;
       connection.hasConnected = true;
       connection.authenticated = true;
+      sendPresence(connection);
       connection.retryAttempt = 0;
       notify(connection, { chatSync: true });
       for (const pending of connection.pending.values()) {
@@ -119,6 +127,11 @@ export function subscribeToChallengeUpdates(token: string, listener: (state: Liv
       authenticated: false,
     };
     connections.set(token, connection);
+    const current = connection;
+    const appState = AppState.addEventListener("change", () => sendPresence(current));
+    const visibility = () => sendPresence(current);
+    if (Platform.OS === "web" && typeof document !== "undefined") document.addEventListener("visibilitychange", visibility);
+    connection.presenceCleanup = () => { appState.remove(); if (Platform.OS === "web" && typeof document !== "undefined") document.removeEventListener("visibilitychange", visibility); };
   }
   connection.listeners.add(listener);
   connect(token, connection);
@@ -129,6 +142,7 @@ export function subscribeToChallengeUpdates(token: string, listener: (state: Liv
     current.listeners.delete(listener);
     if (current.listeners.size > 0) return;
     if (current.retryTimer) clearTimeout(current.retryTimer);
+    current.presenceCleanup?.();
     current.retryTimer = null;
     current.socket?.close();
     current.socket = null;

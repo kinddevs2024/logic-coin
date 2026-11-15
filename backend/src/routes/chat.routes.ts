@@ -5,7 +5,9 @@ import { rateLimit } from "express-rate-limit";
 import { validateBody } from "../middleware/validate.js";
 import { ApiError } from "../lib/api-error.js";
 import { User } from "../models/User.js";
-import { ChatBlock } from "../models/Chat.js";
+import { ChatBlock, ChatMember, ChatMessage } from "../models/Chat.js";
+import { connectedChatUserIds } from "../services/live-updates.service.js";
+import { notifyChatChange } from "../services/live-updates.service.js";
 import * as chat from "../services/chat.service.js";
 import { uploadChatStream } from "../services/chat-upload.service.js";
 import { chatVideoPoster } from "../services/chat-video-preview.service.js";
@@ -102,6 +104,15 @@ router.get("/search", async (req, res) =>
 router.get("/directory", async(req,res)=>res.json({data:await chat.listFriendDirectory(req.auth!.userId,z.string().max(80).parse(req.query.q??""),req.query.cursor?parseId(req.query.cursor):undefined)}));
 router.get("/friends", async(req,res)=>res.json({data:await chat.listFriends(req.auth!.userId,z.string().max(100).parse(req.query.q ?? ""))}));
 router.get("/friend-requests", async (req,res)=>res.json({data:await chat.listFriendRequests(req.auth!.userId)}));
+router.get("/:id/stats", async (req,res) => {
+  const { c } = await chat.chatAccess(req.auth!.userId, parseId(req.params.id));
+  if (c.kind !== "group" && c.kind !== "channel") throw new ApiError(400,"invalid_chat","Not a group or channel");
+  const filter = { conversationId:c._id, leftAt:{$exists:false} };
+  const members = await ChatMember.countDocuments(filter);
+  const connected = c.kind === "group" ? connectedChatUserIds() : [];
+  const online = c.kind === "group" && connected.length ? await ChatMember.countDocuments({...filter,userId:{$in:connected}}) : 0;
+  res.json({data:{members,...(c.kind === "group" ? {online} : {})}});
+});
 router.post("/users/:id/friend-request", writeLimiter, async(req,res)=>res.json({data:await chat.requestFriend(req.auth!.userId,parseId(req.params.id))}));
 router.post("/users/:id/friend-answer", writeLimiter, validateBody(z.object({accept:z.boolean()}).strict()), async(req,res)=>res.json({data:await chat.answerFriend(req.auth!.userId,parseId(req.params.id),req.body.accept)}));
 router.get("/users/:id", async (req, res) => {
@@ -193,6 +204,29 @@ router.post(
 router.post("/messages/:id/listen", writeLimiter, async (req, res) => {
   res.json({ data: await chat.markVoiceListened(req.auth!.userId, parseId(req.params.id)) });
 });
+router.post("/:id/views", writeLimiter, validateBody(z.object({messageIds:z.array(id).min(1).max(50)}).strict()), async (req,res) => {
+ const {c}=await chat.chatAccess(req.auth!.userId,parseId(req.params.id));
+ if (!["group","channel"].includes(c.kind)) throw new ApiError(400,"invalid_chat","Not a group or channel");
+ await ChatMessage.updateMany({_id:{$in:req.body.messageIds},conversationId:c._id,senderId:{$ne:req.auth!.userId},deletedAt:{$exists:false},hiddenFor:{$ne:req.auth!.userId}},{$addToSet:{viewedBy:req.auth!.userId}});
+ res.json({data:{ok:true}});
+});
+router.get("/:id/messages/:messageId/viewers", async(req,res)=>{
+ const {c}=await chat.chatAccess(req.auth!.userId,parseId(req.params.id));
+ if (!["group","channel"].includes(c.kind)) throw new ApiError(400,"invalid_chat","Not a group or channel");
+ const message=await ChatMessage.findOne({_id:parseId(req.params.messageId),conversationId:c._id,senderId:req.auth!.userId,deletedAt:{$exists:false}}).select("viewedBy").lean();
+ if(!message) throw new ApiError(404,"message_not_found","Message not found");
+ const users=await User.find({_id:{$in:message.viewedBy ?? []}}).select("name username avatarUrl referralCode role").lean();
+ res.json({data:{users:users.map(chat.chatProfile)}});
+});
+router.post("/:id/messages/:messageId/vote",writeLimiter,validateBody(z.object({option:z.number().int().min(0).max(9)}).strict()),async(req,res)=>{
+ const {c}=await chat.chatAccess(req.auth!.userId,parseId(req.params.id));
+ const message=await ChatMessage.findOne({_id:parseId(req.params.messageId),conversationId:c._id,deletedAt:{$exists:false},hiddenFor:{$ne:req.auth!.userId}}).select("poll.options").lean();
+ if(!message?.poll || req.body.option >= message.poll.options.length) throw new ApiError(400,"invalid_vote","Invalid poll option");
+ await ChatMessage.updateOne({_id:message._id},{$set:{[`poll.votes.${req.auth!.userId}`]:req.body.option}});
+ const recipients=await ChatMember.distinct("userId",{conversationId:c._id,leftAt:{$exists:false}});
+ notifyChatChange(recipients.map(String),String(c._id));
+ res.json({data:{ok:true}});
+});
 router.get("/:id/messages/:messageId/comments", async(req,res)=>{
  const before=req.query.before===undefined?undefined:parseId(req.query.before);
  res.set("Cache-Control","no-store").json({data:await listChatComments(req.auth!.userId,parseId(req.params.id),parseId(req.params.messageId),before)});
@@ -280,6 +314,7 @@ router.post(
         attachmentIds: z.array(id).max(4).default([]),
         replyTo: id.optional(),
         forwardId: id.optional(),
+        poll: z.object({question:z.string().trim().min(1).max(200),options:z.array(z.string().trim().min(1).max(100)).min(2).max(10)}).strict().optional(),
       })
       .strict(),
   ),
