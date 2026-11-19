@@ -11,6 +11,10 @@ on:
         description: Optional previous release run ID for an in-place update test
         required: false
         type: string
+      candidate_channel:
+        description: Signed OTA candidate channel to test on the installed builds
+        required: false
+        type: string
   workflow_run:
     workflows: [Android APK and AAB]
     types: [completed]
@@ -81,7 +85,13 @@ jobs:
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
       - name: Check installation, UI startup, resume and update
+        if: inputs.candidate_channel == ''
         run: python3 scripts/android-startup-check.py
+      - name: Download and cold-launch the signed OTA candidate
+        if: inputs.candidate_channel != ''
+        env:
+          CANDIDATE_CHANNEL: ${{ inputs.candidate_channel }}
+        run: python3 scripts/android-ota-candidate-check.py
       - name: Upload startup evidence
         if: always()
         uses: actions/upload-artifact@v4
