@@ -20,6 +20,7 @@ DATABASE = f"{DEVICE_APP}/databases/updates.db"
 APK_PATHS = (Path("artifacts/previous/logic-coin.apk"), Path("artifacts/release/logic-coin.apk"))
 ORIGIN = "https://logic-coin.online/updates"
 READY = 1
+EVIDENCE = Path("artifacts/startup")
 
 
 def adb(*args, timeout=45, check=True):
@@ -95,7 +96,7 @@ def launch():
 
 
 def wait_for_login():
-    deadline = time.monotonic() + 100
+    deadline = time.monotonic() + 45
     while time.monotonic() < deadline:
         if not running():
             raise RuntimeError("Logic Coin exited before displaying login")
@@ -103,6 +104,7 @@ def wait_for_login():
         if output.returncode != 0:
             continue
         xml = shell("cat /sdcard/logic-coin-ota-ui.xml")
+        (EVIDENCE / "latest-ui.xml").write_text(xml, encoding="utf-8")
         try:
             nodes = list(ElementTree.fromstring(xml).iter("node"))
         except ElementTree.ParseError:
@@ -175,8 +177,8 @@ def main():
     if shell("id -u") != "0" or "arm64-v8a" not in shell("getprop ro.product.cpu.abilist"):
         raise RuntimeError("A rooted emulator with ARM translation is required")
 
-    evidence = Path("artifacts/startup/ota-candidate.json")
-    evidence.parent.mkdir(parents=True, exist_ok=True)
+    EVIDENCE.mkdir(parents=True, exist_ok=True)
+    evidence = EVIDENCE / "ota-candidate.json"
     results = []
     first_install = None
     for apk in (path for path in APK_PATHS if path.exists()):
@@ -191,15 +193,16 @@ def main():
 
         if channel != "production":
             set_candidate_channel(channel)
+        adb("logcat", "-c")
         print(f"Launching installed APK {version} for candidate {candidate}", flush=True)
         launch()
-        wait_for_login()
         launches_before_restart = wait_for_update(candidate, runtime)
         print(f"APK {version} downloaded signed update, restarting from disk", flush=True)
         time.sleep(4)
         launch()
-        wait_for_login()
         launches_after_restart = wait_for_update(candidate, runtime, launches_before_restart)
+        print(f"APK {version} ran exact candidate with launch count {launches_after_restart}", flush=True)
+        wait_for_login()
         results.append({
             "versionCode": version,
             "runtime": runtime,
@@ -219,6 +222,10 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
-        diagnostics = adb("logcat", "-d", "-t", "2000", "-s", "AndroidRuntime", "ReactNativeJS", "ReactNative", "ExpoUpdates", "ActivityTaskManager", check=False)
-        print(diagnostics.stdout.decode(errors="replace")[-16000:], flush=True)
+        pic = adb("exec-out", "screencap", "-p", check=False).stdout
+        if pic.startswith(b"\x89PNG"):
+            (EVIDENCE / "latest-screen.png").write_bytes(pic)
+        diagnostic = adb("logcat", "-d", "-s", "AndroidRuntime", "ReactNativeJS", "ReactNative", "ExpoUpdates", "ActivityTaskManager", check=False)
+        lines = [line for line in diagnostic.stdout.decode(errors="replace").splitlines() if not re.search(r"uiautomator|using default boot image|leaving lock profiling|Shutting down VM|^.* START .*RuntimeInit", line, re.I)]
+        print("\n".join(lines)[-24000:], flush=True)
         raise
