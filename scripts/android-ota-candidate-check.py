@@ -89,6 +89,8 @@ def set_candidate_channel(channel):
 
 def launch():
     shell(f"am force-stop {PACKAGE}")
+    shell("input keyevent KEYCODE_WAKEUP")
+    shell("wm dismiss-keyguard")
     output = shell(f"am start -n {PACKAGE}/.MainActivity")
     if "Error" in output:
         raise RuntimeError(output)
@@ -176,6 +178,8 @@ def main():
     adb("wait-for-device")
     if shell("id -u") != "0" or "arm64-v8a" not in shell("getprop ro.product.cpu.abilist"):
         raise RuntimeError("A rooted emulator with ARM translation is required")
+    shell("svc power stayon true")
+    shell("settings put system screen_off_timeout 1800000")
 
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     evidence = EVIDENCE / "ota-candidate.json"
