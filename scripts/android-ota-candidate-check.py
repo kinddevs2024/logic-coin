@@ -165,8 +165,8 @@ def wait_for_update(candidate, runtime, previous_launches=None):
 
 def main():
     channel = os.environ["CANDIDATE_CHANNEL"]
-    if not re.fullmatch(r"android-[a-z0-9-]*candidate-[a-z0-9-]+", channel):
-        raise RuntimeError("Use a dedicated Android candidate channel")
+    if channel != "production" and not re.fullmatch(r"android-[a-z0-9-]*candidate-[a-z0-9-]+", channel):
+        raise RuntimeError("Use a dedicated Android candidate channel or the current production control")
     serial = adb("get-serialno").stdout.decode().strip()
     if not re.fullmatch(r"emulator-[0-9]+", serial) or shell("getprop ro.kernel.qemu") != "1":
         raise RuntimeError("Use an isolated Android emulator")
@@ -189,12 +189,14 @@ def main():
             raise RuntimeError("APK upgrade unexpectedly reinstalled the app")
         first_install = stamp[1]
 
-        set_candidate_channel(channel)
+        if channel != "production":
+            set_candidate_channel(channel)
         print(f"Launching installed APK {version} for candidate {candidate}", flush=True)
         launch()
         wait_for_login()
         launches_before_restart = wait_for_update(candidate, runtime)
         print(f"APK {version} downloaded signed update, restarting from disk", flush=True)
+        time.sleep(4)
         launch()
         wait_for_login()
         launches_after_restart = wait_for_update(candidate, runtime, launches_before_restart)
@@ -217,6 +219,6 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
-        diagnostics = adb("logcat", "-d", "-t", "2000", "-s", "AndroidRuntime", "ReactNativeJS", "ReactNative", "ExpoUpdates", check=False)
+        diagnostics = adb("logcat", "-d", "-t", "2000", "-s", "AndroidRuntime", "ReactNativeJS", "ReactNative", "ExpoUpdates", "ActivityTaskManager", check=False)
         print(diagnostics.stdout.decode(errors="replace")[-16000:], flush=True)
         raise
