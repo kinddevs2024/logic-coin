@@ -30,6 +30,10 @@ def shell(command):
     return adb("shell", command).stdout.decode().strip()
 
 
+def running():
+    return bool(adb("shell", "pidof", PACKAGE, check=False).stdout.strip())
+
+
 def apk_candidate(apk, channel):
     with ZipFile(apk) as archive:
         runtime = archive.read("assets/fingerprint").decode().strip()
@@ -84,12 +88,16 @@ def set_candidate_channel(channel):
 
 def launch():
     shell(f"am force-stop {PACKAGE}")
-    shell(f"am start -W -n {PACKAGE}/.MainActivity")
+    output = shell(f"am start -n {PACKAGE}/.MainActivity")
+    if "Error" in output:
+        raise RuntimeError(output)
+    time.sleep(5)
 
 
 def wait_for_login():
-    for _ in range(24):
-        if not shell(f"pidof {PACKAGE}"):
+    deadline = time.monotonic() + 100
+    while time.monotonic() < deadline:
+        if not running():
             raise RuntimeError("Logic Coin exited before displaying login")
         output = adb("shell", "uiautomator dump /sdcard/logic-coin-ota-ui.xml", check=False)
         if output.returncode != 0:
@@ -149,7 +157,7 @@ def wait_for_update(candidate, runtime, previous_launches=None):
                 raise RuntimeError(f"Expo recorded a failed launch for candidate {candidate}")
             if previous_launches is None or row[1] > previous_launches:
                 return row[1]
-        if not shell(f"pidof {PACKAGE}"):
+        if not running():
             raise RuntimeError("Logic Coin stopped while testing OTA")
         time.sleep(4)
     raise RuntimeError(f"Timed out verifying candidate {candidate}")
@@ -182,9 +190,11 @@ def main():
         first_install = stamp[1]
 
         set_candidate_channel(channel)
+        print(f"Launching installed APK {version} for candidate {candidate}", flush=True)
         launch()
         wait_for_login()
         launches_before_restart = wait_for_update(candidate, runtime)
+        print(f"APK {version} downloaded signed update, restarting from disk", flush=True)
         launch()
         wait_for_login()
         launches_after_restart = wait_for_update(candidate, runtime, launches_before_restart)
@@ -204,4 +214,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        diagnostics = adb("logcat", "-d", "-t", "2000", "-s", "AndroidRuntime", "ReactNativeJS", "ReactNative", "ExpoUpdates", check=False)
+        print(diagnostics.stdout.decode(errors="replace")[-16000:], flush=True)
+        raise
