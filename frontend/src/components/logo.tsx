@@ -10,7 +10,7 @@ export function LogoMark({ size = 52 }: { size?: number }) {
       accessibilityIgnoresInvertColors
       source={nativeLogoSource}
       resizeMode="contain"
-      style={{ width: size * 1.7, height: size * 1.7 }}
+      style={{ width: size, height: size }}
     />
     </View>
   );
