@@ -155,6 +155,26 @@ type GameProgressState = {
   mergeRemote: (remote: GamesProgress) => GamesProgress;
 };
 
+// A failed read can still leave a valid save on disk. Run with in-memory
+// progress for that session and keep the on-disk save for the next good read.
+let progressStorageWritable = false;
+const progressStorage = createJSONStorage<Pick<GameProgressState, "games">>(() => ({
+  getItem: (key) => AsyncStorage.getItem(key),
+  setItem: async (key, value) => {
+    if (progressStorageWritable) await AsyncStorage.setItem(key, value).catch(() => undefined);
+  },
+  removeItem: (key) => AsyncStorage.removeItem(key),
+}));
+
+function persistedGames(value: unknown): GamesProgress | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid game progress state");
+  const games: unknown = (value as { games?: unknown }).games;
+  if (games === undefined) return undefined;
+  if (!games || typeof games !== "object" || Array.isArray(games)) throw new Error("Invalid saved games");
+  return games as GamesProgress;
+}
+
 export const useGameProgressStore = create<GameProgressState>()(
   persist(
     (set, get) => ({
@@ -337,17 +357,23 @@ export const useGameProgressStore = create<GameProgressState>()(
     {
       name: "logic-coin-games-v1",
       version: 4,
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: progressStorage,
       skipHydration: Platform.OS === "web",
       migrate: (persisted) => {
-        const state = (persisted ?? {}) as { games?: GamesProgress };
-        const games = { ...(state.games ?? {}) } as Record<string, GameProgress>;
+        const games = { ...persistedGames(persisted) } as Record<string, GameProgress>;
         delete games["gold-rush-2048"];
         for (const gameId of Object.keys(games) as GameId[]) games[gameId] = normalizeProgress(games[gameId], gameId);
-        return { ...state, games: games as GamesProgress } as GameProgressState;
+        return { games: games as GamesProgress };
       },
-      partialize: ({ hydrated: _hydrated, ...state }) => state,
-      onRehydrateStorage: () => (state) => state?.setHydrated(true),
+      merge: (persisted, current) => ({ ...current, games: persistedGames(persisted) ?? current.games }),
+      partialize: ({ games }) => ({ games }),
+      onRehydrateStorage: (current) => {
+        progressStorageWritable = false;
+        return (loaded) => {
+          progressStorageWritable = Boolean(loaded);
+          (loaded ?? current).setHydrated(true);
+        };
+      },
     },
   ),
 );
@@ -356,5 +382,6 @@ export function gameProgressFor(
   games: GamesProgress,
   gameId: GameId,
 ): Readonly<GameProgress> {
-  return games[gameId] ?? DEFAULT_GAME_PROGRESS[gameId] ?? initialProgress(gameId);
+  if (!Object.prototype.hasOwnProperty.call(DEFAULT_GAME_PROGRESS, gameId)) return EMPTY_GAME_PROGRESS;
+  return games[gameId] ?? DEFAULT_GAME_PROGRESS[gameId] ?? EMPTY_GAME_PROGRESS;
 }

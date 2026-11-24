@@ -1,9 +1,9 @@
 import { applyChatReadReceipt } from "@/lib/chat-notification-sync";
 import { ChannelComments } from "./channel-comments";
 import { FeedAd } from "@/components/feed-ad";
-import { catchUpChatHead } from "@/lib/chat-sync";
+import { catchUpChatHead, replaceChatHistoryHead, type ChatHistoryPage } from "@/lib/chat-sync";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useReducedMotion } from "react-native-reanimated";
+import Reanimated, { FadeIn, FadeOut, ReduceMotion, useReducedMotion } from "react-native-reanimated";
 import { useVisibleChatSeq } from "./use-visible-chat-seq";
 import { MotionEntrance } from "@/components/motion-entrance";
 import { OfficialBadge } from "./official-badge";
@@ -17,15 +17,19 @@ import { ChatThemeProvider } from "./chat-theme";
 import { ChatThemePreview } from "./chat-theme-preview";
 import { ChatPopover, type ChatAnchor } from "./chat-popover";
 import {
+  focusManager,
+  type InfiniteData,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
+import * as Clipboard from "expo-clipboard";
 import {
   Animated,
   ActivityIndicator,
   AppState,
+  BackHandler,
   FlatList,
   Image,
   Keyboard,
@@ -61,7 +65,9 @@ import { pickChatPhoto, pickChatFile, shareChatFile } from "@/lib/chat-media";
 import { ChatAction, ChatSheet } from "./chat-sheet";
 import { ChatBubble } from "./chat-bubble";
 import { VoiceRecorder } from "./voice-recorder";
-import emojis from "../../assets/emoji/ordered.json";
+
+const selectionEntering = FadeIn.duration(110).withInitialValues({ opacity: 0.5 }).reduceMotion(ReduceMotion.System);
+const selectionExiting = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
 
 const ChatWallpaper = memo(function ChatWallpaper({ uri }: { uri: string }) {
   const source = useMemo(() => ({ uri }), [uri]);
@@ -96,14 +102,11 @@ function ConversationPaneContent({
   const { height: windowHeight } = useWindowDimensions();
   const maxComposerHeight = Math.max(124, Math.min(360, Math.floor(windowHeight * 0.4)));
   const composerRef = useRef<TextInput>(null);
-  const selection = useRef({ start: 0, end: 0 });
-  const [emojiOpen, setEmojiOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [profileAttachOpen, setProfileAttachOpen] = useState(false);
   const [profileSearch, setProfileSearch] = useState("");
-  const [emojiCount, setEmojiCount] = useState(96);
   const [pollOpen, setPollOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
@@ -121,8 +124,8 @@ function ConversationPaneContent({
   const [inputHeight, setInputHeight] = useState(44);
   const [chatMenu, setChatMenu] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
-  const [actionAnchor, setActionAnchor] = useState<ChatAnchor>({x: 180, y: 180});
-  const [deleting, setDeleting] = useState<ChatItem | null>(null);
+  const [deleting, setDeleting] = useState<ChatItem[] | null>(null);
+  const [selection, setSelection] = useState<ReadonlySet<string>>(() => new Set());
   const [draftPhoto, setDraftPhoto] = useState<string | null>(null);
   const [headerHeight, setHeaderHeight] = useState(68);
   const reducedMotion = useReducedMotion();
@@ -176,17 +179,26 @@ function ConversationPaneContent({
   const [viewedMessage, setViewedMessage] = useState<ChatItem | null>(null);
   const viewers = useQuery({queryKey:["chat-viewers",token,room.id,viewedMessage?.id],enabled:Boolean(viewedMessage?.own),queryFn:()=>chatApi.viewers(token,room.id,viewedMessage!.id)});
   const [reply, setReply] = useState<ChatItem | null>(null),
-    [editing, setEditing] = useState<ChatItem | null>(null),
-    [action, setAction] = useState<ChatItem | null>(null);
+    [editing, setEditing] = useState<ChatItem | null>(null);
+  const [actionMenu, setActionMenu] = useState<{ item: ChatItem; anchor: ChatAnchor; closing: boolean } | null>(null);
+  const action = actionMenu?.item;
+  const afterActionClose = useRef<(() => void) | null>(null);
+  const closeAction = useCallback((next?: () => void) => {
+    if (next) afterActionClose.current = next;
+    setActionMenu(current => current && !current.closing ? { ...current, closing: true } : current);
+  }, []);
+  const finishActionClose = useCallback(() => {
+    setActionMenu(null);
+    const next = afterActionClose.current;
+    afterActionClose.current = null;
+    next?.();
+  }, []);
   useEffect(() => {
     if (!reply) return;
     const timer = setTimeout(() => composerRef.current?.focus(), Platform.OS === "web" ? 0 : 250);
     return () => clearTimeout(timer);
   }, [reply]);
-  const [forward, setForward] = useState<{
-      message: ChatItem;
-      clientId: string;
-    } | null>(null),
+  const [forward, setForward] = useState<{ messageId: string; clientId: string }[] | null>(null),
     [forwardSearch, setForwardSearch] = useState("");
   const [report, setReport] = useState<ChatItem | null>(null),
     [reason, setReason] = useState(""),
@@ -218,18 +230,43 @@ function ConversationPaneContent({
   const list = useRef<FlatList<ChatItem>>(null),
     autoScroll = useRef(true),
     readSeq = useRef(0);
+  const historyKey = useMemo(() => ["chat-messages", token, room.id, search] as const, [token, room.id, search]);
+  type History = InfiniteData<ChatHistoryPage<ChatItem>, number | undefined>;
   const query = useInfiniteQuery({
-    queryKey: ["chat-messages", token, room.id, search],
+    queryKey: historyKey,
     queryFn: ({ pageParam }) => {
       if (pageParam !== undefined || search) return chatApi.messages(token, room.id, pageParam, search || undefined);
-      const cached = client.getQueryData<{ pages: { items: ChatItem[]; before: number | null }[] }>(["chat-messages", token, room.id, search]);
+      const cached = client.getQueryData<History>(historyKey);
       return catchUpChatHead(before => chatApi.messages(token, room.id, before), cached?.pages[0]);
     },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (last) => last.before ?? undefined,
-    refetchInterval: 5000,
     staleTime: 3000,
   });
+  useEffect(() => {
+    if (search) return;
+    let disposed = false;
+    let pending = false;
+    const refreshHead = async () => {
+      if (disposed || pending || !focusManager.isFocused()) return;
+      if (client.getQueryState(historyKey)?.fetchStatus !== "idle") return;
+      const cached = client.getQueryData<History>(historyKey);
+      if (!cached?.pages[0]) return;
+      pending = true;
+      try {
+        const head = await catchUpChatHead(before => chatApi.messages(token, room.id, before), cached.pages[0]);
+        if (disposed || client.getQueryData(historyKey) !== cached ||
+            client.getQueryState(historyKey)?.fetchStatus !== "idle") return;
+        const updated = replaceChatHistoryHead(cached, head);
+        if (updated) client.setQueryData(historyKey, updated);
+        else await client.invalidateQueries({ queryKey: historyKey, exact: true }, { cancelRefetch: false });
+      } finally {
+        pending = false;
+      }
+    };
+    const timer = setInterval(() => { void refreshHead().catch(() => {}); }, 5000);
+    return () => { disposed = true; clearInterval(timer); };
+  }, [client, historyKey, room.id, search, token]);
   const refresh = useCallback(() => {
     void client.invalidateQueries({ queryKey: ["chat-list", token] }, { cancelRefetch: false });
     return client.invalidateQueries({ queryKey: ["chat-messages", token, room.id] }, { cancelRefetch: false });
@@ -249,6 +286,32 @@ function ConversationPaneContent({
     return search ? messages : mergeOutgoingMessages(messages,outbox.items,accountId,c.attach);
   }, [query.data, reactionOverrides, search, outbox.items, accountId, c.attach]);
   const displayItems = useMemo(() => [...items].reverse(), [items]);
+  const selectedMessages = useMemo(() => items.filter(item => selection.has(item.id)), [items, selection]);
+  const selecting = selectedMessages.length > 0;
+  const selectedText = selectedMessages.map(message => message.text).filter(text => text.trim()).join("\n\n");
+
+  const clearSelection = useCallback(() => setSelection(new Set()), []);
+  const toggleSelection = useCallback((item: ChatItem) => {
+    if (busy || item.pending || item.deleted) return;
+    if (!selecting) {
+      closeAction();
+      if (Keyboard.isVisible()) Keyboard.dismiss();
+    }
+    setSelection(current => {
+      const next = new Set(current);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.add(item.id);
+      return next;
+    });
+  }, [busy, closeAction, selecting]);
+  useEffect(() => {
+    if (!selecting || Platform.OS === "web") return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      clearSelection();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [clearSelection, selecting]);
   const pinnedMessages = query.data?.pages[0]?.pinned ?? items.filter(item => item.pinned && !item.deleted).slice().reverse();
   const [pinIndex, setPinIndex] = useState(0);
   const pinnedMessage = pinnedMessages[pinIndex % Math.max(1, pinnedMessages.length)];
@@ -256,7 +319,7 @@ function ConversationPaneContent({
   useEffect(()=>{if(!highlightedMessage)return;const timer=setTimeout(()=>setHighlightedMessage(null),3000);return()=>clearTimeout(timer);},[highlightedMessage]);
   const [jumpToPin, setJumpToPin] = useState<string | null>(null);
   const { isFetching, hasNextPage, fetchNextPage } = query;
-  const historyLaidOut = useRef(false);
+  const lastPositionedMessage = useRef<string | undefined>(undefined);
   const olderHistoryRequested = useRef(false);
   useEffect(() => {
     if (!olderHistoryRequested.current || isFetching || !hasNextPage) return;
@@ -297,7 +360,7 @@ function ConversationPaneContent({
     setError(null);
     try {
       await operation();
-      setAction(null);
+      closeAction();
       refresh();
     } catch (err) {
       showError(err);
@@ -308,7 +371,7 @@ function ConversationPaneContent({
   const reactToMessage = async (item: ChatItem, emoji: string) => {
     if (reacting.current) return;
     reacting.current = true;
-    setAction(null);
+    closeAction();
     setError(null);
     const next = item.reactions.some(r => r.userId === accountId && r.emoji === emoji) ? "" : emoji;
     const ownReaction = item.reactions.find(r => r.userId === accountId);
@@ -376,14 +439,38 @@ function ConversationPaneContent({
       setBusy(false);
     }
   };
-  const forwardTo = async (id: string) => {
+  const startForward = (messages: ChatItem[]) => {
+    setForwardSearch("");
+    setForward(messages.map(message => ({ messageId: message.id, clientId: Crypto.randomUUID() })));
+    closeAction();
+  };
+  const forwardTo = async ({ chatId, userId }: { chatId?: string; userId?: string }) => {
     if (!forward || busy) return;
     await run(async () => {
-      await chatApi.send(token, id, {
-        clientId: forward.clientId,
-        forwardId: forward.message.id,
-      });
+      const target = userId ? (await chatApi.direct(token, userId)).id : chatId;
+      if (!target) return;
+      for (const message of forward) {
+        await chatApi.send(token, target, { clientId: message.clientId, forwardId: message.messageId });
+      }
       setForward(null);
+      clearSelection();
+    });
+  };
+  const deleteMessages = (remove: "self" | "all") => {
+    if (!deleting || busy) return;
+    void run(async () => {
+      for (const message of deleting) {
+        await chatApi.change(token, message.id, { remove });
+        setDeleting(current => current?.filter(item => item.id !== message.id).length
+          ? current.filter(item => item.id !== message.id)
+          : null);
+        setSelection(current => {
+          if (!current.has(message.id)) return current;
+          const next = new Set(current);
+          next.delete(message.id);
+          return next;
+        });
+      }
     });
   };
   const share = async (item: ChatItem) => {
@@ -459,7 +546,7 @@ function ConversationPaneContent({
     },
   ];
   return (
-    <MotionEntrance style={{ flex: 1, minHeight: 0 }}>
+    <View style={{ flex: 1, minHeight: 0 }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : Platform.OS === "android" ? "height" : undefined}
         keyboardVerticalOffset={Platform.OS === "android" ? insets.top : 0}
@@ -476,7 +563,7 @@ function ConversationPaneContent({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={c.cancel}
-            onPress={onBack}
+            onPress={selecting ? clearSelection : onBack}
             style={styles.icon}
           >
             <Ionicons
@@ -618,7 +705,9 @@ function ConversationPaneContent({
         <FlatList
           ref={list}
           inverted
+          removeClippedSubviews={Platform.OS === "android" ? false : undefined}
           data={displayItems}
+          extraData={selection}
           keyExtractor={(item) => item.clientId ?? item.id}
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
@@ -627,7 +716,8 @@ function ConversationPaneContent({
             { paddingTop: 14, paddingBottom: showSearch ? 72 : 14 },
           ]}
           keyboardShouldPersistTaps="handled"
-          initialNumToRender={20}
+          initialNumToRender={10}
+          maxToRenderPerBatch={6}
           windowSize={7}
           onViewableItemsChanged={onVisible}
           viewabilityConfig={visibilityConfig}
@@ -657,9 +747,14 @@ function ConversationPaneContent({
           }}
           scrollEventThrottle={100}
           onContentSizeChange={() => {
-            if (autoScroll.current)
-              list.current?.scrollToOffset({ offset: 0, animated: historyLaidOut.current && !reducedMotion });
-            historyLaidOut.current = true;
+            const latest = displayItems[0];
+            const id = latest?.clientId ?? latest?.id;
+            if (!id || lastPositionedMessage.current === id) return;
+            const hadMessages = lastPositionedMessage.current !== undefined;
+            lastPositionedMessage.current = id;
+            if (autoScroll.current) {
+              list.current?.scrollToOffset({ offset: 0, animated: hadMessages && !reducedMotion });
+            }
           }}
           ListFooterComponent={query.isFetchingNextPage ? (
             <ActivityIndicator color={String(theme.primary)} style={{ padding: 14 }} />
@@ -676,20 +771,41 @@ function ConversationPaneContent({
               </View>
             ) : null
           }
-          renderItem={({ item, index }) => (
-            <View><ChatBubble
+          renderItem={({ item, index }) => {
+            const isSelected = selection.has(item.id);
+            const joinsAbove = selection.has(displayItems[index + 1]?.id ?? "");
+            const joinsBelow = selection.has(displayItems[index - 1]?.id ?? "");
+            const canTapToSelect = selecting && !item.pending && !item.deleted;
+            return <View collapsable={false}>
+              {isSelected ? <Reanimated.View
+                pointerEvents="none"
+                entering={selectionEntering}
+                exiting={selectionExiting}
+                style={[StyleSheet.absoluteFill, {
+                  backgroundColor: theme.primarySoft,
+                  borderTopLeftRadius: joinsAbove ? 0 : 16,
+                  borderTopRightRadius: joinsAbove ? 0 : 16,
+                  borderBottomLeftRadius: joinsBelow ? 0 : 16,
+                  borderBottomRightRadius: joinsBelow ? 0 : 16,
+                }]}
+              /> : null}
+              <View accessibilityElementsHidden={canTapToSelect} importantForAccessibility={canTapToSelect ? "no-hide-descendants" : "auto"}>
+                <ChatBubble
               showAvatar={!(index > 0 && !item.system && !displayItems[index - 1]?.system && item.sender.id === displayItems[index - 1]?.sender.id && item.own === displayItems[index - 1]?.own)}
               item={item}
               room={room}
-              highlighted={item.id === highlightedMessage}
+              highlighted={!isSelected && item.id === highlightedMessage}
+              selecting={selecting}
+              selected={isSelected}
+              onSelect={toggleSelection}
               onReplyPress={id=>{autoScroll.current=false;setShowSearch(false);setSearchDraft("");setSearch("");setJumpToPin(id);}}
               onComments={() => setCommentPost(item)}
               onViewers={item.own ? () => setViewedMessage(item) : undefined}
               onVote={item.poll ? option => { void chatApi.vote(token,room.id,item.id,option).then(() => refresh()).catch(showError); } : undefined}
               onActions={(message, anchor) => {
+                if (selecting) { toggleSelection(message); return; }
                 if (message.pending) return;
-                setActionAnchor(anchor ?? {x: 180, y: 180});
-                setAction(message);
+                setActionMenu({ item: message, anchor: anchor ?? { x: 180, y: 180 }, closing: false });
               }}
               onProfile={onProfile}
               onPhoto={setPhoto}
@@ -699,9 +815,19 @@ function ConversationPaneContent({
                   void client.invalidateQueries({ queryKey: ["chat-messages", token, room.id] });
                 }).catch(showError);
               }}
-            />
-            </View>
-          )}
+                />
+              </View>
+              {canTapToSelect ? <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={c.messageActions}
+                accessibilityState={{ selected: isSelected }}
+                disabled={busy}
+                android_ripple={{ color: theme.primarySoft }}
+                onPress={() => toggleSelection(item)}
+                style={StyleSheet.absoluteFill}
+              /> : null}
+            </View>;
+          }}
           ListHeaderComponent={
             <>
               {room.systemKey === "news" ? <FeedAd placement="official-news"/> : null}
@@ -731,7 +857,36 @@ function ConversationPaneContent({
             </AppText>
           </Pressable>
         ) : null}
-        {room.canPost && !needsFriend ? (
+        {selecting ? (
+          <View testID="message-selection-toolbar" style={[styles.selectionToolbar, {
+            backgroundColor: theme.surface,
+            borderTopColor: theme.border,
+            paddingBottom: 8 + (Platform.OS === "web" ? 0 : insets.bottom),
+          }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={c.cancel} onPress={clearSelection} disabled={busy} style={styles.icon}>
+              <Ionicons name="close" size={23} color={String(theme.text)} />
+            </Pressable>
+            <AppText style={{ flex: 1 }} numberOfLines={1}>{c.messagesSelected} {selectedMessages.length}</AppText>
+            {selectedText ? (
+              <Pressable accessibilityRole="button" accessibilityLabel={c.copyMessages} disabled={busy} style={styles.icon}
+                onPress={() => void Clipboard.setStringAsync(selectedText).then(copied => {
+                  if (copied) clearSelection();
+                  else setError(c.error);
+                }).catch(showError)}>
+                <Ionicons name="copy-outline" size={22} color={String(theme.primary)} />
+              </Pressable>
+            ) : null}
+
+            {selectedMessages.every(message => !message.system && !message.deleted) ? (
+              <Pressable accessibilityRole="button" accessibilityLabel={c.forward} onPress={() => startForward(selectedMessages)} disabled={busy} style={styles.icon}>
+                <Ionicons name="arrow-redo-outline" size={23} color={String(theme.primary)} />
+              </Pressable>
+            ) : null}
+            <Pressable accessibilityRole="button" accessibilityLabel={c.deleteMessages} onPress={() => setDeleting(selectedMessages)} disabled={busy} style={styles.icon}>
+              <Ionicons name="trash-outline" size={23} color={String(theme.danger)} />
+            </Pressable>
+          </View>
+        ) : room.canPost && !needsFriend ? (
           <View
             style={[
               styles.composer,
@@ -853,7 +1008,6 @@ function ConversationPaneContent({
                 }
                 maxLength={4000}
                 value={text}
-                onSelectionChange={event => { selection.current = event.nativeEvent.selection; }}
                 onChangeText={(value) => {
                   setText(value);
                   if (Platform.OS === "web")
@@ -884,7 +1038,6 @@ function ConversationPaneContent({
                   },
                 ]}
               />
-              {!voiceActive ? <Pressable accessibilityRole="button" accessibilityLabel={language === "uz" ? "Emoji" : language === "en" ? "Emoji" : "Эмодзи"} onPress={() => { setEmojiCount(96); setEmojiOpen(true); }} style={[styles.icon, Boolean(text) && {position:"absolute",bottom:0,left:48}]}><Ionicons name="happy-outline" size={24} color={String(theme.primary)}/></Pressable> : null}
               {!text.trim() && !attachments.length && !editing ? (
                 <VoiceRecorder
                   onActiveChange={setVoiceActive}
@@ -928,7 +1081,6 @@ function ConversationPaneContent({
         {pollOpen ? <ChatSheet title={language === "uz" ? "So‘rovnoma" : language === "en" ? "Poll" : "Опрос"} onClose={() => setPollOpen(false)}><TextInput accessibilityLabel={language === "uz" ? "Savol" : language === "en" ? "Question" : "Вопрос"} value={pollQuestion} onChangeText={value => {pollClientId.current=null;setPollQuestion(value);}} maxLength={200} placeholder={language === "uz" ? "Savol" : language === "en" ? "Question" : "Вопрос"} placeholderTextColor={theme.textMuted} style={inputStyle}/>{pollOptions.map((option,index) => <TextInput key={index} value={option} onChangeText={value => {pollClientId.current=null;setPollOptions(current=>current.map((v,i)=>i===index?value:v));}} maxLength={100} placeholder={`${language === "uz" ? "Variant" : language === "en" ? "Option" : "Вариант"} ${index+1}`} placeholderTextColor={theme.textMuted} style={inputStyle}/>)}{pollOptions.length<10 ? <ChatAction title={language === "uz" ? "Variant qo‘shish" : language === "en" ? "Add option" : "Добавить вариант"} icon="add-outline" onPress={() => setPollOptions(current=>[...current,""])} /> : null}<ChatAction title={c.send} icon="send-outline" disabled={busy || !pollQuestion.trim() || pollOptions.filter(o=>o.trim()).length<2} onPress={() => { void run(async () => {pollClientId.current ??= Crypto.randomUUID();await chatApi.send(token,room.id,{clientId:pollClientId.current,text:"",attachmentIds:[],poll:{question:pollQuestion.trim(),options:pollOptions.map(o=>o.trim()).filter(Boolean)}});pollClientId.current=null;setPollOpen(false);setPollQuestion("");setPollOptions(["",""]);await refresh();}); }} /></ChatSheet> : null}
         {contactOpen ? <ChatSheet title={language === "uz" ? "Kontakt" : language === "en" ? "Contact" : "Контакт"} onClose={() => setContactOpen(false)}><TextInput value={contactName} onChangeText={setContactName} maxLength={100} placeholder={language === "uz" ? "Ism" : language === "en" ? "Name" : "Имя"} placeholderTextColor={theme.textMuted} style={inputStyle}/><TextInput value={contactPhone} onChangeText={setContactPhone} keyboardType="phone-pad" maxLength={40} placeholder={language === "uz" ? "Telefon" : language === "en" ? "Phone" : "Телефон"} placeholderTextColor={theme.textMuted} style={inputStyle}/><ChatAction title={c.attach} icon="checkmark-outline" disabled={!contactName.trim() || !contactPhone.trim()} onPress={() => {insertAttachmentText(`👤 ${contactName.trim()}\n☎ ${contactPhone.trim()}`);setContactOpen(false);setContactName("");setContactPhone("");}}/></ChatSheet> : null}
         {profileAttachOpen ? <ChatSheet title={language === "uz" ? "Profil biriktirish" : language === "en" ? "Attach profile" : "Прикрепить профиль"} onClose={() => setProfileAttachOpen(false)}><TextInput value={profileSearch} onChangeText={setProfileSearch} placeholder={c.search} placeholderTextColor={theme.textMuted} style={inputStyle}/>{profileResults.data?.users.map(person => <Pressable key={person.id} accessibilityRole="button" onPress={() => {insertAttachmentText(`👤 ${person.name}\nhttps://logic-coin.online/player/${person.id}`);setProfileAttachOpen(false);setProfileSearch("");}} style={{flexDirection:"row",alignItems:"center",gap:10,paddingVertical:8}}><Avatar userId={person.id} name={person.name} avatarUrl={person.avatarUrl} size={40}/><AppText>{person.name}</AppText></Pressable>)}</ChatSheet> : null}
-        {emojiOpen ? <ChatSheet title="Emoji" onClose={() => setEmojiOpen(false)}><View style={{flexDirection:"row",flexWrap:"wrap"}}>{emojis.slice(0,emojiCount).map(emoji => <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={emoji} onPress={() => { const {start,end}=selection.current; setText(current => current.slice(0,start)+emoji+current.slice(end)); selection.current={start:start+emoji.length,end:start+emoji.length}; setEmojiOpen(false); setTimeout(() => composerRef.current?.focus(), 150); }} style={{width:44,height:44,alignItems:"center",justifyContent:"center"}}><AppText style={{fontSize:27}}>{emoji}</AppText></Pressable>)}</View>{emojiCount < emojis.length ? <ChatAction title={language === "uz" ? "Yana" : language === "en" ? "More" : "Ещё"} onPress={() => setEmojiCount(count => Math.min(count+96,emojis.length))} /> : null}</ChatSheet> : null}
         {attachMenu ? (
           <ChatSheet title={c.attach} onClose={() => setAttachMenu(false)}>
             <ChatAction title={language === "uz" ? "Kontakt" : language === "en" ? "Contact" : "Контакт"} icon="person-outline" onPress={() => {setAttachMenu(false);setContactOpen(true);}} />
@@ -951,8 +1103,8 @@ function ConversationPaneContent({
           </ChatSheet>
         ) : null}
         {commentPost ? <ChannelComments room={room} item={commentPost} token={token} onClose={()=>setCommentPost(null)} onProfile={onProfile} onChanged={()=>{void query.refetch();}}/> : null}
-        {action ? (
-          <ChatPopover anchor={actionAnchor} onClose={() => setAction(null)}>
+        {action && actionMenu ? (
+          <ChatPopover anchor={actionMenu.anchor} closing={actionMenu.closing} onClose={() => closeAction()} onClosed={finishActionClose}>
             {!action.deleted ? (
               <View
                 style={{
@@ -966,9 +1118,7 @@ function ConversationPaneContent({
                     accessibilityRole="button"
                     accessibilityLabel={emoji}
                     disabled={busy}
-                    onPress={() => {
-                      void reactToMessage(action, emoji);
-                    }}
+                    onPress={() => closeAction(() => { void reactToMessage(action, emoji); })}
                     style={{ flex: 1, minWidth: 0, minHeight: 48, paddingVertical: 6, alignItems: "center", justifyContent: "center" }}
                   >
                     <AppText style={{ fontSize: 25, lineHeight: 34, includeFontPadding: true, flexShrink: 0 }}>{emoji}</AppText>
@@ -980,45 +1130,35 @@ function ConversationPaneContent({
               <ChatAction
                 title={c.reply}
                 icon="return-up-back"
-                onPress={() => {
+                onPress={() => closeAction(() => {
                   setReply(action);
                   setEditing(null);
-                  setAction(null);
                   composerRef.current?.focus();
-                }}
+                })}
               />
             ) : null}
             {!action.deleted && !action.system ? (
               <ChatAction
                 title={c.forward}
                 icon="arrow-redo-outline"
-                onPress={() => {
-                  setForward({
-                    message: action,
-                    clientId: Crypto.randomUUID(),
-                  });
-                  setAction(null);
-                }}
+                onPress={() => closeAction(() => startForward([action]))}
               />
             ) : null}
             {!action.deleted ? (
               <ChatAction
                 title={c.share}
                 icon="share-outline"
-                onPress={() => {
-                  void run(() => share(action));
-                }}
+                onPress={() => closeAction(() => { void run(() => share(action)); })}
               />
             ) : null}
             {action.own && !action.deleted ? (
               <ChatAction
                 title={c.edit}
                 icon="pencil-outline"
-                onPress={() => {
+                onPress={() => closeAction(() => {
                   setEditing(action);
                   setText(action.text);
-                  setAction(null);
-                }}
+                })}
               />
             ) : null}
             {room.canManage && !action.deleted ? (
@@ -1034,27 +1174,28 @@ function ConversationPaneContent({
                 }}
               />
             ) : null}
-            <ChatAction title={c.deleteMessage} danger icon="trash-outline" onPress={() => { setDeleting(action); setAction(null); }} />
+            <ChatAction title={c.deleteMessage} danger icon="trash-outline" onPress={() => closeAction(() => setDeleting([action]))} />
             {!action.own ? (
               <ChatAction
                 title={c.report}
                 danger
                 icon="flag-outline"
-                onPress={() => {
-                  setReport(action);
-                  setAction(null);
-                }}
+                onPress={() => closeAction(() => setReport(action))}
               />
             ) : null}
           </ChatPopover>
         ) : null}
-        {deleting ? <ChatSheet title={c.deleteMessage} onClose={() => setDeleting(null)}>
-          <ChatAction title={c.hide} icon="person-outline" disabled={busy} onPress={() => void run(async () => { await chatApi.change(token, deleting.id, {remove: "self"}); setDeleting(null); })} />
-          {(deleting.own || room.canManage) && !deleting.deleted ? <ChatAction title={room.kind === "direct" || room.kind === "support" ? `${c.deleteForBoth} ${room.peer?.name ?? c.support}` : c.remove} icon="people-outline" danger disabled={busy} onPress={() => void run(async () => { await chatApi.change(token, deleting.id, {remove: "all"}); setDeleting(null); })} /> : null}
+        {deleting ? <ChatSheet title={deleting.length > 1 ? c.deleteMessages : c.deleteMessage} onClose={() => { if (!busy) setDeleting(null); }}>
+          <ChatAction title={c.hide} icon="person-outline" disabled={busy} onPress={() => deleteMessages("self")} />
+          {deleting.every(message => (message.own || room.canManage) && !message.deleted)
+            ? <ChatAction title={deleting.length > 1 ? c.deleteForEveryone : room.kind === "direct" || room.kind === "support" ? `${c.deleteForBoth} ${room.peer?.name ?? c.support}` : c.remove}
+                icon="people-outline" danger disabled={busy} onPress={() => deleteMessages("all")} />
+            : null}
           {error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{error}</AppText> : null}
         </ChatSheet> : null}
         {forward ? (
-          <ChatSheet title={c.choose} onClose={() => setForward(null)}>
+          <ChatSheet title={c.choose} onClose={() => { if (!busy) setForward(null); }}>
+            {error ? <AppText accessibilityRole="alert" color={String(theme.danger)}>{error}</AppText> : null}
             <TextInput
               value={forwardSearch}
               onChangeText={setForwardSearch}
@@ -1069,16 +1210,7 @@ function ConversationPaneContent({
                 accessibilityRole="button"
                 accessibilityLabel={person.name}
                 style={{flexDirection:"row",alignItems:"center",gap:12,paddingVertical:8}}
-                onPress={() => {
-                  void run(async () => {
-                    const target = await chatApi.direct(token, person.id);
-                    await chatApi.send(token, target.id, {
-                      clientId: forward.clientId,
-                      forwardId: forward.message.id,
-                    });
-                    setForward(null);
-                  });
-                }}
+                onPress={() => void forwardTo({ userId: person.id })}
               ><Avatar userId={person.id} name={person.name} avatarUrl={person.avatarUrl} size={42}/><AppText>{person.name}</AppText></Pressable>
             ))}
             {chats
@@ -1091,7 +1223,7 @@ function ConversationPaneContent({
                   accessibilityLabel={r.title}
                   style={{flexDirection:"row",alignItems:"center",gap:12,paddingVertical:8}}
                   onPress={() => {
-                    void forwardTo(r.id);
+                    void forwardTo({ chatId: r.id });
                   }}
                 ><Avatar userId={r.peer?.id ?? r.id} name={r.title} avatarUrl={r.peer?.avatarUrl ?? (r.avatarUrl ? chatMediaUrl(r.avatarUrl) : null)} size={42}/><View style={{flex:1}}><AppText numberOfLines={1}>{r.title}</AppText><AppText muted variant="caption" numberOfLines={1}>{r.lastOutgoing?.preview || (r.lastOutgoing?.hasAttachment ? c.attach : "")}</AppText></View></Pressable>
               ))}
@@ -1221,7 +1353,7 @@ function ConversationPaneContent({
         {draftPhoto ? <ChatSheet title={c.photo} onClose={() => setDraftPhoto(null)}><Image source={{uri: draftPhoto}} resizeMode="contain" style={{width: "100%", height: 350}} /></ChatSheet> : null}
         {photo ? <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={() => setPhoto(null)}><View style={{flex:1,backgroundColor:"#000",justifyContent:"center"}}><Image source={{uri:chatMediaUrl(photo.url)}} resizeMode="contain" style={{width:"100%",height:"100%"}}/><View style={{position:"absolute",top:Math.max(insets.top,12),right:12,flexDirection:"row",gap:8}}><Pressable accessibilityRole="button" accessibilityLabel={c.share} onPress={() => {void shareChatFile(chatMediaUrl(photo.url),photo.name,photo.mime).catch(showError);}} style={{width:44,height:44,borderRadius:22,alignItems:"center",justifyContent:"center",backgroundColor:"#0009"}}><Ionicons name="share-outline" size={23} color="#fff"/></Pressable><Pressable accessibilityRole="button" accessibilityLabel={c.close} onPress={() => setPhoto(null)} style={{width:44,height:44,borderRadius:22,alignItems:"center",justifyContent:"center",backgroundColor:"#0009"}}><Ionicons name="close" size={25} color="#fff"/></Pressable></View></View></Modal> : null}
       </KeyboardAvoidingView>
-    </MotionEntrance>
+    </View>
   );
 }
 const styles = StyleSheet.create({
@@ -1275,6 +1407,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  selectionToolbar: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 8, paddingHorizontal: 10, borderTopWidth: 1 },
   replyLine: {
     flexDirection: "row",
     alignItems: "center",

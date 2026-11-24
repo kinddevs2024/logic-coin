@@ -13,6 +13,16 @@ export function createSerialChatRefresh(run: () => Promise<unknown>) {
   };
 }
 export type ChatHistoryPage<T extends { id: string; seq: number }> = { items: T[]; before: number | null; pinned?: { id: string; seq: number; text: string; hasAttachments: boolean }[] };
+
+export function replaceChatHistoryHead<T extends { id: string; seq: number }, P>(
+  history: { pages: ChatHistoryPage<T>[]; pageParams: P[] },
+  head: ChatHistoryPage<T>,
+) {
+  // A moved cursor can leave a gap between the new head and the old pages.
+  if (history.pages.length > 1 && head.before !== history.pages[0]?.before) return null;
+  return { ...history, pages: [head, ...history.pages.slice(1)] };
+}
+
 export async function catchUpChatHead<T extends { id: string; seq: number }>(
   fetchPage: (before?: number) => Promise<ChatHistoryPage<T>>,
   cached?: ChatHistoryPage<T>,

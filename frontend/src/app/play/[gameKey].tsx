@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { Redirect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useNavigation, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { usePreventRemove, type NavigationAction } from "expo-router/react-navigation";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,6 +17,7 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MergeScreen from "@/app/games/2048";
+import BottleFlipScreen from "@/games/bottle-flip/screen";
 import { HangmanResult } from "@/games/hangman/result";
 import { HangmanGame } from "@/games/hangman/game";
 import { AppFrame } from "@/components/app-frame";
@@ -34,11 +35,11 @@ import { gameCoinReward } from "@/games/rewards";
 import { createGameExitSession } from "@/games/exit-session";
 import { GameSessionContext } from "@/games/session-context";
 import { useChallenges } from "@/hooks/use-challenges";
-import { adsApi, challengesApi } from "@/lib/api";
+import { adsApi, ApiError, challengesApi } from "@/lib/api";
 import { showVerifiedRewardedAd } from "@/lib/rewarded-ad-flow";
+import { canOfferFortune, waitForFortuneSpin } from "@/lib/fortune-wheel";
 import { useChallengeAdGate } from "@/lib/challenge-ad-offer";
 import { rewardedAds } from "@/lib/rewarded-ad";
-import { prepareChallengeAdEntry } from "@/lib/challenge-transition-ad";
 import { useAppStore } from "@/store/app-store";
 import type { GiftItem, GiftUseEffect } from "@/types";
 
@@ -109,6 +110,24 @@ function ArcadeBRenderer({ gameId, gameProps }: { gameId: GameBId; gameProps: Ar
   return renderGameB(gameId, gameProps);
 }
 
+function GameLaunchFailure({ title, detail, retry, back }: { title: string; detail?: string; retry: () => void; back: () => void }) {
+  const { copyText, copyContent } = useUiCopy();
+  return <LinearGradient colors={["#182A21", "#0D1713"]} style={styles.fallback}>
+    <Ionicons name="alert-circle-outline" size={46} color="#52E4B2" />
+    <Text style={styles.fallbackTitle}>{copyText(title)}</Text>
+    {detail ? <Text style={styles.fallbackText}>{copyContent(detail)}</Text> : null}
+    <Pressable accessibilityRole="button" onPress={retry} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>{copyText("Повторить")}</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={back} style={styles.fallbackBackButton}><Text style={styles.fallbackBackText}>{copyText("Назад")}</Text></Pressable>
+  </LinearGradient>;
+}
+
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string | string[] }>();
+  return <GameLaunchFailure title="Не удалось открыть игру" retry={() => void retry()}
+    back={() => router.replace(firstParam(mode) === "challenge" ? "/challenges" : "/games")} />;
+}
+
 export default function DynamicGameRoute() {
   const params = useLocalSearchParams<{ gameKey?: string | string[]; mode?: string | string[] }>();
   if (["fact", "facts"].includes(firstParam(params.gameKey) ?? "")) return <Redirect href="/games" />;
@@ -134,6 +153,7 @@ function PlayableGameRoute() {
   const arcadeBId = GAME_B_ALIASES[gameKey];
   const arcadeB = arcadeBId ? gamesBById[arcadeBId] : undefined;
   const classic = CLASSIC_GAMES[gameKey as GameId];
+  const canPlay = gameKey === "bottle-flip" || gameKey === "hangman" || Boolean(ArcadeAComponent || arcadeBId || classic);
   const supportsTimeExtension = Boolean(ArcadeAComponent || arcadeBId);
   const progressId = PROGRESS_KEY_ALIASES[gameKey] ?? (gameKey as GameId);
   const progress = useGameProgressStore((state) => gameKey ? gameProgressFor(state.games, progressId) : null);
@@ -159,7 +179,6 @@ function PlayableGameRoute() {
   const [fortunePrize, setFortunePrize] = useState<string | null>(null);
   const fortuneSpinDone = useRef<(() => void) | null>(null);
   const completionGuard = useRef(false);
-  const transitionAdGuard = useRef(false);
   const challengeStartGuard = useRef("");
   const sessionStartedAt = useRef(0);
   const classicBaseline = useRef<{ key: string; progress: Readonly<GameProgress> } | null>(null);
@@ -217,11 +236,11 @@ function PlayableGameRoute() {
   }, [exitSession, mode]);
 
   useEffect(() => {
-    if (mode !== "challenge" || !authenticated || !gameKey) return;
+    if (mode !== "challenge" || !authenticated || !canPlay) return;
     if (challengeStartGuard.current === gameKey) return;
     challengeStartGuard.current = gameKey;
     void startChallenge(gameKey).catch(() => undefined);
-  }, [authenticated, gameKey, mode, startChallenge]);
+  }, [authenticated, canPlay, gameKey, mode, startChallenge]);
 
   const processResult = useCallback(async (
     gameResult: HostedGameResult,
@@ -238,12 +257,12 @@ function PlayableGameRoute() {
     const completedAfterThisGame =
       (challenges.today?.completedCount ?? 0) + (isNewChallenge ? 1 : 0);
     const syncsPractice = mode === "practice" && authenticated && Boolean(accessToken);
-    const showCompletionAds = async () => {
+    const showCompletionAds = async (attemptId?: string) => {
       if (exitSession.isDiscarded()) return;
       setAdBusy(true);
       try {
         if (mode === "practice") await rewardedAds.showInterstitial("game-complete").catch(() => false);
-        if (authenticated && accessToken && !exitSession.isDiscarded()) {
+        if (canOfferFortune(authenticated, accessToken, attemptId) && !exitSession.isDiscarded()) {
           setFortunePrize(null);
           setFortuneVisible(true);
         }
@@ -256,21 +275,23 @@ function PlayableGameRoute() {
     setExtraTimeSeconds(0);
     if (mode === "practice") {
       if (!authenticated || !accessToken) { await showCompletionAds(); return; }
+      let savedAttemptId: string | undefined;
       try {
         const completed = await challengesApi.completePractice(gameKey, { score: gameResult.score, durationMs: gameResult.durationMs }, accessToken);
+        savedAttemptId = completed.attempt.id;
         if (completed.coins) setCoinBalance(completed.coins.balance);
         setResult((current) => current?.sessionId === sessionId ? { ...current, attemptId: completed.attempt.id, coins: completed.attempt.coinsAwarded, saving: false, message: "Награда начислена" } : current);
       } catch {
         setResult((current) => current?.sessionId === sessionId ? { ...current, saving: false, message: "Результат сохранён на устройстве. Награда аккаунта не начислена." } : current);
       }
-      await showCompletionAds();
+      await showCompletionAds(savedAttemptId);
       return;
     }
     try {
       const completed = await challenges.complete({ gameKey, score: gameResult.score, durationMs: gameResult.durationMs });
       useChallengeAdGate.setState({ resultReady: true });
       setResult((current) => current?.sessionId === sessionId ? { ...current, attemptId: completed.attempt.id, coins: completed.attempt.coinsAwarded, saving: false, message: "" } : current);
-      await showCompletionAds();
+      await showCompletionAds(completed.attempt.id);
     } catch {
       completionGuard.current = false;
       setResult((current) => current?.sessionId === sessionId ? { ...current, saving: false, message: "Результат сохранён локально. Синхронизацию можно повторить." } : current);
@@ -344,34 +365,21 @@ function PlayableGameRoute() {
     headerAction: giftsAvailable ? <Pressable accessibilityRole="button" accessibilityLabel={copyText("Открыть подарки")} onPress={() => setGiftOpen(true)} style={({ pressed }) => [styles.giftButton, pressed && styles.pressed]}><Ionicons name="gift" color="#FFFFFF" size={20} /></Pressable> : null,
   }), [exitGame, gamePaused, giftsAvailable, markGameStarted, mode, progressId, progress?.coins, copyText]);
 
-  const continueChallenge = async () => {
-    if (adBusy || fortuneBusy || fortuneSpinning) return;
-    if (transitionAdGuard.current) return;
-    transitionAdGuard.current = true;
-    try {
-      if (mode === "challenge" && nextChallengeGame && authenticated && !rafflePaused) {
-        setAdBusy(true);
-        if (challenges.today?.dayKey) prepareChallengeAdEntry(challenges.today.dayKey, nextChallengeGame.key);
-        await rewardedAds.showInterstitial("challenge-transition").catch(() => false);
-      }
-      if (exitSession.isDiscarded()) return;
-      useChallengeAdGate.setState({ resultReady: false });
-      exitSession.discard();
-      setFortuneVisible(false);
-      setFortuneSpinning(false);
-      setGiftOpen(false);
-      setExitOpen(false);
-      setGiftNotice("");
-      // Keep the completed screen until navigation commits, avoiding an empty frame.
-      if (nextChallengeGame) {
-        router.replace({ pathname: "/play/[gameKey]", params: { gameKey: nextChallengeGame.key, mode: "challenge" } } as never);
-        return;
-      }
-      router.replace("/challenges" as never);
-    } finally {
-      transitionAdGuard.current = false;
-      setAdBusy(false);
+  const continueChallenge = () => {
+    if (adBusy || fortuneBusy || fortuneSpinning || exitSession.isDiscarded()) return;
+    useChallengeAdGate.setState({ resultReady: false });
+    exitSession.discard();
+    setFortuneVisible(false);
+    setFortuneSpinning(false);
+    setGiftOpen(false);
+    setExitOpen(false);
+    setGiftNotice("");
+    // Keep the completed screen until navigation commits, avoiding an empty frame.
+    if (nextChallengeGame) {
+      router.replace({ pathname: "/play/[gameKey]", params: { gameKey: nextChallengeGame.key, mode: "challenge" } } as never);
+      return;
     }
+    router.replace("/challenges" as never);
   };
 
   const applyGift = (gift: GiftItem, effect: GiftUseEffect) => {
@@ -395,7 +403,11 @@ function PlayableGameRoute() {
   };
 
   const playFortune = async () => {
-    if (fortuneBusy || fortuneSpinning || !accessToken || !activeResult?.attemptId || activeResult.saving) return;
+    if (fortuneBusy || fortuneSpinning) return;
+    if (!accessToken || !activeResult?.attemptId || activeResult.saving) {
+      setGiftNotice("Результат сохранён на устройстве. Награда аккаунта не начислена.");
+      return;
+    }
     setGiftNotice("");
     setFortuneBusy(true);
     try {
@@ -404,11 +416,12 @@ function PlayableGameRoute() {
         gameAttemptId: activeResult.attemptId,
         beforeShow: async (session) => {
           if (exitSession.isDiscarded()) throw new Error("session_closed");
-          await new Promise<void>((resolve) => {
+          await waitForFortuneSpin((finish) => {
             setFortunePrize(`+${session.rewardCoins}`);
-            fortuneSpinDone.current = resolve;
+            fortuneSpinDone.current = finish;
             setFortuneSpinning(true);
           });
+          fortuneSpinDone.current = null;
           if (exitSession.isDiscarded()) throw new Error("session_closed");
         },
       });
@@ -489,7 +502,9 @@ function PlayableGameRoute() {
   };
 
   let renderedGame = null;
-  if (gameKey === "hangman") {
+  if (gameKey === "bottle-flip") {
+    renderedGame = <BottleFlipScreen key={sessionId} challengeMode onExit={exitGame} onChallengeComplete={(score, durationMs, won) => { exitSession.complete(() => { void processResult({ score, won, durationMs, label: "bottle-flip" }, { persist: true }); }); }} />;
+  } else if (gameKey === "hangman") {
     renderedGame = <HangmanGame key={sessionId} challengeMode={mode === "challenge"} hostPaused={gamePaused} onExit={exitGame} onComplete={(score, durationMs, won) => { exitSession.complete(() => { void processResult({ score, won, durationMs, label: "hangman" }, { persist: true }); }); }} />;
   } else if (ArcadeAComponent) {
     renderedGame = <ArcadeAComponent key={sessionId} initialBestScore={progress?.bestScore ?? 0} extraTimeSeconds={extraTimeSeconds} challengeMode={mode === "challenge"} attemptLimit={currentChallengeGame?.attemptLimit} sessionKey={sessionId} paused={gamePaused} skin={selectedSkin} onExit={exitGame} onComplete={onArcadeComplete} />;
@@ -504,10 +519,15 @@ function PlayableGameRoute() {
     renderedGame = <Classic key={sessionId} />;
   }
 
-  const challengeStartSettled = mode !== "challenge" || !authenticated || challenges.startedGameKey === gameKey || challenges.startFailedGameKey === gameKey;
+  if (mode === "challenge" && authenticated && challenges.startFailedGameKey === gameKey) {
+    return <GameLaunchFailure title="Не удалось запустить челлендж" detail={challenges.startError instanceof ApiError ? challenges.startError.message : undefined}
+      retry={() => void startChallenge(gameKey).catch(() => undefined)} back={exitGame} />;
+  }
 
-  if (!challenges.hydrated || !hydrated || !challengeStartSettled) {
-    return <LinearGradient colors={["#182A21", "#0D1713"]} style={styles.fallback}><ActivityIndicator size="large" color={accent} /><Text style={styles.fallbackTitle}>{copyText("Запускаем челлендж")}</Text><Text style={styles.fallbackText}>{copyText("Подготавливаем игровую сессию")}</Text><Pressable accessibilityRole="button" onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>{copyText("Назад")}</Text></Pressable></LinearGradient>;
+  const waitingForChallenge = canPlay && mode === "challenge" && authenticated && challenges.startedGameKey !== gameKey;
+
+  if (!challenges.hydrated || !hydrated || waitingForChallenge) {
+    return <LinearGradient colors={["#182A21", "#0D1713"]} style={styles.fallback}><ActivityIndicator size="large" color={accent} /><Text style={styles.fallbackTitle}>{copyText(mode === "challenge" ? "Запускаем челлендж" : "Запускаем игру")}</Text><Text style={styles.fallbackText}>{copyText("Подготавливаем игровую сессию")}</Text><Pressable accessibilityRole="button" onPress={exitGame} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>{copyText("Назад")}</Text></Pressable></LinearGradient>;
   }
 
   if (!renderedGame) {
@@ -584,8 +604,10 @@ const styles = StyleSheet.create({
   notice: { position: "absolute", alignSelf: "center", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 14, backgroundColor: "rgba(16,37,27,0.92)", borderWidth: 1, borderColor: "rgba(0,122,87,0.32)" },
   noticeText: { color: "#CDE9D8", fontSize: 11, fontWeight: "800" },
   fallback: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 },
-  fallbackTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "900" },
-  fallbackText: { color: "rgba(255,255,255,0.42)", fontSize: 13 },
+  fallbackTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "900", textAlign: "center" },
+  fallbackText: { color: "rgba(255,255,255,0.75)", fontSize: 14, textAlign: "center" },
+  fallbackBackButton: { padding: 14, minWidth: 160, alignItems: "center" },
+  fallbackBackText: { color: "#CDE9D8", fontSize: 14, fontWeight: "800" },
   fallbackButton: { marginTop: 12, minWidth: 180, padding: 15, borderRadius: 16, alignItems: "center", backgroundColor: "#52E4B2" },
   fallbackButtonText: { color: "#09120E", fontSize: 13, fontWeight: "900" },
   // On React Native Web, Modal can inherit the narrow game route width. Pin

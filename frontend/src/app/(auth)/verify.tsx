@@ -12,7 +12,8 @@ import { AppButton } from "@/components/buttons";
 import { PinInput } from "@/components/pin-input";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useTranslation } from "@/hooks/use-translation";
-import { authApi } from "@/lib/api";
+import { useSignInCompletion } from "@/hooks/use-sign-in-completion";
+import { ApiError, authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 
 export default function VerifyScreen() {
@@ -28,11 +29,9 @@ export default function VerifyScreen() {
   const setPendingRegistrationToken = useAppStore(
     (state) => state.setPendingRegistrationToken,
   );
-  const setPendingPasswordSetupToken = useAppStore(
-    (state) => state.setPendingPasswordSetupToken,
-  );
+  const completeSignIn = useSignInCompletion();
   const [code, setCode] = useState("");
-  const [cooldown, setCooldown] = useState(() => Math.max(0, Number(params.cooldown ?? 60) || 60));
+  const [cooldown, setCooldown] = useState(() => Math.max(0, Number(params.cooldown ?? 60) || 0));
   const [sendsRemaining, setSendsRemaining] = useState(() => Math.max(0, Number(params.sends ?? 2) || 0));
 
   useEffect(() => {
@@ -52,21 +51,21 @@ export default function VerifyScreen() {
     },
     onSuccess: (result) => {
       setPendingRegistrationToken(null);
-      setPendingPasswordSetupToken(result.setupToken);
-      router.replace({
-        pathname: "/set-password" as never,
-        params: { email: result.email, ...(params.next ? { next: params.next } : {}) },
-      });
+      completeSignIn(result);
     },
   });
 
   const resend = useMutation({
     mutationFn: () => authApi.resendCode(email),
     onSuccess: (result) => {
+      setCode("");
+      verify.reset();
       setCooldown(result.verification?.resendAvailableInSeconds ?? 60);
       setSendsRemaining(result.verification?.sendsRemaining ?? Math.max(0, sendsRemaining - 1));
     },
   });
+  const verifyErrorCode = verify.error instanceof ApiError ? verify.error.code : undefined;
+  const shouldRestart = !registrationToken || verifyErrorCode === "invalid_email_flow";
 
   return (
     <AuthScaffold
@@ -98,7 +97,9 @@ export default function VerifyScreen() {
           {copyContent(verify.error.message || t("auth.invalid"))}
         </AppText>
       ) : null}
-      <AppButton
+      {shouldRestart ? <AppButton onPress={() => router.replace({ pathname: "/login", params: { email, ...(params.next ? { next: params.next } : {}) } })}>
+        {({ ru: "Запросить новый код", uz: "Yangi kod so‘rash", en: "Request a new code" })[language]}
+      </AppButton> : <AppButton
         onPress={() => verify.mutate()}
         disabled={code.length !== 6}
         loading={verify.isPending}
@@ -106,10 +107,10 @@ export default function VerifyScreen() {
         glow
       >
         {copyContent(t("auth.verify"))}
-      </AppButton>
+      </AppButton>}
       <Pressable
         onPress={() => resend.mutate()}
-        disabled={resend.isPending || cooldown > 0 || sendsRemaining <= 0}
+        disabled={resend.isPending || shouldRestart || cooldown > 0 || sendsRemaining <= 0}
         style={[styles.resend, (cooldown > 0 || sendsRemaining <= 0) && styles.resendDisabled]}
       >
         <AppText variant="label" color={String(theme.primary)}>

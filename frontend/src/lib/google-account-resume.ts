@@ -6,6 +6,7 @@ export async function resumeGoogleAccount<T>(sdk: {
   signIn(): Promise<T>;
 }): Promise<T> {
   await sdk.hasPlayServices({ showPlayServicesUpdateDialog: false });
-  await sdk.signOut();
+  // A stale or unavailable previous session must not prevent sign-in.
+  try { await sdk.signOut(); } catch { /* Continue to Google account selection. */ }
   return sdk.signIn();
 }

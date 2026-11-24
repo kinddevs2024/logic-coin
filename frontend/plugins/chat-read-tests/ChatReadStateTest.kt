@@ -75,4 +75,15 @@ class ChatReadStateTest {
     val converted = ReadFirebaseMessagingService.asExpoNotification(message)
     assertEquals(message.sentTime, converted.sentTime); assertNotNull(converted.notification); assertEquals("Group", converted.notification?.title); assertEquals("Hello", converted.notification?.body); assertEquals(message.data["body"], converted.data["body"])
   }
+  @Test fun dataOnlyChatCarriesVerifiedAvatarAndKeepsTapPayload() {
+    val image = "https://logic-coin.online/chat-notification-icons/news.png"
+    val payload = data(1).toString()
+    fun convert(url: String) = ReadFirebaseMessagingService.asExpoNotification(
+      RemoteMessage.Builder("server").setData(mapOf("type" to "chat_message", "imageUrl" to url, "body" to payload)).build()
+    )
+    val notification = convert(image)
+    assertEquals(image, notification.notification?.imageUrl?.toString())
+    assertEquals(payload, notification.data["body"])
+    assertEquals(null, convert("https://external.example/avatar.png").notification?.imageUrl)
+  }
 }

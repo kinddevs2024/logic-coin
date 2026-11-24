@@ -14,10 +14,13 @@ export function ThemedHomeGift({ state, ...props }: Props) {
     // Do not wait for the gift's continuous flight animation to finish.
     // Decode lazily once per image and recolor only on palette changes.
     const timer = setTimeout(() => {
-      void import("@/lib/themed-gift-image").then(({ themedGiftSource }) => {
+      try {
+        const { themedGiftSource } = require("@/lib/themed-gift-image") as typeof import("@/lib/themed-gift-image");
         const next = themedGiftSource(state, [body, ribbon]);
         if (active) setSource(next);
-      }).catch(() => { if (active) setSource(state === "open" ? GIFT_OPEN : GIFT_CLOSED); });
+      } catch {
+        if (active) setSource(state === "open" ? GIFT_OPEN : GIFT_CLOSED);
+      }
     }, 0);
     return () => { active = false; clearTimeout(timer); };
   }, [body, ribbon, state]);

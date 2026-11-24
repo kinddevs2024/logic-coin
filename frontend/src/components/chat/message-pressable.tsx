@@ -4,9 +4,9 @@ import type { ChatAnchor } from "./chat-popover";
 
 type Props = Omit<ComponentProps<typeof Pressable>, "onPress" | "onLongPress"> & {
   onActions: (anchor: ChatAnchor) => void;
+  onSelect: () => void;
 };
-/** A message is readable/selectable on click; its menu uses a context gesture. */
-export function MessagePressable({ onActions, ...props }: Props) {
+export function MessagePressable({ onActions, onSelect, ...props }: Props) {
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clearClickGuard = useRef<() => void>(() => {});
   const start = useRef<{ x: number; y: number } | null>(null);
@@ -31,6 +31,7 @@ export function MessagePressable({ onActions, ...props }: Props) {
     clearClickGuard.current = clear;
   }
   const openFromPress = (event: GestureResponderEvent) => {
+    if (Platform.OS === "web" && window.getSelection()?.isCollapsed === false) return;
     event.stopPropagation();
     onActions({
       x: event.nativeEvent.pageX - (Platform.OS === "web" ? window.scrollX : 0),
@@ -44,7 +45,7 @@ export function MessagePressable({ onActions, ...props }: Props) {
       if (point.pointerType !== "touch" && point.pointerType !== "pen") return;
       const anchor = { x: point.pageX - window.scrollX, y: point.pageY - window.scrollY };
       start.current = anchor;
-      hold.current = setTimeout(() => { cancelHold(); guardReleaseClick(anchor); onActions(anchor); }, 450);
+      hold.current = setTimeout(() => { cancelHold(); guardReleaseClick(anchor); onSelect(); }, 450);
     },
     onPointerMove: (event: PointerEvent) => {
       if (start.current && Math.hypot(event.nativeEvent.pageX - window.scrollX - start.current.x, event.nativeEvent.pageY - window.scrollY - start.current.y) > 10) cancelHold();
@@ -63,5 +64,5 @@ export function MessagePressable({ onActions, ...props }: Props) {
       onActions({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
     },
   } : {};
-  return <Pressable {...props} {...webEvents} delayLongPress={450} onLongPress={Platform.OS === "web" ? undefined : openFromPress} />;
+  return <Pressable {...props} {...webEvents} delayLongPress={450} onPress={openFromPress} onLongPress={Platform.OS === "web" ? undefined : event => { event.stopPropagation(); onSelect(); }} />;
 }

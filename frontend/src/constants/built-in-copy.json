@@ -145,14 +145,14 @@
     "uz": "Ilova sahifasini yangi tabda ochadi"
   },
   "Logic Coin — ежедневные игровые челленджи, coins, рейтинг и умная копилка.": {
-    "ru": "Logic Coin — ежедневные игровые челленджи, coins, рейтинг и умная копилка.",
-    "en": "Logic Coin - daily gaming challenges, coins, rating and smart piggy bank.",
-    "uz": "Logic Coin - kundalik o'yin sinovlari, koinlar, reyting va aqlli jamg‘arma."
+    "ru": "Logic Coin — ежедневные игровые челленджи, coin, рейтинг и умная копилка.",
+    "en": "Logic Coin - daily gaming challenges, coin, rating and smart piggy bank.",
+    "uz": "Logic Coin - kundalik o'yin sinovlari, coinlar, reyting va aqlli jamg‘arma."
   },
   "Logic Coin — играй, соревнуйся, выигрывай": {
     "ru": "Logic Coin — играй, соревнуйся, выигрывай",
     "en": "Logic Coin - play, compete, win",
-    "uz": "Mantiqiy koin - o'ynang, raqobatlashing, g'alaba qozoning"
+    "uz": "Mantiqiy coin - o'ynang, raqobatlashing, g'alaba qozoning"
   },
   "Короткие игры, ежедневные челленджи и денежные призы. Награды зависят от результатов и правил челленджа.": {
     "ru": "Короткие игры, ежедневные челленджи и денежные призы. Награды зависят от результатов и правил челленджа.",
@@ -577,7 +577,7 @@
   "Coin по местам (1–6, через запятую)": {
     "ru": "Coin по местам (1–6, через запятую)",
     "en": "Coin by place (1–6, separated by commas)",
-    "uz": "Joy boʻyicha koin (1–6, vergul bilan ajratilgan)"
+    "uz": "Joy boʻyicha coin (1–6, vergul bilan ajratilgan)"
   },
   "Повторных прохождений игры": {
     "ru": "Повторных прохождений игры",
@@ -852,7 +852,7 @@
   "Выдано coin": {
     "ru": "Выдано coin",
     "en": "coin issued",
-    "uz": "koin chiqarilgan"
+    "uz": "coin chiqarilgan"
   },
   "Выдано LC": {
     "ru": "Выдано LC",
@@ -872,7 +872,7 @@
   "Coin за 7 дней": {
     "ru": "Coin за 7 дней",
     "en": "Coin in 7 days",
-    "uz": "7 kun ichida koin"
+    "uz": "7 kun ichida coin"
   },
   "Фактические начисления": {
     "ru": "Фактические начисления",
@@ -1095,9 +1095,9 @@
     "uz": "pul"
   },
   "коины": {
-    "ru": "коины",
-    "en": "coins",
-    "uz": "koinlar"
+    "ru": "coin",
+    "en": "coin",
+    "uz": "coinlar"
   },
   "у всех": {
     "ru": "у всех",
@@ -1115,9 +1115,9 @@
     "uz": "Ommaviy tiklash"
   },
   "Имя, email, страна, аватар, настройки, доступные деньги и коины. Идентификаторы входа, резерв вывода и история защищены от изменения.": {
-    "ru": "Имя, email, страна, аватар, настройки, доступные деньги и коины. Идентификаторы входа, резерв вывода и история защищены от изменения.",
-    "en": "Name, email, country, avatar, settings, available money and coins. Login IDs, output reserve and history are protected from modification.",
-    "uz": "Ism, elektron pochta, mamlakat, avatar, sozlamalar, mavjud pul va koinlar. Kirish identifikatorlari, chiqish zaxirasi va tarix o'zgartirishdan himoyalangan."
+    "ru": "Имя, email, страна, аватар, настройки, доступные деньги и coin. Идентификаторы входа, резерв вывода и история защищены от изменения.",
+    "en": "Name, email, country, avatar, settings, available money and coin. Login IDs, output reserve and history are protected from modification.",
+    "uz": "Ism, elektron pochta, mamlakat, avatar, sozlamalar, mavjud pul va coinlar. Kirish identifikatorlari, chiqish zaxirasi va tarix o'zgartirishdan himoyalangan."
   },
   "Для подтверждения введите RESET ALL": {
     "ru": "Для подтверждения введите RESET ALL",
@@ -1517,7 +1517,7 @@
   "+{0} coin на балансе": {
     "ru": "+{0} coin на балансе",
     "en": "+{0} coin on balance",
-    "uz": "Balansda +{0} koin"
+    "uz": "Balansda +{0} coin"
   },
   "Повтор ×{0} активирован": {
     "ru": "Повтор ×{0} активирован",
@@ -1527,7 +1527,7 @@
   "Колесо: +{0} coin": {
     "ru": "Колесо: +{0} coin",
     "en": "Wheel: +{0} coin",
-    "uz": "G‘ildirak: +{0} koin"
+    "uz": "G‘ildirak: +{0} coin"
   },
   "Награда колеса получена": {
     "ru": "Награда колеса получена",
@@ -1542,7 +1542,7 @@
   "+{0} coin за видео": {
     "ru": "+{0} coin за видео",
     "en": "+{0} coin per video",
-    "uz": "Har bir video uchun +{0} koin"
+    "uz": "Har bir video uchun +{0} coin"
   },
   "Реклама просмотрена": {
     "ru": "Реклама просмотрена",
@@ -1607,12 +1607,12 @@
   "Предыдущий coin": {
     "ru": "Предыдущий coin",
     "en": "Previous coin",
-    "uz": "Oldingi koin"
+    "uz": "Oldingi coin"
   },
   "Лучший coin": {
     "ru": "Лучший coin",
     "en": "Best coin",
-    "uz": "Eng yaxshi koin"
+    "uz": "Eng yaxshi coin"
   },
   "Получено": {
     "ru": "Получено",
@@ -1622,7 +1622,7 @@
   "+{0} coin из фортуны": {
     "ru": "+{0} coin из фортуны",
     "en": "+{0} coin from fortune",
-    "uz": "boylikdan +{0} koin"
+    "uz": "boylikdan +{0} coin"
   },
   "СМОТРЕТЬ РЕКЛАМУ · +75 COIN": {
     "ru": "СМОТРЕТЬ РЕКЛАМУ · +75 COIN",
@@ -1666,8 +1666,8 @@
   },
   "Монеты": {
     "ru": "Монеты",
-    "en": "Coins",
-    "uz": "Koinlar"
+    "en": "coin",
+    "uz": "coinlar"
   },
   "Выиграно": {
     "ru": "Выиграно",
@@ -2020,9 +2020,9 @@
     "uz": "Maksimal bitta ishtirokchi:"
   },
   "Ручной режим заменяет автоматические денежные призы. 0 — без денежного приза; новые участники получат 0, пока админ не назначит сумму. Место и коины не изменяются.": {
-    "ru": "Ручной режим заменяет автоматические денежные призы. 0 — без денежного приза; новые участники получат 0, пока админ не назначит сумму. Место и коины не изменяются.",
-    "en": "Manual mode replaces automatic cash prizes. 0 - no cash prize; new members will receive 0 until the admin assigns an amount. The location and coins do not change.",
-    "uz": "Manuel rejim avtomatik pul mukofotlari o'rnini bosadi. 0 - pul mukofoti yo'q; yangi a'zolar admin miqdor belgilamaguncha 0 oladi. Joylashuv va koinlar o'zgarmaydi."
+    "ru": "Ручной режим заменяет автоматические денежные призы. 0 — без денежного приза; новые участники получат 0, пока админ не назначит сумму. Место и coin не изменяются.",
+    "en": "Manual mode replaces automatic cash prizes. 0 - no cash prize; new members will receive 0 until the admin assigns an amount. The location and coin do not change.",
+    "uz": "Manuel rejim avtomatik pul mukofotlari o'rnini bosadi. 0 - pul mukofoti yo'q; yangi a'zolar admin miqdor belgilamaguncha 0 oladi. Joylashuv va coinlar o'zgarmaydi."
   },
   "Найти участника": {
     "ru": "Найти участника",
@@ -2035,9 +2035,9 @@
     "uz": "Ism, joy yoki ID"
   },
   "коинов · …": {
-    "ru": "коинов · …",
-    "en": "coins · …",
-    "uz": "koinlar · …"
+    "ru": "coin · …",
+    "en": "coin · …",
+    "uz": "coinlar · …"
   },
   "Приз для {0}, место {1}, USD": {
     "ru": "Приз для {0}, место {1}, USD",
@@ -2246,8 +2246,8 @@
   },
   "Монеты и скины": {
     "ru": "Монеты и скины",
-    "en": "Coins and skins",
-    "uz": "Koinlar va terilar"
+    "en": "coin and skins",
+    "uz": "coinlar va terilar"
   },
   "Открыть скины": {
     "ru": "Открыть скины",
@@ -2262,7 +2262,7 @@
   "Недостаточно coin": {
     "ru": "Недостаточно coin",
     "en": "Not enough coin",
-    "uz": "Koin yetarli emas"
+    "uz": "coin yetarli emas"
   },
   "{0} куплен и выбран": {
     "ru": "{0} куплен и выбран",
@@ -2287,7 +2287,7 @@
   "coin · останется": {
     "ru": "coin · останется",
     "en": "coin · will remain",
-    "uz": "koin · qoladi"
+    "uz": "coin · qoladi"
   },
   "Отменить покупку": {
     "ru": "Отменить покупку",
@@ -2297,7 +2297,7 @@
   "Купить {0} за {1} coin": {
     "ru": "Купить {0} за {1} coin",
     "en": "Buy {0} for {1} coin",
-    "uz": "{1} koinga {0} xarid qiling"
+    "uz": "{1} coinga {0} xarid qiling"
   },
   "Купить": {
     "ru": "Купить",
@@ -2306,12 +2306,12 @@
   },
   "Игровые coin": {
     "ru": "Игровые coin",
-    "en": "Gaming coins",
+    "en": "Gaming coin",
     "uz": "O'yin koinlari"
   },
   "Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.": {
-    "ru": "Используются только для скинов. Конкурсные coins и деньги хранятся отдельно.",
-    "en": "Used only for skins. Competition coins and money are stored separately.",
+    "ru": "Используются только для скинов. Конкурсные coin и деньги хранятся отдельно.",
+    "en": "Used only for skins. Competition coin and money are stored separately.",
     "uz": "Faqat terilar uchun ishlatiladi. Raqobat koinlari va pullari alohida saqlanadi."
   },
   "Выйти из игры?": {
@@ -2351,18 +2351,18 @@
   },
   "Монеты сразу поступят на баланс": {
     "ru": "Монеты сразу поступят на баланс",
-    "en": "Coins will be immediately added to your balance",
-    "uz": "Koinlar darhol balansingizga qo'shiladi"
+    "en": "coin will be immediately added to your balance",
+    "uz": "coinlar darhol balansingizga qo'shiladi"
   },
   "{0} coin на следующий челлендж": {
     "ru": "{0} coin на следующий челлендж",
     "en": "{0} coin for the next challenge",
-    "uz": "Keyingi sinov uchun {0} koin"
+    "uz": "Keyingi sinov uchun {0} coin"
   },
   "Получить {0} coin": {
     "ru": "Получить {0} coin",
     "en": "Get {0} coin",
-    "uz": "{0} koin oling"
+    "uz": "{0} coin oling"
   },
   "Повтор ×{0}": {
     "ru": "Повтор ×{0}",
@@ -2572,12 +2572,12 @@
   "ЛУЧШИЙ COIN": {
     "ru": "ЛУЧШИЙ COIN",
     "en": "BEST COIN",
-    "uz": "ENG YAXSHI koin"
+    "uz": "ENG YAXSHI coin"
   },
   "ПРОШЛЫЙ COIN": {
     "ru": "ПРОШЛЫЙ COIN",
     "en": "PAST COIN",
-    "uz": "O'tgan koin"
+    "uz": "O'tgan coin"
   },
   "Рейтинг": {
     "ru": "Рейтинг",
@@ -3592,7 +3592,7 @@
   "Coin за скорость и серию": {
     "ru": "Coin за скорость и серию",
     "en": "Coin for speed and series",
-    "uz": "Tezlik va seriyalar uchun koin"
+    "uz": "Tezlik va seriyalar uchun coin"
   },
   "Разбор результата после раунда": {
     "ru": "Разбор результата после раунда",
@@ -4671,8 +4671,8 @@
   },
   "Открой профиль игрока: результаты, монеты и достижения в челленджах Logic Coin.": {
     "ru": "Открой профиль игрока: результаты, монеты и достижения в челленджах Logic Coin.",
-    "en": "Open your player profile: results, coins and achievements in Logic Coin challenges.",
-    "uz": "O'yinchi profilingizni oching: natijalar, koinlar va Logic Coin muammolaridagi yutuqlar."
+    "en": "Open your player profile: results, coin and achievements in Logic Coin challenges.",
+    "uz": "O'yinchi profilingizni oching: natijalar, coinlar va Logic Coin muammolaridagi yutuqlar."
   },
   "Удалённый пользователь": {
     "ru": "Удалённый пользователь",
@@ -4992,12 +4992,12 @@
   "🎮 Открыть Logic Coin": {
     "ru": "🎮 Открыть Logic Coin",
     "en": "🎮 Open Logic Coin",
-    "uz": "🎮 Mantiqiy koinni oching"
+    "uz": "🎮 Mantiqiy coinni oching"
   },
   "✅ Вход подтверждён! Возвращайтесь в Logic Coin.": {
     "ru": "✅ Вход подтверждён! Возвращайтесь в Logic Coin.",
     "en": "✅ Login confirmed! Return to Logic Coin.",
-    "uz": "✅ Kirish tasdiqlandi! Mantiqiy koin sahifasiga qaytish."
+    "uz": "✅ Kirish tasdiqlandi! Mantiqiy coin sahifasiga qaytish."
   },
   "Вход подтверждён. Нажмите кнопку, чтобы вернуться в установленное приложение. Если Telegram блокирует открытие, вернитесь в APK вручную — вход уже подтверждён.": {
     "ru": "Вход подтверждён. Нажмите кнопку, чтобы вернуться в установленное приложение. Если Telegram блокирует открытие, вернитесь в APK вручную — вход уже подтверждён.",
@@ -5011,8 +5011,8 @@
   },
   "👋 **Добро пожаловать в Logic Coin!** Играйте в логические игры, участвуйте в челленджах, зарабатывайте монеты и проверяйте свой баланс прямо в Telegram.": {
     "ru": "👋 **Добро пожаловать в Logic Coin!** Играйте в логические игры, участвуйте в челленджах, зарабатывайте монеты и проверяйте свой баланс прямо в Telegram.",
-    "en": "👋 **Welcome to Logic Coin!** Play logic games, take part in challenges, earn coins and check your balance directly on Telegram.",
-    "uz": "👋 **Logic Coin-ga xush kelibsiz!** Mantiqiy o‘yinlarni o‘ynang, chalg‘ichlarda qatnashing, koin ishlab oling va to‘g‘ridan-to‘g‘ri Telegram’da balansingizni tekshiring."
+    "en": "👋 **Welcome to Logic Coin!** Play logic games, take part in challenges, earn coin and check your balance directly on Telegram.",
+    "uz": "👋 **Logic Coin-ga xush kelibsiz!** Mantiqiy o‘yinlarni o‘ynang, chalg‘ichlarda qatnashing, coin ishlab oling va to‘g‘ridan-to‘g‘ri Telegram’da balansingizni tekshiring."
   },
   "Telegram подтверждён. Вернитесь в Logic Coin и нажмите «Проверить», чтобы привязать его к своему аккаунту.": {
     "ru": "Telegram подтверждён. Вернитесь в Logic Coin и нажмите «Проверить», чтобы привязать его к своему аккаунту.",
@@ -5585,9 +5585,9 @@
     "uz": "name@example.com"
   },
   "coin": {
-    "ru": "коинов",
-    "en": "coins",
-    "uz": "koin"
+    "ru": "coin",
+    "en": "coin",
+    "uz": "coin"
   },
   "ARPU": {
     "en": "ARPU",
@@ -5730,9 +5730,9 @@
     "uz": "katta"
   },
   "COIN": {
-    "ru": "КОИНЫ",
+    "ru": "coin",
     "en": "COINS",
-    "uz": "KOINLAR"
+    "uz": "coinLAR"
   },
   "small": {
     "en": "small",
@@ -5917,7 +5917,7 @@
   "{0} coin": {
     "en": "{0} coin",
     "ru": "{0} монета",
-    "uz": "{0} koin"
+    "uz": "{0} coin"
   },
   "volt-match": {
     "en": "volt-match",
@@ -6182,7 +6182,7 @@
   "Legacy game coin conversion is disabled; only server-issued rewards can affect the wallet": {
     "en": "Legacy game coin conversion is disabled; only server-issued rewards can affect the wallet",
     "ru": "Преобразование монет в устаревших играх отключено; только вознаграждения, выданные сервером, могут повлиять на кошелек",
-    "uz": "Eski oʻyinda koin konvertatsiya qilish oʻchirilgan; faqat server tomonidan berilgan mukofotlar hamyonga ta'sir qilishi mumkin"
+    "uz": "Eski oʻyinda coin konvertatsiya qilish oʻchirilgan; faqat server tomonidan berilgan mukofotlar hamyonga ta'sir qilishi mumkin"
   },
   "Leaderboard query is invalid": {
     "en": "Leaderboard query is invalid",
@@ -6360,19 +6360,19 @@
     "uz": "Ikki baravar oshirishdan oldin bugungi barcha vazifalarni bajaring"
   },
   "There are no coins to double today": {
-    "en": "There are no coins to double today",
+    "en": "There are no coin to double today",
     "ru": "Сегодня нет монет для удвоения",
-    "uz": "Bugungi kunda ikki barobarga teng koinlar yo'q"
+    "uz": "Bugungi kunda ikki barobarga teng coinlar yo'q"
   },
   "Coin amount must be a positive integer": {
     "en": "Coin amount must be a positive integer",
     "ru": "Сумма монеты должна быть положительным целым числом.",
-    "uz": "Koin miqdori musbat butun son bo‘lishi kerak"
+    "uz": "coin miqdori musbat butun son bo‘lishi kerak"
   },
   "Coin credit failed": {
     "en": "Coin credit failed",
     "ru": "Зачисление монет не удалось",
-    "uz": "Koin krediti amalga oshmadi"
+    "uz": "coin krediti amalga oshmadi"
   },
   "Choose a valid day, not in the future": {
     "en": "Choose a valid day, not in the future",
@@ -6492,7 +6492,7 @@
   "Coin gift amount must be a positive integer": {
     "en": "Coin gift amount must be a positive integer",
     "ru": "Сумма подарка в виде монет должна быть положительным целым числом.",
-    "uz": "Koin sovgʻa miqdori musbat son boʻlishi kerak"
+    "uz": "coin sovgʻa miqdori musbat son boʻlishi kerak"
   },
   "Gift id is invalid": {
     "en": "Gift id is invalid",
@@ -6507,7 +6507,7 @@
   "This coin gift activates automatically in the next published challenge": {
     "en": "This coin gift activates automatically in the next published challenge",
     "ru": "Эта монета в подарок автоматически активируется в следующем опубликованном задании.",
-    "uz": "Ushbu koin sovg'asi keyingi chop etilgan tanlovda avtomatik ravishda faollashadi"
+    "uz": "Ushbu coin sovg'asi keyingi chop etilgan tanlovda avtomatik ravishda faollashadi"
   },
   "This gift must be applied to a game": {
     "en": "This gift must be applied to a game",
@@ -6547,7 +6547,7 @@
   "Starting coin gift was already used": {
     "en": "Starting coin gift was already used",
     "ru": "Стартовый подарок-монета уже использован.",
-    "uz": "Boshlang'ich koin sovg'asi allaqachon ishlatilgan"
+    "uz": "Boshlang'ich coin sovg'asi allaqachon ishlatilgan"
   },
   "Unknown command": {
     "en": "Unknown command",
@@ -6622,7 +6622,7 @@
   "This placement has no coin reward": {
     "en": "This placement has no coin reward",
     "ru": "Это размещение не имеет вознаграждения в виде монет.",
-    "uz": "Bu joylashtirishda koin mukofoti yo'q"
+    "uz": "Bu joylashtirishda coin mukofoti yo'q"
   },
   "Replay is only available for today's first challenge game": {
     "en": "Replay is only available for today's first challenge game",
@@ -7357,7 +7357,7 @@
   "Logic Coin · {0}": {
     "en": "Logic Coin · {0}",
     "ru": "Логическая монета · {0}",
-    "uz": "Mantiqiy koin · {0}"
+    "uz": "Mantiqiy coin · {0}"
   },
   "[Ads] No rewarded provider initialized": {
     "en": "[Ads] No rewarded provider initialized",
@@ -7485,9 +7485,9 @@
     "uz": "So‘zni top"
   },
   "Три слова — до 1000 коинов": {
-    "ru": "Три слова — до 1000 коинов",
-    "en": "Three words — up to 1000 coins",
-    "uz": "Uchta so‘z — 1000 koingacha"
+    "ru": "Три слова — до 1000 coin",
+    "en": "Three words — up to 1000 coin",
+    "uz": "Uchta so‘z — 1000 coingacha"
   },
   "Бутылка": {
     "ru": "Бутылка",
@@ -7600,19 +7600,19 @@
     "uz": "Internet aloqasini tekshiring."
   },
   "{0}: {1} coin": {
-    "ru": "{0}: {1} коинов",
-    "en": "{0}: {1} coins",
-    "uz": "{0}: {1} koin"
+    "ru": "{0}: {1} coin",
+    "en": "{0}: {1} coin",
+    "uz": "{0}: {1} coin"
   },
   "{0} {1}, {2} coin, {3}": {
-    "ru": "{0} {1}, {2} коинов, {3}",
-    "en": "{0} {1}, {2} coins, {3}",
-    "uz": "{0} {1}, {2} koin, {3}"
+    "ru": "{0} {1}, {2} coin, {3}",
+    "en": "{0} {1}, {2} coin, {3}",
+    "uz": "{0} {1}, {2} coin, {3}"
   },
   "{0}, {1} coin, {2}/{3}, {4}": {
-    "ru": "{0}, {1} коинов, {2}/{3}, {4}",
-    "en": "{0}, {1} coins, {2}/{3}, {4}",
-    "uz": "{0}, {1} koin, {2}/{3}, {4}"
+    "ru": "{0}, {1} coin, {2}/{3}, {4}",
+    "en": "{0}, {1} coin, {2}/{3}, {4}",
+    "uz": "{0}, {1} coin, {2}/{3}, {4}"
   },
   "Некорректный лимит приза.": {
     "ru": "Некорректный лимит приза.",
@@ -7655,9 +7655,9 @@
     "uz": "Kunlik sinovda aynan oltita o‘yin bo‘lishi kerak."
   },
   "Coin prizes must contain six non-negative integers": {
-    "ru": "Награды в коинах должны содержать шесть неотрицательных целых чисел.",
+    "ru": "Награды в coinх должны содержать шесть неотрицательных целых чисел.",
     "en": "Coin prizes must contain six non-negative integers",
-    "uz": "Koin sovrinlari uchun oltita manfiy bo‘lmagan butun son kerak."
+    "uz": "coin sovrinlari uchun oltita manfiy bo‘lmagan butun son kerak."
   },
   "Manual selection requires exactly six game keys": {
     "ru": "При ручном выборе нужно указать ровно шесть ключей игр.",
@@ -7898,5 +7898,20 @@
     "ru": "Для выплаты нужен только номер карты. Он хранится на сервере в зашифрованном виде. Название и срок действия необязательны, сохраняются только на вашем устройстве при выборе «Запомнить мою карту» и не передаются с заявкой. CVV и PIN не запрашиваются.",
     "en": "Only the card number is needed for a payout. It is stored encrypted on the server. The label and expiry date are optional, stay on your device when you select “Remember my card”, and are not sent with the request. CVV and PIN are never requested.",
     "uz": "Pul yechish uchun faqat karta raqami kerak. U serverda shifrlangan holda saqlanadi. Nom va amal qilish muddati ixtiyoriy, “Kartamni eslab qolish” tanlansa, faqat qurilmangizda saqlanadi va ariza bilan yuborilmaydi. CVV va PIN soʻralmaydi."
+  },
+  "Запускаем игру": {
+    "ru": "Запускаем игру",
+    "en": "Starting the game",
+    "uz": "O‘yin ishga tushirilmoqda"
+  },
+  "Не удалось открыть игру": {
+    "ru": "Не удалось открыть игру",
+    "en": "Couldn’t open the game",
+    "uz": "O‘yinni ochib bo‘lmadi"
+  },
+  "Не удалось запустить челлендж": {
+    "ru": "Не удалось запустить челлендж",
+    "en": "Couldn’t start the challenge",
+    "uz": "Sinovni boshlab bo‘lmadi"
   }
 }

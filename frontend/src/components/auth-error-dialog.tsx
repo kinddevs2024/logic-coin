@@ -21,6 +21,8 @@ export function AuthErrorProvider({ children }: PropsWithChildren) {
   const close = () => setNotice(null);
   const connection = notice ? isConnectionError(notice.error) : false;
   const title = connection ? c.connectionTitle : c.title;
+  const googleCategory = notice?.error && typeof notice.error === "object" && "googleAuthCategory" in notice.error ? String((notice.error as {googleAuthCategory?: unknown}).googleAuthCategory) : "";
+  const googleCodes: Record<string, string> = { developer_error: "10", network_error: "7", play_services_unavailable: "PLAY_SERVICES", in_progress: "IN_PROGRESS", sign_in_required: "SIGN_IN_REQUIRED", missing_id_token: "NO_TOKEN", other: "UNKNOWN" };
   return <Context.Provider value={show}>
     {children}
     <Modal visible={notice !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={close}>
@@ -31,6 +33,7 @@ export function AuthErrorProvider({ children }: PropsWithChildren) {
               <View style={styles.errorIcon}><Ionicons name="alert-circle-outline" size={68} color={String(theme.primary)} /></View>}
             <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>{title}</Text>
             <Text style={[styles.body, { color: theme.textMuted }]}>{connection ? c.connectionBody : c.body}</Text>
+            {googleCodes[googleCategory] ? <Text style={{ color: theme.textMuted, marginBottom: 12 }}>Google: {googleCodes[googleCategory]}</Text> : null}
             {notice?.retry ? <Pressable accessibilityRole="button" accessibilityLabel={c.retry} onPress={() => { const retry = notice.retry; close(); retry?.(); }} style={({ pressed }) => [styles.button, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
               <Text style={[styles.buttonText, { color: theme.onPrimary }]}>{c.retry}</Text>
             </Pressable> : null}

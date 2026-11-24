@@ -24,6 +24,7 @@ export type RememberedWithdrawalCard = {
 
 type AppState = {
   hydrated: boolean;
+  storageReadFailed: boolean;
   language: Language | null;
   timeFormat: "12" | "24";
   postAuthLanguageUserId: string | null;
@@ -55,7 +56,7 @@ type AppState = {
   taskCounts: Record<string, number>;
   rewardEventId: number;
   latestReward: { amount: number; id: number } | null;
-  setHydrated: (hydrated: boolean) => void;
+  setHydrated: (hydrated: boolean, storageReadFailed?: boolean) => void;
   setLanguage: (language: Language) => void;
   setTimeFormat: (format: "12" | "24") => void;
   setPostAuthLanguageUserId: (userId: string | null) => void;
@@ -88,6 +89,9 @@ type AppState = {
   updateUser: (input: Partial<User>) => void;
 };
 
+// If the device cannot read a save, the current session may still work in
+// memory. Only write after loading the persisted data successfully.
+let appStorageWritable = false;
 const secureStorage: StateStorage = {
   getItem: async (name) => {
     if (Platform.OS === "web") {
@@ -96,11 +100,9 @@ const secureStorage: StateStorage = {
     return SecureStore.getItemAsync(name);
   },
   setItem: async (name, value) => {
-    if (Platform.OS === "web") {
-      await AsyncStorage.setItem(name, value);
-      return;
-    }
-    await SecureStore.setItemAsync(name, value);
+    if (!appStorageWritable) return;
+    const save = Platform.OS === "web" ? AsyncStorage.setItem(name, value) : SecureStore.setItemAsync(name, value);
+    await save.catch(() => undefined);
   },
   removeItem: async (name) => {
     if (Platform.OS === "web") {
@@ -115,6 +117,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       hydrated: false,
+      storageReadFailed: false,
       language: null,
       timeFormat: "12",
       postAuthLanguageUserId: null,
@@ -148,7 +151,7 @@ export const useAppStore = create<AppState>()(
       taskCounts: {},
       rewardEventId: 0,
       latestReward: null,
-      setHydrated: (hydrated) => set({ hydrated }),
+      setHydrated: (hydrated, storageReadFailed = false) => set({ hydrated, storageReadFailed }),
       setLanguage: (language) => set({ language }),
       setTimeFormat: (timeFormat) => set({ timeFormat }),
       setPostAuthLanguageUserId: (postAuthLanguageUserId) => set({ postAuthLanguageUserId }),
@@ -346,13 +349,18 @@ export const useAppStore = create<AppState>()(
       skipHydration: Platform.OS === "web",
       partialize: ({
         hydrated: _hydrated,
+        storageReadFailed: _storageReadFailed,
         cashBalanceReady: _cashBalanceReady,
         rewardEventId: _rewardEventId,
         latestReward: _latestReward,
         ...state
       }) => state,
-      onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
+      onRehydrateStorage: (current) => {
+        appStorageWritable = false;
+        return (loaded) => {
+          appStorageWritable = Boolean(loaded);
+          (loaded ?? current).setHydrated(true, !loaded);
+        };
       },
     },
   ),

@@ -1,5 +1,5 @@
 import {playerProfileRoute} from "@/lib/player-profile-navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PropsWithChildren } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -13,11 +13,14 @@ import {
   PanResponder,
   type ViewStyle,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
-import { useReducedMotion } from "react-native-reanimated";
+import Reanimated, { FadeInRight, FadeOutRight, useReducedMotion } from "react-native-reanimated";
+import MaskedView from "@react-native-masked-view/masked-view";
+import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { MotionEntrance } from "@/components/motion-entrance";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,12 +37,26 @@ import { useAppStore } from "@/store/app-store";
 import { chatApi, chatMediaUrl, type ChatRoom } from "@/lib/chat-api";
 import { compareChatRooms } from "@/lib/chat-order";
 import { useChatCopy } from "@/lib/chat-copy";
-import { ConversationPane } from "./conversation-pane";
+
 import { ChatAction, ChatSheet } from "./chat-sheet";
 import { ApiError, meApi } from "@/lib/api";
 import {InviteFriendsSheet} from "./invite-friends-sheet";
 import { ChatRoomInfo } from "./chat-room-info";
 
+const nativeChatEntrance = FadeInRight.duration(165).withInitialValues({
+  opacity: 0.82,
+  transform: [{ translateX: 28 }],
+});
+const nativeChatExit = FadeOutRight.duration(155);
+
+type ConversationPaneProps = ComponentProps<typeof import("./conversation-pane").ConversationPane>;
+function loadConversationPane() {
+  return require("./conversation-pane") as typeof import("./conversation-pane");
+}
+function DeferredConversationPane(props: ConversationPaneProps) {
+  const { ConversationPane } = loadConversationPane();
+  return <ConversationPane {...props} />;
+}
 export function MessagesScreen() {
   const theme = useAppTheme(),
     c = useChatCopy(),
@@ -61,6 +78,7 @@ export function MessagesScreen() {
   const insets = useSafeAreaInsets();
   const chatOpen = Boolean(params.chat);
   const ChatTransition = Platform.OS === "web" && isDesktop ? MotionEntrance : View;
+  const ConversationContainer = Platform.OS === "web" ? Animated.View : Reanimated.View;
   const closeConversation = useCallback(() => {
     Keyboard.dismiss();
     router.setParams({ chat: "", messageSearch: "" });
@@ -87,6 +105,7 @@ export function MessagesScreen() {
   const [invitingFriends,setInvitingFriends]=useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchMounted, setSearchMounted] = useState(false);
   const [searchWidth, setSearchWidth] = useState(320);
   const searchBox = useRef<View>(null);
   const [searchMotion] = useState(() => new Animated.Value(0));
@@ -96,9 +115,11 @@ export function MessagesScreen() {
       toValue: searchOpen ? 1 : 0,
       duration: reducedMotion ? 0 : 220,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
+      useNativeDriver: Platform.OS !== "web",
     });
-    animation.start();
+    animation.start(({ finished }) => {
+      if (finished && !searchOpen) setSearchMounted(false);
+    });
     return () => animation.stop();
   }, [searchOpen, searchMotion, reducedMotion]);
   const [filter, setFilter] = useState("all"),
@@ -138,6 +159,19 @@ export function MessagesScreen() {
   const closeSearch = useCallback(() => { setSearchOpen(false); setSearch(""); setDebounced(""); Keyboard.dismiss(); }, []);
   useDismissSearch(searchOpen, closeSearch);
   useEffect(() => {
+    if (Platform.OS !== "android" || !focused || !searchOpen) return;
+    const back = BackHandler.addEventListener("hardwareBackPress", () => {
+      closeSearch();
+      return true;
+    });
+    // Android can handle Back in the keyboard before React Native sees it.
+    const keyboard = Keyboard.addListener("keyboardDidHide", closeSearch);
+    return () => {
+      back.remove();
+      keyboard.remove();
+    };
+  }, [closeSearch, focused, searchOpen]);
+  useEffect(() => {
     const timer = setTimeout(() => setDebounced(search.trim()), 350);
     return () => clearTimeout(timer);
   }, [search]);
@@ -153,13 +187,21 @@ export function MessagesScreen() {
       hide.remove();
     };
   }, []);
+  const folderScroll = useRef({ offset: 0, width: 0, contentWidth: 0 });
+  const [folderEdges, setFolderEdges] = useState({ left: false, right: false });
+  const updateFolderEdges = (dimensions: Partial<typeof folderScroll.current>) => {
+    const scroll = Object.assign(folderScroll.current, dimensions);
+    const left = scroll.offset > 2;
+    const right = scroll.contentWidth - scroll.width - scroll.offset > 2;
+    setFolderEdges(current => current.left === left && current.right === right ? current : { left, right });
+  };
   const folderWheel = useRef({ amount: 0, last: 0 });
   const pointerSwipe = useRef({ x: 0, y: 0, active: false, suppressUntil: 0 });
   const changeFolder = (direction: number) =>
     setFilter((current) => {
-      const folders = ["all", "direct", "group", "channel", "requests"];
+      const folders = ["all", "direct", "support", "group", "channel", "requests"];
       return folders[
-        Math.max(0, Math.min(4, folders.indexOf(current) + direction))
+        Math.max(0, Math.min(folders.length - 1, folders.indexOf(current) + direction))
       ]!;
     });
   const folderSwipe = useMemo(
@@ -262,6 +304,15 @@ export function MessagesScreen() {
     if (openingChat.data) client.setQueryData(["chat-list", token], openingChat.data);
   }, [openingChat.data, client, token]);
   const selected = listedRoom ?? openingChat.data?.chats.find(room => room.id === params.chat);
+  const canPrepareConversation = chats.length > 0;
+  useEffect(() => {
+    if (Platform.OS === "web" || !focused || chatOpen || !canPrepareConversation) return;
+    // Prepare the code after the list renders so the first tap doesn't have to
+    // initialize the conversation screen and its dependencies.
+    const idle = requestIdleCallback(() => { loadConversationPane(); });
+    return () => cancelIdleCallback(idle);
+  }, [canPrepareConversation, chatOpen, focused]);
+
   const desktopChatMotion = Platform.OS === "web" && isDesktop;
   const [leavingChat, setLeavingChat] = useState<{ room: ChatRoom; search: string } | null>(null);
   const retainedChat = useRef<typeof leavingChat>(null);
@@ -292,10 +343,10 @@ export function MessagesScreen() {
   }, [desktopChatMotion, selected, params.messageSearch, reducedMotion, exitMotion]);
   const visibleRoom = selected ?? (desktopChatMotion ? leavingChat?.room : undefined);
   const unreadByFolder = useMemo(() => {
-    const counts: Record<string, number> = {all: 0, direct: 0, group: 0, channel: 0};
+    const counts: Record<string, number> = {all: 0, direct: 0, support: 0, group: 0, channel: 0};
     for (const room of chats) {
       counts.all += room.unread;
-      counts[room.kind === "support" ? "direct" : room.kind] += room.unread;
+      counts[room.kind] += room.unread;
     }
     counts.requests = requestsQuery.data?.requests.length ?? 0;
     return counts;
@@ -312,7 +363,8 @@ export function MessagesScreen() {
     (room) =>
       ((searchOpen && Boolean(debounced)) ||
         filter === "all" ||
-        (filter === "direct" && ["direct", "support"].includes(room.kind)) ||
+        (filter === "direct" && room.kind === "direct") ||
+        (filter === "support" && room.kind === "support") ||
         (filter === "group" && room.kind === "group") ||
         (filter === "channel" && room.kind === "channel")) &&
       (!debounced ||
@@ -414,14 +466,13 @@ export function MessagesScreen() {
       }}
     >
       <View
+        collapsable={false}
         onTouchEnd={Platform.OS !== "web" && searchOpen ? event => {
           const { pageX, pageY } = event.nativeEvent;
           searchBox.current?.measureInWindow((x, y, width, height) => {
             if (pageX < x || pageX > x + width || pageY < y || pageY > y + height) closeSearch();
           });
         } : undefined}
-        {...(Platform.OS !== "web" ? folderSwipe.panHandlers : {})}
-        {...wheelProps}
         style={[
           styles.shell,
           { backgroundColor: "transparent", borderColor: theme.border },
@@ -486,63 +537,83 @@ export function MessagesScreen() {
               onLayout={(event) =>
                 setSearchWidth(event.nativeEvent.layout.width - 32)
               }
-              style={{ height: 68, flexShrink: 0, marginHorizontal: 0 }}
+              style={{ height: 60, flexShrink: 0 }}
             >
-              <View
+              <Animated.View
                 pointerEvents={searchOpen ? "none" : "auto"}
                 accessibilityElementsHidden={searchOpen}
+                importantForAccessibility={searchOpen ? "no-hide-descendants" : "auto"}
                 style={[
                   styles.filters,
                   {
-                    height: 68,
+                    height: "100%",
                     alignItems: "center",
-                    opacity: searchOpen ? 0 : 1,
+                    opacity: searchMotion.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
                   },
                 ]}
               >
-                <Animated.View testID="messages-folder-indicator" pointerEvents="none" style={{position:"absolute",left:0,top:0,borderRadius:14,backgroundColor:theme.primarySoft,
-                  width:folderIndicator.width,height:folderIndicator.height,opacity:folderBounds[filter]?1:0,
-                  transform:[{translateX:folderIndicator.x},{translateY:folderIndicator.y}]}} />
-                {[
-                  ["all", c.all],
-                  ["direct", c.direct],
-                  ["group", c.groups],
-                  ["channel", c.channels],
-                  ["requests", c.requests],
-                ].map(([key, label]) => (
-                  <Pressable
-                    key={key}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: filter === key }}
-                    onPress={() => setFilter(key!)}
-                    onLayout={({nativeEvent:{layout}}) => setFolderBounds(current => {
-                      const old=current[key!];
-                      if(old && old.x===layout.x && old.y===layout.y && old.width===layout.width && old.height===layout.height)return current;
-                      return {...current,[key!]:{x:layout.x,y:layout.y,width:layout.width,height:layout.height}};
-                    })}
-                    style={[
-                      styles.filter,
-                    ]}
+                <FolderEdgeMask left={folderEdges.left} right={folderEdges.right}>
+                  <ScrollView
+                    horizontal
+                    scrollEventThrottle={32}
+                    onLayout={({ nativeEvent }) => updateFolderEdges({ width: nativeEvent.layout.width })}
+                    onContentSizeChange={contentWidth => updateFolderEdges({ contentWidth })}
+                    onScroll={({ nativeEvent }) => updateFolderEdges({ offset: nativeEvent.contentOffset.x })}
+                    showsHorizontalScrollIndicator={false}
+                    style={{ flex: 1, minWidth: 0 }}
+                    contentContainerStyle={styles.folderStrip}
                   >
-                    <AppText
-                      variant="caption"
-                      style={{fontSize:12}}
-                      color={String(
-                        filter === key ? theme.primary : theme.textMuted,
-                      )}
-                    >
-                      {label}
-                    </AppText>
-                    {unreadByFolder[key!] > 0 ? <View accessibilityLabel={`${c.unreadMessages}: ${unreadByFolder[key!]}`} style={{minWidth: 16, height: 16, paddingHorizontal: 4, borderRadius: 8, marginLeft: 4, backgroundColor: theme.primary, alignItems: "center", justifyContent: "center"}}>
-                      <AppText style={{fontSize: 10, lineHeight: 13, color: theme.onPrimary}}>{unreadByFolder[key!] > 99 ? "99+" : unreadByFolder[key!]}</AppText>
-                    </View> : null}
-                  </Pressable>
-                ))}
+                    <View style={styles.folderItems}>
+                      <Animated.View testID="messages-folder-indicator" pointerEvents="none" style={{position:"absolute",left:0,top:0,borderRadius:14,backgroundColor:theme.primarySoft,
+                        width:folderIndicator.width,height:folderIndicator.height,opacity:folderBounds[filter]?1:0,
+                        transform:[{translateX:folderIndicator.x},{translateY:folderIndicator.y}]}} />
+                      {[
+                        ["all", c.all],
+                        ["direct", c.direct],
+                        ["support", c.support],
+                        ["group", c.groups],
+                        ["channel", c.channels],
+                        ["requests", c.requests],
+                      ].map(([key, label]) => (
+                        <Pressable
+                          key={key}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: filter === key }}
+                          onPress={() => setFilter(key!)}
+                          onLayout={({nativeEvent:{layout}}) => setFolderBounds(current => {
+                            const old=current[key!];
+                            if(old && old.x===layout.x && old.y===layout.y && old.width===layout.width && old.height===layout.height)return current;
+                            return {...current,[key!]:{x:layout.x,y:layout.y,width:layout.width,height:layout.height}};
+                          })}
+                          style={[
+                            styles.filter,
+                          ]}
+                        >
+                          <AppText
+                            variant="caption"
+                            style={{fontSize:12}}
+                            color={String(
+                              filter === key ? theme.primary : theme.textMuted,
+                            )}
+                          >
+                            {label}
+                          </AppText>
+                          {unreadByFolder[key!] > 0 ? <View accessibilityLabel={`${c.unreadMessages}: ${unreadByFolder[key!]}`} style={{minWidth: 16, height: 16, paddingHorizontal: 4, borderRadius: 8, marginLeft: 4, backgroundColor: theme.primary, alignItems: "center", justifyContent: "center"}}>
+                            <AppText style={{fontSize: 10, lineHeight: 13, color: theme.onPrimary}}>{unreadByFolder[key!] > 99 ? "99+" : unreadByFolder[key!]}</AppText>
+                          </View> : null}
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </FolderEdgeMask>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={c.search}
-                  onPress={() => setSearchOpen(true)}
-                  style={[styles.icon, { marginLeft: "auto" }]}
+                  onPress={() => {
+                    setSearchMounted(true);
+                    setSearchOpen(true);
+                  }}
+                  style={[styles.icon, { flexShrink: 0 }]}
                 >
                   <Ionicons
                     name="search-outline"
@@ -550,55 +621,67 @@ export function MessagesScreen() {
                     color={String(theme.primary)}
                   />
                 </Pressable>
-              </View>
-              <Animated.View
+              </Animated.View>
+              <View
                 ref={searchBox}
                 nativeID="chat-list-search"
                 pointerEvents={searchOpen ? "auto" : "none"}
+                accessibilityElementsHidden={!searchOpen}
+                importantForAccessibility={searchOpen ? "auto" : "no-hide-descendants"}
                 style={{
                   position: "absolute",
                   right: 16,
                   top: 12,
+                  width: Math.max(36, searchWidth),
                   height: 44,
                   borderRadius: 16,
                   overflow: "hidden",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: theme.surfaceRaised,
-                  opacity: searchMotion,
-                  width: searchMotion.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [36, Math.max(36, searchWidth)],
-                  }),
                 }}
               >
-                {searchOpen ? (
-                  <>
-                    <TextInput
-                      accessibilityLabel={c.search}
-                      autoFocus
-                      value={search}
-                      onChangeText={setSearch}
-                      placeholderTextColor={theme.textMuted}
-                      style={{
-                        paddingLeft: 14,
-                        flex: 1,
-                        minWidth: 0,
-                        height: 44,
-                        color: theme.text,
-                        fontSize: 14,
-                      }}
-                    />
-                    <View style={styles.icon}>
-                      <Ionicons
-                        name="search-outline"
-                        size={22}
-                        color={String(theme.primary)}
+                <Animated.View
+                  style={{
+                    flex: 1,
+                    borderRadius: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: theme.surfaceRaised,
+                    opacity: searchMotion,
+                    transform: [{
+                      translateX: searchMotion.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [Math.max(0, searchWidth - 36), 0],
+                      }),
+                    }],
+                  }}
+                >
+                  {searchMounted ? (
+                    <>
+                      <TextInput
+                        accessibilityLabel={c.search}
+                        autoFocus={searchOpen}
+                        value={search}
+                        onChangeText={setSearch}
+                        placeholderTextColor={theme.textMuted}
+                        style={{
+                          paddingLeft: 14,
+                          flex: 1,
+                          minWidth: 0,
+                          height: 44,
+                          color: theme.text,
+                          fontSize: 14,
+                        }}
                       />
-                    </View>
-                  </>
-                ) : null}
-              </Animated.View>
+                      <View style={styles.icon}>
+                        <Ionicons
+                          name="search-outline"
+                          size={22}
+                          color={String(theme.primary)}
+                        />
+                      </View>
+                    </>
+                  ) : null}
+                </Animated.View>
+              </View>
             </View>
             {query.isPending ? (
               <ActivityIndicator
@@ -615,7 +698,10 @@ export function MessagesScreen() {
                 }}
               />
             ) : null}
-            <Animated.View style={{flex:1,minHeight:0,opacity:folderMotion,transform:[{translateX:folderMotion.interpolate({inputRange:[0,1],outputRange:[14,0]})}]}}>
+            <Animated.View
+              {...(Platform.OS !== "web" ? folderSwipe.panHandlers : {})}
+              {...wheelProps}
+              style={{flex:1,minHeight:0,opacity:folderMotion,transform:[{translateX:folderMotion.interpolate({inputRange:[0,1],outputRange:[14,0]})}]}}>
             {filter === "requests" && !searchOpen ? <View style={{flex:1, paddingHorizontal:16}}>
               {requestsQuery.isPending ? <ActivityIndicator color={String(theme.primary)} /> : null}
               {requestsQuery.isError ? <ChatAction title={c.retry} onPress={()=>void requestsQuery.refetch()} /> : null}
@@ -638,6 +724,8 @@ export function MessagesScreen() {
                   : undefined
               }
               showsVerticalScrollIndicator={false}
+              fadingEdgeLength={Platform.OS === "android" ? { start: 24, end: 0 } : undefined}
+              initialNumToRender={6} maxToRenderPerBatch={5} windowSize={7}
               data={filter === "requests" && !searchOpen ? [] : shown}
               keyExtractor={(room) => room.id}
               contentContainerStyle={{
@@ -647,7 +735,7 @@ export function MessagesScreen() {
               }}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item: room }) => (
-                <MotionEntrance
+                <ChatTransition
                   style={[
                     styles.chatRow,
                     {
@@ -791,7 +879,7 @@ export function MessagesScreen() {
                       ) : null}
                     </View>
                   </Pressable>
-                </MotionEntrance>
+                </ChatTransition>
               )}
               ListFooterComponent={
                 debounced.length >= 2 ? (
@@ -861,12 +949,22 @@ export function MessagesScreen() {
           </View>
         ) : null}
         {visibleRoom ? (
-          <Animated.View key={visibleRoom.id} testID="chat-exit-transition" pointerEvents={selected ? "auto" : "none"} style={[{ flex: 1, minWidth: 0 }, desktopChatMotion && {
-            opacity: exitMotion,
-            transform: [{ translateX: exitMotion.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
-          }]}>
+          <ConversationContainer
+            key={visibleRoom.id}
+            testID="chat-exit-transition"
+            pointerEvents={selected ? "auto" : "none"}
+            style={[
+              { flex: 1, minWidth: 0 },
+              Platform.OS !== "web" && !isDesktop && StyleSheet.absoluteFill,
+              desktopChatMotion && {
+                opacity: exitMotion,
+                transform: [{ translateX: exitMotion.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+              },
+            ]}
+            {...(Platform.OS !== "web" && !reducedMotion ? { entering: nativeChatEntrance, exiting: nativeChatExit } : {})}
+          >
           <ChatTransition testID="chat-conversation-transition" style={{ flex: 1, minWidth: 0 }}>
-            <ConversationPane
+            <DeferredConversationPane
               room={{ ...visibleRoom, title: roomTitle(visibleRoom) }}
               token={token}
               initialSearch={selected ? params.messageSearch ?? "" : leavingChat?.search ?? ""}
@@ -877,7 +975,7 @@ export function MessagesScreen() {
               onInfo={() => setInfo(true)}
             />
           </ChatTransition>
-          </Animated.View>
+          </ConversationContainer>
         ) : chatOpen ? (
           <View testID="chat-opening-state" style={[styles.empty, { flex: 1 }]}>
             <ChatAction title={c.close} icon="arrow-back" onPress={closeConversation} />
@@ -1051,6 +1149,29 @@ export function MessagesScreen() {
     </AppFrame>
   );
 }
+function FolderEdgeMask({ children, left, right }: PropsWithChildren<{ left: boolean; right: boolean }>) {
+  if (Platform.OS === "web") {
+    const maskImage = `linear-gradient(to right, ${left ? "transparent" : "#000"} 0, #000 16px, #000 calc(100% - 16px), ${right ? "transparent" : "#000"} 100%)`;
+    return <View style={[styles.folderViewport, { maskImage, WebkitMaskImage: maskImage } as ViewStyle]}>{children}</View>;
+  }
+  const opaque = "#000000";
+  return (
+    <MaskedView
+      style={styles.folderViewport}
+      androidRenderingMode="software"
+      maskElement={
+        <View style={styles.folderMask}>
+          {left ? <LinearGradient colors={["transparent", opaque]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.folderFade} /> : null}
+          <View style={styles.folderMaskCenter} />
+          {right ? <LinearGradient colors={[opaque, "transparent"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.folderFade} /> : null}
+        </View>
+      }
+    >
+      {children}
+    </MaskedView>
+  );
+}
+
 const styles = StyleSheet.create({
   shell: { flex: 1, minHeight: 0, overflow: "hidden" },
   desktop: { flexDirection: "row", borderWidth: 1, borderRadius: 26 },
@@ -1077,7 +1198,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  filters: { flexDirection: "row", gap: 2, padding: 12, paddingHorizontal: 12 },
+  filters: { flexDirection: "row", gap: 4, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4 },
+  folderViewport: { flex: 1, minWidth: 0, height: 44 },
+  folderMask: { flex: 1, flexDirection: "row" },
+  folderMaskCenter: { flex: 1, backgroundColor: "#000000" },
+  folderFade: { width: 16 },
+  folderStrip: { alignItems: "center" },
+  folderItems: { flexDirection: "row", gap: 2, alignItems: "center" },
   filter: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 6, borderRadius: 14 },
   chatRow: {
     flexDirection: "row",

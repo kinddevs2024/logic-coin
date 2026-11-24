@@ -5,6 +5,7 @@ export async function selectGoogleAccount<T>(sdk: {
 }): Promise<T> {
   await sdk.hasPlayServices({ showPlayServicesUpdateDialog: true });
   // Reset this app's saved choice, not Google accounts or granted permissions.
-  await sdk.signOut();
+  // A stale or unavailable previous session must not prevent sign-in.
+  try { await sdk.signOut(); } catch { /* Continue to Google account selection. */ }
   return sdk.signIn();
 }

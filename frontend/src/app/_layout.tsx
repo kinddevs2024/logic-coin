@@ -12,8 +12,8 @@ import { Stack, router, useRootNavigationState, usePathname, useGlobalSearchPara
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
-import { useEffect, useState } from "react";
-import { AppState, Platform } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, AppState, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -37,7 +37,10 @@ import { setPushStatus } from "@/lib/push-status";
 import { NotificationInbox } from "@/components/notification-inbox";
 import { useAppStore } from "@/store/app-store";
 
-void SplashScreen.preventAutoHideAsync();
+// Expo Router manages the native splash until the root view is available.
+function dismissNativeSplash() {
+  if (Platform.OS !== "web") void SplashScreen.hideAsync().catch(() => {});
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +54,7 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const theme = useAppTheme();
   const hydrated = useAppStore((state) => state.hydrated);
+  const storageReadFailed = useAppStore((state) => state.storageReadFailed);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
   const accountId = useAppStore((state) => state.user.id);
@@ -60,6 +64,7 @@ export default function RootLayout() {
   const notificationTime = useAppStore((state) => state.notificationTime);
   const language = useAppStore((state) => state.language) ?? "uz";
   const [pushInbox, setPushInbox] = useState(false);
+  const closePendingChat = useCallback(() => setPendingChat(null), []);
   const [pendingChat, setPendingChat] = useState<{ id: string; account: string } | null>(null);
 
   useEffect(() => {
@@ -178,10 +183,35 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (hydrated) {
-      void SplashScreen.hideAsync();
-    }
-  }, [hydrated]);
+    if (Platform.OS === "web") return;
+    const frame = requestAnimationFrame(dismissNativeSplash);
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") dismissNativeSplash();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!storageReadFailed || Platform.OS === "web") return;
+    let active = true;
+    const showRecovery = () => {
+      if (!active || !useAppStore.getState().storageReadFailed) return;
+      const copy = ({
+        ru: ["Не удалось открыть сохранённый вход", "Данные аккаунта остались на устройстве. Можно повторить загрузку или продолжить и войти заново.", "Продолжить", "Повторить"],
+        uz: ["Saqlangan kirishni ochib bo‘lmadi", "Hisob ma’lumotlari qurilmada saqlangan. Qayta urinib ko‘ring yoki davom etib, hisobga qayta kiring.", "Davom etish", "Qayta urinish"],
+        en: ["Couldn’t restore your sign-in", "Your saved data is still on this device. Retry or continue and sign in again.", "Continue", "Retry"],
+      } as const)[language];
+      Alert.alert(copy[0], copy[1], [
+        { text: copy[2], style: "cancel" },
+        { text: copy[3], onPress: () => { void Promise.resolve(useAppStore.persist.rehydrate()).then(showRecovery, showRecovery); } },
+      ]);
+    };
+    showRecovery();
+    return () => { active = false; };
+  }, [language, storageReadFailed]);
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -292,7 +322,7 @@ export default function RootLayout() {
   ]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={dismissNativeSplash}>
       <SafeAreaProvider>
         <NativeDataCacheBoundary client={queryClient}>
         <QueryClientProvider client={queryClient}>
@@ -311,7 +341,7 @@ export default function RootLayout() {
           <AdRuntime />
           <AppliedUpdateNotice />
           <ChatRuntime />
-          <NotificationChatNavigation pending={pendingChat} onOpened={() => setPendingChat(null)} />
+          <NotificationChatNavigation pending={pendingChat} onOpened={closePendingChat} />
           <RewardBurst />
           <ContestRewardModal />
           <WithdrawalApprovedModal />

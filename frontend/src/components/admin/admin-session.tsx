@@ -40,7 +40,7 @@ export function AdminSessionProvider({ children }: PropsWithChildren) {
   if (authMode !== "authenticated" || !accessToken) {
     return <Redirect href={{ pathname: "/login", params: { next: "/admin" } }} />;
   }
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "owner") {
     return <Redirect href="/(tabs)" />;
   }
   if (!value) return null;

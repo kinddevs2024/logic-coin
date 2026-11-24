@@ -15,9 +15,9 @@ import { useAppStore } from "@/store/app-store";
 import type { TodayChallenges } from "@/types";
 
 const COPY = {
-  ru: { title: "+45 коинов за рекламу", body: "Досмотрите видео: +45 коинов.\nКоины идут в рейтинг челленджа.\nИнтервал растёт после просмотра или отказа. Новый день — новая последовательность; сброс в полночь по Ташкенту.", watch: "Смотреть рекламу · +45 коинов", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
-  en: { title: "+45 coins for a video", body: "Watch the full ad to earn 45 coins.\nThey count toward the challenge ranking.\nWaiting increases after watching or declining. The schedule resets at midnight in Tashkent.", watch: "Watch ad · +45 coins", skip: "Not now", error: "No reward received. Please try again later." },
-  uz: { title: "Reklama uchun +45 coin", body: "Videoni oxirigacha ko‘ring — 45 coin oling.\nUlar sinov reytingiga qo‘shiladi.\nKo‘rish yoki rad etishdan keyin kutish uzayadi. Jadval Toshkent vaqti bilan yarim tunda yangilanadi.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
+  ru: { title: "+45 coin за рекламу", body: "Досмотрите рекламу, чтобы получить coin в рейтинг. Интервал растёт; сброс — в полночь по Ташкенту.", watch: "Смотреть рекламу · +45 coin", skip: "Не сейчас", error: "Награда не получена. Попробуйте позже." },
+  en: { title: "+45 coin for an ad", body: "Finish the ad to earn coin for the ranking. The wait increases and resets at Tashkent midnight.", watch: "Watch ad · +45 coin", skip: "Not now", error: "No reward received. Please try again later." },
+  uz: { title: "Reklama uchun +45 coin", body: "Reklamani oxirigacha ko‘ring — coin reytingga qo‘shiladi. Kutish uzayadi, Toshkent vaqti bilan yarim tunda yangilanadi.", watch: "Reklama ko‘rish · +45 coin", skip: "Hozir emas", error: "Mukofot olinmadi. Keyinroq urinib ko‘ring." },
 };
 
 export function ChallengeAdOffer() {

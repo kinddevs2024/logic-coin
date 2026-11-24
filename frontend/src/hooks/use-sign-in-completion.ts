@@ -8,8 +8,7 @@ export function useSignInCompletion(onAuthenticated?: (result: SocialAuthResult)
   const router = useRouter();
   return useCallback((result: SocialAuthResult) => {
     if ("setupToken" in result) {
-      useAppStore.getState().setPendingPasswordSetupToken(result.setupToken);
-      router.replace({ pathname: "/set-password", params: { source: "social", accountLabel: result.accountLabel } });
+      router.replace("/login");
       return;
     }
     if (onAuthenticated) return onAuthenticated(result);
@@ -20,7 +19,7 @@ export function useSignInCompletion(onAuthenticated?: (result: SocialAuthResult)
       refreshToken: result.tokens.refreshToken,
       balanceUnits: result.user.wallet?.availableUnits,
     });
-    const destination = result.user.role === "owner" ? "/owner" : result.user.role === "admin" ? Platform.OS === "web" ? "/admin" : "/(tabs)"
+    const destination = result.user.role === "owner" ? Platform.OS === "web" ? "/admin" : "/owner" : result.user.role === "admin" ? Platform.OS === "web" ? "/admin" : "/(tabs)"
       : !result.user.countryCode
         ? state.postAuthLanguageUserId === result.user.id ? "/country" : "/language"
         : "/(tabs)";

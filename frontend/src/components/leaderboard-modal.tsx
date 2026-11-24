@@ -258,18 +258,12 @@ function OpenLeaderboardModal({ visible, onClose }: { visible: boolean; onClose:
             { backgroundColor: "rgba(0,0,0,0.32)", opacity: backdrop },
           ]}
         >
-          <BlurView
+          {Platform.OS !== "android" ? <BlurView
             pointerEvents="none"
             intensity={34}
             tint={theme.mode === "dark" ? "dark" : "light"}
-            {...(Platform.OS === "android" && blurTarget
-              ? {
-                  blurMethod: "dimezisBlurView" as const,
-                  blurTarget,
-                }
-              : {})}
             style={StyleSheet.absoluteFill}
-          />
+          /> : null}
           <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.close)} style={StyleSheet.absoluteFill} onPress={close} />
         </Animated.View>
 

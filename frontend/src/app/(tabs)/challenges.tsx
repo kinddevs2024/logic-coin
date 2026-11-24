@@ -51,7 +51,7 @@ function AvailableChallengesScreen() {
           </View>
       </View>
 
-      <Animated.View entering={FadeIn.duration(350)}>
+      <Animated.View entering={Platform.OS === "android" ? undefined : FadeIn.duration(350)}>
         <ChallengeProgress today={today} />
       </Animated.View>
 

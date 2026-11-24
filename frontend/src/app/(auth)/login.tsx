@@ -20,6 +20,7 @@ import { ApiError, authApi } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 import { useSignInCompletion } from "@/hooks/use-sign-in-completion";
 import { authEntryCopy } from "@/constants/auth-entry-copy";
+import { completeGoogleBrowserSignIn } from "@/lib/google-browser-sign-in";
 
 type TelegramWindow = Window & {
   Telegram?: { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } };
@@ -32,7 +33,7 @@ export default function LoginScreen() {
   const c = authEntryCopy[language];
   const theme = useAppTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ telegram_token?: string; next?: string; email?: string; ref?: string }>();
+  const params = useLocalSearchParams<{ telegram_token?: string; google_browser_token?: string; next?: string; email?: string; ref?: string }>();
   const hydrated = useAppStore((state) => state.hydrated);
   const authMode = useAppStore((state) => state.authMode);
   const accessToken = useAppStore((state) => state.accessToken);
@@ -45,6 +46,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [step, setStep] = useState<"email" | "password">("email");
   const telegramStarted = useRef(false);
+  const lastGoogleBrowserToken = useRef("");
+  const emailVerification = useRef<{ email: string; flowToken: string } | null>(null);
   const redirectedAuthenticatedUser = useRef(false);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function LoginScreen() {
     }
     redirectedAuthenticatedUser.current = true;
     const next = params.next;
-    const destination = user.role === "owner" ? "/owner" : user.role === "admin"
+    const destination = user.role === "owner" ? Platform.OS === "web" ? "/admin" : "/owner" : user.role === "admin"
       ? Platform.OS === "web" ? "/admin" : "/(tabs)"
       : !user.countryCode
         ? postAuthLanguageUserId === user.id ? "/country" : "/language"
@@ -68,9 +71,27 @@ export default function LoginScreen() {
   }, [accessToken, authMode, hydrated, params.next, params.telegram_token, postAuthLanguageUserId, router, user]);
 
   const complete = useSignInCompletion();
+  const googleBrowser = useMutation({
+    mutationFn: completeGoogleBrowserSignIn,
+    onSuccess: complete,
+    onError: (error) => {
+      router.setParams({ google_browser_token: "" });
+      showError(error);
+    },
+  });
+  const callbackToken = params.google_browser_token;
+  useEffect(() => {
+    if (!hydrated || Platform.OS === "web" || !callbackToken || callbackToken === lastGoogleBrowserToken.current) return;
+    lastGoogleBrowserToken.current = callbackToken;
+    googleBrowser.mutate(callbackToken);
+  }, [callbackToken, googleBrowser, hydrated]);
 
   const emailFlow = useMutation({
-    mutationFn: () => authApi.startEmail(email.trim()),
+    mutationFn: () => {
+      const identifier = email.trim();
+      const previous = emailVerification.current;
+      return authApi.startEmail(identifier, previous?.email === identifier.toLowerCase() ? previous.flowToken : undefined);
+    },
     onError: (error) => { if (isConnectionError(error)) showError(error, () => emailFlow.mutate()); },
     onSuccess: (result) => {
       setEmail(result.email);
@@ -78,6 +99,7 @@ export default function LoginScreen() {
         setStep("password");
         return;
       }
+      emailVerification.current = { email: result.email.toLowerCase(), flowToken: result.flowToken };
       setPendingRegistrationToken(result.flowToken);
       router.push({
         pathname: "/verify",
@@ -134,7 +156,7 @@ export default function LoginScreen() {
       ? error.message
       : t("auth.invalid");
 
-  if (!hydrated || (authMode === "authenticated" && accessToken && !params.telegram_token)) {
+  if (!hydrated || googleBrowser.isPending || (authMode === "authenticated" && accessToken && !params.telegram_token)) {
     return (
       <View style={styles.loadingScreen}>
         <ActivityIndicator color={String(theme.primary)} />
@@ -159,7 +181,7 @@ export default function LoginScreen() {
       ) : undefined}
     >
       {step === "email" ? <>
-        <SocialButtons onAuthenticated={complete} autoPrompt={!params.telegram_token && !telegramFlow.isPending && !(Platform.OS === "web" && typeof window !== "undefined" && (window as TelegramWindow).Telegram?.WebApp?.initData)} />
+        <SocialButtons onAuthenticated={complete} autoPrompt={!callbackToken && !params.telegram_token && !telegramFlow.isPending && !(Platform.OS === "web" && typeof window !== "undefined" && (window as TelegramWindow).Telegram?.WebApp?.initData)} />
         <View style={styles.divider}><View style={[styles.dividerLine, { backgroundColor: theme.border }]} /><AppText variant="caption" muted>{c.emailOption}</AppText><View style={[styles.dividerLine, { backgroundColor: theme.border }]} /></View>
       </> : null}
       <View style={styles.form}>

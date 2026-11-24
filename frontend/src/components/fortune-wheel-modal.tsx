@@ -9,9 +9,9 @@ import { useAppStore } from '../store/app-store';
 import { fortuneWheelOutcome } from '@/lib/fortune-wheel';
 
 const invitation = {
-  ru: 'Больше коинов? Испытай удачу!',
-  uz: 'Ko‘proq koin? Omadingizni sinang!',
-  en: 'More coins? Try your luck!',
+  ru: 'Больше coin? Испытай удачу!',
+  uz: 'Ko‘proq coin? Omadingizni sinang!',
+  en: 'More coin? Try your luck!',
 };
 
 const WHEEL_SIZE = 272;

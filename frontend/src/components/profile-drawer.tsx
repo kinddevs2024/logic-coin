@@ -9,6 +9,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -55,7 +56,7 @@ export function ProfileDrawer({
   const accessToken = useAppStore((state) => state.accessToken);
   const authMode = useAppStore((state) => state.authMode);
   const coinsToday = useQuery({
-    queryKey: ["coins-earned-today", user.id],
+    queryKey: ["coin-earned-today", user.id],
     queryFn: ({ signal }) => meApi.coinsToday(accessToken!, signal),
     enabled: visible && authMode === "authenticated" && Boolean(accessToken),
     refetchOnMount: "always",
@@ -151,16 +152,10 @@ export function ProfileDrawer({
             { backgroundColor: "rgba(0,0,0,0.32)", opacity: backdrop },
           ]}
         >
-          {visible && !(Platform.OS === "android" && editing) ? <BlurView
+          {visible && Platform.OS !== "android" ? <BlurView
             pointerEvents="none"
             intensity={34}
             tint={theme.mode === "dark" ? "dark" : "light"}
-            {...(Platform.OS === "android" && blurTarget
-              ? {
-                  blurMethod: "dimezisBlurView" as const,
-                  blurTarget,
-                }
-              : {})}
             style={StyleSheet.absoluteFill}
           /> : null}
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
@@ -237,14 +232,15 @@ export function ProfileDrawer({
                 </View>
               </LinearGradient>
 
-              {user.role === "owner" || (user.role === "admin" && Platform.OS === "web") ? <Pressable accessibilityRole="link" onPress={()=>{onClose();router.push((user.role==="owner"?"/owner":"/admin") as never);}} style={{padding:16}}><AppText variant="label">{user.role==="owner"?"Owner · Статистика и финансы":"Admin · Управление платформой"}</AppText></Pressable> : null}
+              {user.role === "owner" || user.role === "admin" ? <Pressable accessibilityRole="link" onPress={()=>{onClose();router.push((user.role==="owner"?"/owner":"/admin") as never);}} style={{padding:16}}><AppText variant="label">{user.role==="owner"?"Owner · Статистика и финансы":"Admin · Управление платформой"}</AppText></Pressable> : null}
+              {user.role === "owner" ? <Pressable accessibilityRole="link" onPress={()=>{onClose();if(Platform.OS==="web")router.push("/admin" as never);else void Linking.openURL("https://logic-coin.online/admin");}} style={{padding:16}}><AppText variant="label">Администрация</AppText></Pressable> : null}
               <View style={styles.stats}>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>
                     {authMode === "authenticated" ? (coinsToday.data && Date.parse(coinsToday.data.resetsAt) > coinClock ? copyContent(coinsToday.data.earned) : coinsToday.isError ? "—" : "…") : "—"}
                   </AppText>
                   <AppText variant="caption" muted style={{ textAlign: "center" }}>
-                    {copyContent(language === "ru" ? "Коины за сегодня" : language === "uz" ? "Bugungi koinlar" : "Coins earned today")}</AppText>
+                    {copyContent(language === "ru" ? "coin за сегодня" : language === "uz" ? "Bugungi coinlar" : "coin earned today")}</AppText>
                 </GlassSurface>
                 <GlassSurface style={styles.stat} intensity={48}>
                   <AppText variant="heading" color={String(theme.primary)}>

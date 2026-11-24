@@ -32,20 +32,33 @@ export function recolorGiftPixels(original: Uint8Array, colors: [string, string]
   const targets = colors.map(color => rgbToHsv(...hexRgb(color)));
   for (let i = 0; i < data.length; i += 4) {
     if (!data[i + 3]) continue;
-    const [h, s, v] = rgbToHsv(data[i], data[i + 1], data[i + 2]);
-    if (s < .12) continue;
-    const distances = baseHue.map(base => Math.abs(((h - base + 540) % 360) - 180));
-    const group = distances[0] <= distances[1] ? 0 : 1, distance = distances[group];
+    const r = data[i] / 255, g = data[i + 1] / 255, b = data[i + 2] / 255;
+    const v = Math.max(r, g, b), d = v - Math.min(r, g, b);
+    const saturationOriginal = v ? d / v : 0;
+    if (saturationOriginal < .12) continue;
+    let h = 0;
+    if (d) h = ((v === r ? ((g - b) / d) % 6 : v === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60 + 360) % 360;
+    const distance0 = Math.abs(((h - baseHue[0] + 540) % 360) - 180);
+    const distance1 = Math.abs(((h - baseHue[1] + 540) % 360) - 180);
+    const group = distance0 <= distance1 ? 0 : 1, distance = group === 0 ? distance0 : distance1;
     if (distance > tolerance * 2.2) continue;
-    const mix = (1 - clamp((distance - tolerance * .55) / (tolerance * 1.65))) * clamp((s - .12) / .25);
+    const mix = (1 - clamp((distance - tolerance * .55) / (tolerance * 1.65))) * clamp((saturationOriginal - .12) / .25);
     const [targetHue, targetSaturation] = targets[group];
     const shifted = (targetHue + ((h - baseHue[group] + 540) % 360 - 180) + 360) % 360;
     const hue = (h + (((shifted - h + 540) % 360) - 180) * mix + 360) % 360;
-    let saturation = clamp(s * (1 - mix * .38) + targetSaturation * mix * .38);
-    // Neutral photo/graphite accents must not leave the old saturated green behind.
+    let saturation = clamp(saturationOriginal * (1 - mix * .38) + targetSaturation * mix * .38);
     if (targetSaturation < .2) saturation *= 1 - mix * (1 - targetSaturation / .2);
-    const rgb = hsvToRgb(hue, saturation, v);
-    data.set(rgb, i);
+    const c = v * saturation, x = c * (1 - Math.abs((hue / 60) % 2 - 1)), m = v - c;
+    let rr = 0, gg = 0, bb = 0;
+    if (hue < 60) { rr = c; gg = x; }
+    else if (hue < 120) { rr = x; gg = c; }
+    else if (hue < 180) { gg = c; bb = x; }
+    else if (hue < 240) { gg = x; bb = c; }
+    else if (hue < 300) { rr = x; bb = c; }
+    else { rr = c; bb = x; }
+    data[i] = Math.round((rr + m) * 255);
+    data[i + 1] = Math.round((gg + m) * 255);
+    data[i + 2] = Math.round((bb + m) * 255);
   }
   return data;
 }

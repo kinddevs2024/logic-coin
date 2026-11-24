@@ -9,12 +9,14 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentProps,
   type KeyboardEvent,
 } from "react";
 import {
   Platform,
+  AppState,
   Keyboard,
   ActivityIndicator,
   Pressable,
@@ -27,6 +29,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   Extrapolation,
+  cancelAnimation,
   interpolate,
   runOnJS,
   useAnimatedStyle,
@@ -40,7 +43,7 @@ import Animated, {
 import { AppText } from "@/components/app-text";
 import { GlassSurface } from "@/components/glass-surface";
 import { NavigationGlass } from "@/components/navigation-glass";
-import { NavigationBlurProvider, NavigationBlurScene } from "@/components/navigation-blur-target";
+import { NavigationBlurScene } from "@/components/navigation-blur-target";
 import { radii } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -51,6 +54,8 @@ import { useAppStore } from "@/store/app-store";
 type LogicTabBarProps = Parameters<
   NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
 >[0];
+
+const tabLensSpring = { damping: 19, stiffness: 190, mass: 0.72, overshootClamping: false };
 
 const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.kinddevs.logiccoin";
@@ -120,9 +125,75 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
   const mobileSlotWidth = Math.max(1, (barSize.width - 14) / visibleRoutes.length);
   const lensWidth = isDesktop ? Math.max(0, barSize.width - 18) : mobileSlotWidth;
   const lensHeight = isDesktop ? 70 : 60;
+  const isAndroid = Platform.OS === "android";
+  const [interruptedRouteKey, setInterruptedRouteKey] = useState<string>();
+  const showSettledLens = isAndroid && interruptedRouteKey === focusedRouteKey;
+  const androidWindowFocused = useRef(true);
+  const requestedLensIndex = useRef<number | null>(null);
+  const lastTabPress = useRef<{ index: number; native: boolean; at: number }>(null);
+  const windowCanAnimateLens = useSharedValue(true);
+  const androidLensPreview = useSharedValue(false);
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const syncIndicator = (focused: boolean) => {
+      if (androidWindowFocused.current === focused) return;
+      androidWindowFocused.current = focused;
+      windowCanAnimateLens.value = focused;
+      androidLensPreview.value = false;
+      lastTabPress.current = null;
+      requestedLensIndex.current = null;
+      setInterruptedRouteKey(focusedRouteKey);
+      cancelAnimation(lensPosition);
+      cancelAnimation(lensMorph);
+      lensPosition.value = activeIndex;
+      lensMorph.value = 0;
+      dragOrigin.value = activeIndex;
+      dragInProgress.value = false;
+    };
+    const focus = AppState.addEventListener("focus", () => syncIndicator(true));
+    const blur = AppState.addEventListener("blur", () => syncIndicator(false));
+    const appState = AppState.addEventListener("change", state => syncIndicator(state === "active"));
+    return () => {
+      focus.remove();
+      blur.remove();
+      appState.remove();
+    };
+  }, [activeIndex, androidLensPreview, dragInProgress, dragOrigin, focusedRouteKey, lensMorph, lensPosition, windowCanAnimateLens]);
+
+  useEffect(() => {
+    if (interruptedRouteKey && interruptedRouteKey !== focusedRouteKey) {
+      setInterruptedRouteKey(undefined);
+    }
+  }, [focusedRouteKey, interruptedRouteKey]);
+
+  const animateLensTo = useCallback((index: number) => {
+    if (reduceMotion) {
+      lensPosition.value = index;
+      lensMorph.value = 0;
+      return;
+    }
+    lensMorph.value = 0;
+    lensMorph.value = withSequence(
+      withTiming(1, { duration: 145 }),
+      withTiming(0, { duration: 330 }),
+    );
+    lensPosition.value = withSpring(index, tabLensSpring);
+  }, [lensMorph, lensPosition, reduceMotion]);
 
   const selectVisibleRoute = useCallback(
-    (index: number) => {
+    (index: number, native = false) => {
+      if (isAndroid && !androidWindowFocused.current) return;
+      if (isAndroid) {
+        // A native tap and Pressable can report the same touch. Keep
+        // Pressable available for accessibility and keyboard activation.
+        const at = Date.now();
+        const previous = lastTabPress.current;
+        if (previous?.index === index && previous.native !== native && at - previous.at < 200) {
+          if (native && requestedLensIndex.current === null) androidLensPreview.value = false;
+          return;
+        }
+        lastTabPress.current = { index, native, at };
+      }
       const route = visibleRoutes[index];
       if (!route) return;
       const focused = route.key === focusedRouteKey;
@@ -132,10 +203,17 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         canPreventDefault: true,
       });
       if (!focused && !event.defaultPrevented) {
+        if (isAndroid && (native || !showSettledLens)) {
+          requestedLensIndex.current = index;
+          if (!native) animateLensTo(index);
+        }
         navigation.navigate(route.name, route.params);
+      } else if (native) {
+        androidLensPreview.value = false;
+        animateLensTo(activeIndex);
       }
     },
-    [focusedRouteKey, navigation, visibleRoutes],
+    [activeIndex, androidLensPreview, animateLensTo, focusedRouteKey, isAndroid, navigation, showSettledLens, visibleRoutes],
   );
 
   const clearPointerFocus = useCallback(() => {
@@ -146,23 +224,14 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
   }, []);
 
   useEffect(() => {
-    if (reduceMotion) {
-      lensPosition.value = activeIndex;
-      lensMorph.value = 0;
+    androidLensPreview.value = false;
+    if (requestedLensIndex.current === activeIndex) {
+      requestedLensIndex.current = null;
       return;
     }
-    lensMorph.value = 0;
-    lensMorph.value = withSequence(
-      withTiming(1, { duration: 145 }),
-      withTiming(0, { duration: 330 }),
-    );
-    lensPosition.value = withSpring(activeIndex, {
-      damping: 19,
-      stiffness: 190,
-      mass: 0.72,
-      overshootClamping: false,
-    });
-  }, [activeIndex, lensMorph, lensPosition, reduceMotion]);
+    requestedLensIndex.current = null;
+    animateLensTo(activeIndex);
+  }, [activeIndex, androidLensPreview, animateLensTo]);
 
   const dragGesture = Gesture.Pan()
         .minDistance(12)
@@ -184,13 +253,16 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
           }
         })
         .onEnd(() => {
+          if (!dragInProgress.value) return;
           const target = Math.max(
             0,
             Math.min(visibleRoutes.length - 1, Math.round(lensPosition.value)),
           );
+          // The preview follows the finger. After release, only the router's
+          // focused route can commit the indicator to a different tab.
           lensPosition.value = reduceMotion
-            ? target
-            : withSpring(target, {
+            ? activeIndex
+            : withSpring(activeIndex, {
                 damping: 18,
                 stiffness: 205,
                 mass: 0.7,
@@ -200,14 +272,34 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
           runOnJS(clearPointerFocus)();
         })
         .onFinalize((_event, success) => {
+          if (!dragInProgress.value) return;
           // eslint-disable-next-line react-hooks/purity -- Gesture callback runs on pointer release, not during render.
-          if (dragInProgress.value) lastDragEnd.value = Date.now();
+          lastDragEnd.value = Date.now();
           dragInProgress.value = false;
           if (!success) {
             lensPosition.value = reduceMotion ? activeIndex : withSpring(activeIndex, { damping: 22, stiffness: 240 });
           }
           lensMorph.value = reduceMotion ? 0 : withTiming(0, { duration: 260 });
         });
+
+  const tapGesture = Gesture.Tap()
+    .maxDuration(260)
+    .maxDistance(12)
+    .onEnd((event, success) => {
+      if (!success || !windowCanAnimateLens.value || event.x < 7 || event.x >= barSize.width - 7) return;
+      const index = Math.min(visibleRoutes.length - 1, Math.floor((event.x - 7) / mobileSlotWidth));
+      if (index !== activeIndex && !reduceMotion) {
+        androidLensPreview.value = true;
+        lensMorph.value = withSequence(
+          withTiming(1, { duration: 145 }),
+          withTiming(0, { duration: 330 }),
+        );
+        lensPosition.value = withSpring(index, tabLensSpring);
+      }
+      runOnJS(selectVisibleRoute)(index, true);
+    });
+  const gesture = isAndroid && !isDesktop && barSize.width > 0 ? Gesture.Race(dragGesture, tapGesture) : dragGesture;
+  const settledLensStyle = useAnimatedStyle(() => ({ opacity: androidLensPreview.value ? 0 : 1 }));
 
   const lensStyle = useAnimatedStyle(() => {
     const stretch = interpolate(
@@ -219,6 +311,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
     return {
       width: lensWidth,
       height: lensHeight,
+      opacity: showSettledLens && !androidLensPreview.value ? 0 : 1,
       transform: [
         {
           translateX: isDesktop
@@ -236,7 +329,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
         },
       ],
     };
-  }, [isDesktop, lensWidth, lensHeight, mobileSlotWidth]);
+  }, [isDesktop, lensWidth, lensHeight, mobileSlotWidth, showSettledLens]);
 
   if (keyboardOpen || chatOpen) return null;
   return (
@@ -252,7 +345,7 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
             ],
       ]}
     >
-      <GestureDetector gesture={dragGesture}>
+      <GestureDetector gesture={gesture}>
         <View
           collapsable={false}
           accessibilityRole="tablist"
@@ -270,6 +363,19 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
           ]}
         >
         <NavigationGlass width={barSize.width} height={barSize.height} />
+        {showSettledLens && barSize.width > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.liquidLens,
+              isDesktop ? { left: 8, top: 8 + activeIndex * 76 } : { left: 6 + activeIndex * mobileSlotWidth },
+              { width: lensWidth, height: lensHeight },
+              settledLensStyle,
+            ]}
+          >
+            <NavigationGlass variant="lens" width={lensWidth} height={lensHeight} />
+          </Animated.View>
+        ) : null}
         {barSize.width > 0 ? (
           <Animated.View
             pointerEvents="none"
@@ -310,9 +416,9 @@ function LogicTabBar({ state, navigation }: LogicTabBarProps) {
                 },
               } : {})}
               onPress={() => {
-                // RN Web can dispatch a synthetic click on the original tab
-                // after its pointer was released at the end of a pan gesture.
-                if (dragInProgress.value || Date.now() - lastDragEnd.value < 250) return;
+                // Web may dispatch a synthetic click after a pan. Native
+                // gesture recognition cancels the press without reading UI-thread state.
+                if (isWeb && (dragInProgress.value || Date.now() - lastDragEnd.value < 250)) return;
                 selectVisibleRoute(index);
               }}
               onLongPress={() => navigation.emit({ type: "tabLongPress", target: route.key })}
@@ -417,7 +523,6 @@ export default function TabsLayout() {
   }
 
   return (
-    <NavigationBlurProvider>
     <Tabs
       tabBar={(props) => <LogicTabBar {...props} />}
       screenLayout={({ children }) => <NavigationBlurScene>{children}</NavigationBlurScene>}
@@ -437,7 +542,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="tasks" options={{ href: null }} />
       <Tabs.Screen name="bonuses" options={{ href: null }} />
     </Tabs>
-    </NavigationBlurProvider>
   );
 }
 

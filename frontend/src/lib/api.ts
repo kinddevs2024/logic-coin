@@ -2,6 +2,7 @@ import { payoutCardDetails } from "./payment-card";
 import { nativeDataCache, dataCacheScope } from "./native-data-cache";
 import { cacheableRead, revalidatedBody } from "./incremental-cache";
 import { withNetworkDeadline, NetworkTimeoutError } from "./network-deadline";
+import { retryAfterMs } from "./retry-after";
 import { localizeBuiltIn } from "./localize-built-in";
 import { telegramChallengeInitData } from "./telegram-context";
 import type {
@@ -72,13 +73,15 @@ export class ApiError extends Error {
   status: number;
   code?: string;
   details?: unknown;
+  readonly retryAfterMs?: number;
 
-  constructor(message: string, status: number, code?: string, details?: unknown) {
+  constructor(message: string, status: number, code?: string, details?: unknown, retryAfterMs?: number) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.details = details;
+    if (retryAfterMs !== undefined) this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -90,7 +93,7 @@ export async function request<T>(
   const headers = new Headers(fetchOptions.headers);
   headers.set("Accept", "application/json");
   headers.set("X-Appearance-Version", "2");
-  headers.set("X-Auth-Flow-Version", "2");
+  headers.set("X-Auth-Flow-Version", "3");
   headers.set("Accept-Language", useAppStore.getState().language ?? "uz");
   const telegramInitData = Platform.OS === "web" && /^\/challenges(?:\/|$)/.test(path) ? telegramChallengeInitData() : undefined;
   if (telegramInitData) headers.set("X-Telegram-Init-Data", telegramInitData);
@@ -162,6 +165,7 @@ export async function request<T>(
       response.status,
       body.error?.code,
       body.error?.details,
+      response.status === 429 ? retryAfterMs(response.headers.get("Retry-After")) : undefined,
     );
   }
 
@@ -251,7 +255,7 @@ export async function refreshAccessToken(expiredToken: string): Promise<string> 
 }
 
 export const authApi = {
-  async startEmail(email: string) {
+  async startEmail(email: string, flowToken?: string) {
     const referralCode = await registrationReferralCode();
     const deviceId = await getDeviceId();
     return request<
@@ -264,12 +268,12 @@ export const authApi = {
         }
     >("/auth/email/start", {
       method: "POST",
-      body: JSON.stringify({ email, deviceId, ...(referralCode ? { referralCode } : {}) }),
+      body: JSON.stringify({ email, deviceId, ...(flowToken ? { flowToken } : {}), ...(referralCode ? { referralCode } : {}) }),
     });
   },
   async verifyEmailCode(input: { email: string; code: string; flowToken: string }) {
     const deviceId = await getDeviceId();
-    return request<{ email: string; setupToken: string }>("/auth/email/verify-code", {
+    return request<AuthResult>("/auth/email/verify-code", {
       method: "POST",
       body: JSON.stringify({ ...input, deviceId }),
     });
@@ -338,6 +342,20 @@ export const authApi = {
     return request<SocialAuthResult>("/auth/google", {
       method: "POST",
       body: JSON.stringify({ idToken, deviceId, ...(referralCode ? { referralCode } : {}) }),
+    });
+  },
+  async startGoogleBrowser() {
+    const referralCode = await registrationReferralCode();
+    const deviceId = await getDeviceId();
+    return request<{ flowId: string; pollToken: string; url: string; expiresAt: string }>("/auth/google/browser/start", {
+      method: "POST",
+      body: JSON.stringify({ deviceId, ...(referralCode ? { referralCode } : {}) }),
+    });
+  },
+  async completeGoogleBrowser(input: { flowId: string; pollToken: string; browserToken: string }) {
+    return request<SocialAuthResult>("/auth/google/browser/complete", {
+      method: "POST",
+      body: JSON.stringify({ ...input, deviceId: await getDeviceId() }),
     });
   },
   async telegramStart() {
@@ -499,7 +517,7 @@ export const challengesApi = {
     return payload.today;
   },
   start(gameKey: string, token: string) {
-    return import("./challenge-live-updates").then(({ liveCommand }) => liveCommand<ChallengeStartResult>(token, "start", { gameKey }));
+    return request<ChallengeStartResult>(`/challenges/${encodeURIComponent(gameKey)}/start`, { method: "POST", token });
   },
   complete(
     gameKey: string,
@@ -765,6 +783,12 @@ export type AdminOverview = {
   completedAttempts: number;
   coinsIssued: number;
   moneyIssuedUnits: number;
+  moneyIssuedBySource?: {
+    challengePrizes: number;
+    rafflePrizes: number;
+    referralBonuses: number;
+    other: number;
+  };
   challenge: AdminChallenge | null;
   settlement: AdminSettlement | null;
   trends?: AdminOverviewTrendPoint[];
@@ -833,6 +857,7 @@ export type AdminPrizePlan = {
 export type AdminWithdrawal = {
   id: string; user: { id: string; name: string; email: string | null; referralCode: string | null };
   cardNumber?: string | null;
+  cardBrand?: string | null; cardLast4?: string | null;
   amountCents: number; status: string; method: string; accountLabel: string | null; cardHolder: string | null;
   requestedAt: string; processedAt: string | null; reviewVersion: number; reviewNote: string | null;
   paymentReference: string | null; reviewedAt: string | null;
@@ -847,6 +872,13 @@ export const ownerApi = {
  budget: (days: number, token: string) => request<AdminBudget>(`/owner/budget?days=${days}`, {token}),
  challenges: (from:string,to:string,token:string) => request<{challenges:AdminChallenge[]}>(`/owner/daily-challenges?from=${from}&to=${to}`,{token}),
  withdrawals: (token:string) => request<{totals:{_id:string;count:number;amountUnits:number}[]}>("/owner/withdrawals",{token}),
+ withdrawalRequests(input: { status?: string; before?: string }, token: string) {
+  const params = new URLSearchParams({ limit: "20", ...(input.status ? { status: input.status } : {}), ...(input.before ? { before: input.before } : {}) });
+  return request<AdminWithdrawalPage>(`/owner/withdrawal-requests?${params}`, { token });
+ },
+ reviewWithdrawal(id: string, input: { action: "approve" | "reject" | "mark_paid"; expectedVersion: number; note?: string; paymentReference?: string; paymentConfirmed?: boolean }, token: string) {
+  return request<{ id: string; status: string }>(`/owner/withdrawal-requests/${encodeURIComponent(id)}/review`, { method: "POST", token, body: JSON.stringify(input) });
+ },
 };
 export const adminApi = {
  banStatus(id:string,token:string){return request<{banned:boolean;reason:string|null;deviceCount:number;ipCount:number}>(`/admin/users/${encodeURIComponent(id)}/ban`,{token});},

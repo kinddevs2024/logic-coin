@@ -19,9 +19,11 @@ type Phase = "ready" | "dragging" | "flying" | "result";
 type Result = NonNullable<ReturnType<typeof evaluateSwipe>>;
 const initial: Result = { landed: false, verdict: "weak", rotation: 360, offsetX: 0, durationMs: 800, peak: 100 };
 const steps = Array.from({ length: 11 }, (_, i) => i / 10);
-export default function BottleFlipScreen() {
+export default function BottleFlipScreen({ challengeMode = false, onChallengeComplete, onExit }: { challengeMode?: boolean; onChallengeComplete?: (score: number, durationMs: number, won: boolean) => void; onExit?: () => void } = {}) {
   const { copyText, copyContent } = useUiCopy();
   const { language } = useTranslation(); const c = copies[language]; const router = useRouter();
+  const challengeRound = useRef({ throws: 0, landed: 0, startedAt: Date.now() });
+  const [round, setRound] = useState({ throws: 0, landed: 0 });
   const [phase, setPhase] = useState<Phase>("ready"); const mode = useRef<Phase>("ready");
   const [result, setResult] = useState<Result>(initial);
   const score = useGameProgressStore((state) => state.games["bottle-flip"]?.coins ?? 0);
@@ -57,12 +59,24 @@ export default function BottleFlipScreen() {
       if (!finished || mode.current !== "flying") return;
       Animated.timing(settle, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(({ finished: done }) => {
         if (!done || mode.current !== "flying") return;
-        recordScore("bottle-flip", next.landed ? 100 : 0, "Bottle flip", next.landed);
-        change("result");
+        if (challengeMode) {
+          const current = challengeRound.current;
+          current.throws += 1;
+          if (next.landed) current.landed += 1;
+          setRound({ throws: current.throws, landed: current.landed });
+          change("result");
+          if (current.throws >= 10) {
+            onChallengeComplete?.(current.landed * 100, Date.now() - current.startedAt, current.landed > 0);
+            return;
+          }
+        } else {
+          recordScore("bottle-flip", next.landed ? 100 : 0, "Bottle flip", next.landed);
+          change("result");
+        }
         restartTimer.current = setTimeout(reset, 900);
       });
     });
-  }, [change, drag, flight, settle, recordScore, reset]);
+  }, [change, challengeMode, drag, flight, onChallengeComplete, settle, recordScore, reset]);
   // PanResponder registers callbacks; these refs are read only during gestures.
   // eslint-disable-next-line react-hooks/refs
   const [responder] = useState(() => PanResponder.create({
@@ -89,11 +103,11 @@ export default function BottleFlipScreen() {
   const rotation = Animated.add(flight.interpolate({ inputRange: [0, 1], outputRange: [0, result.rotation] }), settle.interpolate({ inputRange: [0, 1], outputRange: [0, finalAngle - result.rotation] })).interpolate({ inputRange: [0, 1440], outputRange: ["0deg", "1440deg"] });
   return <SafeAreaView style={[styles.page, { backgroundColor: art.background }]}>
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.back)} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/games")} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color={art.foreground} /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={copyText(c.back)} onPress={() => onExit ? onExit() : router.canGoBack() ? router.back() : router.replace("/(tabs)/games")} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color={art.foreground} /></Pressable>
       <AppText style={[styles.title, { color: art.foreground }]}>{copyContent(c.title)}</AppText>
       <View style={styles.headerActions}>
         <Pressable accessibilityRole="button" accessibilityLabel={copyText("Темы")} onPress={() => { reset(); setThemesOpen(true); }} style={styles.iconButton}><Ionicons name="shirt-outline" size={22} color={art.foreground} /></Pressable>
-        <View style={styles.counter}><Ionicons name="diamond-outline" size={18} color={art.foreground} /><AppText style={[styles.score, { color: art.foreground }]}>{copyContent(score)} {copyText(" coin")}</AppText></View>
+        <View style={styles.counter}><Ionicons name="diamond-outline" size={18} color={art.foreground} /><AppText style={[styles.score, { color: art.foreground }]}>{copyContent(challengeMode ? round.landed * 100 : score)} {copyText(" coin")}</AppText></View>
       </View>
     </View>
     <View style={styles.scene} onLayout={(event) => { size.current = event.nativeEvent.layout; setSceneHeight(event.nativeEvent.layout.height); }}>
@@ -104,7 +118,7 @@ export default function BottleFlipScreen() {
         { translateY: Animated.add(Animated.add(airborneY, drag), settle.interpolate({ inputRange: [0, 1], outputRange: [0, result.landed ? 0 : 50] })) }, { rotate: rotation },
       ] }]}><Image source={art.bottle} style={styles.bottleArt} resizeMode="contain" /></Animated.View>
     </View>
-    <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} ellipsizeMode="tail" style={[styles.hint, { color: phase === "result" && result.landed ? art.success : art.foreground }]}>{copyContent(attemptsLabel)}: {copyContent(attempts)} · {copyContent(phase === "result" ? c[result.verdict] : c.hint)}</AppText>
+    <AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} ellipsizeMode="tail" style={[styles.hint, { color: phase === "result" && result.landed ? art.success : art.foreground }]}>{copyContent(attemptsLabel)}: {copyContent(challengeMode ? `${round.throws}/10` : attempts)} · {copyContent(phase === "result" ? c[result.verdict] : c.hint)}</AppText>
     <BottleThemes visible={themesOpen} onClose={() => setThemesOpen(false)} />
   </SafeAreaView>;
 }

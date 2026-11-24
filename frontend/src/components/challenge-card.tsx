@@ -3,7 +3,7 @@ import { useUiCopy } from "@/components/localized-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import type { ComponentProps } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
@@ -40,7 +40,7 @@ export function ChallengeCard({
   const actionForeground = String(theme.onPrimary);
 
   return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(420)}>
+    <Animated.View entering={Platform.OS === "android" ? undefined : FadeInDown.delay(Math.min(index, 8) * 45).duration(420)}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={formatCopy("{0}: {1}", [copyText(completed ? "ÐŸÑ€Ð¾Ð¹Ð´ÐµÐ½Ð¾" : "Ð˜Ð³Ñ€Ð°Ñ‚ÑŒ"), game.title])}
