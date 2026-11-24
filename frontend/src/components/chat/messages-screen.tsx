@@ -35,7 +35,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useAppStore } from "@/store/app-store";
 import { chatApi, chatMediaUrl, type ChatRoom } from "@/lib/chat-api";
-import { compareChatRooms } from "@/lib/chat-order";
+import { compareChatRooms, prioritizeOfficialChatRooms } from "@/lib/chat-order";
 import { useChatCopy } from "@/lib/chat-copy";
 
 import { ChatAction, ChatSheet } from "./chat-sheet";
@@ -359,7 +359,7 @@ export function MessagesScreen() {
         : room.kind === "support" && room.isOfficial
           ? c.support
           : room.title;
-  const shown = chats.filter(
+  const shown = (filter === "all" && !debounced ? prioritizeOfficialChatRooms(chats) : chats).filter(
     (room) =>
       ((searchOpen && Boolean(debounced)) ||
         filter === "all" ||

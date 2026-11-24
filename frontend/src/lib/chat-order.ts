@@ -9,3 +9,13 @@ export function compareChatRooms(a: ChatRoom, b: ChatRoom): number {
     Date.parse(b.lastMessageAt) - Date.parse(a.lastMessageAt)
   );
 }
+
+export function prioritizeOfficialChatRooms(rooms: readonly ChatRoom[]): ChatRoom[] {
+  const priority = (room: ChatRoom) => {
+    if (room.systemKey === "news") return 0;
+    if (room.systemKey === "community") return 1;
+    if (room.kind === "support" && room.isOfficial) return 2;
+    return 3;
+  };
+  return [...rooms].sort((a, b) => priority(a) - priority(b));
+}
