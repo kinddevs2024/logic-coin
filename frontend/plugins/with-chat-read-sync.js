@@ -21,7 +21,7 @@ module.exports = function withChatReadSync(config) {
     return cfg;
   });
   config = withAppBuildGradle(config, cfg => {
-    const block = '\n// chat-read-sync-tests\nandroid { testOptions { unitTests { includeAndroidResources = true } } }\ndependencies { implementation(project(":expo-modules-core")); implementation("io.github.lukmccall.pika:pika-api:0.3.2"); implementation("com.google.firebase:firebase-messaging:25.0.1"); testImplementation("junit:junit:4.13.2"); testImplementation("org.robolectric:robolectric:4.16.1") }\n';
+    const block = '\n// chat-read-sync-tests\nandroid { testOptions { unitTests { includeAndroidResources = true; all { it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2") } } } }\ndependencies { implementation(project(":expo-modules-core")); implementation("io.github.lukmccall.pika:pika-api:0.3.2"); implementation("com.google.firebase:firebase-messaging:25.0.1"); testImplementation("junit:junit:4.13.2"); testImplementation("org.robolectric:robolectric:4.16.1") }\n';
     const existing = /\n?\/\/ chat-read-sync-tests\r?\nandroid[^\r\n]*\r?\ndependencies[^\r\n]*\r?\n?/;
     cfg.modResults.contents = existing.test(cfg.modResults.contents) ? cfg.modResults.contents.replace(existing, block) : cfg.modResults.contents + block;
     return cfg;
