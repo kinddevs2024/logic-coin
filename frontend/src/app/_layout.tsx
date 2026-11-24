@@ -64,8 +64,8 @@ export default function RootLayout() {
   const notificationTime = useAppStore((state) => state.notificationTime);
   const language = useAppStore((state) => state.language) ?? "uz";
   const [pushInbox, setPushInbox] = useState(false);
-  const closePendingChat = useCallback(() => setPendingChat(null), []);
   const [pendingChat, setPendingChat] = useState<{ id: string; account: string } | null>(null);
+  const closePendingChat = useCallback(() => setPendingChat(null), []);
 
   useEffect(() => {
     if (!hydrated) return;
