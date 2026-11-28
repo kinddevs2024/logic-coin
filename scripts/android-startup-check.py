@@ -214,9 +214,11 @@ try:
             raise RuntimeError("Upgrade changed the app UID, first install time or data directory")
         if adb("shell", "cat", sentinel).strip() != sentinel_value:
             raise RuntimeError("In-place upgrade did not preserve the app data sentinel")
-        adb("shell", "rm", sentinel)
         launch()
         onboarding("updated")
+        if adb("shell", "cat", sentinel).strip() != sentinel_value:
+            raise RuntimeError("Candidate startup did not preserve the existing app data sentinel")
+        adb("shell", "rm", sentinel)
         results.append(f"In-place update {previous_expected['versionCode']} -> {expected['versionCode']} preserves UID, firstInstallTime and app data, and renders login offline")
     else:
         block_app_network(after["userId"])
