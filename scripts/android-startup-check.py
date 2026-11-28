@@ -14,6 +14,7 @@ EVIDENCE = Path("artifacts/startup")
 EVIDENCE.mkdir(parents=True, exist_ok=True)
 results = []
 serial = None
+launcher_dialogs = 0
 
 
 def adb(*args, timeout=60, check=True):
@@ -52,6 +53,8 @@ def wait_for(label, name):
         if not adb("shell", "pidof", PACKAGE, check=False).strip():
             raise RuntimeError(f"App process exited while waiting for {name}")
         root = ui(name)
+        if dismiss_launcher_dialog(root):
+            continue
         if dismiss_optional_google_picker(root, name):
             continue
         for node in root.iter("node"):
@@ -70,6 +73,23 @@ def capture(name):
     (EVIDENCE / f"{name}.png").write_bytes(subprocess.check_output(["adb", "-s", serial, "exec-out", "screencap", "-p"], timeout=30))
 
 
+def dismiss_launcher_dialog(root):
+    """Recover only a known emulator launcher failure, never an app ANR."""
+    global launcher_dialogs
+    nodes = list(root.iter("node"))
+    if not any(node.get("text") == "Pixel Launcher isn't responding" for node in nodes):
+        return False
+    button = next((node for node in nodes if node.get("package") == "android" and node.get("text") == "Close app"), None)
+    if button is None or launcher_dialogs >= 2:
+        raise RuntimeError("Android emulator launcher repeatedly stopped responding")
+    launcher_dialogs += 1
+    capture(f"emulator-launcher-dialog-{launcher_dialogs}")
+    tap(button)
+    results.append("Dismissed an unrelated Pixel Launcher ANR dialog on the disposable emulator")
+    time.sleep(2)
+    return True
+
+
 def launch():
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.MainActivity")
@@ -82,6 +102,8 @@ def onboarding(prefix):
         if not adb("shell", "pidof", PACKAGE, check=False).strip():
             raise RuntimeError(f"App process exited during {prefix} startup")
         root = ui(f"{prefix}-startup")
+        if dismiss_launcher_dialog(root):
+            continue
         if dismiss_optional_google_picker(root, f"{prefix}-startup"):
             continue
         nodes = list(root.iter("node"))

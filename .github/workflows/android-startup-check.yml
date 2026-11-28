@@ -66,7 +66,7 @@ jobs:
           echo no | avdmanager create avd --name logiccoin-release-qa --path "$ANDROID_AVD_HOME/logiccoin-release-qa.avd" --package 'system-images;android-35;google_apis;x86_64' --device pixel_7_pro
           "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx logiccoin-release-qa
           mkdir -p artifacts/startup
-          "$ANDROID_HOME/emulator/emulator" -avd logiccoin-release-qa -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect -memory 2048 -cores 2 > artifacts/startup/emulator.log 2>&1 &
+          "$ANDROID_HOME/emulator/emulator" -avd logiccoin-release-qa -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect -memory 3072 -cores 2 > artifacts/startup/emulator.log 2>&1 &
           emulator_pid=$!
           sleep 5
           kill -0 "$emulator_pid" || { cat artifacts/startup/emulator.log; exit 1; }
@@ -77,6 +77,8 @@ jobs:
           done
           [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]
           adb shell input keyevent 82
+          adb shell wm size 720x1560
+          adb shell wm density 280
           adb shell settings put system screen_off_timeout 1800000
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
