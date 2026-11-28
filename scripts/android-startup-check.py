@@ -239,6 +239,15 @@ try:
     (EVIDENCE / "crash-buffer.txt").write_text(crashes, encoding="utf-8")
     if PACKAGE in crashes:
         raise RuntimeError("App crash found in Android crash buffer")
+    exits = adb("shell", "dumpsys", "activity", "exit-info", PACKAGE)
+    (EVIDENCE / "app-exit-info.txt").write_text(exits, encoding="utf-8")
+    if re.search(r"reason=(?:4|5|6)\s*\((?:CRASH|CRASH_NATIVE|ANR)\)", exits):
+        raise RuntimeError("App crash or ANR found in Android process exit history")
+    anr_events = adb("logcat", "-d", "-b", "events", "-s", "am_anr:I", "am_crash:I")
+    (EVIDENCE / "anr-crash-events.txt").write_text(anr_events, encoding="utf-8")
+    if PACKAGE in anr_events:
+        raise RuntimeError("App crash or ANR found in Android event log")
+    results.append("No app crash or ANR in crash buffer, process exit history or event log")
     (EVIDENCE / "summary.json").write_text(json.dumps({"passed": True, "release": expected, "previous": previous_expected if previous.exists() else None, "productionNetworkBlocked": True, "adLoadOrShowTested": False, "checks": results}, indent=2), encoding="utf-8")
     print("\n".join(results))
 except Exception:
