@@ -260,7 +260,7 @@ jobs:
       - name: Checkout release verification script
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 3
 
       - name: Validate signing configuration
         shell: bash
@@ -345,7 +345,7 @@ jobs:
             "${RUNNER_TEMP}/logic-coin-aligned.apk"
           "${build_tools}/apksigner" verify --verbose --print-certs artifacts/signed/logic-coin.apk | tee artifacts/signed/apk-certificate.txt
           grep -qx 'Number of signers: 1' artifacts/signed/apk-certificate.txt
-          signer="$(awk -F': ' '/ certificate SHA-256 digest:/ {print toupper($2)}' artifacts/signed/apk-certificate.txt | sort -u)"
+          signer="$(awk -F': ' '/ certificate SHA-256 digest:/ {print toupper($NF)}' artifacts/signed/apk-certificate.txt | sort -u)"
           test "$signer" = '85DA6343AA98CDDB89A8090DADFFF7525441BA5CD97503E429F5074FD16E3822'
           "${build_tools}/aapt2" dump badging artifacts/signed/logic-coin.apk > artifacts/signed/apk-badging.txt
           grep -Eq "^package: name='com[.]kinddevs[.]logiccoin' versionCode='24' versionName='1[.]4[.]5'" artifacts/signed/apk-badging.txt
