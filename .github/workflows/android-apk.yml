@@ -8,12 +8,18 @@ on:
         type: boolean
         required: false
         default: false
+      reuse_unsigned_release:
+        description: 'Sign the exact verified unsigned Android 1.4.5 / 24 build from run 46114589677'
+        type: boolean
+        required: false
+        default: false
   push:
     tags:
       - "v*"
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -21,6 +27,7 @@ concurrency:
 
 jobs:
   build-android:
+    if: ${{ !inputs.reuse_unsigned_release }}
     name: Check and build APK and AAB
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -239,6 +246,7 @@ jobs:
   sign-android:
     name: Sign and verify APK and AAB
     needs: build-android
+    if: ${{ always() && !cancelled() && (needs.build-android.result == 'success' || (inputs.reuse_unsigned_release && needs.build-android.result == 'skipped')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -251,6 +259,8 @@ jobs:
     steps:
       - name: Checkout release verification script
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Validate signing configuration
         shell: bash
@@ -274,10 +284,29 @@ jobs:
           packages: platform-tools
 
       - name: Download unsigned Android artifacts
+        if: ${{ !inputs.reuse_unsigned_release }}
         uses: actions/download-artifact@v4
         with:
           name: logic-coin-unsigned-android
           path: artifacts/unsigned
+
+      - name: Recover the exact successful unsigned build
+        if: ${{ inputs.reuse_unsigned_release }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/codex/android-release-1-4-5-20261128
+          built_sha=1fbeb784d8154dbc3f40717741f9a7aa0a5d1f38
+          run=46114589677
+          git diff --exit-code "$built_sha" "$GITHUB_SHA" -- . ':(exclude).github/workflows/android-apk.yml'
+          api="repos/$GITHUB_REPOSITORY/actions/runs/$run"
+          gh api "$api" | jq -e --arg repo "$GITHUB_REPOSITORY" --arg sha "$built_sha" '
+            .status == "completed" and .path == ".github/workflows/android-apk.yml"
+            and .head_repository.full_name == $repo and .head_sha == $sha'
+          gh api "$api/jobs" | jq -e '[.jobs[] | select(.name=="Check and build APK and AAB" and .conclusion=="success")] | length == 1'
+          gh run download "$run" --repo "$GITHUB_REPOSITORY" --name logic-coin-unsigned-android --dir artifacts/unsigned
 
       - name: Sign Android artifacts and create checksums
         shell: bash
@@ -315,9 +344,10 @@ jobs:
             --out artifacts/signed/logic-coin.apk \
             "${RUNNER_TEMP}/logic-coin-aligned.apk"
           "${build_tools}/apksigner" verify --verbose --print-certs artifacts/signed/logic-coin.apk | tee artifacts/signed/apk-certificate.txt
-          signer="$(awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print toupper($2)}' artifacts/signed/apk-certificate.txt)"
+          grep -qx 'Number of signers: 1' artifacts/signed/apk-certificate.txt
+          signer="$(awk -F': ' '/ certificate SHA-256 digest:/ {print toupper($2)}' artifacts/signed/apk-certificate.txt | sort -u)"
           test "$signer" = '85DA6343AA98CDDB89A8090DADFFF7525441BA5CD97503E429F5074FD16E3822'
-          "${build_tools}/aapt" dump badging artifacts/signed/logic-coin.apk > artifacts/signed/apk-badging.txt
+          "${build_tools}/aapt2" dump badging artifacts/signed/logic-coin.apk > artifacts/signed/apk-badging.txt
           grep -Eq "^package: name='com[.]kinddevs[.]logiccoin' versionCode='24' versionName='1[.]4[.]5'" artifacts/signed/apk-badging.txt
           python3 scripts/android-release-proof.py artifacts/signed/logic-coin.apk artifacts/unsigned/r8-mapping.txt > artifacts/signed/android-native-proof.json
           "${build_tools}/zipalign" -c -P 16 4 artifacts/signed/logic-coin.apk
