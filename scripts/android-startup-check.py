@@ -121,10 +121,14 @@ def apk_properties(apk):
 
 
 def installed_state():
+    listing = adb("shell", "cmd", "package", "list", "packages", "--user", "0", "-U", PACKAGE)
+    uid = re.search(rf"^package:{re.escape(PACKAGE)}\s+uid:(\d+)\b", listing, re.MULTILINE)
+    if not uid:
+        raise RuntimeError("Cannot determine installed app UID")
     return {
         "versionCode": int(installed_property("versionCode").split()[0]),
         "versionName": installed_property("versionName"),
-        "userId": installed_property("userId").split()[0],
+        "userId": uid.group(1),
         "firstInstallTime": installed_property("firstInstallTime"),
         "dataDir": installed_property("dataDir"),
     }
