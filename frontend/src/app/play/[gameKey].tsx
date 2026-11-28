@@ -20,6 +20,7 @@ import MergeScreen from "@/app/games/2048";
 import BottleFlipScreen from "@/games/bottle-flip/screen";
 import { HangmanResult } from "@/games/hangman/result";
 import { HangmanGame } from "@/games/hangman/game";
+import { LightSequenceGame } from "@/games/light-sequence/game";
 import { AppFrame } from "@/components/app-frame";
 import { ChallengeAppRequired } from "@/components/challenge-app-required";
 import { GiftInventoryModal } from "@/components/gift-inventory-modal";
@@ -153,7 +154,7 @@ function PlayableGameRoute() {
   const arcadeBId = GAME_B_ALIASES[gameKey];
   const arcadeB = arcadeBId ? gamesBById[arcadeBId] : undefined;
   const classic = CLASSIC_GAMES[gameKey as GameId];
-  const canPlay = gameKey === "bottle-flip" || gameKey === "hangman" || Boolean(ArcadeAComponent || arcadeBId || classic);
+  const canPlay = gameKey === "bottle-flip" || gameKey === "hangman" || gameKey === "light-sequence" || Boolean(ArcadeAComponent || arcadeBId || classic);
   const supportsTimeExtension = Boolean(ArcadeAComponent || arcadeBId);
   const progressId = PROGRESS_KEY_ALIASES[gameKey] ?? (gameKey as GameId);
   const progress = useGameProgressStore((state) => gameKey ? gameProgressFor(state.games, progressId) : null);
@@ -305,6 +306,16 @@ function PlayableGameRoute() {
   const onArcadeBComplete = useCallback((gameResult: ArcadeGameBResult) => {
     exitSession.complete(() => { void processResult({ score: gameResult.score, won: gameResult.won, durationMs: gameResult.durationMs, label: gameResult.gameId }, { persist: true }); });
   }, [exitSession, processResult]);
+
+  const onLightSequenceComplete = useCallback((score: number, durationMs: number, won: boolean) => {
+    if (mode === "practice") {
+      // Practice starts another run after a mistake without opening the host's
+      // result/ad flow. Save each finished run once while this route is active.
+      if (!exitSession.isDiscarded()) recordScore("light-sequence", score, "light-sequence", won);
+      return;
+    }
+    exitSession.complete(() => { void processResult({ score, won, durationMs, label: "light-sequence" }, { persist: true }); });
+  }, [exitSession, mode, processResult, recordScore]);
 
   useEffect(() => {
     if (!classic || !hydrated || !progress) return;
@@ -506,6 +517,8 @@ function PlayableGameRoute() {
     renderedGame = <BottleFlipScreen key={sessionId} challengeMode onExit={exitGame} onChallengeComplete={(score, durationMs, won) => { exitSession.complete(() => { void processResult({ score, won, durationMs, label: "bottle-flip" }, { persist: true }); }); }} />;
   } else if (gameKey === "hangman") {
     renderedGame = <HangmanGame key={sessionId} challengeMode={mode === "challenge"} hostPaused={gamePaused} onExit={exitGame} onComplete={(score, durationMs, won) => { exitSession.complete(() => { void processResult({ score, won, durationMs, label: "hangman" }, { persist: true }); }); }} />;
+  } else if (gameKey === "light-sequence") {
+    renderedGame = <LightSequenceGame key={sessionId} challengeMode={mode === "challenge"} paused={gamePaused} bestRounds={Math.floor((progress?.bestScore ?? 0) / 100)} onExit={exitGame} onComplete={onLightSequenceComplete} />;
   } else if (ArcadeAComponent) {
     renderedGame = <ArcadeAComponent key={sessionId} initialBestScore={progress?.bestScore ?? 0} extraTimeSeconds={extraTimeSeconds} challengeMode={mode === "challenge"} attemptLimit={currentChallengeGame?.attemptLimit} sessionKey={sessionId} paused={gamePaused} skin={selectedSkin} onExit={exitGame} onComplete={onArcadeComplete} />;
   } else if (arcadeBId) {

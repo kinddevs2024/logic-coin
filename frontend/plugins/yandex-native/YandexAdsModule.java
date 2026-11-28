@@ -14,6 +14,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.common.LifecycleState;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.yandex.mobile.ads.common.AdError;
 import com.yandex.mobile.ads.common.AdRequest;
@@ -39,6 +40,7 @@ import java.util.UUID;
 public final class YandexAdsModule extends ReactContextBaseJavaModule {
   private static final String TAG = "YandexAds";
   private static final String EVENT = "YandexAdsRewardedEvent";
+  private static final long REWARDED_SHOW_TIMEOUT_MS = 120_000L;
   private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-19993046-4";
   private static final String APP_OPEN_AD_UNIT_ID = "R-M-19993046-5";
 
@@ -53,6 +55,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
   private RewardedAdLoader rewardedAdLoader;
   private RewardedAd rewardedAd;
   private Promise showPromise;
+  private Runnable showTimeout;
   private String showProof = "";
   private InterstitialAdLoader interstitialAdLoader;
   private InterstitialAd interstitialAd;
@@ -132,7 +135,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
         return;
       }
 
-      Activity activity = getCurrentActivity();
+      Activity activity = usableActivity();
       if (activity == null) {
         promise.resolve(false);
         return;
@@ -186,7 +189,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
         promise.resolve(false);
         return;
       }
-      Activity activity = getCurrentActivity();
+      Activity activity = usableActivity();
       if (activity == null) {
         promise.resolve(false);
         return;
@@ -243,7 +246,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
         promise.reject("not_ready", "Yandex rewarded ad is not loaded");
         return;
       }
-      Activity activity = getCurrentActivity();
+      Activity activity = usableActivity();
       if (activity == null) {
         promise.reject("no_activity", "No foreground activity is available for Yandex rewarded ad");
         return;
@@ -254,15 +257,22 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
       rewardCurrency = "";
       showProof = "yandex-" + UUID.randomUUID();
       showPromise = promise;
-      rewardedAd.setAdEventListener(new RewardedAdEventListener() {
+      showTimeout = () -> {
+        if (showPromise == promise) finishShow(false, "timeout", "Rewarded ad did not close in time");
+      };
+      mainHandler.postDelayed(showTimeout, REWARDED_SHOW_TIMEOUT_MS);
+      RewardedAd ad = rewardedAd;
+      RewardedAdEventListener listener = new RewardedAdEventListener() {
         @Override
         public void onAdShown() {
+          if (showPromise != promise) return;
           Log.d(TAG, "Rewarded ad shown");
           emit("shown", null);
         }
 
         @Override
         public void onAdFailedToShow(@NonNull AdError adError) {
+          if (showPromise != promise) return;
           String message = adError.getDescription();
           Log.e(TAG, "Rewarded ad failed: " + message);
           emitError("failed_to_show", message);
@@ -271,6 +281,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
 
         @Override
         public void onAdDismissed() {
+          if (showPromise != promise) return;
           Log.d(TAG, "Rewarded ad closed");
           emit("closed", null);
           finishShow(rewardEarned, rewardEarned ? "" : "dismissed", "");
@@ -286,7 +297,7 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
 
         @Override
         public void onRewarded(@NonNull Reward reward) {
-          if (rewardEarned) return;
+          if (showPromise != promise || rewardEarned) return;
           rewardEarned = true;
           rewardAmount = reward.getAmount();
           rewardCurrency = reward.getType();
@@ -296,21 +307,38 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
           payload.putString("currency", rewardCurrency);
           emit("reward", payload);
         }
-      });
-      rewardedAd.show(activity);
+      };
+      try {
+        ad.setAdEventListener(listener);
+        ad.show(activity);
+      } catch (Exception error) {
+        Log.e(TAG, "Rewarded ad failed to show", error);
+        if (showPromise == promise) {
+          String message = error.getMessage();
+          emitError("failed_to_show", message);
+          finishShow(false, "failed", message == null ? "" : message);
+        }
+      }
     });
+  }
+
+  @Nullable
+  private Activity usableActivity() {
+    Activity activity = getCurrentActivity();
+    return activity != null && !activity.isFinishing() && !activity.isDestroyed()
+      && getReactApplicationContext().getLifecycleState() == LifecycleState.RESUMED
+      ? activity : null;
   }
 
   private void loadRewardedInternal() {
     if (!initialized || loading || rewardedAd != null || adUnitId.isEmpty()) return;
-    if (rewardedAdLoader == null) {
-      rewardedAdLoader = new RewardedAdLoader(getReactApplicationContext().getApplicationContext());
-    }
-
     loading = true;
     Log.d(TAG, "Rewarded ad loading");
     emit("loading", null);
     try {
+      if (rewardedAdLoader == null) {
+        rewardedAdLoader = new RewardedAdLoader(getReactApplicationContext().getApplicationContext());
+      }
       rewardedAdLoader.loadAd(new AdRequest.Builder(adUnitId).build(), new RewardedAdLoadListener() {
         @Override
         public void onAdLoaded(@NonNull RewardedAd ad) {
@@ -400,9 +428,20 @@ public final class YandexAdsModule extends ReactContextBaseJavaModule {
   private void finishShow(boolean completed, String reason, String error) {
     Promise promise = showPromise;
     showPromise = null;
+    if (showTimeout != null) {
+      mainHandler.removeCallbacks(showTimeout);
+      showTimeout = null;
+    }
     showing = false;
-    if (rewardedAd != null) rewardedAd.setAdEventListener(null);
+    RewardedAd ad = rewardedAd;
     rewardedAd = null;
+    if (ad != null) {
+      try {
+        ad.setAdEventListener(null);
+      } catch (Exception failure) {
+        Log.w(TAG, "Could not clear rewarded ad listener", failure);
+      }
+    }
     if (promise != null) {
       WritableMap result = Arguments.createMap();
       result.putBoolean("completed", completed);

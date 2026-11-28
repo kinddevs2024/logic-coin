@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppText } from "@/components/app-text";
 import { useTranslation } from "@/hooks/use-translation";
 import { useGameProgressStore } from "@/games/progress-store";
+import { useGameSession } from "@/games/session-context";
 import { evaluateSwipe } from "./engine";
 import { BOTTLE_THEMES, BottleThemes } from "./themes";
 const copies = {
@@ -22,6 +23,7 @@ const steps = Array.from({ length: 11 }, (_, i) => i / 10);
 export default function BottleFlipScreen({ challengeMode = false, onChallengeComplete, onExit }: { challengeMode?: boolean; onChallengeComplete?: (score: number, durationMs: number, won: boolean) => void; onExit?: () => void } = {}) {
   const { copyText, copyContent } = useUiCopy();
   const { language } = useTranslation(); const c = copies[language]; const router = useRouter();
+  const markGameStarted = useGameSession()?.onStart;
   const challengeRound = useRef({ throws: 0, landed: 0, startedAt: Date.now() });
   const [round, setRound] = useState({ throws: 0, landed: 0 });
   const [phase, setPhase] = useState<Phase>("ready"); const mode = useRef<Phase>("ready");
@@ -54,6 +56,7 @@ export default function BottleFlipScreen({ challengeMode = false, onChallengeCom
   const toss = useCallback((dx: number, dy: number, durationMs: number) => {
     const next = evaluateSwipe({ dx, dy, durationMs, sceneHeight: size.current.height, sceneWidth: size.current.width });
     drag.setValue(0); if (!next) { change("ready"); return; }
+    if (challengeMode && challengeRound.current.throws === 0) markGameStarted?.();
     setResult(next); change("flying");
     Animated.timing(flight, { toValue: 1, duration: next.durationMs, easing: Easing.linear, useNativeDriver: true }).start(({ finished }) => {
       if (!finished || mode.current !== "flying") return;
@@ -76,7 +79,7 @@ export default function BottleFlipScreen({ challengeMode = false, onChallengeCom
         restartTimer.current = setTimeout(reset, 900);
       });
     });
-  }, [change, challengeMode, drag, flight, onChallengeComplete, settle, recordScore, reset]);
+  }, [change, challengeMode, drag, flight, markGameStarted, onChallengeComplete, settle, recordScore, reset]);
   // PanResponder registers callbacks; these refs are read only during gestures.
   // eslint-disable-next-line react-hooks/refs
   const [responder] = useState(() => PanResponder.create({

@@ -115,9 +115,9 @@ const GameCard = memo(function GameCard({ game, ready, wide, onOpenSkins }: {
           </View>
         </Pressable>
         <View style={styles.cardActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("Скины: {0}", [game.title])} onPress={() => onOpenSkins(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
+          {game.key !== "light-sequence" ? <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("Скины: {0}", [game.title])} onPress={() => onOpenSkins(progressKey)} style={({ pressed }) => [styles.skinButton, { borderColor: `${accent}42`, backgroundColor: `${accent}13` }, pressed && styles.pressed]}>
             <Ionicons name="shirt-outline" color={accent} size={17} />
-          </Pressable>
+          </Pressable> : null}
           <Pressable accessibilityRole="button" accessibilityLabel={formatCopy("{0}: {1}", [c.play, game.title])} onPress={play} style={({ pressed }) => [styles.playButton, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
             <Ionicons name="play" color={playForeground} size={15} />
             <AppText style={[styles.playText, { color: playForeground }]}>{copyContent(c.play)}</AppText>

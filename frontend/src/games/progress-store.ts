@@ -12,6 +12,7 @@ export type GameId =
   | "chess"
   | "2048"
   | "bottle-flip"
+  | "light-sequence"
   | "longcat"
   | "gobble"
   | "loops"
@@ -99,6 +100,7 @@ const DEFAULT_GAME_PROGRESS: Partial<Record<GameId, Readonly<GameProgress>>> = {
   chess: initialProgress("chess"),
   "2048": initialProgress("2048"),
   "bottle-flip": initialProgress("bottle-flip"),
+  "light-sequence": initialProgress("light-sequence"),
   longcat: initialProgress("longcat"),
   gobble: initialProgress("gobble"),
   loops: initialProgress("loops"),

@@ -9,6 +9,17 @@ const TEST_MODE =
   __DEV__ || process.env.EXPO_PUBLIC_YANDEX_TEST_MODE?.toLowerCase() === "true";
 const AD_UNIT_ID = process.env.EXPO_PUBLIC_YANDEX_AD_UNIT_ID?.trim() || PRODUCTION_AD_UNIT_ID;
 const LOAD_TIMEOUT_MS = 15_000;
+const SHOW_TIMEOUT_MS = 125_000;
+
+async function settleWithin<T>(operation: () => Promise<T>, milliseconds: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const deadline = new Promise<T>(resolve => { timer = setTimeout(() => resolve(fallback), milliseconds); });
+    return await Promise.race([Promise.resolve().then(operation), deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 type NativeRewardedResult = {
   completed: boolean;
@@ -73,14 +84,14 @@ class YandexRewardedAds {
 
   async initialize(): Promise<boolean> {
     if (Platform.OS !== "android" || !nativeAds) return false;
+    const ads = nativeAds;
     if (this.initialized) return true;
     if (this.initializing) return this.initializing;
     console.log(`[Yandex Ads] Initializing (${TEST_MODE ? "test" : "production"} placement)`);
-    this.initializing = nativeAds
-      .initialize(TEST_MODE ? TEST_AD_UNIT_ID : AD_UNIT_ID, __DEV__)
+    this.initializing = settleWithin(() => ads.initialize(TEST_MODE ? TEST_AD_UNIT_ID : AD_UNIT_ID, __DEV__), LOAD_TIMEOUT_MS, false)
       .then((ready) => {
         this.initialized = ready;
-        if (ready) void this.prepare();
+        if (ready) void this.prepare().catch(() => false);
         return ready;
       })
       .catch((error) => {
@@ -95,7 +106,8 @@ class YandexRewardedAds {
 
   private async prepare(): Promise<boolean> {
     if (!nativeAds || !this.initialized) return false;
-    if (this.loaded || (await nativeAds.isRewardedLoaded())) {
+    const ads = nativeAds;
+    if (this.loaded || (await settleWithin(() => ads.isRewardedLoaded(), LOAD_TIMEOUT_MS, false).catch(() => false))) {
       this.loaded = true;
       return true;
     }
@@ -119,6 +131,7 @@ class YandexRewardedAds {
       // Loading may finish between the first readiness check and subscribing
       // to events. Recheck after subscribing so that event cannot be missed.
       void nativeAds.isRewardedLoaded().then(async ready => {
+        if (settled) return;
         if (ready) {
           if (!settled) { settled = true; subscription.remove(); clearTimeout(timeout); resolve(true); }
           return;
@@ -145,8 +158,15 @@ class YandexRewardedAds {
     }
 
     this.loaded = false;
+    const ads = nativeAds;
     try {
-      const result = await nativeAds.showRewarded();
+      // New binaries watchdog the SDK natively. Older bridges get a final
+      // deadline here so a missing callback cannot indefinitely block the UI.
+      const result = await settleWithin<NativeRewardedResult>(() => ads.showRewarded(), SHOW_TIMEOUT_MS, {
+        completed: false,
+        proof: "",
+        reason: "timeout",
+      });
       return {
         provider: "yandex",
         placement,

@@ -21,4 +21,17 @@ describe("action-based game rewards", () => {
     expect(gameCoinReward(100, true, "bottle-flip")).toBe(50);
     expect(gameCoinReward(0, false, "bottle-flip")).toBe(0);
   });
+  it("credits Light Code cleared rounds one-for-one even when the run ends on a mistake", () => {
+    for (const score of [0, 100, 200, 300, 600, 900, 1000]) {
+      expect(gameCoinReward(score, false, "light-sequence")).toBe(score);
+      expect(gameCoinReward(score, true, "light-sequence")).toBe(score);
+    }
+  });
+  it("caps Light Code coins while accepting scores from longer runs", () => {
+    expect(gameCoinReward(1100, false, "light-sequence")).toBe(1000);
+    expect(gameCoinReward(3000, true, "light-sequence")).toBe(1000);
+    for (const score of [-100, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(gameCoinReward(score, false, "light-sequence")).toBe(0);
+    }
+  });
 });

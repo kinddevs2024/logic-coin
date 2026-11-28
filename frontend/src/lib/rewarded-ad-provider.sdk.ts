@@ -112,7 +112,9 @@ class AppodealRewardedAdProvider implements RewardedAdProvider {
 
   async show(placement: RewardedAdPlacement): Promise<RewardedAdReceipt> {
     const yandexReceipt = await yandexRewardedAds.show(placement);
-    if (yandexReceipt.completed || yandexReceipt.reason === "dismissed") return yandexReceipt;
+    // A timeout is ambiguous: Yandex may still be on screen. Do not display a
+    // second provider over it or award a late duplicate reward.
+    if (yandexReceipt.completed || yandexReceipt.reason === "dismissed" || yandexReceipt.reason === "timeout") return yandexReceipt;
     if (!(await this.initializeAppodeal())) {
       console.warn("[Ads] No rewarded provider initialized", { placement, reason: yandexReceipt.reason });
       return yandexReceipt;

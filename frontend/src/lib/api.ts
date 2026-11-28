@@ -880,15 +880,42 @@ export const ownerApi = {
   return request<{ id: string; status: string }>(`/owner/withdrawal-requests/${encodeURIComponent(id)}/review`, { method: "POST", token, body: JSON.stringify(input) });
  },
 };
+export type AdminUser = {
+ _id: string;
+ name: string;
+ role: NonNullable<User["role"]>;
+ username?: string | null;
+ email?: string | null;
+ countryCode?: string | null;
+ avatarUrl?: string | null;
+ updatedAt: string;
+ preferences?: UserPreferences;
+ wallet?: Partial<Wallet>;
+ coins?: Partial<CoinWallet>;
+};
+
 export const adminApi = {
  banStatus(id:string,token:string){return request<{banned:boolean;reason:string|null;deviceCount:number;ipCount:number}>(`/admin/users/${encodeURIComponent(id)}/ban`,{token});},
  banUser(id:string,reason:string,token:string){return request<{banned:boolean;deviceCount:number;ipCount:number}>(`/admin/users/${encodeURIComponent(id)}/ban`,{method:'POST',token,body:JSON.stringify({reason})});},
  unbanUser(id:string,reason:string,token:string){return request<{banned:boolean}>(`/admin/users/${encodeURIComponent(id)}/ban`,{method:'DELETE',token,body:JSON.stringify({reason})});},
+ chatRestriction(id: string, token: string) {
+  return request<{ restricted: boolean; reason: string | null }>(`/admin/users/${encodeURIComponent(id)}/chat-restriction`, { token });
+ },
+ setChatRestriction(id: string, restricted: boolean, reason: string, token: string) {
+  return request<{ restricted: boolean; reason: string | null }>(`/admin/users/${encodeURIComponent(id)}/chat-restriction`, {
+   method: "PATCH", token, body: JSON.stringify({ restricted, reason }),
+  });
+ },
  deleteUser(id:string,reason:string,token:string){return request<{deleted:boolean;pendingMedia:number}>(`/admin/users/${encodeURIComponent(id)}`,{method:'DELETE',token,body:JSON.stringify({reason,confirmation:'DELETE'})});},
- changeRole(id:string,input:{role:string;expectedRole:string;reason:string},token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}/role`,{method:"PATCH",token,body:JSON.stringify(input)});},
+ changeRole(id:string,input:{role:AdminUser["role"];expectedRole:AdminUser["role"];reason:string},token:string){return request<{user:AdminUser}>(`/admin/users/${encodeURIComponent(id)}/role`,{method:"PATCH",token,body:JSON.stringify(input)});},
  telegramContact(id:string,token:string){return request<{contact:{telegramId:string;chatId:string;firstName?:string;lastName?:string;username?:string;phoneNumber?:string;phoneVerifiedAt?:string;subscriptionCheckedAt?:string}|null}>(`/admin/users/${encodeURIComponent(id)}/telegram-contact`,{token});},
- users(q:string,page:number,token:string){return request<{users:any[];total:number}>(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`,{token});},
- editUser(id:string,input:any,token:string){return request<{user:any}>(`/admin/users/${encodeURIComponent(id)}`,{method:"PATCH",token,body:JSON.stringify(input)});},
+ users(q:string,page:number,token:string){return request<{users:AdminUser[];total:number}>(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`,{token});},
+ userDetails(id: string, token: string) {
+  return request<{ user: AdminUser }>(`/admin/users/${encodeURIComponent(id)}`, { token });
+ },
+ editUser(id: string, input: { expectedUpdatedAt: string; reason: string; profile: unknown }, token: string) {
+  return request<{ user: AdminUser }>(`/admin/users/${encodeURIComponent(id)}`, { method: "PATCH", token, body: JSON.stringify(input) });
+ },
  resetBalances(input:{kind:"money"|"coins";confirmation:string;reason:string;operationId:string},token:string){return request<{count:number}>("/admin/users/reset-balances",{method:"POST",token,body:JSON.stringify(input)});},
   withdrawals(input: { status?: string; before?: string }, token: string) {
     const params = new URLSearchParams({ limit: "20", ...(input.status ? { status: input.status } : {}), ...(input.before ? { before: input.before } : {}) });

@@ -27,6 +27,9 @@ export function gameCoinReward(score: number, _won = false, gameKey?: string): n
   if (gameKey === "hangman") return Number.isFinite(score) ? Math.max(0, Math.min(1000, Math.round(score))) : 0;
   if (gameKey === "bottle-flip") return _won ? 50 : 0;
   const safeScore = Number.isFinite(score) ? Math.max(0, Math.round(score)) : 0;
+  // Light Code keeps the raw round score for records, but its coin reward is
+  // one-for-one and capped. Ending on a mistake does not erase cleared rounds.
+  if (gameKey === "light-sequence") return Math.min(MAX_GAME_COIN_REWARD, safeScore);
   if (safeScore === 0) return 0;
   const normalized = safeScore * 1000 / (GAME_REWARD_TARGETS[gameKey ?? ""] ?? 1000);
   // Earn from zero, proportionally to actions. Above the nominal full-round

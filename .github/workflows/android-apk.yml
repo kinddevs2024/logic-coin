@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_only:
-        description: 'Skip broad legacy checks; focused notification checks always run'
+        description: 'Skip broad legacy checks; focused native regressions always run'
         type: boolean
         required: false
         default: false
@@ -116,12 +116,12 @@ jobs:
           npm run typecheck --workspace frontend
           npm test --workspace frontend
 
-      - name: Verify chat notification routing and cache recovery
+      - name: Verify native notifications, games, and rewarded ads
         run: |
           npm run typecheck --workspace frontend
           cd frontend
-          npx eslint src/lib/chat-notification-sync.ts src/lib/chat-notification-sync.web.ts src/lib/notification-payload.ts src/lib/cache-boot.ts src/lib/notifications.ts src/lib/notifications.web.ts src/components/native-data-cache-boundary.tsx src/components/chat/chat-runtime.tsx src/components/chat/conversation-pane.tsx src/app/_layout.tsx
-          npx vitest run tests/chat-notification-read.test.ts tests/chat-notification-native-compat.test.ts tests/notification-open.test.ts
+          npx eslint src/lib/chat-notification-sync.ts src/lib/chat-notification-sync.web.ts src/lib/notification-payload.ts src/lib/cache-boot.ts src/lib/notifications.ts src/lib/notifications.web.ts src/components/native-data-cache-boundary.tsx src/components/chat/chat-runtime.tsx src/components/chat/conversation-pane.tsx src/app/_layout.tsx src/lib/yandex-rewarded.native.ts src/lib/rewarded-ad-provider.sdk.ts tests/yandex-rewarded-race.test.ts
+          npx vitest run tests/chat-notification-read.test.ts tests/chat-notification-native-compat.test.ts tests/notification-open.test.ts tests/yandex-rewarded-race.test.ts tests/light-sequence.test.ts tests/reward-calibration.test.ts tests/bottle-flip.test.ts tests/progress-sync-queue.test.ts
 
       - name: Verify Android JavaScript bundle
         working-directory: frontend
@@ -142,14 +142,22 @@ jobs:
           assert metadata['expo.modules.updates.EXPO_UPDATE_URL']=='https://logic-coin.online/updates'
           assert metadata.get('expo.modules.updates.DISABLE_ANTI_BRICKING_MEASURES','false')=='false'
           cfg=json.loads(pathlib.Path('frontend/app.json').read_text())['expo']
-          assert cfg['android']['versionCode']==23
+          assert cfg['version']=='1.4.5' and cfg['android']['versionCode']==24
+          assert cfg['android']['package']=='com.kinddevs.logiccoin'
+          properties=dict(line.split('=',1) for line in pathlib.Path('frontend/android/gradle.properties').read_text().splitlines() if '=' in line and not line.startswith('#'))
+          for key in ('android.enableMinifyInReleaseBuilds','android.enableShrinkResourcesInReleaseBuilds'):
+              assert properties[key]=='true', f'{key} must be enabled'
+          assert set(properties['reactNativeArchitectures'].split(','))=={'arm64-v8a','armeabi-v7a'}
+          java=root/'java/com/kinddevs/logiccoin'
+          assert 'add(YandexAdsPackage())' in (java/'MainApplication.kt').read_text()
+          assert (java/'YandexAdsModule.java').is_file() and (java/'YandexAdsPackage.java').is_file()
           assert (root/'java/com/kinddevs/logiccoin/chatnotify/ReadFirebaseMessagingService.kt').exists()
           assert any(x.get(ns+'name')=='com.kinddevs.logiccoin.chatnotify.ReadFirebaseMessagingService' for x in app.findall('service'))
           assert any(x.get(ns+'name')=='com.kinddevs.logiccoin.chatnotify.ReadNotificationsReceiver' for x in app.findall('receiver'))
           pathlib.Path('artifacts/unsigned').mkdir(parents=True,exist_ok=True)
           (pathlib.Path('artifacts/unsigned')/'native-strings.xml').write_bytes((root/'res/values/strings.xml').read_bytes())
           (pathlib.Path('artifacts/unsigned')/'native-update-config.json').write_text(json.dumps(metadata,indent=2))
-          print('Independent update URL, version code 23 and update safety verified.')
+          print('Independent update URL, Android 1.4.5 / 24, both ARM ABIs, R8 and resource shrinking verified.')
           PY
 
       - name: Test native notification cancellation and delivery ordering
@@ -195,6 +203,9 @@ jobs:
           fi
           cp "${release_apk}" artifacts/unsigned/logic-coin-unsigned.apk
           cp "${release_aab}" artifacts/unsigned/logic-coin-unsigned.aab
+          mapping=frontend/android/app/build/outputs/mapping/release/mapping.txt
+          test -s "$mapping"
+          cp "$mapping" artifacts/unsigned/r8-mapping.txt
 
       - name: Upload unsigned Android artifacts
         uses: actions/upload-artifact@v4
@@ -206,6 +217,7 @@ jobs:
             artifacts/unsigned/native-strings.xml
             artifacts/unsigned/native-update-config.json
             artifacts/unsigned/yandex-sdk-dependencies.txt
+            artifacts/unsigned/r8-mapping.txt
           if-no-files-found: error
           retention-days: 7
 
@@ -237,6 +249,9 @@ jobs:
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
+      - name: Checkout release verification script
+        uses: actions/checkout@v4
+
       - name: Validate signing configuration
         shell: bash
         run: |
@@ -299,7 +314,12 @@ jobs:
             --key-pass "pass:${ANDROID_KEY_PASSWORD}" \
             --out artifacts/signed/logic-coin.apk \
             "${RUNNER_TEMP}/logic-coin-aligned.apk"
-          "${build_tools}/apksigner" verify --verbose --print-certs artifacts/signed/logic-coin.apk
+          "${build_tools}/apksigner" verify --verbose --print-certs artifacts/signed/logic-coin.apk | tee artifacts/signed/apk-certificate.txt
+          signer="$(awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print toupper($2)}' artifacts/signed/apk-certificate.txt)"
+          test "$signer" = '85DA6343AA98CDDB89A8090DADFFF7525441BA5CD97503E429F5074FD16E3822'
+          "${build_tools}/aapt" dump badging artifacts/signed/logic-coin.apk > artifacts/signed/apk-badging.txt
+          grep -Eq "^package: name='com[.]kinddevs[.]logiccoin' versionCode='24' versionName='1[.]4[.]5'" artifacts/signed/apk-badging.txt
+          python3 scripts/android-release-proof.py artifacts/signed/logic-coin.apk artifacts/unsigned/r8-mapping.txt > artifacts/signed/android-native-proof.json
           "${build_tools}/zipalign" -c -P 16 4 artifacts/signed/logic-coin.apk
 
           cp "${release_aab}" artifacts/signed/logic-coin.aab
@@ -343,5 +363,8 @@ jobs:
             artifacts/signed/logic-coin.apk.sha256
             artifacts/signed/logic-coin.aab
             artifacts/signed/logic-coin.aab.sha256
+            artifacts/signed/android-native-proof.json
+            artifacts/signed/apk-certificate.txt
+            artifacts/signed/apk-badging.txt
           if-no-files-found: error
           retention-days: 30
