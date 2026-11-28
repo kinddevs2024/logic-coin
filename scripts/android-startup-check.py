@@ -1,19 +1,24 @@
 """Exercise the signed release on a disposable emulator, without creating accounts."""
 import json
+import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import time
+import uuid
 import xml.etree.ElementTree as ET
 
 PACKAGE = "com.kinddevs.logiccoin"
 EVIDENCE = Path("artifacts/startup")
 EVIDENCE.mkdir(parents=True, exist_ok=True)
 results = []
+serial = None
 
 
 def adb(*args, timeout=60, check=True):
-    result = subprocess.run(["adb", *args], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+    command = ["adb", "-s", serial] if serial else ["adb"]
+    result = subprocess.run([*command, *args], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
     if check and result.returncode:
         raise RuntimeError(f"adb {args[0]} failed: {result.stderr or result.stdout}")
     return result.stdout
@@ -62,7 +67,7 @@ def tap(node):
 
 
 def capture(name):
-    (EVIDENCE / f"{name}.png").write_bytes(subprocess.check_output(["adb", "exec-out", "screencap", "-p"], timeout=30))
+    (EVIDENCE / f"{name}.png").write_bytes(subprocess.check_output(["adb", "-s", serial, "exec-out", "screencap", "-p"], timeout=30))
 
 
 def launch():
@@ -103,32 +108,92 @@ def installed_property(name):
     return match.group(1).strip()
 
 
+def apk_properties(apk):
+    sdk = Path(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT") or "/nonexistent")
+    tools = sorted(sdk.glob("build-tools/*/aapt"), key=lambda item: tuple(int(part) for part in re.findall(r"\d+", item.parent.name)))
+    if not tools:
+        raise RuntimeError("Android build-tools/aapt is required to verify the actual signed APK")
+    output = subprocess.check_output([str(tools[-1]), "dump", "badging", str(apk)], text=True, timeout=60)
+    match = re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", output, re.MULTILINE)
+    if not match or match.group(1) != PACKAGE:
+        raise RuntimeError("Unexpected APK application ID or missing version")
+    return {"package": match.group(1), "versionCode": int(match.group(2)), "versionName": match.group(3)}
+
+
+def installed_state():
+    return {
+        "versionCode": int(installed_property("versionCode").split()[0]),
+        "versionName": installed_property("versionName"),
+        "userId": installed_property("userId").split()[0],
+        "firstInstallTime": installed_property("firstInstallTime"),
+        "dataDir": installed_property("dataDir"),
+    }
+
+
+def verify_installed(expected, name):
+    actual = installed_state()
+    if any(actual[key] != expected[key] for key in ("versionCode", "versionName")):
+        raise RuntimeError(f"Installed version differs from the signed APK: {name}")
+    (EVIDENCE / f"{name}-package.json").write_text(json.dumps(actual, indent=2), encoding="utf-8")
+    return actual
+
+
+def block_app_network(uid):
+    # The rooted emulator is disposable. Block only this app's UID, leaving ADB
+    # usable and preventing production APIs, ads and OTA from changing the test.
+    if not uid.isdecimal():
+        raise RuntimeError("Invalid app UID")
+    for tool in ("iptables", "ip6tables"):
+        adb("shell", tool, "-I", "OUTPUT", "1", "-m", "owner", "--uid-owner", uid, "-j", "REJECT")
+    (EVIDENCE / "network-policy.json").write_text(json.dumps({"appUid": uid, "ipv4": "blocked", "ipv6": "blocked", "tests": "embedded APK, no production requests"}, indent=2), encoding="utf-8")
+
+
 try:
+    devices = [line.split() for line in adb("devices").splitlines()[1:] if line.strip()]
+    if len(devices) != 1 or devices[0][1] != "device" or not devices[0][0].startswith("emulator-"):
+        raise RuntimeError("Use exactly one disposable Android emulator, never a personal phone")
+    serial = devices[0][0]
+    if adb("shell", "getprop", "ro.kernel.qemu").strip() != "1":
+        raise RuntimeError("This test clears data and requires a disposable emulator")
+    adb("root")
+    adb("wait-for-device")
+    if adb("shell", "id", "-u").strip() != "0":
+        raise RuntimeError("A rooted google_apis emulator is required for isolated upgrade QA")
     abi = adb("shell", "getprop", "ro.product.cpu.abilist").strip()
     (EVIDENCE / "device.txt").write_text(adb("shell", "getprop"), encoding="utf-8")
     if "arm64-v8a" not in abi:
         raise RuntimeError(f"Test device cannot run the ARM release: {abi}")
     previous = Path("artifacts/previous/logic-coin.apk")
-    previous_ready = False
+    release = Path("artifacts/release/logic-coin.apk")
+    expected = apk_properties(release)
+    sentinel = f"/data/user/0/{PACKAGE}/.release-upgrade-qa"
+    sentinel_value = uuid.uuid4().hex
     if previous.exists():
+        previous_expected = apk_properties(previous)
+        if expected["versionCode"] <= previous_expected["versionCode"]:
+            raise RuntimeError("Candidate versionCode must be greater than the previous release")
         adb("install", "-r", str(previous), timeout=180)
-        original_install_time = installed_property("firstInstallTime")
-        try:
-            launch()
-            onboarding("previous")
-            previous_ready = True
-            results.append("Previous release reaches its login screen")
-        except RuntimeError as error:
-            results.append(f"Previous release startup failed (baseline only): {error}")
-            (EVIDENCE / "previous-crash.txt").write_text(adb("logcat", "-d", "-b", "crash"), encoding="utf-8")
+        before = verify_installed(previous_expected, "previous")
+        block_app_network(before["userId"])
+        launch()
+        onboarding("previous")
+        results.append("Previous signed release reaches its login screen offline")
+        adb("shell", "am", "force-stop", PACKAGE)
+        adb("shell", f"printf %s {shlex.quote(sentinel_value)} > {shlex.quote(sentinel)}")
     adb("logcat", "-b", "all", "-c")
-    adb("install", "-r", "artifacts/release/logic-coin.apk", timeout=180)
+    adb("install", "-r", str(release), timeout=180)
+    after = verify_installed(expected, "candidate")
     if previous.exists():
-        if installed_property("firstInstallTime") != original_install_time:
-            raise RuntimeError("Package was reinstalled instead of updated in place")
+        if any(after[key] != before[key] for key in ("userId", "firstInstallTime", "dataDir")):
+            raise RuntimeError("Upgrade changed the app UID, first install time or data directory")
+        if adb("shell", "cat", sentinel).strip() != sentinel_value:
+            raise RuntimeError("In-place upgrade did not preserve the app data sentinel")
+        adb("shell", "rm", sentinel)
         launch()
         onboarding("updated")
-        results.append("In-place update preserves firstInstallTime and renders login")
+        results.append(f"In-place update {previous_expected['versionCode']} -> {expected['versionCode']} preserves UID, firstInstallTime and app data, and renders login offline")
+    else:
+        block_app_network(after["userId"])
     # This emulator belongs exclusively to this CI job; no real user data exists.
     adb("shell", "pm", "clear", PACKAGE)
     launch()
@@ -148,6 +213,7 @@ try:
     (EVIDENCE / "crash-buffer.txt").write_text(crashes, encoding="utf-8")
     if PACKAGE in crashes:
         raise RuntimeError("App crash found in Android crash buffer")
+    (EVIDENCE / "summary.json").write_text(json.dumps({"passed": True, "release": expected, "previous": previous_expected if previous.exists() else None, "productionNetworkBlocked": True, "adLoadOrShowTested": False, "checks": results}, indent=2), encoding="utf-8")
     print("\n".join(results))
 except Exception:
     try:
